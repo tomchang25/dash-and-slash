@@ -1,6 +1,5 @@
 # small_enemy_idle_state.gd
-# Idle state — waits for cooldown/stagger to clear, then decides next action:
-# attack if in range, reposition if not.
+# Idle state — waits for cooldown/stagger to clear, then commits the next action.
 extends SmallEnemyState
 
 func _init() -> void:
@@ -17,7 +16,11 @@ func _physics_update(_delta: float) -> void:
     if enemy.cooldown_active() or enemy.is_staggered():
         enemy.velocity = Vector2.ZERO
         return
-    if enemy.can_attack():
-        change_state(SmallEnemyStateId.FACE_TARGET)
+    if not enemy.plan_next_action():
+        enemy.velocity = Vector2.ZERO
+        return
+
+    if enemy.has_planned_path():
+        change_state(SmallEnemyStateId.REPOSITION_STEP)
     else:
-        change_state(SmallEnemyStateId.REPOSITION)
+        change_state(SmallEnemyStateId.FACE_ONCE)

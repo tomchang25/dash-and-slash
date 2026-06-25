@@ -71,10 +71,10 @@ tick_enabled = false
 [node name="Idle" type="Node" parent="StateMachine" unique_id=200186374]
 script = ExtResource("9_idle_state")
 
-[node name="Reposition" type="Node" parent="StateMachine" unique_id=1894023202]
+[node name="RepositionStep" type="Node" parent="StateMachine" unique_id=1894023202]
 script = ExtResource("10_reposition_state")
 
-[node name="FaceTarget" type="Node" parent="StateMachine" unique_id=1246309414]
+[node name="FaceOnce" type="Node" parent="StateMachine" unique_id=1246309414]
 script = ExtResource("11_face_state")
 
 [node name="Telegraph" type="Node" parent="StateMachine" unique_id=1744860453]

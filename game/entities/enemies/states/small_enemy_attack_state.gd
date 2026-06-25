@@ -15,15 +15,13 @@ func _enter() -> void:
     var front_tile := enemy.get_grid_pos() + Vector2i(int(enemy.get_facing().x), int(enemy.get_facing().y))
     var hit_pos := grid.cell_center(front_tile)
 
-    if enemy.global_position.distance_squared_to(hit_pos) > enemy.tile_size() * 2.0:
-        enemy.global_position = hit_pos
-
     enemy.set_attack_hitbox_position(hit_pos)
     enemy.enable_attack_hitbox()
 
     _timer = Timer.new()
     _timer.one_shot = true
     _timer.timeout.connect(_on_timer_timeout)
+    # node-src: timer
     add_child(_timer)
     _timer.start(enemy.ATTACK_DURATION)
 

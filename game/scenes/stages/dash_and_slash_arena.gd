@@ -20,6 +20,20 @@ const WAVE_GAP := 1.2
 const GRASS_TILE_SIZE := 16.0
 const GRASS_SOURCE_ID := 0
 const GRASS_ATLAS_SIZE := Vector2i(16, 16)
+const ENEMY_SPAWN_OFFSETS := [
+    Vector2i(2, 0),
+    Vector2i(-2, 0),
+    Vector2i(0, 2),
+    Vector2i(0, -2),
+    Vector2i(2, 1),
+    Vector2i(-2, 1),
+    Vector2i(1, 2),
+    Vector2i(1, -2),
+    Vector2i(2, -1),
+    Vector2i(-2, -1),
+    Vector2i(-1, 2),
+    Vector2i(-1, -2),
+]
 
 @onready var _grass_tiles: TileMapLayer = $TileMapLayer
 @onready var _grid: GridArena = $GridArena
@@ -124,8 +138,8 @@ func _begin_wave(wave: int) -> void:
 
 func _spawn_enemy(scene: PackedScene, index: int) -> void:
     var enemy := scene.instantiate()
-    var spawn_offset := Vector2.RIGHT.rotated(TAU * index / max(WAVES[_current_wave]["count"], 1)) * 100.0
-    enemy.global_position = _player.global_position + spawn_offset
+    var spawn_cell := _choose_enemy_spawn_cell(index)
+    enemy.global_position = _grid.cell_center(spawn_cell)
 
     if enemy.has_method("setup"):
         enemy.setup(_grid, _player)
@@ -146,6 +160,33 @@ func _spawn_enemy(scene: PackedScene, index: int) -> void:
                 g.guard_changed.connect(_on_boss_guard_changed)
                 g.stagger_started.connect(func() -> void: _boss_guard_label.text = "GUARD BROKEN — STAGGERED!")
                 g.stagger_ended.connect(func() -> void: _on_boss_guard_changed(g.current(), g.max_guard))
+
+
+func _choose_enemy_spawn_cell(index: int) -> Vector2i:
+    var player_cell := _grid.world_to_grid(_player.global_position)
+    for i in ENEMY_SPAWN_OFFSETS.size():
+        var offset: Vector2i = ENEMY_SPAWN_OFFSETS[(index + i) % ENEMY_SPAWN_OFFSETS.size()]
+        var candidate := player_cell + offset
+        if _is_enemy_spawn_cell_available(candidate, player_cell):
+            return candidate
+
+    var best := Vector2i(-1, -1)
+    var best_distance := INF
+    for x in GridArena.GRID_SIZE.x:
+        for y in GridArena.GRID_SIZE.y:
+            var candidate := Vector2i(x, y)
+            if not _is_enemy_spawn_cell_available(candidate, player_cell):
+                continue
+            var distance := Vector2(candidate).distance_squared_to(Vector2(player_cell))
+            if distance < best_distance:
+                best_distance = distance
+                best = candidate
+
+    return best if best != Vector2i(-1, -1) else player_cell
+
+
+func _is_enemy_spawn_cell_available(cell: Vector2i, player_cell: Vector2i) -> bool:
+    return cell != player_cell and _grid.is_in_bounds(cell) and _grid.is_empty(cell)
 
 
 func _on_enemy_died(enemy: Entity) -> void:

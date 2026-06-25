@@ -7,8 +7,8 @@ extends State
 enum SmallEnemyStateId {
     NULL = -1,
     IDLE = 0,
-    REPOSITION = 1,
-    FACE_TARGET = 2,
+    REPOSITION_STEP = 1,
+    FACE_ONCE = 2,
     TELEGRAPH = 3,
     ATTACK = 4,
     RECOVERY = 5,

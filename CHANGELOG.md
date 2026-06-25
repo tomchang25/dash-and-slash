@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Enemy Pathfinding
+
+- 2026-06-25 — Enemy Add BFS pathfinding to small enemy AI with grid reservations, step-by-step path consumption, and grid-based arena spawning
+
 ### placeholder SFX pipeline
 
 - 2026-06-25 — SFX Added deterministic synthesis pipeline (YAML patch → WAV + UiAudioEvent .tres, 44.1 kHz 16-bit mono, -3 dBFS, 5 ms fade-out) with generation standard, AI prompt pack, and 8 placeholder patches (ui_click, ui_hover, ui_confirm, ui_cancel, hit_light, dash, pickup, error)

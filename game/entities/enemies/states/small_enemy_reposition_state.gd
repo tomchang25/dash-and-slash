@@ -1,56 +1,50 @@
 # small_enemy_reposition_state.gd
-# Reposition state — grid-based movement toward the target using axis-prioritized
-# pathfinding. Transitions to FACE_TARGET when in attack range, or IDLE when
-# movement completes.
+# Reposition step state — follows one committed grid path without re-targeting.
 extends SmallEnemyState
 
+var _target_cell: Vector2i
+var _has_step: bool = false
+
+
 func _init() -> void:
-    state_id = SmallEnemyStateId.REPOSITION
+    state_id = SmallEnemyStateId.REPOSITION_STEP
+
+
+func _enter() -> void:
+    enemy.velocity = Vector2.ZERO
+    _has_step = enemy.has_planned_path()
+    if _has_step:
+        _target_cell = enemy.consume_next_planned_cell()
+        enemy.face_toward_cell(_target_cell)
 
 
 func _physics_update(_delta: float) -> void:
-    if enemy.can_attack():
+    if not _has_step:
         enemy.velocity = Vector2.ZERO
-        change_state(SmallEnemyStateId.FACE_TARGET)
+        if enemy.has_planned_action():
+            change_state(SmallEnemyStateId.FACE_ONCE)
+        else:
+            change_state(SmallEnemyStateId.IDLE)
         return
 
     var grid: GridArena = enemy.get_grid()
-    var current_cell := enemy.get_grid_pos()
-    var target_cell := grid.world_to_grid(enemy.get_target().global_position)
-    var diff := target_cell - current_cell
-
-    var move := Vector2i(0, 0)
-    if abs(diff.x) > abs(diff.y):
-        move = Vector2i(signi(diff.x), 0)
-    else:
-        move = Vector2i(0, signi(diff.y))
-
-    var next := current_cell + move
-    if not grid.is_in_bounds(next) or grid.is_occupied(next):
-        # try alternate axis
-        if abs(diff.y) > 0:
-            var alt := current_cell + Vector2i(0, signi(diff.y))
-            if grid.is_in_bounds(alt) and not grid.is_occupied(alt):
-                move = Vector2i(0, signi(diff.y))
-            elif abs(diff.x) > 0:
-                var alt2 := current_cell + Vector2i(signi(diff.x), 0)
-                if grid.is_in_bounds(alt2) and not grid.is_occupied(alt2):
-                    move = Vector2i(signi(diff.x), 0)
-                else:
-                    move = Vector2i.ZERO
-
-    if move == Vector2i.ZERO:
-        enemy.velocity = Vector2.ZERO
-        return
-
-    next = current_cell + move
-    var target_world := grid.cell_center(next)
+    var target_world := grid.cell_center(_target_cell)
     var dir := (target_world - enemy.global_position).normalized()
     enemy.velocity = dir * enemy.MOVE_SPEED
 
-    if enemy.global_position.distance_squared_to(target_world) < enemy.tile_size() * 0.25:
-        enemy.set_grid_pos(next)
+    var arrival_threshold := enemy.tile_size() * 0.1
+    if enemy.global_position.distance_squared_to(target_world) < arrival_threshold * arrival_threshold:
+        enemy.set_grid_pos(_target_cell)
         enemy.global_position = target_world
         enemy.register_grid_occupant()
         enemy.velocity = Vector2.ZERO
-        change_state(SmallEnemyStateId.IDLE)
+
+        if enemy.has_planned_path():
+            _target_cell = enemy.consume_next_planned_cell()
+            enemy.face_toward_cell(_target_cell)
+            var next_world := grid.cell_center(_target_cell)
+            var next_dir := (next_world - enemy.global_position).normalized()
+            enemy.velocity = next_dir * enemy.MOVE_SPEED
+        else:
+            enemy.clear_planned_action()
+            change_state(SmallEnemyStateId.FACE_ONCE)

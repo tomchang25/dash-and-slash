@@ -17,6 +17,7 @@ const WALL_THICKNESS := 128.0
 @export var grid_line_width: float = 1.0
 
 var _occupants: Dictionary = { } # { Object: Array[Vector2i] }
+var _reservations: Dictionary = { } # { Object: Vector2i }
 var _telegraphs: Dictionary = { } # { (x,y): TelegraphPhase }
 var _player_grid: Vector2i = Vector2i.ZERO
 var _arena_visuals: Node2D
@@ -138,12 +139,33 @@ func is_occupied(cell: Vector2i) -> bool:
     return false
 
 
+func is_reserved(cell: Vector2i) -> bool:
+    return cell in _reservations.values()
+
+
 func register_occupant(entity: Object, tiles: Array[Vector2i]) -> void:
     _occupants[entity] = tiles.duplicate()
 
 
 func unregister_occupant(entity: Object) -> void:
     _occupants.erase(entity)
+    _reservations.erase(entity)
+
+
+func reserve_cell(entity: Object, cell: Vector2i) -> void:
+    _reservations[entity] = cell
+
+
+func clear_reservation(entity: Object) -> void:
+    _reservations.erase(entity)
+
+
+func is_blocked(cell: Vector2i) -> bool:
+    return is_occupied(cell) or is_reserved(cell)
+
+
+func is_empty(cell: Vector2i) -> bool:
+    return not is_blocked(cell)
 
 
 func get_occupants() -> Array:
@@ -160,14 +182,14 @@ func get_player_cell() -> Vector2i:
 
 func nearest_empty_cell(near: Vector2) -> Vector2i:
     var center := world_to_grid(near)
-    if not is_occupied(center) and is_in_bounds(center):
+    if is_empty(center) and is_in_bounds(center):
         return center
     var best: Vector2i = Vector2i.ZERO
     var best_dist := 9999.0
     for x in GRID_SIZE.x:
         for y in GRID_SIZE.y:
             var c := Vector2i(x, y)
-            if not is_occupied(c):
+            if is_empty(c):
                 var d := Vector2(c).distance_squared_to(Vector2(center))
                 if d < best_dist:
                     best_dist = d
