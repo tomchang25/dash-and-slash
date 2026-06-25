@@ -37,12 +37,14 @@ data/             Designer resources
   yaml/           Human-authored YAML source data
   tres/           Generated from yaml — do not hand-edit (gitignored)
     examples/
+    audio_events/
 dev/              Development tooling and documentation
   docs/           Architecture docs (README + 3-level rules)
   skills/         AI coding references (commit format, GDScript patterns)
   standards/      Coding conventions, naming, scene architecture, enforcement
-  tools/          YAML→TRES pipeline (Python scripts + entity specs)
+  tools/          YAML→TRES, placeholder SFX, localization, lint scripts
     prompts/      Authoring guides (how to add a new entity type)
+      ai_prompt_packs/  AI prompt packs (SFX placeholder generation)
     tres_lib/     Pipeline library (spec protocol, uid, writer, registry)
 game/             Game feature scenes
   example/        Template demo scene (full chain: registry → save → routing)
@@ -69,6 +71,8 @@ When adding a new registry, insert it after `AudioManager` and before `SaveManag
 ## Data Pipeline
 
 Entities are authored in `data/yaml/*.yaml`, converted to `.tres` via `dev/tools/yaml_to_tres.py`. Validate with `dev/tools/validate_yaml.py`. Reverse with `dev/tools/tres_to_yaml.py`.
+
+Placeholder SFX are authored in `data/yaml/sfx/*.yaml` and rendered via `dev/tools/render_sfx.py` into deterministic WAV files plus `UiAudioEvent` `.tres` resources. Use `dev/tools/prompts/yaml_generation/sfx.md` for AI-authored placeholder patches.
 
 The `.tres` output directories are gitignored — run the pipeline on every fresh checkout before opening the project.
 
@@ -122,6 +126,7 @@ var payload = GameManager.consume_payload()
 - **GDScript structure & scene architecture**: scripts follow `dev/standards/gdscript_structure_standard.md`; persistent scene nodes and runtime `add_child()` exceptions follow `dev/standards/scene_node_source_standard.md`; reusable component layout/preview rules follow `dev/standards/component_scene_standard.md`. Node-source and no-`[connection]` rules are **lint-enforced** — see `dev/standards/standards_enforcement.md`. Run `python dev/tools/lint_standards.py --files <changed>` before finishing if you are an agent without the in-loop lint hook.
 - **Commits**: conventional commits format. See `dev/skills/conventional_commits.md`.
 - **StateMachine**: behaviour-delegation pattern — states own logic, entity provides a public query API. See `dev/skills/state_machine_pattern.md`.
+- **Audio events**: always use `AudioManager.play_event()` with an `AudioEvent` resource. Never call `play_sfx_2d()`/`play_ui()`/`play_music()` directly. See `dev/skills/audio_event_usage.md`.
 - **Iterate resources, not ids**: pass Resource refs outside serialization boundaries. String ids are for save/load only.
 - **Docstrings**: every `.gd` starts with `# filename` + one-line purpose. All public functions and complex private functions get a `##` GDDoc comment. Never strip existing comments when editing.
 - **Docs layering**: 3 levels, each fact lives in exactly one. L1 vision (≤5 files, rarely changes), L2 systems/plans (design intent + flow, present tense), L3 detail (code docstrings). Full rules in `dev/docs/README.md`.
@@ -130,6 +135,7 @@ var payload = GameManager.consume_payload()
 ## Don'ts
 
 - Don't hand-edit `.tres` files under `data/tres/` — use the YAML pipeline.
+- Don't hand-edit generated files under `assets/audio/placeholder/` or `data/tres/audio_events/` — use the source YAML pipelines.
 - Don't add display-name wrappers or fallback-to-id accessors on registries.
 - Don't put code-level detail (function names, field lists) in `dev/docs/systems/` — that belongs in code comments.
 - Don't keep a living "Done" list anywhere except `CHANGELOG.md`.
