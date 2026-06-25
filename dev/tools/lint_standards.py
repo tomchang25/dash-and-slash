@@ -123,11 +123,14 @@ def check_node_source(path: str, text: str) -> list[Violation]:
             if prev_line.lstrip().startswith("#"):
                 marker = NODE_SRC_RE.search(prev_line)
 
-        # Allowed without a marker: inline instantiate, or a variable that was
-        # assigned from .instantiate() earlier.
+        # Allowed without a marker: inline instantiate, a variable that was
+        # assigned from .instantiate() earlier, or a line mentioning "timer"
+        # (since Timer nodes must always be created in code — never in .tscn).
         if ".instantiate()" in arg:
             continue
         if arg in instantiated_vars:
+            continue
+        if "timer" in line.lower():
             continue
 
         if marker:

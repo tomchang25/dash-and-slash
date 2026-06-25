@@ -109,7 +109,7 @@ my_container.add_child(thing)
 
 Tags map 1:1 to the permitted-exceptions table above: `instance`, `ephemeral`, `drawn`, `debug`, `timer`.
 
-`add_child(SomeScene.instantiate())` and any local variable assigned from `.instantiate()` need no marker; they are recognised automatically.
+`add_child(SomeScene.instantiate())`, any local variable assigned from `.instantiate()`, and any line containing the word "timer" (case-insensitive) need no marker; they are recognised automatically.
 
 An unmarked, non-instantiate `add_child` is a lint failure. The marker does not prove the node is genuinely ephemeral; it forces the author to declare intent so a reviewer can see and judge the claim. See `dev/standards/standards_enforcement.md`.
 
