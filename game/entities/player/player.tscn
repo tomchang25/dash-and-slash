@@ -12,17 +12,17 @@
 [ext_resource type="Script" uid="uid://bofs7pwabjrml" path="res://game/entities/player/states/player_dash_state.gd" id="10_dash_state"]
 
 [sub_resource type="CircleShape2D" id="body_shape"]
-radius = 14.0
+radius = 56.0
 
 [sub_resource type="CircleShape2D" id="hurt_shape"]
-radius = 16.0
+radius = 64.0
 
 [sub_resource type="CapsuleShape2D" id="attack_shape"]
-radius = 16.0
-height = 52.0
+radius = 64.0
+height = 208.0
 
 [sub_resource type="RectangleShape2D" id="dash_shape"]
-size = Vector2(64, 36)
+size = Vector2(256, 144)
 
 [node name="Player" type="CharacterBody2D" unique_id=1806983416]
 collision_layer = 0
@@ -32,14 +32,14 @@ attack_sfx_event = ExtResource("2_igs2l")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=863972589]
 color = Color(0.3, 0.7, 0.9, 1)
-polygon = PackedVector2Array(-12, -12, 12, -12, 12, 12, -12, 12)
+polygon = PackedVector2Array(-48, -48, 48, -48, 48, 48, -48, 48)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=950988100]
 shape = SubResource("body_shape")
 
 [node name="FacingArrow" type="Polygon2D" parent="." unique_id=135999653]
 color = Color(1, 1, 1, 0.7)
-polygon = PackedVector2Array(0, 0, -6, 20, 6, 20)
+polygon = PackedVector2Array(0, 0, -24, 80, 24, 80)
 
 [node name="Health" type="Node" parent="." unique_id=1228953014]
 script = ExtResource("2_health")
@@ -74,7 +74,7 @@ shape = SubResource("dash_shape")
 [node name="AttackVfx" type="Polygon2D" parent="." unique_id=1423578965]
 visible = false
 color = Color(0.7, 0.85, 1, 0.5)
-polygon = PackedVector2Array(-18, -28, 18, -28, 18, 28, -18, 28)
+polygon = PackedVector2Array(-72, -112, 72, -112, 72, 112, -72, 112)
 
 [node name="StateMachine" type="Node" parent="." unique_id=2063022238 node_paths=PackedStringArray("initial_state")]
 script = ExtResource("6_sm")

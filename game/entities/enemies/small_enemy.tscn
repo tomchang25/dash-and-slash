@@ -16,10 +16,10 @@
 [ext_resource type="Script" uid="uid://bcs8eblexbkwn" path="res://game/entities/enemies/states/small_enemy_staggered_state.gd" id="15_staggered_state"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
-size = Vector2(28, 28)
+size = Vector2(112, 112)
 
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
-size = Vector2(30, 30)
+size = Vector2(120, 120)
 
 [node name="SmallEnemy" type="CharacterBody2D" unique_id=694366884]
 collision_layer = 0
@@ -28,11 +28,11 @@ script = ExtResource("1_enemy")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1340798399]
 color = Color(0.9, 0.4, 0.3, 1)
-polygon = PackedVector2Array(-14, -14, 14, -14, 14, 14, -14, 14)
+polygon = PackedVector2Array(-56, -56, 56, -56, 56, 56, -56, 56)
 
 [node name="FacingArrow" type="Polygon2D" parent="." unique_id=1441693777]
 color = Color(1, 0.8, 0.2, 0.7)
-polygon = PackedVector2Array(0, 0, -5, 16, 5, 16)
+polygon = PackedVector2Array(0, 0, -20, 64, 20, 64)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1236867143]
 shape = SubResource("body_shape")

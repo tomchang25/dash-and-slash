@@ -6,16 +6,16 @@
 class_name Player
 extends Entity
 
-const MOVE_SPEED := 220.0
-const DASH_SPEED := 500.0
+const MOVE_SPEED := 440.0
+const DASH_SPEED := 1000.0
 const DASH_DURATION := 0.2
 const DASH_COOLDOWN := 2.0
 const ATTACK_DURATION := 0.25
 const NORMAL_ATTACK_DAMAGE := 10.0
 const DASH_ATTACK_DAMAGE := 15.0
-const ATTACK_RANGE := 38.0
-const ATTACK_CAPSULE_RADIUS := 16.0
-const ATTACK_CAPSULE_HEIGHT := 52.0
+const ATTACK_RANGE := 152.0
+const ATTACK_CAPSULE_RADIUS := 64.0
+const ATTACK_CAPSULE_HEIGHT := 208.0
 
 # -- Exports --------------------------------------------------------------------
 @export var attack_sfx_event: SpatialAudioEvent
