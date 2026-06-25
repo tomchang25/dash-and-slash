@@ -1,0 +1,32 @@
+sound_id: dash
+seed: 47
+variant_count: 2
+source:
+  waveform: noise
+  duty_cycle: 0.5
+pitch:
+  start_hz: 440
+  end_hz: 440
+  slide_curve: 0.0
+  vibrato_depth: 0.0
+  vibrato_rate: 0.0
+  arpeggio_shifts: []
+  arpeggio_step_time: 0.0
+envelope:
+  attack_s: 0.004
+  decay_s: 0.04
+  sustain_s: 0.02
+  release_s: 0.04
+  sustain_level: 0.35
+  sustain_punch: 0.4
+color:
+  lp_cutoff_hz: 5000
+  hp_cutoff_hz: 900
+  bitcrush_bits: 16
+playback:
+  volume_db: -11.0
+  pitch_random_min: 0.98
+  pitch_random_max: 1.03
+  limiter_key: "movement"
+  max_per_window: 6
+  window_sec: 0.08

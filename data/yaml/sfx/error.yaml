@@ -1,0 +1,32 @@
+sound_id: error
+seed: 49
+variant_count: 1
+source:
+  waveform: saw
+  duty_cycle: 0.5
+pitch:
+  start_hz: 260
+  end_hz: 120
+  slide_curve: 0.0
+  vibrato_depth: 0.0
+  vibrato_rate: 0.0
+  arpeggio_shifts: []
+  arpeggio_step_time: 0.0
+envelope:
+  attack_s: 0.004
+  decay_s: 0.08
+  sustain_s: 0.0
+  release_s: 0.06
+  sustain_level: 0.3
+  sustain_punch: 0.0
+color:
+  lp_cutoff_hz: 1200
+  hp_cutoff_hz: 0
+  bitcrush_bits: 16
+playback:
+  volume_db: -12.0
+  pitch_random_min: 1.0
+  pitch_random_max: 1.0
+  limiter_key: "error"
+  max_per_window: 4
+  window_sec: 0.15

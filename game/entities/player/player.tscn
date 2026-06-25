@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cmb7ob63li4pp" path="res://game/entities/player/player.gd" id="1_player"]
 [ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/components/health.gd" id="2_health"]
+[ext_resource type="Resource" uid="uid://d2s4krk5m4bxe" path="res://common/audio/presets/sfx/default_slash_audio.tres" id="2_igs2l"]
 [ext_resource type="Script" uid="uid://cp2srbhn2qgpw" path="res://common/gameplay/components/hurtbox.gd" id="3_hurtbox"]
 [ext_resource type="Script" uid="uid://b38x6ajqwstiu" path="res://common/gameplay/components/hitbox.gd" id="4_hitbox"]
 [ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="6_sm"]
@@ -27,6 +28,7 @@ size = Vector2(64, 36)
 collision_layer = 0
 collision_mask = 5
 script = ExtResource("1_player")
+attack_sfx_event = ExtResource("2_igs2l")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=863972589]
 color = Color(0.3, 0.7, 0.9, 1)

@@ -18,7 +18,7 @@ const ATTACK_CAPSULE_RADIUS := 16.0
 const ATTACK_CAPSULE_HEIGHT := 52.0
 
 # -- Exports --------------------------------------------------------------------
-@export var attack_sfx: AudioStream
+@export var attack_sfx_event: SpatialAudioEvent
 
 # -- Node references ----------------------------------------------------------
 @onready var _attack_hitbox: Hitbox = $AttackHitbox
@@ -105,8 +105,8 @@ func disable_dash_hitbox() -> void:
 func begin_normal_attack(aim_dir: Vector2) -> void:
     _position_attack_shape(aim_dir)
     _attack_hitbox.set_enabled(true)
-    if attack_sfx != null:
-        AudioManager.play_sfx_2d(attack_sfx, global_position)
+    if attack_sfx_event != null:
+        AudioManager.play_event(attack_sfx_event, global_position)
     _play_attack_vfx(aim_dir)
 
 
