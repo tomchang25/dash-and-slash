@@ -16,8 +16,9 @@ radius = 14.0
 [sub_resource type="CircleShape2D" id="hurt_shape"]
 radius = 16.0
 
-[sub_resource type="RectangleShape2D" id="attack_shape"]
-size = Vector2(48, 40)
+[sub_resource type="CapsuleShape2D" id="attack_shape"]
+radius = 16.0
+height = 52.0
 
 [sub_resource type="RectangleShape2D" id="dash_shape"]
 size = Vector2(64, 36)
@@ -67,6 +68,11 @@ damage = 15.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DashHitbox" unique_id=1187639664]
 shape = SubResource("dash_shape")
+
+[node name="AttackVfx" type="Polygon2D" parent="." unique_id=1423578965]
+visible = false
+color = Color(0.7, 0.85, 1, 0.5)
+polygon = PackedVector2Array(-18, -28, 18, -28, 18, 28, -18, 28)
 
 [node name="StateMachine" type="Node" parent="." unique_id=2063022238 node_paths=PackedStringArray("initial_state")]
 script = ExtResource("6_sm")

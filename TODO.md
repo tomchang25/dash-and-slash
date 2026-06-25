@@ -8,13 +8,19 @@ The single forward surface — open this and you see everything: open work _and_
 
 ## Active
 
+> Do not delete this reminder text
+> Flows currently being built or ready to implement — may hold more than one entry. One-line pointer each — same format as `## Plan`, promoted here when building starts or the plan is ready to build.
+> Phase detail and progress live in the linked `dev/docs/plans/` file;
+> Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
+> All phases shipped → archive the plan file + delete this line.
+
 _(nothing in flight)_
 
 ---
 
 ## Plan
 
-_(no queued plans)_
+- Player mouse-aim attack basics sketch: `dev/docs/plans/player_mouse_aim_attack_basics.sketch.md`
 
 ## Chore
 

@@ -13,9 +13,18 @@ const DASH_COOLDOWN := 2.0
 const ATTACK_DURATION := 0.25
 const NORMAL_ATTACK_DAMAGE := 10.0
 const DASH_ATTACK_DAMAGE := 15.0
+const ATTACK_RANGE := 38.0
+const ATTACK_CAPSULE_RADIUS := 16.0
+const ATTACK_CAPSULE_HEIGHT := 52.0
 
+# -- Exports --------------------------------------------------------------------
+@export var attack_sfx: AudioStream
+
+# -- Node references ----------------------------------------------------------
 @onready var _attack_hitbox: Hitbox = $AttackHitbox
 @onready var _dash_hitbox: Hitbox = $DashHitbox
+@onready var _attack_vfx: Polygon2D = $AttackVfx
+@onready var _facing_arrow: Polygon2D = $FacingArrow
 
 var _move_dir := Vector2.ZERO
 var _last_move_dir := Vector2.DOWN
@@ -42,6 +51,18 @@ func get_move_input() -> Vector2:
 
 func get_last_move_dir() -> Vector2:
     return _last_move_dir
+
+
+func get_aim_direction() -> Vector2:
+    var dir := get_global_mouse_position() - global_position
+    if dir.length_squared() <= 0.001:
+        return _last_move_dir
+    return dir.normalized()
+
+
+func update_aim_visual() -> void:
+    var aim_dir := get_aim_direction()
+    _facing_arrow.rotation = aim_dir.angle() - PI / 2.0
 
 
 func consume_attack_request() -> bool:
@@ -80,6 +101,44 @@ func enable_dash_hitbox() -> void:
 func disable_dash_hitbox() -> void:
     _dash_hitbox.set_enabled(false)
 
+
+func begin_normal_attack(aim_dir: Vector2) -> void:
+    _position_attack_shape(aim_dir)
+    _attack_hitbox.set_enabled(true)
+    if attack_sfx != null:
+        AudioManager.play_sfx_2d(attack_sfx, global_position)
+    _play_attack_vfx(aim_dir)
+
+
+func end_normal_attack() -> void:
+    _attack_hitbox.set_enabled(false)
+    _reset_attack_vfx()
+
+# == Combat helpers =============================================================
+
+
+func _position_attack_shape(aim_dir: Vector2) -> void:
+    _attack_hitbox.position = aim_dir * ATTACK_RANGE
+    _attack_hitbox.rotation = aim_dir.angle() + PI / 2.0
+
+
+func _play_attack_vfx(aim_dir: Vector2) -> void:
+    _attack_vfx.position = aim_dir * ATTACK_RANGE
+    _attack_vfx.rotation = aim_dir.angle() + PI / 2.0
+    _attack_vfx.visible = true
+    _attack_vfx.modulate = Color(1.0, 1.0, 1.0, 0.85)
+    _attack_vfx.scale = Vector2(0.75, 0.75)
+
+    var tween := create_tween()
+    tween.tween_property(_attack_vfx, "scale", Vector2.ONE, 0.06)
+    tween.parallel().tween_property(_attack_vfx, "modulate:a", 0.0, ATTACK_DURATION)
+
+
+func _reset_attack_vfx() -> void:
+    _attack_vfx.visible = false
+    _attack_vfx.modulate = Color(1.0, 1.0, 1.0, 0.85)
+    _attack_vfx.scale = Vector2.ONE
+
 # -- Lifecycle --
 
 
@@ -101,6 +160,7 @@ func _physics_process(delta: float) -> void:
     if _grid != null:
         _grid.set_player_cell(global_position)
 
+    update_aim_visual()
     move_and_slide()
 
 
@@ -110,4 +170,4 @@ func _unhandled_input(event: InputEvent) -> void:
     elif event.is_action_pressed("dash"):
         _dash_requested = true
         var mv_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-        _dash_requested_dir = _last_move_dir if mv_dir == Vector2.ZERO else mv_dir
+        _dash_requested_dir = get_aim_direction() if mv_dir == Vector2.ZERO else mv_dir
