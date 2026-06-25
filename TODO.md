@@ -20,7 +20,9 @@ _(nothing in flight)_
 
 ## Plan
 
-- Player mouse-aim attack basics sketch: `dev/docs/plans/player_mouse_aim_attack_basics.sketch.md`
+- Grid system
+- Grid Render
+- display enemy path
 
 ## Chore
 

@@ -2,7 +2,7 @@
 
 ## Required Startup
 
-Read this file before answering any repository-specific question or doing any work in this repo.
+Read this file before answering any repository-specific question or doing any work in this repo. If you entered through `AGENTS.md` or `CLAUDE.md`, continue here and treat this file as the shared source of truth.
 
 ## Project Snapshot
 
@@ -10,7 +10,7 @@ Dash & Slash is a Godot 4.6 project built on the data-driven template base layer
 
 ## Agent Rules
 
-Agent-specific instructions live in `dev/agent_rules/`. Read them before starting relevant work. Key rules: `sandbox_environment.md` (shell vs. file tools), `lint_before_finish.md` (run linter on changed files), `git_operations.md` (git is read-only — never stage/commit, only suggest commit messages), `godot_test_check.md` (never run Godot against the mount — use the /tmp snapshot procedure, and `/tmp` must be container-native, not a Windows bind mount), `godot_tests.md` (how to run the GUT unit suite).
+Agent-specific instructions live in `dev/agent_rules/`. Read them before starting relevant work. Key rules: `sandbox_environment.md` (shell vs. file tools), `lint_before_finish.md` (run linter on changed files), `git_operations.md` (git is read-only — never stage/commit, only suggest commit messages), `godot_test_check.md` (never run Godot against the mount — use the /tmp snapshot procedure, and `/tmp` must be container-native, not a Windows bind mount), `godot_tests.md` (how to run the GUT unit suite), `save_migrations.md` (never delete migration code without sign-off).
 
 ## Dev File Placement
 
@@ -36,6 +36,8 @@ Resolve unknowns by asking me directly during the planning conversation — neve
 ## Workflow Commands
 
 Command workflows live in `dev/workflows/commands/`. When asked to do a command task, read the matching file before acting and follow it exactly. Slash form, dash form, `cmd <name>`, and natural-language requests are all valid: `/closeout`, `-closeout`, `cmd closeout`, and "close out this work" all mean the `closeout` command and must read `dev/workflows/commands/closeout.md`.
+
+The opencode slash-command files under `.opencode/commands/` are thin entry wrappers only. They must not duplicate the workflow. The final source of truth remains `dev/workflows/commands/`.
 
 - `/closeout` -> `dev/workflows/commands/closeout.md`: closes out completed work — staged changes or a feature branch covering one or more plans (CHANGELOG + TODO + archive plans, optional commit-message suggestion only when explicitly asked).
 - `/commit-msg` -> `dev/workflows/commands/commit-msg.md`: suggests a conventional commit message for currently staged changes without staging, committing, pushing, or opening a PR.
