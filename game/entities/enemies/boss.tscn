@@ -1,0 +1,84 @@
+[gd_scene format=3 uid="uid://dsboss001"]
+
+[ext_resource type="Script" uid="uid://cdwjocqoe6cn1" path="res://game/entities/enemies/boss.gd" id="1_boss"]
+[ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/components/health.gd" id="2_health"]
+[ext_resource type="Script" uid="uid://cp2srbhn2qgpw" path="res://common/gameplay/components/hurtbox.gd" id="3_hurtbox"]
+[ext_resource type="Script" uid="uid://cbjfefnqiava6" path="res://common/gameplay/components/guard.gd" id="4_guard"]
+[ext_resource type="Script" uid="uid://r7idr4bbyp4s" path="res://common/framework/state_machine/state.gd" id="5_state"]
+[ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="6_sm"]
+[ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="7_telegraph"]
+
+[sub_resource type="RectangleShape2D" id="body_shape"]
+size = Vector2(56, 56)
+
+[sub_resource type="RectangleShape2D" id="hurt_shape"]
+size = Vector2(60, 60)
+
+[node name="Boss" type="CharacterBody2D" unique_id=308864669]
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("1_boss")
+
+[node name="Body" type="Polygon2D" parent="." unique_id=1387936035]
+color = Color(0.8, 0.3, 0.6, 1)
+polygon = PackedVector2Array(-28, -28, 28, -28, 28, 28, -28, 28)
+
+[node name="BodyCorner" type="Polygon2D" parent="." unique_id=1662798792]
+color = Color(0.6, 0.2, 0.4, 1)
+polygon = PackedVector2Array(0, 0, 28, 0, 28, 28, 0, 28)
+
+[node name="FacingArrow" type="Polygon2D" parent="." unique_id=158003013]
+color = Color(1, 0.8, 0.2, 0.7)
+polygon = PackedVector2Array(0, 0, -8, 28, 8, 28)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1200673897]
+shape = SubResource("body_shape")
+
+[node name="Health" type="Node" parent="." unique_id=136558344]
+script = ExtResource("2_health")
+max_health = 200.0
+invuln_seconds = 0.3
+
+[node name="Hurtbox" type="Area2D" parent="." unique_id=574371579]
+collision_layer = 3
+collision_mask = 2
+script = ExtResource("3_hurtbox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1118728356]
+shape = SubResource("hurt_shape")
+
+[node name="Guard" type="Node" parent="." unique_id=148406137]
+script = ExtResource("4_guard")
+max_guard = 16
+
+[node name="TileTelegraph" type="Node2D" parent="." unique_id=1304441992]
+script = ExtResource("7_telegraph")
+
+[node name="StateMachine" type="Node" parent="." unique_id=2020914960 node_paths=PackedStringArray("initial_state")]
+script = ExtResource("6_sm")
+initial_state = NodePath("Idle")
+tick_enabled = false
+
+[node name="Idle" type="Node" parent="StateMachine" unique_id=1466879869]
+script = ExtResource("5_state")
+state_id = 0
+
+[node name="FaceTarget" type="Node" parent="StateMachine" unique_id=1065533041]
+script = ExtResource("5_state")
+state_id = 1
+
+[node name="Telegraph" type="Node" parent="StateMachine" unique_id=1514605502]
+script = ExtResource("5_state")
+state_id = 2
+
+[node name="Attack" type="Node" parent="StateMachine" unique_id=1516950558]
+script = ExtResource("5_state")
+state_id = 3
+
+[node name="Recovery" type="Node" parent="StateMachine" unique_id=825767576]
+script = ExtResource("5_state")
+state_id = 4
+
+[node name="Staggered" type="Node" parent="StateMachine" unique_id=651482181]
+script = ExtResource("5_state")
+state_id = 5

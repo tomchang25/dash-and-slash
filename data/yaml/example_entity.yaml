@@ -1,0 +1,10 @@
+example_entities:
+  - entity_id: "example_apple"
+    display_name: "Apple"
+    value: 10
+  - entity_id: "example_book"
+    display_name: "Book"
+    value: 25
+  - entity_id: "example_coin"
+    display_name: "Coin"
+    value: 5

@@ -1,0 +1,90 @@
+[gd_scene format=3 uid="uid://dssmenemy01"]
+
+[ext_resource type="Script" uid="uid://b5qmhsdk0f0ty" path="res://game/entities/enemies/small_enemy.gd" id="1_enemy"]
+[ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/components/health.gd" id="2_health"]
+[ext_resource type="Script" uid="uid://cp2srbhn2qgpw" path="res://common/gameplay/components/hurtbox.gd" id="3_hurtbox"]
+[ext_resource type="Script" uid="uid://b38x6ajqwstiu" path="res://common/gameplay/components/hitbox.gd" id="4_hitbox"]
+[ext_resource type="Script" uid="uid://cbjfefnqiava6" path="res://common/gameplay/components/guard.gd" id="5_guard"]
+[ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="7_sm"]
+[ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="8_telegraph"]
+[ext_resource type="Script" uid="uid://10pr1i7it6xx" path="res://game/entities/enemies/states/small_enemy_idle_state.gd" id="9_idle_state"]
+[ext_resource type="Script" uid="uid://biorbr3nokxc6" path="res://game/entities/enemies/states/small_enemy_reposition_state.gd" id="10_reposition_state"]
+[ext_resource type="Script" uid="uid://y1u1s1w8onh6" path="res://game/entities/enemies/states/small_enemy_face_target_state.gd" id="11_face_state"]
+[ext_resource type="Script" uid="uid://dglsd3anhw6ac" path="res://game/entities/enemies/states/small_enemy_telegraph_state.gd" id="12_telegraph_state"]
+[ext_resource type="Script" uid="uid://cv6m32gigw3xm" path="res://game/entities/enemies/states/small_enemy_attack_state.gd" id="13_attack_state"]
+[ext_resource type="Script" uid="uid://huiuo72mpcw6" path="res://game/entities/enemies/states/small_enemy_recovery_state.gd" id="14_recovery_state"]
+[ext_resource type="Script" uid="uid://bcs8eblexbkwn" path="res://game/entities/enemies/states/small_enemy_staggered_state.gd" id="15_staggered_state"]
+
+[sub_resource type="RectangleShape2D" id="body_shape"]
+size = Vector2(28, 28)
+
+[sub_resource type="RectangleShape2D" id="hurt_shape"]
+size = Vector2(30, 30)
+
+[node name="SmallEnemy" type="CharacterBody2D" unique_id=694366884]
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("1_enemy")
+
+[node name="Body" type="Polygon2D" parent="." unique_id=1340798399]
+color = Color(0.9, 0.4, 0.3, 1)
+polygon = PackedVector2Array(-14, -14, 14, -14, 14, 14, -14, 14)
+
+[node name="FacingArrow" type="Polygon2D" parent="." unique_id=1441693777]
+color = Color(1, 0.8, 0.2, 0.7)
+polygon = PackedVector2Array(0, 0, -5, 16, 5, 16)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1236867143]
+shape = SubResource("body_shape")
+
+[node name="Health" type="Node" parent="." unique_id=1276586402]
+script = ExtResource("2_health")
+max_health = 30.0
+
+[node name="Hurtbox" type="Area2D" parent="." unique_id=198748403]
+collision_layer = 3
+collision_mask = 2
+script = ExtResource("3_hurtbox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=418982724]
+shape = SubResource("hurt_shape")
+
+[node name="Guard" type="Node" parent="." unique_id=1924644580]
+script = ExtResource("5_guard")
+
+[node name="AttackHitbox" type="Area2D" parent="." unique_id=585828487]
+collision_layer = 4
+monitoring = false
+script = ExtResource("4_hitbox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox" unique_id=1939408297]
+shape = SubResource("body_shape")
+
+[node name="TileTelegraph" type="Node2D" parent="." unique_id=1762094590]
+script = ExtResource("8_telegraph")
+
+[node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
+script = ExtResource("7_sm")
+initial_state = NodePath("Idle")
+tick_enabled = false
+
+[node name="Idle" type="Node" parent="StateMachine" unique_id=200186374]
+script = ExtResource("9_idle_state")
+
+[node name="Reposition" type="Node" parent="StateMachine" unique_id=1894023202]
+script = ExtResource("10_reposition_state")
+
+[node name="FaceTarget" type="Node" parent="StateMachine" unique_id=1246309414]
+script = ExtResource("11_face_state")
+
+[node name="Telegraph" type="Node" parent="StateMachine" unique_id=1744860453]
+script = ExtResource("12_telegraph_state")
+
+[node name="Attack" type="Node" parent="StateMachine" unique_id=1843041215]
+script = ExtResource("13_attack_state")
+
+[node name="Recovery" type="Node" parent="StateMachine" unique_id=1137850405]
+script = ExtResource("14_recovery_state")
+
+[node name="Staggered" type="Node" parent="StateMachine" unique_id=1988416278]
+script = ExtResource("15_staggered_state")

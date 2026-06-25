@@ -1,0 +1,17 @@
+**/.godot
+**/.commitsage
+
+**/shader_cache
+**/assets
+**/script_templates
+**/tres
+**/*_back
+
+**/*.tmp
+**/*.import
+**/*.db-journal
+
+**/__pycache__/
+
+
+**/dev/tools/bin

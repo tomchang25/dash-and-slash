@@ -1,0 +1,89 @@
+[gd_scene format=3 uid="uid://dsplayer001"]
+
+[ext_resource type="Script" uid="uid://cmb7ob63li4pp" path="res://game/entities/player/player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/components/health.gd" id="2_health"]
+[ext_resource type="Script" uid="uid://cp2srbhn2qgpw" path="res://common/gameplay/components/hurtbox.gd" id="3_hurtbox"]
+[ext_resource type="Script" uid="uid://b38x6ajqwstiu" path="res://common/gameplay/components/hitbox.gd" id="4_hitbox"]
+[ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="6_sm"]
+[ext_resource type="Script" uid="uid://tuw7wip6t8df" path="res://game/entities/player/states/player_idle_state.gd" id="7_idle_state"]
+[ext_resource type="Script" uid="uid://dvx7encucxqb3" path="res://game/entities/player/states/player_move_state.gd" id="8_move_state"]
+[ext_resource type="Script" uid="uid://dew7ie35ui1lh" path="res://game/entities/player/states/player_attack_state.gd" id="9_attack_state"]
+[ext_resource type="Script" uid="uid://bofs7pwabjrml" path="res://game/entities/player/states/player_dash_state.gd" id="10_dash_state"]
+
+[sub_resource type="CircleShape2D" id="body_shape"]
+radius = 14.0
+
+[sub_resource type="CircleShape2D" id="hurt_shape"]
+radius = 16.0
+
+[sub_resource type="RectangleShape2D" id="attack_shape"]
+size = Vector2(48, 40)
+
+[sub_resource type="RectangleShape2D" id="dash_shape"]
+size = Vector2(64, 36)
+
+[node name="Player" type="CharacterBody2D" unique_id=1806983416]
+collision_layer = 0
+collision_mask = 5
+script = ExtResource("1_player")
+
+[node name="Body" type="Polygon2D" parent="." unique_id=863972589]
+color = Color(0.3, 0.7, 0.9, 1)
+polygon = PackedVector2Array(-12, -12, 12, -12, 12, 12, -12, 12)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=950988100]
+shape = SubResource("body_shape")
+
+[node name="FacingArrow" type="Polygon2D" parent="." unique_id=135999653]
+color = Color(1, 1, 1, 0.7)
+polygon = PackedVector2Array(0, 0, -6, 20, 6, 20)
+
+[node name="Health" type="Node" parent="." unique_id=1228953014]
+script = ExtResource("2_health")
+invuln_seconds = 0.5
+
+[node name="Hurtbox" type="Area2D" parent="." unique_id=13352467]
+collision_mask = 4
+script = ExtResource("3_hurtbox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1739906631]
+shape = SubResource("hurt_shape")
+
+[node name="AttackHitbox" type="Area2D" parent="." unique_id=231943405]
+collision_layer = 2
+collision_mask = 3
+monitoring = false
+script = ExtResource("4_hitbox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox" unique_id=526577508]
+shape = SubResource("attack_shape")
+
+[node name="DashHitbox" type="Area2D" parent="." unique_id=855634475]
+collision_layer = 2
+collision_mask = 3
+monitoring = false
+script = ExtResource("4_hitbox")
+damage = 15.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DashHitbox" unique_id=1187639664]
+shape = SubResource("dash_shape")
+
+[node name="StateMachine" type="Node" parent="." unique_id=2063022238 node_paths=PackedStringArray("initial_state")]
+script = ExtResource("6_sm")
+initial_state = NodePath("Idle")
+tick_enabled = false
+
+[node name="Idle" type="Node" parent="StateMachine" unique_id=1714913751]
+script = ExtResource("7_idle_state")
+
+[node name="Move" type="Node" parent="StateMachine" unique_id=941451710]
+script = ExtResource("8_move_state")
+
+[node name="Attack" type="Node" parent="StateMachine" unique_id=240349937]
+script = ExtResource("9_attack_state")
+
+[node name="Dash" type="Node" parent="StateMachine" unique_id=1777943156]
+script = ExtResource("10_dash_state")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=5077053]
+position_smoothing_enabled = true

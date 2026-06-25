@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/scenes/stages/dash_and_slash_arena.gd" id="1_arena"]
+[ext_resource type="Script" path="res://common/gameplay/grid/grid_arena.gd" id="2_grid"]
+[ext_resource type="PackedScene" path="res://game/entities/player/player.tscn" id="3_player"]
+
+[node name="Arena" type="Node2D"]
+script = ExtResource("1_arena")
+
+[node name="GridArena" type="Node2D" parent="."]
+position = Vector2(640, 360)
+script = ExtResource("2_grid")
+tile_size = 64.0
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="VBox" type="VBoxContainer" parent="HUD"]
+anchors_preset = 1
+offset_left = 12.0
+offset_top = 12.0
+
+[node name="WaveLabel" type="Label" parent="HUD/VBox"]
+text = ""
+
+[node name="HpLabel" type="Label" parent="HUD/VBox"]
+text = "HP: - / -"
+
+[node name="DashLabel" type="Label" parent="HUD/VBox"]
+text = "Dash: READY"
+
+[node name="BossGuardLabel" type="Label" parent="HUD/VBox"]
+text = "Boss Guard:"
+visible = false

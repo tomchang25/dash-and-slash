@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3 uid="uid://carpgarena01"]
+
+[ext_resource type="Script" path="res://game/scenes/testbed/example_arpg_arena.gd" id="1_arena"]
+[ext_resource type="PackedScene" path="res://game/entities/player/player.tscn" id="2_player"]
+
+[node name="Arena" type="Node2D"]
+script = ExtResource("1_arena")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(640, 360)
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="HpLabel" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 400.0
+offset_bottom = 40.0
+theme_override_font_sizes/font_size = 20
+text = "HP: - / -"

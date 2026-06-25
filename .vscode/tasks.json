@@ -1,0 +1,137 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "YAML → .tres",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/dev/tools/yaml_to_tres.py",
+                "--godot-root",
+                "${workspaceFolder}"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "YAML → .tres (dry-run)",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/dev/tools/yaml_to_tres.py",
+                "--godot-root",
+                "${workspaceFolder}",
+                "--dry-run"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Validate YAML",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/dev/tools/validate_yaml.py",
+                "--yaml-dir",
+                "${workspaceFolder}/data/yaml"
+            ],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": ".tres → YAML",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/dev/tools/tres_to_yaml.py",
+                "--godot-root",
+                "${workspaceFolder}"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "YAML Stats",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/dev/tools/yaml_stats.py",
+                "--godot-root",
+                "${workspaceFolder}"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Standards: lint all",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/dev/tools/lint_standards.py",
+                "--root",
+                "${workspaceFolder}"
+            ],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Standards: lint current file",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/dev/tools/lint_standards.py",
+                "--root",
+                "${workspaceFolder}",
+                "--files",
+                "${file}"
+            ],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "CI: unit tests",
+            "type": "shell",
+            "command": "godot_console",
+            "args": [
+                "--headless",
+                "--path",
+                "${workspaceFolder}",
+                "--test-unit"
+            ],
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

@@ -1,0 +1,1 @@
+# Fuck Deepseek Flash
