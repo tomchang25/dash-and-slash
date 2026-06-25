@@ -10,6 +10,7 @@ extends Node2D
 enum TelegraphPhase { NONE, WARNING, CHARGE, ACTIVE }
 
 const GRID_SIZE := Vector2i(6, 6)
+const WALL_THICKNESS := 128.0
 
 @export var tile_size: float = 128.0
 @export var grid_color: Color = Color(0.3, 0.3, 0.3, 0.6)
@@ -23,6 +24,7 @@ var _arena_visuals: Node2D
 
 func _ready() -> void:
     _build_arena_visuals()
+    _build_arena_collision()
 
 
 func _build_arena_visuals() -> void:
@@ -52,6 +54,59 @@ func _build_arena_visuals() -> void:
             tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
             tile.add_theme_stylebox_override("panel", style)
             _arena_visuals.add_child(tile)
+
+
+func _build_arena_collision() -> void:
+    var collision := Node2D.new()
+    collision.name = "ArenaCollision"
+    # node-src: runtime arena walls
+    add_child(collision)
+
+    var half := Vector2(GRID_SIZE) * tile_size * 0.5
+    var shape := RectangleShape2D.new()
+
+    # Top wall
+    var top := StaticBody2D.new()
+    top.name = "WallTop"
+    shape.size = Vector2(half.x * 2.0 + WALL_THICKNESS * 2.0, WALL_THICKNESS)
+    var top_shape := CollisionShape2D.new()
+    top_shape.shape = shape
+    top.add_child(top_shape)
+    top.position = Vector2(0.0, -half.y - WALL_THICKNESS * 0.5)
+    collision.add_child(top)
+
+    # Bottom wall
+    var bottom := StaticBody2D.new()
+    bottom.name = "WallBottom"
+    shape = RectangleShape2D.new()
+    shape.size = Vector2(half.x * 2.0 + WALL_THICKNESS * 2.0, WALL_THICKNESS)
+    var bottom_shape := CollisionShape2D.new()
+    bottom_shape.shape = shape
+    bottom.add_child(bottom_shape)
+    bottom.position = Vector2(0.0, half.y + WALL_THICKNESS * 0.5)
+    collision.add_child(bottom)
+
+    # Left wall
+    var left := StaticBody2D.new()
+    left.name = "WallLeft"
+    shape = RectangleShape2D.new()
+    shape.size = Vector2(WALL_THICKNESS, half.y * 2.0)
+    var left_shape := CollisionShape2D.new()
+    left_shape.shape = shape
+    left.add_child(left_shape)
+    left.position = Vector2(-half.x - WALL_THICKNESS * 0.5, 0.0)
+    collision.add_child(left)
+
+    # Right wall
+    var right := StaticBody2D.new()
+    right.name = "WallRight"
+    shape = RectangleShape2D.new()
+    shape.size = Vector2(WALL_THICKNESS, half.y * 2.0)
+    var right_shape := CollisionShape2D.new()
+    right_shape.shape = shape
+    right.add_child(right_shape)
+    right.position = Vector2(half.x + WALL_THICKNESS * 0.5, 0.0)
+    collision.add_child(right)
 
 
 func _top_left() -> Vector2:

@@ -12,10 +12,10 @@
 [ext_resource type="Script" uid="uid://bofs7pwabjrml" path="res://game/entities/player/states/player_dash_state.gd" id="10_dash_state"]
 
 [sub_resource type="CircleShape2D" id="body_shape"]
-radius = 56.0
+radius = 30.0
 
-[sub_resource type="CircleShape2D" id="hurt_shape"]
-radius = 64.0
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_igs2l"]
+size = Vector2(72, 72)
 
 [sub_resource type="CapsuleShape2D" id="attack_shape"]
 radius = 64.0
@@ -33,6 +33,7 @@ attack_sfx_event = ExtResource("2_igs2l")
 [node name="Body" type="Polygon2D" parent="." unique_id=863972589]
 color = Color(0.3, 0.7, 0.9, 1)
 polygon = PackedVector2Array(-48, -48, 48, -48, 48, 48, -48, 48)
+metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=950988100]
 shape = SubResource("body_shape")
@@ -46,13 +47,15 @@ script = ExtResource("2_health")
 invuln_seconds = 0.5
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=13352467]
+visible = false
 collision_mask = 4
 script = ExtResource("3_hurtbox")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1739906631]
-shape = SubResource("hurt_shape")
+shape = SubResource("RectangleShape2D_igs2l")
 
 [node name="AttackHitbox" type="Area2D" parent="." unique_id=231943405]
+visible = false
 collision_layer = 2
 collision_mask = 3
 monitoring = false
@@ -60,8 +63,10 @@ script = ExtResource("4_hitbox")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox" unique_id=526577508]
 shape = SubResource("attack_shape")
+debug_color = Color(0.6745098, 0.6, 0.69803923, 0.22352941)
 
 [node name="DashHitbox" type="Area2D" parent="." unique_id=855634475]
+visible = false
 collision_layer = 2
 collision_mask = 3
 monitoring = false
@@ -70,6 +75,7 @@ damage = 15.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DashHitbox" unique_id=1187639664]
 shape = SubResource("dash_shape")
+debug_color = Color(0.81960785, 0.23529412, 0.69803923, 0.1764706)
 
 [node name="AttackVfx" type="Polygon2D" parent="." unique_id=1423578965]
 visible = false
