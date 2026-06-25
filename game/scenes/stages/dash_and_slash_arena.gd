@@ -1,3 +1,4 @@
+@tool
 # dash_and_slash_arena.gd
 # Main game scene for Dash & Slash. Contains the 6x6 GridArena, Player,
 # Camera2D, and HUD. Manages the run flow: Wave 1 → Wave 2 → Boss.
@@ -12,11 +13,15 @@ const BossScene := preload("res://game/entities/enemies/boss.tscn")
 const WAVES := {
     Wave.WAVE_1: { "count": 3, "scene": SmallEnemyScene },
     Wave.WAVE_2: { "count": 3, "scene": SmallEnemyScene },
-    Wave.BOSS:   { "count": 1, "scene": BossScene },
+    Wave.BOSS: { "count": 1, "scene": BossScene },
 }
 
 const WAVE_GAP := 1.2
+const GRASS_TILE_SIZE := 16.0
+const GRASS_SOURCE_ID := 0
+const GRASS_ATLAS_SIZE := Vector2i(16, 16)
 
+@onready var _grass_tiles: TileMapLayer = $TileMapLayer
 @onready var _grid: GridArena = $GridArena
 @onready var _player = $Player
 @onready var _hp_label: Label = $HUD/VBox/HpLabel
@@ -31,6 +36,10 @@ var _boss_ref: CharacterBody2D = null
 
 
 func _ready() -> void:
+    _fill_arena_grass()
+    if Engine.is_editor_hint():
+        return
+
     if _player.has_method("setup"):
         _player.setup(_grid)
 
@@ -54,7 +63,26 @@ func _ready() -> void:
     _start_next_wave()
 
 
+func _fill_arena_grass() -> void:
+    _grass_tiles.clear()
+    var total := Vector2(GridArena.GRID_SIZE) * _grid.tile_size
+    _grass_tiles.position = _grid.position - total * 0.5
+
+    var rng := RandomNumberGenerator.new()
+    rng.randomize()
+    var tile_count := Vector2i(total / GRASS_TILE_SIZE)
+    for x in tile_count.x:
+        for y in tile_count.y:
+            var atlas_coords := Vector2i(
+                rng.randi_range(0, GRASS_ATLAS_SIZE.x - 1),
+                rng.randi_range(0, GRASS_ATLAS_SIZE.y / 2 - 1),
+            )
+            _grass_tiles.set_cell(Vector2i(x, y), GRASS_SOURCE_ID, atlas_coords)
+
+
 func _process(_delta: float) -> void:
+    if Engine.is_editor_hint():
+        return
     _update_dash_label()
 
 
@@ -86,7 +114,7 @@ func _begin_wave(wave: int) -> void:
             return
 
     _wave_label.visible = true
-    var info: Dictionary = WAVES.get(wave, {})
+    var info: Dictionary = WAVES.get(wave, { })
     var count: int = info.get("count", 0)
     var scene: PackedScene = info.get("scene")
 

@@ -1,6 +1,7 @@
+@tool
 # grid_arena.gd
 # 6x6 grid manager. Owns tile occupancy, world↔grid coordinate conversion,
-# telegraph state, and debug grid drawing. Enemy AI queries this node for
+# telegraph state, and node-based arena visuals. Enemy AI queries this node for
 # pathfinding obstacles and player position; the player is never constrained
 # by the grid — only enemies are.
 class_name GridArena
@@ -10,28 +11,47 @@ enum TelegraphPhase { NONE, WARNING, CHARGE, ACTIVE }
 
 const GRID_SIZE := Vector2i(6, 6)
 
-@export var tile_size: float = 64.0
+@export var tile_size: float = 128.0
 @export var grid_color: Color = Color(0.3, 0.3, 0.3, 0.6)
 @export var grid_line_width: float = 1.0
 
 var _occupants: Dictionary = { } # { Object: Array[Vector2i] }
 var _telegraphs: Dictionary = { } # { (x,y): TelegraphPhase }
 var _player_grid: Vector2i = Vector2i.ZERO
+var _arena_visuals: Node2D
 
 
 func _ready() -> void:
-    queue_redraw()
+    _build_arena_visuals()
 
 
-func _draw() -> void:
-    var origin := _top_left()
-    var total := GRID_SIZE * tile_size
-    for i in GRID_SIZE.x + 1:
-        var x := origin.x + i * tile_size
-        draw_line(Vector2(x, origin.y), Vector2(x, origin.y + total.y), grid_color, grid_line_width)
-    for j in GRID_SIZE.y + 1:
-        var y := origin.y + j * tile_size
-        draw_line(Vector2(origin.x, y), Vector2(origin.x + total.x, y), grid_color, grid_line_width)
+func _build_arena_visuals() -> void:
+    if _arena_visuals != null:
+        _arena_visuals.queue_free()
+
+    _arena_visuals = Node2D.new()
+    _arena_visuals.name = "ArenaVisuals"
+    # node-src: runtime visual grid
+    add_child(_arena_visuals)
+
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color(0.08, 0.1, 0.12, 0.18)
+    style.border_color = grid_color
+    style.border_width_left = int(grid_line_width)
+    style.border_width_top = int(grid_line_width)
+    style.border_width_right = int(grid_line_width)
+    style.border_width_bottom = int(grid_line_width)
+
+    var origin := -Vector2(GRID_SIZE) * tile_size * 0.5
+    for x in GRID_SIZE.x:
+        for y in GRID_SIZE.y:
+            var tile := Panel.new()
+            tile.name = "Tile_%d_%d" % [x, y]
+            tile.position = origin + Vector2(x, y) * tile_size
+            tile.size = Vector2.ONE * tile_size
+            tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+            tile.add_theme_stylebox_override("panel", style)
+            _arena_visuals.add_child(tile)
 
 
 func _top_left() -> Vector2:
