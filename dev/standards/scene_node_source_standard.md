@@ -48,6 +48,23 @@ Each referenced node must have `unique_name_in_owner = true` set in the `.tscn` 
 
 Legacy `$RootVBox/...` full paths are allowed in existing scenes that have not been touched. Do not mix `%UniqueName` and `$RootVBox/...` within a single script.
 
+Avoid direct string lookups for fixed scene nodes:
+
+```gdscript
+get_node("Health")
+get_node_or_null("Health")
+find_child("Health", false, false)
+```
+
+For fixed child nodes owned by the same `.tscn`, use `%UniqueName` `@onready` references. For references across scene/component boundaries, expose a narrow public API, signal, or explicit exported dependency instead of having the parent reach into the child's internal node tree.
+
+Direct `get_node*` and `find_child` calls are allowed only for genuinely dynamic or test-only lookups. Mark the exception on the line directly above the call:
+
+```gdscript
+# node-ref: allow - dynamic path supplied by test helper
+var target := get_node(path)
+```
+
 ---
 
 # 3. Prohibited Patterns

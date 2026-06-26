@@ -56,6 +56,8 @@ VALID_NODE_SRC_TAGS = frozenset(
 
 NODE_SRC_RE = re.compile(r"#\s*node-src:\s*([a-z_]+)")
 ADD_CHILD_RE = re.compile(r"\badd_child\(\s*([^,)]+)")
+NODE_LOOKUP_RE = re.compile(r"\b(get_node|get_node_or_null|find_child)\s*\(")
+NODE_REF_ALLOW_RE = re.compile(r"#\s*node-ref:\s*allow\b")
 # Matched per-line (never over the whole file): `[ \t]` instead of `\s` so the
 # type-hint group can't swallow the following line via a newline.
 INSTANTIATE_ASSIGN_RE = re.compile(
@@ -168,6 +170,47 @@ def check_node_source(path: str, text: str) -> list[Violation]:
     return violations
 
 
+# ── Tier 1: fixed node references avoid fragile string lookup ────────────────
+
+
+def check_node_lookup(path: str, text: str) -> list[Violation]:
+    """Direct get_node*/find_child string lookups are fragile for fixed scene
+    structure. Require an explicit marker for genuinely dynamic/test-only use."""
+    violations: list[Violation] = []
+    lines = text.splitlines()
+    for i, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+
+        match = NODE_LOOKUP_RE.search(line)
+        if not match:
+            continue
+
+        allowed = False
+        if i >= 2:
+            prev_line = lines[i - 2]
+            allowed = prev_line.lstrip().startswith("#") and NODE_REF_ALLOW_RE.search(prev_line) is not None
+        if allowed:
+            continue
+
+        violations.append(
+            Violation(
+                path,
+                i,
+                "node-lookup",
+                "scene §2",
+                f"{match.group(1)}(...) is a fragile direct node lookup. Use a "
+                f"%UniqueName @onready reference for fixed child nodes, or expose "
+                f"a narrow API/signal across scene boundaries. If this lookup is "
+                f"genuinely dynamic or test-only, add `# node-ref: allow - <reason>` "
+                f"on the line directly above it.",
+            )
+        )
+
+    return violations
+
+
 # ── Tier 1: signal connections live in code, not the .tscn (scene §Signal) ───
 
 
@@ -198,7 +241,7 @@ def check_tscn_connections(path: str, text: str) -> list[Violation]:
 
 # (suffix, check fn) pairs. Add new checks here as more rules graduate from the
 # manifest into machine enforcement.
-GD_CHECKS = (check_node_source,)
+GD_CHECKS = (check_node_source, check_node_lookup)
 TSCN_CHECKS = (check_tscn_connections,)
 
 

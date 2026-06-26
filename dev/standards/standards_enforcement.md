@@ -63,6 +63,9 @@ Only what `lint_standards.py` enforces today:
   Any `[connection]` block in a scene file fails; connect signals in `_ready()`
   so the full wiring surface is visible in code.
 
+- **No fragile direct node lookup** (`scene_node_source_standard.md`, Node Reference Style).
+  Direct `get_node(...)`, `get_node_or_null(...)`, and `find_child(...)` calls fail unless the immediately preceding line carries `# node-ref: allow - <reason>`. Fixed scene nodes should be referenced with `%UniqueName` `@onready` variables, and cross-boundary access should go through a narrow API or signal.
+
 ## Adding a check
 
 Each check is a function `(rel_path, text) -> [Violation]` registered in
