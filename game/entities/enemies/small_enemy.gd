@@ -22,6 +22,7 @@ const PATH_DEBUG_WIDTH := 4.0
 @onready var _state_machine: StateMachine = $StateMachine
 @onready var _guard: Guard = $Guard
 @onready var _attack_controller: SmallEnemyAttackController = $AttackController
+@onready var _status_bars: EnemyStatusBars = $StatusBars
 @onready var hurtbox: Hurtbox = $Hurtbox
 
 var _grid: GridArena
@@ -225,13 +226,18 @@ func _ready() -> void:
     if hurtbox != null:
         hurtbox.got_hit.connect(_on_got_hit)
 
+    if health != null:
+        health.health_changed.connect(_on_health_changed)
+        _on_health_changed(health.current(), health.max_health)
+
     _cooldown_timer = Timer.new()
     _cooldown_timer.one_shot = true
-    # node-src: timer
     add_child(_cooldown_timer)
 
     if _guard != null:
+        _guard.guard_changed.connect(_on_guard_changed)
         _guard.guard_broken.connect(_on_guard_broken)
+        _on_guard_changed(_guard.current(), _guard.max_guard)
 
 
 func _physics_process(_delta: float) -> void:
@@ -278,6 +284,16 @@ func _on_guard_broken() -> void:
     clear_planned_action()
     _cancel_attack()
     _state_machine.request_transition(SmallEnemyState.SmallEnemyStateId.STAGGERED, true)
+
+
+func _on_guard_changed(current: int, maximum: int) -> void:
+    if _status_bars != null:
+        _status_bars.set_guard(current, maximum)
+
+
+func _on_health_changed(current: float, maximum: float) -> void:
+    if _status_bars != null:
+        _status_bars.set_health(current, maximum)
 
 
 func _on_got_hit(_amount: float, source: Node2D) -> void:
@@ -377,3 +393,7 @@ func reset() -> void:
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
         _grid.register_occupant(self, [_grid_pos])
+    if health != null:
+        _on_health_changed(health.current(), health.max_health)
+    if _guard != null:
+        _on_guard_changed(_guard.current(), _guard.max_guard)

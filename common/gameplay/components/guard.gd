@@ -11,7 +11,6 @@ signal stagger_started
 signal stagger_ended
 
 @export var max_guard: int = 4
-@export var shield_size: int = 4
 @export var stagger_duration: float = 3.0
 
 var _current: int = 0
