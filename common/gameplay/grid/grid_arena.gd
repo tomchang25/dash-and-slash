@@ -18,7 +18,7 @@ const WALL_THICKNESS := 128.0
 
 var _occupants: Dictionary = { } # { Object: Array[Vector2i] }
 var _reservations: Dictionary = { } # { Object: Vector2i }
-var _telegraphs: Dictionary = { } # { (x,y): TelegraphPhase }
+var _telegraphs: Dictionary = { } # { cell: { source: phase } }
 var _player_grid: Vector2i = Vector2i.ZERO
 var _arena_visuals: Node2D
 
@@ -30,7 +30,8 @@ func _ready() -> void:
 
 func _draw() -> void:
     for cell: Vector2i in _telegraphs.keys():
-        var phase: int = _telegraphs[cell]
+        var sources: Dictionary = _telegraphs[cell]
+        var phase: int = _resolve_highest_phase(sources)
         var color := _telegraph_color(phase)
         if color == Color.TRANSPARENT:
             continue
@@ -210,21 +211,36 @@ func nearest_empty_cell(near: Vector2) -> Vector2i:
     return best
 
 
-func set_telegraph(tiles: Array[Vector2i], phase: TelegraphPhase) -> void:
+func set_telegraph(source: Object, tiles: Array[Vector2i], phase: TelegraphPhase) -> void:
     for t in tiles:
-        _telegraphs[t] = phase
+        var sources: Dictionary = _telegraphs.get(t, { })
+        sources[source] = phase
+        _telegraphs[t] = sources
     queue_redraw()
 
 
-func clear_telegraph(tiles: Array[Vector2i]) -> void:
+func clear_telegraph(source: Object, tiles: Array[Vector2i]) -> void:
     for t in tiles:
-        _telegraphs.erase(t)
+        if not _telegraphs.has(t):
+            continue
+        var sources: Dictionary = _telegraphs[t]
+        sources.erase(source)
+        if sources.is_empty():
+            _telegraphs.erase(t)
     queue_redraw()
 
 
 func clear_all_telegraphs() -> void:
     _telegraphs.clear()
     queue_redraw()
+
+
+func _resolve_highest_phase(sources: Dictionary) -> int:
+    var best := int(TelegraphPhase.NONE)
+    for phase: int in sources.values():
+        if phase > best:
+            best = phase
+    return best
 
 
 func _telegraph_color(phase: int) -> Color:

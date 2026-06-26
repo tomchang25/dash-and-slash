@@ -16,7 +16,7 @@ func show_warning(tiles: Array[Vector2i]) -> void:
     if _grid == null:
         return
     _tiles = tiles
-    _grid.set_telegraph(tiles, GridArena.TelegraphPhase.WARNING)
+    _grid.set_telegraph(self, tiles, GridArena.TelegraphPhase.WARNING)
 
 
 func show_charge(tiles: Array[Vector2i]) -> void:
@@ -24,7 +24,7 @@ func show_charge(tiles: Array[Vector2i]) -> void:
     if _grid == null:
         return
     _tiles = tiles
-    _grid.set_telegraph(tiles, GridArena.TelegraphPhase.CHARGE)
+    _grid.set_telegraph(self, tiles, GridArena.TelegraphPhase.CHARGE)
 
 
 func show_active(tiles: Array[Vector2i]) -> void:
@@ -32,10 +32,10 @@ func show_active(tiles: Array[Vector2i]) -> void:
     if _grid == null:
         return
     _tiles = tiles
-    _grid.set_telegraph(tiles, GridArena.TelegraphPhase.ACTIVE)
+    _grid.set_telegraph(self, tiles, GridArena.TelegraphPhase.ACTIVE)
 
 
 func clear() -> void:
     if _grid != null and not _tiles.is_empty():
-        _grid.clear_telegraph(_tiles)
+        _grid.clear_telegraph(self, _tiles)
     _tiles.clear()
