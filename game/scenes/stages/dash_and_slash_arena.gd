@@ -9,9 +9,10 @@ enum Wave { NO_WAVE = -1, WAVE_1 = 0, WAVE_2 = 1, BOSS = 2, COMPLETE = 3 }
 
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
 const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
+const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const BossScene := preload("res://game/entities/enemies/boss.tscn")
 
-const ENEMY_POOL := [SmallEnemyScene, PuffEnemyScene]
+const ENEMY_POOL := [SmallEnemyScene, PuffEnemyScene, ChargeEnemyScene]
 
 const WAVES := {
     Wave.WAVE_1: { "count": 3 },
