@@ -9,6 +9,7 @@ extends Entity
 const MOVE_SPEED := 120.0
 const CYCLE_COOLDOWN := 1.0
 const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
+const NO_BLOCKED_CELL := Vector2i(-1, -1)
 const GUARDED_DAMAGE_MULTIPLIER := 0.2
 const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
@@ -104,24 +105,26 @@ func plan_next_action() -> bool:
     var start := _grid_pos
     var target_cell := _grid.world_to_grid(_target.global_position)
 
-    var approach_cells: Array[Vector2i] = []
-    for dir: Vector2i in CARDINAL_DIRECTIONS:
-        var neighbor := target_cell + dir
-        if _grid.is_in_bounds(neighbor) and not _grid.is_blocked(neighbor):
-            approach_cells.append(neighbor)
-
-    var player_free := not _grid.is_blocked(target_cell) or target_cell == start
-    if player_free and target_cell not in approach_cells:
-        approach_cells.append(target_cell)
-
-    if approach_cells.is_empty():
+    if not _grid.is_in_bounds(target_cell):
         return false
 
-    if start in approach_cells:
+    if start == target_cell:
         queue_redraw()
         return true
 
-    var path := _find_path_to_cell(start, target_cell, approach_cells)
+    var path: Array[Vector2i] = []
+    if not _grid.is_blocked(target_cell):
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
+
+    if path.is_empty():
+        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
+        if fallback_goals.is_empty():
+            return false
+        if start in fallback_goals:
+            queue_redraw()
+            return true
+        path = _find_path_to_cell(start, target_cell, fallback_goals)
+
     if path.is_empty():
         return false
 
@@ -416,6 +419,17 @@ func _can_path_through(cell: Vector2i, start: Vector2i, blocked_cell: Vector2i) 
     if cell != start and _grid.is_blocked(cell):
         return false
     return true
+
+
+func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
+    var goal_cells: Array[Vector2i] = []
+    for direction: Vector2i in CARDINAL_DIRECTIONS:
+        var neighbor := target_cell + direction
+        if not _grid.is_in_bounds(neighbor):
+            continue
+        if neighbor == start or not _grid.is_blocked(neighbor):
+            goal_cells.append(neighbor)
+    return goal_cells
 
 
 func _refresh_planned_reservations() -> void:

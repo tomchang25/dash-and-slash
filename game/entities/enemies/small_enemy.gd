@@ -15,6 +15,7 @@ const ATTACK_DURATION := 0.2
 const RECOVERY_DURATION := 0.4
 const CYCLE_COOLDOWN := 1.0
 const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
+const NO_BLOCKED_CELL := Vector2i(-1, -1)
 const GUARDED_DAMAGE_MULTIPLIER := 0.2
 const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
@@ -125,18 +126,27 @@ func plan_next_action() -> bool:
     var start := _grid_pos
     var target_cell := _grid.world_to_grid(_target.global_position)
     var attack_origins: Array[Vector2i] = []
+    var blocked_cell := target_cell
+    var uses_target_collision := false
 
-    for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
-        var facing := Vector2(facing_cell.x, facing_cell.y)
-        for x in range(GridArena.GRID_SIZE.x):
-            for y in range(GridArena.GRID_SIZE.y):
-                var origin_cell := Vector2i(x, y)
-                if origin_cell != start and _grid.is_blocked(origin_cell):
-                    continue
-                if target_cell not in _attack_controller.get_attack_cells(origin_cell, facing):
-                    continue
-                if origin_cell not in attack_origins:
-                    attack_origins.append(origin_cell)
+    if _attack_controller.get_attack_pattern() == SmallEnemyAttackController.AttackPattern.SURROUND_3X3:
+        if not _grid.is_in_bounds(target_cell):
+            return false
+        uses_target_collision = true
+        attack_origins.append(target_cell)
+        blocked_cell = NO_BLOCKED_CELL
+    else:
+        for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
+            var facing := Vector2(facing_cell.x, facing_cell.y)
+            for x in range(GridArena.GRID_SIZE.x):
+                for y in range(GridArena.GRID_SIZE.y):
+                    var origin_cell := Vector2i(x, y)
+                    if origin_cell != start and _grid.is_blocked(origin_cell):
+                        continue
+                    if target_cell not in _attack_controller.get_attack_cells(origin_cell, facing):
+                        continue
+                    if origin_cell not in attack_origins:
+                        attack_origins.append(origin_cell)
 
     if attack_origins.is_empty():
         return false
@@ -145,7 +155,17 @@ func plan_next_action() -> bool:
         queue_redraw()
         return true
 
-    var path := _find_path_to_attack_cell(start, target_cell, attack_origins)
+    var path := _find_path_to_attack_cell(start, blocked_cell, attack_origins)
+    if path.is_empty() and uses_target_collision:
+        attack_origins = _collect_adjacent_attack_origin_cells(target_cell, start)
+        blocked_cell = target_cell
+        if attack_origins.is_empty():
+            return false
+        if start in attack_origins:
+            queue_redraw()
+            return true
+        path = _find_path_to_attack_cell(start, blocked_cell, attack_origins)
+
     if path.is_empty():
         return false
 
@@ -463,6 +483,17 @@ func _can_path_through(cell: Vector2i, start: Vector2i, blocked_cell: Vector2i) 
     if cell != start and _grid.is_blocked(cell):
         return false
     return true
+
+
+func _collect_adjacent_attack_origin_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
+    var origin_cells: Array[Vector2i] = []
+    for direction: Vector2i in CARDINAL_DIRECTIONS:
+        var neighbor := target_cell + direction
+        if not _grid.is_in_bounds(neighbor):
+            continue
+        if neighbor == start or not _grid.is_blocked(neighbor):
+            origin_cells.append(neighbor)
+    return origin_cells
 
 
 func _refresh_planned_reservations() -> void:
