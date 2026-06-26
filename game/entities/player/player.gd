@@ -18,6 +18,7 @@ const ATTACK_CAPSULE_HEIGHT := 208.0
 
 # -- Exports --------------------------------------------------------------------
 @export var attack_sfx_event: SpatialAudioEvent
+@export var damaged_sfx_event: SpatialAudioEvent
 @export var dash_attack_damage: float = 25.0
 
 # -- Node references ----------------------------------------------------------
@@ -26,6 +27,7 @@ const ATTACK_CAPSULE_HEIGHT := 208.0
 @onready var _attack_vfx: Polygon2D = $AttackVfx
 @onready var _facing_arrow: Polygon2D = $FacingArrow
 @onready var _hurtbox: Hurtbox = $Hurtbox
+@onready var _body: Polygon2D = $Body
 
 var _move_dir := Vector2.ZERO
 var _last_move_dir := Vector2.DOWN
@@ -34,6 +36,7 @@ var _dash_requested := false
 var _dash_requested_dir := Vector2.ZERO
 var _dash_cooldown_remaining := 0.0
 var _grid: GridArena
+var _hurt_tween: Tween
 
 
 func setup(grid: GridArena) -> void:
@@ -154,6 +157,9 @@ func _ready() -> void:
     if _hurtbox != null:
         _hurtbox.hit_received.connect(_on_hit_received)
 
+    if health != null:
+        health.damaged.connect(_on_player_damaged)
+
 
 func _physics_process(delta: float) -> void:
     if _dash_cooldown_remaining > 0.0:
@@ -182,3 +188,29 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_hit_received(amount: float, source: Node, _guard_damage_profile: int) -> void:
     if health != null:
         health.take_damage(amount, source)
+
+
+func _on_player_damaged(_amount: float, _source: Node) -> void:
+    if _hurt_tween != null and _hurt_tween.is_valid():
+        _hurt_tween.kill()
+
+    if damaged_sfx_event != null:
+        AudioManager.play_event(damaged_sfx_event, global_position)
+
+    _hurt_tween = create_tween()
+    _hurt_tween.tween_property(_body, "modulate", Color.RED, 0.03)
+    _hurt_tween.tween_property(_body, "modulate", Color.WHITE, 0.08)
+    _hurt_tween.tween_callback(_start_invuln_blink)
+
+
+func _start_invuln_blink() -> void:
+    var blink_tween := create_tween()
+    blink_tween.tween_property(_body, "modulate:a", 0.6, 0.15)
+    blink_tween.tween_property(_body, "modulate:a", 1.0, 0.15)
+    blink_tween.set_loops(int(health.invuln_seconds * 3.0))
+    blink_tween.finished.connect(
+        func():
+            if _body != null:
+                _body.modulate = Color.WHITE,
+        CONNECT_ONE_SHOT,
+    )

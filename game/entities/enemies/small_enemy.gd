@@ -35,6 +35,7 @@ var _facing: Vector2 = Vector2.DOWN
 var _cooldown_timer: Timer
 var _staggered: bool = false
 var _stagger_tween: Tween
+var _hurt_tween: Tween
 var _planned_path: Array[Vector2i] = []
 var _active_path_cell: Vector2i
 var _has_active_path_cell: bool = false
@@ -232,6 +233,7 @@ func _ready() -> void:
 
     if health != null:
         health.health_changed.connect(_on_health_changed)
+        health.damaged.connect(_on_damaged)
         _on_health_changed(health.current(), health.max_health)
 
     _cooldown_timer = Timer.new()
@@ -302,6 +304,25 @@ func _on_health_changed(current: float, maximum: float) -> void:
         _status_bars.set_health(current, maximum)
 
 
+func _on_damaged(_amount: float, _source: Node) -> void:
+    if _hurt_tween != null and _hurt_tween.is_valid():
+        _hurt_tween.kill()
+
+    _hurt_tween = create_tween()
+    _hurt_tween.tween_property(_body, "modulate", Color.WHITE, 0.03)
+    _hurt_tween.tween_property(_body, "modulate", Color(0.8, 0.2, 0.2, 1.0), 0.06)
+    _hurt_tween.tween_property(_body, "modulate", Color.WHITE, 0.08)
+    _hurt_tween.finished.connect(
+        func():
+            if _body != null:
+                if _staggered:
+                    _start_stagger_vfx()
+                else:
+                    _body.modulate = Color.WHITE,
+        CONNECT_ONE_SHOT,
+    )
+
+
 func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) -> void:
     if not (source is Node2D):
         return
@@ -332,6 +353,13 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
 
 
 func _on_stagger_started() -> void:
+    _staggered = true
+    if _hurt_tween != null and _hurt_tween.is_valid():
+        return
+    _start_stagger_vfx()
+
+
+func _start_stagger_vfx() -> void:
     if _body != null:
         if _stagger_tween != null and is_instance_valid(_stagger_tween):
             _stagger_tween.kill()

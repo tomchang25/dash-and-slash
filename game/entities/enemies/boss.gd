@@ -15,10 +15,12 @@ const CYCLE_COOLDOWN := 1.5
 const BOSS_HP := 200.0
 const BOSS_GUARD := 16
 const GUARDED_DAMAGE_MULTIPLIER := 0.25
+const STAGGER_VFX_COLOR := Color(0.4, 0.6, 1.0, 1.0)
 
 @onready var _state_machine: StateMachine = $StateMachine
 @onready var _guard: Guard = $Guard
 @onready var _telegraph: TileTelegraph = $TileTelegraph
+@onready var _body: Polygon2D = $Body
 @onready var hurtbox: Hurtbox = $Hurtbox
 
 var _grid: GridArena
@@ -32,6 +34,8 @@ var _attack_timer: Timer
 var _recovery_timer: Timer
 var _cooldown_timer: Timer
 var _staggered: bool = false
+var _hurt_tween: Tween
+var _stagger_tween: Tween
 var _active_hitboxes: Array[Area2D] = []
 
 
@@ -78,10 +82,14 @@ func _ready() -> void:
 
     if _guard != null:
         _guard.guard_broken.connect(_on_guard_broken)
+        _guard.stagger_started.connect(_on_stagger_started)
         _guard.stagger_ended.connect(_on_stagger_ended)
 
     if hurtbox != null:
         hurtbox.hit_received.connect(_on_hit_received)
+
+    if health != null:
+        health.damaged.connect(_on_damaged)
 
 
 func _refresh_occupied() -> void:
@@ -243,8 +251,27 @@ func _on_guard_broken() -> void:
     _state_machine.request_transition(StateId.STAGGERED, true)
 
 
+func _on_stagger_started() -> void:
+    _staggered = true
+    if _hurt_tween != null and _hurt_tween.is_valid():
+        return
+    _start_stagger_vfx()
+
+
+func _start_stagger_vfx() -> void:
+    if _body != null:
+        if _stagger_tween != null and is_instance_valid(_stagger_tween):
+            _stagger_tween.kill()
+        _stagger_tween = create_tween()
+        _stagger_tween.tween_property(_body, "modulate", STAGGER_VFX_COLOR, 0.2)
+
+
 func _on_stagger_ended() -> void:
     _staggered = false
+    if _stagger_tween != null and is_instance_valid(_stagger_tween):
+        _stagger_tween.kill()
+    if _body != null:
+        _body.modulate = Color.WHITE
     _state_machine.request_transition(StateId.IDLE, true)
 
 
@@ -261,9 +288,9 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
         gd = DirectionResolver.normal_guard_damage(angle)
 
     var will_break_guard := _guard != null \
-        and not _guard.is_staggered() \
-        and _guard.current() > 0 \
-        and gd >= _guard.current()
+    and not _guard.is_staggered() \
+    and _guard.current() > 0 \
+    and gd >= _guard.current()
     var full_damage := _guard == null or _guard.is_staggered() or will_break_guard
     var hp := amount if full_damage else amount * GUARDED_DAMAGE_MULTIPLIER
 
@@ -277,7 +304,27 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
         _guard.take_guard_damage(gd)
 
 
+func _on_damaged(_amount: float, _source: Node) -> void:
+    if _hurt_tween != null and _hurt_tween.is_valid():
+        _hurt_tween.kill()
+    _hurt_tween = create_tween()
+    _hurt_tween.tween_property(_body, "modulate", Color.WHITE, 0.03)
+    _hurt_tween.tween_property(_body, "modulate", Color(0.8, 0.2, 0.2, 1.0), 0.06)
+    _hurt_tween.tween_property(_body, "modulate", Color.WHITE, 0.08)
+    _hurt_tween.finished.connect(
+        func():
+            if _body != null:
+                if _staggered:
+                    _start_stagger_vfx()
+                else:
+                    _body.modulate = Color.WHITE,
+        CONNECT_ONE_SHOT,
+    )
+
+
 func reset() -> void:
     super()
     _staggered = false
+    if _stagger_tween != null and is_instance_valid(_stagger_tween):
+        _stagger_tween.kill()
     _clear_hitboxes()
