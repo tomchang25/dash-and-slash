@@ -8,9 +8,6 @@
 [ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="6_sm"]
 [ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="7_telegraph"]
 
-[sub_resource type="RectangleShape2D" id="body_shape"]
-size = Vector2(56, 56)
-
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(60, 60)
 
@@ -33,9 +30,6 @@ polygon = PackedVector2Array(0, 0, 28, 0, 28, 28, 0, 28)
 unique_name_in_owner = true
 color = Color(1, 0.8, 0.2, 0.7)
 polygon = PackedVector2Array(0, 0, -8, 28, 8, 28)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1200673897]
-shape = SubResource("body_shape")
 
 [node name="Health" type="Node" parent="." unique_id=136558344]
 unique_name_in_owner = true

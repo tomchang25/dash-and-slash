@@ -277,7 +277,6 @@ func _ready() -> void:
         hurtbox.hit_received.connect(_on_hit_received)
 
     if health != null:
-        health.health_changed.connect(_on_health_changed)
         health.damaged.connect(_on_damaged)
         _on_health_changed(health.current(), health.max_health)
 
@@ -345,6 +344,7 @@ func _on_guard_changed(current: int, maximum: int) -> void:
 
 
 func _on_health_changed(current: float, maximum: float) -> void:
+    super(current, maximum)
     if _status_bars != null:
         _status_bars.set_health(current, maximum)
 
