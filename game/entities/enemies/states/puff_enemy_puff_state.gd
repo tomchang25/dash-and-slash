@@ -1,9 +1,9 @@
-# chase_enemy_puff_state.gd
+# puff_enemy_puff_state.gd
 # Zone-denial pulse state. The enemy stops, disables its contact hitbox,
 # plays a puff expand VFX, enables a larger puff hitbox for a short window,
 # then cools down. If the target is still within 3x3 grid range after the
 # cooldown the puff repeats; otherwise the enemy returns to IDLE.
-extends ChaseEnemyState
+extends PuffEnemyState
 
 const MINIMUM_PUFF_DURATION := 3.0
 const RECHECK_INTERVAL := 1.0
@@ -22,7 +22,7 @@ var _shrink_vfx_started: bool = false
 
 
 func _init() -> void:
-    state_id = ChaseEnemyStateId.PUFF
+    state_id = PuffEnemyStateId.PUFF
 
 
 func _enter() -> void:
@@ -98,7 +98,7 @@ func _start_shrink_and_idle() -> void:
     enemy.set_contact_hitbox_enabled(true)
     _play_shrink_vfx()
     if _shrink_tween == null:
-        change_state(ChaseEnemyStateId.IDLE)
+        change_state(PuffEnemyStateId.IDLE)
         return
     _shrink_tween.finished.connect(_on_shrink_finished, CONNECT_ONE_SHOT)
 
@@ -106,7 +106,7 @@ func _start_shrink_and_idle() -> void:
 func _on_shrink_finished() -> void:
     if _locked:
         return
-    change_state(ChaseEnemyStateId.IDLE)
+    change_state(PuffEnemyStateId.IDLE)
 
 
 func _play_expand_vfx() -> void:

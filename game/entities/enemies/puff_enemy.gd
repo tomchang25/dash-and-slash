@@ -1,9 +1,9 @@
-# chase_enemy.gd
-# Grid-based chase enemy. Moves toward the player one cell at a time and deals
+# puff_enemy.gd
+# Grid-based puff enemy. Moves toward the player one cell at a time and deals
 # continuous contact damage via its always-on ContactHitbox. Uses a simplified
 # state machine (Idle -> RepositionStep -> FaceOnce -> Idle) with Staggered and
 # Dead states for defense/death. Guard/stagger systems from the template.
-class_name ChaseEnemy
+class_name PuffEnemy
 extends Entity
 
 const MOVE_SPEED := 120.0
@@ -314,7 +314,7 @@ func _update_grid_pos() -> void:
 func _on_guard_broken() -> void:
     _staggered = true
     clear_planned_action()
-    _state_machine.request_transition(ChaseEnemyState.ChaseEnemyStateId.STAGGERED, true)
+    _state_machine.request_transition(PuffEnemyState.PuffEnemyStateId.STAGGERED, true)
 
 
 func _on_guard_changed(current: int, maximum: int) -> void:
@@ -374,7 +374,7 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
         health.take_damage(hp, source)
 
     if health != null and not health.is_alive():
-        _state_machine.request_transition(ChaseEnemyState.ChaseEnemyStateId.DEAD, true)
+        _state_machine.request_transition(PuffEnemyState.PuffEnemyStateId.DEAD, true)
         return
 
     if _guard != null:

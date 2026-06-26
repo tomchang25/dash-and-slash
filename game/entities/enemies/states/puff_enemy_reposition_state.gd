@@ -1,15 +1,15 @@
-# chase_enemy_reposition_state.gd
+# puff_enemy_reposition_state.gd
 # Reposition step state — moves one grid cell at a time. On each arrival,
 # re-evaluates the plan using the player's current position so the enemy
 # naturally chases the player.
-extends ChaseEnemyState
+extends PuffEnemyState
 
 var _target_cell: Vector2i
 var _has_step: bool = false
 
 
 func _init() -> void:
-    state_id = ChaseEnemyStateId.REPOSITION_STEP
+    state_id = PuffEnemyStateId.REPOSITION_STEP
 
 
 func _enter() -> void:
@@ -23,7 +23,7 @@ func _enter() -> void:
 func _physics_update(_delta: float) -> void:
     if not _has_step:
         enemy.velocity = Vector2.ZERO
-        change_state(ChaseEnemyStateId.FACE_ONCE)
+        change_state(PuffEnemyStateId.FACE_ONCE)
         return
 
     var grid: GridArena = enemy.get_grid()
@@ -38,7 +38,7 @@ func _physics_update(_delta: float) -> void:
         enemy.register_grid_occupant()
 
         if enemy.is_target_in_puff_range():
-            change_state(ChaseEnemyStateId.PUFF)
+            change_state(PuffEnemyStateId.PUFF)
             return
 
         var planned := enemy.plan_next_action()
@@ -50,6 +50,6 @@ func _physics_update(_delta: float) -> void:
             var next_dir := (next_world - enemy.global_position).normalized()
             enemy.velocity = next_dir * enemy.MOVE_SPEED
         elif planned:
-            change_state(ChaseEnemyStateId.FACE_ONCE)
+            change_state(PuffEnemyStateId.FACE_ONCE)
         else:
-            change_state(ChaseEnemyStateId.IDLE)
+            change_state(PuffEnemyStateId.IDLE)

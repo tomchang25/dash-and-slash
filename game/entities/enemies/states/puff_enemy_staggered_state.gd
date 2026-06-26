@@ -1,9 +1,9 @@
-# chase_enemy_staggered_state.gd
+# puff_enemy_staggered_state.gd
 # Staggered state waits for Guard to recover.
-extends ChaseEnemyState
+extends PuffEnemyState
 
 func _init() -> void:
-    state_id = ChaseEnemyStateId.STAGGERED
+    state_id = PuffEnemyStateId.STAGGERED
 
 
 func _enter() -> void:
@@ -20,4 +20,4 @@ func _exit() -> void:
 
 
 func _on_stagger_ended() -> void:
-    change_state(ChaseEnemyStateId.IDLE)
+    change_state(PuffEnemyStateId.IDLE)

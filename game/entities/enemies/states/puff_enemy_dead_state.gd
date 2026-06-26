@@ -1,6 +1,6 @@
-# chase_enemy_dead_state.gd
+# puff_enemy_dead_state.gd
 # Dead state plays enemy death feedback, then frees the enemy node.
-extends ChaseEnemyState
+extends PuffEnemyState
 
 const DEATH_DURATION := 0.5
 const DEATH_ROTATION_RADIANS := TAU
@@ -9,7 +9,7 @@ var _death_tween: Tween
 
 
 func _init() -> void:
-    state_id = ChaseEnemyStateId.DEAD
+    state_id = PuffEnemyStateId.DEAD
 
 
 func _enter() -> void:

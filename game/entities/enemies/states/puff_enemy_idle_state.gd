@@ -1,9 +1,9 @@
-# chase_enemy_idle_state.gd
+# puff_enemy_idle_state.gd
 # Idle state — waits for cooldown/stagger to clear, then commits the next action.
-extends ChaseEnemyState
+extends PuffEnemyState
 
 func _init() -> void:
-    state_id = ChaseEnemyStateId.IDLE
+    state_id = PuffEnemyStateId.IDLE
 
 
 func _enter() -> void:
@@ -18,7 +18,7 @@ func _physics_update(_delta: float) -> void:
         return
 
     if enemy.is_target_in_puff_range():
-        change_state(ChaseEnemyStateId.PUFF)
+        change_state(PuffEnemyStateId.PUFF)
         return
 
     if not enemy.plan_next_action():
@@ -26,6 +26,6 @@ func _physics_update(_delta: float) -> void:
         return
 
     if enemy.has_planned_path():
-        change_state(ChaseEnemyStateId.REPOSITION_STEP)
+        change_state(PuffEnemyStateId.REPOSITION_STEP)
     else:
-        change_state(ChaseEnemyStateId.FACE_ONCE)
+        change_state(PuffEnemyStateId.FACE_ONCE)

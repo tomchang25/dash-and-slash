@@ -8,10 +8,10 @@ extends Node2D
 enum Wave { NO_WAVE = -1, WAVE_1 = 0, WAVE_2 = 1, BOSS = 2, COMPLETE = 3 }
 
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
-const ChaseEnemyScene := preload("res://game/entities/enemies/chase_enemy.tscn")
+const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
 const BossScene := preload("res://game/entities/enemies/boss.tscn")
 
-const ENEMY_POOL := [SmallEnemyScene, ChaseEnemyScene]
+const ENEMY_POOL := [SmallEnemyScene, PuffEnemyScene]
 
 const WAVES := {
     Wave.WAVE_1: { "count": 3 },
