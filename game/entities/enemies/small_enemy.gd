@@ -21,6 +21,8 @@ const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
 
 @export var death_sfx_event: SpatialAudioEvent
+@export var damaged_sfx_event: SpatialAudioEvent
+@export var blocked_sfx_event: SpatialAudioEvent
 
 @onready var _hitbox: Hitbox = $AttackHitbox
 @onready var _state_machine: StateMachine = $StateMachine
@@ -356,12 +358,18 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
     else:
         gd = DirectionResolver.normal_guard_damage(angle)
 
-    var will_break_guard := _guard != null \
-    and not _guard.is_staggered() \
-    and _guard.current() > 0 \
-    and gd >= _guard.current()
+    var will_break_guard := _guard != null and not _guard.is_staggered() and _guard.current() > 0 and gd >= _guard.current()
+
     var full_damage := _guard == null or _guard.is_staggered() or will_break_guard
     var hp := amount if full_damage else amount * GUARDED_DAMAGE_MULTIPLIER
+
+    if full_damage:
+        if damaged_sfx_event != null:
+            AudioManager.play_event(damaged_sfx_event, global_position)
+    else:
+        var sfx_event := damaged_sfx_event if angle == DirectionResolver.HitAngle.BACK else blocked_sfx_event
+        if sfx_event != null:
+            AudioManager.play_event(sfx_event, global_position)
 
     if health != null:
         health.take_damage(hp, source)
