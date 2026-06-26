@@ -17,7 +17,7 @@ const WALL_THICKNESS := 128.0
 @export var grid_line_width: float = 1.0
 
 var _occupants: Dictionary = { } # { Object: Array[Vector2i] }
-var _reservations: Dictionary = { } # { Object: Vector2i }
+var _reservations: Dictionary = { } # { Object: Array[Vector2i] }
 var _telegraphs: Dictionary = { } # { cell: { source: phase } }
 var _player_grid: Vector2i = Vector2i.ZERO
 var _arena_visuals: Node2D
@@ -154,7 +154,10 @@ func is_occupied(cell: Vector2i) -> bool:
 
 
 func is_reserved(cell: Vector2i) -> bool:
-    return cell in _reservations.values()
+    for cells in _reservations.values():
+        if cell in cells:
+            return true
+    return false
 
 
 func register_occupant(entity: Object, tiles: Array[Vector2i]) -> void:
@@ -167,7 +170,11 @@ func unregister_occupant(entity: Object) -> void:
 
 
 func reserve_cell(entity: Object, cell: Vector2i) -> void:
-    _reservations[entity] = cell
+    reserve_cells(entity, [cell])
+
+
+func reserve_cells(entity: Object, cells: Array[Vector2i]) -> void:
+    _reservations[entity] = cells.duplicate()
 
 
 func clear_reservation(entity: Object) -> void:

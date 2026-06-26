@@ -137,7 +137,7 @@ func plan_next_action() -> bool:
         return false
 
     _planned_path = path
-    _grid.reserve_cell(self, path[path.size() - 1])
+    _refresh_planned_reservations()
     queue_redraw()
     return true
 
@@ -163,6 +163,7 @@ func consume_next_planned_cell() -> Vector2i:
     _planned_path.remove_at(0)
     _active_path_cell = next
     _has_active_path_cell = true
+    _refresh_planned_reservations()
     queue_redraw()
     return next
 
@@ -322,7 +323,7 @@ func _find_path_to_attack_cell(start: Vector2i, blocked_cell: Vector2i, attack_c
             var next := current + direction
             if came_from.has(next):
                 continue
-            if not _can_path_through(next, blocked_cell):
+            if not _can_path_through(next, start, blocked_cell):
                 continue
             came_from[next] = current
             queue.append(next)
@@ -339,12 +340,32 @@ func _find_path_to_attack_cell(start: Vector2i, blocked_cell: Vector2i, attack_c
     return path
 
 
-func _can_path_through(cell: Vector2i, blocked_cell: Vector2i) -> bool:
+func _can_path_through(cell: Vector2i, start: Vector2i, blocked_cell: Vector2i) -> bool:
     if not _grid.is_in_bounds(cell):
         return false
     if cell == blocked_cell:
         return false
+    if cell != start and _grid.is_blocked(cell):
+        return false
     return true
+
+
+func _refresh_planned_reservations() -> void:
+    if _grid == null:
+        return
+
+    var reserved_cells: Array[Vector2i] = []
+    if _has_active_path_cell:
+        reserved_cells.append(_active_path_cell)
+    if not _planned_path.is_empty():
+        var final_cell := _planned_path[_planned_path.size() - 1]
+        if final_cell not in reserved_cells:
+            reserved_cells.append(final_cell)
+
+    if reserved_cells.is_empty():
+        _grid.clear_reservation(self)
+    else:
+        _grid.reserve_cells(self, reserved_cells)
 
 # -- Pool lifecycle --
 
