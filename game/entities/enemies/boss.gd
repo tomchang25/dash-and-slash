@@ -14,6 +14,7 @@ const RECOVERY_DURATION := 0.8
 const CYCLE_COOLDOWN := 1.5
 const BOSS_HP := 200.0
 const BOSS_GUARD := 16
+const GUARDED_DAMAGE_MULTIPLIER := 0.25
 
 @onready var _state_machine: StateMachine = $StateMachine
 @onready var _guard: Guard = $Guard
@@ -44,6 +45,7 @@ func setup(grid: GridArena, target: Node2D) -> void:
 
 func _ready() -> void:
     super()
+
     _grid_pos = _grid.world_to_grid(global_position)
     _refresh_occupied()
 
@@ -79,7 +81,7 @@ func _ready() -> void:
         _guard.stagger_ended.connect(_on_stagger_ended)
 
     if hurtbox != null:
-        hurtbox.got_hit.connect(_on_got_hit)
+        hurtbox.hit_received.connect(_on_hit_received)
 
 
 func _refresh_occupied() -> void:
@@ -246,13 +248,33 @@ func _on_stagger_ended() -> void:
     _state_machine.request_transition(StateId.IDLE, true)
 
 
-func _on_got_hit(_amount: float, source: Node2D) -> void:
-    if _guard == null or source == null:
+func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) -> void:
+    if not (source is Node2D):
         return
-    var src_pos := source.global_position
+
+    var src_pos := (source as Node2D).global_position
     var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
-    var gd := DirectionResolver.normal_guard_damage(angle)
-    _guard.take_guard_damage(gd)
+    var gd: int
+    if guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
+        gd = DirectionResolver.dash_guard_damage(angle)
+    else:
+        gd = DirectionResolver.normal_guard_damage(angle)
+
+    var will_break_guard := _guard != null \
+        and not _guard.is_staggered() \
+        and _guard.current() > 0 \
+        and gd >= _guard.current()
+    var full_damage := _guard == null or _guard.is_staggered() or will_break_guard
+    var hp := amount if full_damage else amount * GUARDED_DAMAGE_MULTIPLIER
+
+    if health != null:
+        health.take_damage(hp, source)
+
+    if health != null and not health.is_alive():
+        return
+
+    if _guard != null:
+        _guard.take_guard_damage(gd)
 
 
 func reset() -> void:

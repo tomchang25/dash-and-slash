@@ -12,19 +12,20 @@ const DASH_DURATION := 0.2
 const DASH_COOLDOWN := 2.0
 const ATTACK_DURATION := 0.25
 const NORMAL_ATTACK_DAMAGE := 10.0
-const DASH_ATTACK_DAMAGE := 15.0
 const ATTACK_RANGE := 152.0
 const ATTACK_CAPSULE_RADIUS := 64.0
 const ATTACK_CAPSULE_HEIGHT := 208.0
 
 # -- Exports --------------------------------------------------------------------
 @export var attack_sfx_event: SpatialAudioEvent
+@export var dash_attack_damage: float = 25.0
 
 # -- Node references ----------------------------------------------------------
 @onready var _attack_hitbox: Hitbox = $AttackHitbox
 @onready var _dash_hitbox: Hitbox = $DashHitbox
 @onready var _attack_vfx: Polygon2D = $AttackVfx
 @onready var _facing_arrow: Polygon2D = $FacingArrow
+@onready var _hurtbox: Hurtbox = $Hurtbox
 
 var _move_dir := Vector2.ZERO
 var _last_move_dir := Vector2.DOWN
@@ -95,6 +96,7 @@ func disable_attack_hitbox() -> void:
 
 
 func enable_dash_hitbox() -> void:
+    _dash_hitbox.damage = dash_attack_damage
     _dash_hitbox.set_enabled(true)
 
 
@@ -104,6 +106,7 @@ func disable_dash_hitbox() -> void:
 
 func begin_normal_attack(aim_dir: Vector2) -> void:
     _position_attack_shape(aim_dir)
+    _attack_hitbox.damage = NORMAL_ATTACK_DAMAGE
     _attack_hitbox.set_enabled(true)
     if attack_sfx_event != null:
         AudioManager.play_event(attack_sfx_event, global_position)
@@ -148,6 +151,9 @@ func _ready() -> void:
     _attack_hitbox.set_enabled(false)
     _dash_hitbox.set_enabled(false)
 
+    if _hurtbox != null:
+        _hurtbox.hit_received.connect(_on_hit_received)
+
 
 func _physics_process(delta: float) -> void:
     if _dash_cooldown_remaining > 0.0:
@@ -171,3 +177,8 @@ func _unhandled_input(event: InputEvent) -> void:
         _dash_requested = true
         var mv_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
         _dash_requested_dir = get_aim_direction() if mv_dir == Vector2.ZERO else mv_dir
+
+
+func _on_hit_received(amount: float, source: Node, _guard_damage_profile: int) -> void:
+    if health != null:
+        health.take_damage(amount, source)

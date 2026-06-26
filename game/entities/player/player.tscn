@@ -70,7 +70,8 @@ collision_layer = 2
 collision_mask = 3
 monitoring = false
 script = ExtResource("4_hitbox")
-damage = 15.0
+damage = 25.0
+guard_damage_profile = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DashHitbox" unique_id=1187639664]
 shape = SubResource("dash_shape")

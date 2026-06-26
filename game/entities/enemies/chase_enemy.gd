@@ -1,4 +1,7 @@
 # chase_enemy.gd
+# DEPRECATED — this enemy will be replaced once SmallEnemy is fully generalized.
+# The testbed (example_arpg_arena.gd) still references chase_enemy.tscn; remove
+# that reference before deleting this file.
 # Entity subclass — enemy. Local behaviour: steer toward an assigned target each
 # frame. Its ContactHitbox (always on) damages whatever Hurtbox it overlaps; its own
 # Health/Hurtbox take damage from the player's attack. Death is relayed via the
@@ -13,8 +16,8 @@ const SPEED := 90.0
 
 var _target: Node2D = null
 
-
 # ══ Lifecycle ═════════════════════════════════════════════════════════════════
+
 
 func _physics_process(_delta: float) -> void:
     if not is_instance_valid(_target):
@@ -23,8 +26,8 @@ func _physics_process(_delta: float) -> void:
     velocity = global_position.direction_to(_target.global_position) * SPEED
     move_and_slide()
 
-
 # ══ Common API ════════════════════════════════════════════════════════════════
+
 
 ## Assigns the chase target (the player). Called by the arena driver on spawn.
 func set_target(target: Node2D) -> void:

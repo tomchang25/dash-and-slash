@@ -49,6 +49,7 @@ func take_damage(amount: float, source: Node = null) -> void:
         return
     if amount <= 0.0:
         return
+
     _current = max(_current - amount, 0.0)
     if invuln_seconds > 0.0:
         _invuln_until_msec = Time.get_ticks_msec() + int(invuln_seconds * 1000.0)

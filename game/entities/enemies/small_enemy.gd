@@ -15,6 +15,8 @@ const ATTACK_DURATION := 0.2
 const RECOVERY_DURATION := 0.4
 const CYCLE_COOLDOWN := 1.0
 const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
+const GUARDED_DAMAGE_MULTIPLIER := 0.25
+const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
 
@@ -24,6 +26,7 @@ const PATH_DEBUG_WIDTH := 4.0
 @onready var _attack_controller: SmallEnemyAttackController = $AttackController
 @onready var _status_bars: EnemyStatusBars = $StatusBars
 @onready var hurtbox: Hurtbox = $Hurtbox
+@onready var _body: Polygon2D = $Body
 
 var _grid: GridArena
 var _target: Node2D
@@ -31,6 +34,7 @@ var _grid_pos: Vector2i
 var _facing: Vector2 = Vector2.DOWN
 var _cooldown_timer: Timer
 var _staggered: bool = false
+var _stagger_tween: Tween
 var _planned_path: Array[Vector2i] = []
 var _active_path_cell: Vector2i
 var _has_active_path_cell: bool = false
@@ -224,7 +228,7 @@ func _ready() -> void:
         _grid.register_occupant(self, [_grid_pos])
 
     if hurtbox != null:
-        hurtbox.got_hit.connect(_on_got_hit)
+        hurtbox.hit_received.connect(_on_hit_received)
 
     if health != null:
         health.health_changed.connect(_on_health_changed)
@@ -237,6 +241,8 @@ func _ready() -> void:
     if _guard != null:
         _guard.guard_changed.connect(_on_guard_changed)
         _guard.guard_broken.connect(_on_guard_broken)
+        _guard.stagger_started.connect(_on_stagger_started)
+        _guard.stagger_ended.connect(_on_stagger_ended)
         _on_guard_changed(_guard.current(), _guard.max_guard)
 
 
@@ -296,13 +302,50 @@ func _on_health_changed(current: float, maximum: float) -> void:
         _status_bars.set_health(current, maximum)
 
 
-func _on_got_hit(_amount: float, source: Node2D) -> void:
-    if _guard == null or source == null:
+func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) -> void:
+    if not (source is Node2D):
         return
-    var src_pos := source.global_position
+
+    var src_pos := (source as Node2D).global_position
     var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
-    var gd := DirectionResolver.normal_guard_damage(angle)
-    _guard.take_guard_damage(gd)
+    var gd: int
+    if guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
+        gd = DirectionResolver.dash_guard_damage(angle)
+    else:
+        gd = DirectionResolver.normal_guard_damage(angle)
+
+    var will_break_guard := _guard != null \
+    and not _guard.is_staggered() \
+    and _guard.current() > 0 \
+    and gd >= _guard.current()
+    var full_damage := _guard == null or _guard.is_staggered() or will_break_guard
+    var hp := amount if full_damage else amount * GUARDED_DAMAGE_MULTIPLIER
+
+    if health != null:
+        health.take_damage(hp, source)
+
+    if health != null and not health.is_alive():
+        return
+
+    if _guard != null:
+        _guard.take_guard_damage(gd)
+
+
+func _on_stagger_started() -> void:
+    if _body != null:
+        if _stagger_tween != null and is_instance_valid(_stagger_tween):
+            _stagger_tween.kill()
+        _stagger_tween = create_tween()
+        _stagger_tween.tween_property(_body, "modulate", STAGGER_VFX_COLOR, 0.2)
+
+
+func _on_stagger_ended() -> void:
+    _staggered = false
+    if _body != null:
+        if _stagger_tween != null and is_instance_valid(_stagger_tween):
+            _stagger_tween.kill()
+        _stagger_tween = create_tween()
+        _stagger_tween.tween_property(_body, "modulate", Color.WHITE, 0.3)
 
 
 func _cancel_attack() -> void:
@@ -389,6 +432,10 @@ func _refresh_planned_reservations() -> void:
 func reset() -> void:
     super()
     _staggered = false
+    if _body != null:
+        _body.modulate = Color.WHITE
+    if _stagger_tween != null and is_instance_valid(_stagger_tween):
+        _stagger_tween.kill()
     clear_planned_action()
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)

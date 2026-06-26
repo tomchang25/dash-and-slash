@@ -29,9 +29,9 @@ static func normal_guard_damage(angle: HitAngle) -> int:
         HitAngle.FRONT:
             return 1
         HitAngle.SIDE:
-            return 2
+            return 1
         HitAngle.BACK:
-            return 4
+            return 2
         _:
             return 0
 

@@ -10,9 +10,12 @@ extends Area2D
 
 signal hit_landed(target: Hurtbox)
 
+enum GuardDamageProfile { NORMAL, DASH }
+
 # ── Exports ─────────────────────────────────────────────────────────────────────
 
 @export var damage: float = 10.0
+@export var guard_damage_profile: GuardDamageProfile = GuardDamageProfile.NORMAL
 
 ## Seconds between repeated hits on the same victim. 0 = hit once on enter only.
 @export var damage_interval: float = 0.0
@@ -70,7 +73,7 @@ func _try_hit(area: Area2D) -> void:
         if now - float(_hit_times[hurtbox]) < damage_interval:
             return
     _hit_times[hurtbox] = now
-    hurtbox.receive_hit(damage, owner)
+    hurtbox.receive_hit(damage, owner, guard_damage_profile)
     hit_landed.emit(hurtbox)
 
 # ══ Pool lifecycle ════════════════════════════════════════════════════════════

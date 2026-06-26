@@ -1,41 +1,26 @@
 # hurtbox.gd
-# Component: the receiving side of combat. An Area2D that a Hitbox overlaps to deal
-# damage. It forwards incoming hits to the entity's Health and re-broadcasts them as
-# a signal so other components (hit-flash, knockback, audio) can react.
-#
-# Wiring: set `health` in the inspector, or leave it null to auto-find a Health
-# sibling under the same owner in _ready().
+# Component: the receiving side of combat. An Area2D that a Hitbox overlaps to
+# broadcast a hit_received signal. Health, guard, and damage rules are handled
+# by the entity's parent script — Hurtbox is a pure event bridge.
 class_name Hurtbox
 extends Area2D
 
-signal got_hit(amount: float, source: Node)
-
-# ── Exports ─────────────────────────────────────────────────────────────────────
-
-@export var health: Health
+signal hit_received(amount: float, source: Node, guard_damage_profile: int)
 
 # ── State ─────────────────────────────────────────────────────────────────────
 
 var _enabled: bool = true
 
-# ══ Lifecycle ═════════════════════════════════════════════════════════════════
-
-
-func _ready() -> void:
-    if health == null and owner != null:
-        health = owner.find_child("Health", true, false) as Health
-
 # ══ Common API ════════════════════════════════════════════════════════════════
 
 
-## Called by an overlapping Hitbox. Applies damage to Health and re-broadcasts.
-## No-op while disabled. [param source] is the attacker for attribution.
-func receive_hit(amount: float, source: Node = null) -> void:
+## Called by an overlapping Hitbox. No-op while disabled.
+## [param source] is the attacker for attribution.
+## [param guard_damage_profile] is Hitbox.GuardDamageProfile — 0=NORMAL, 1=DASH.
+func receive_hit(amount: float, source: Node = null, guard_damage_profile: int = 0) -> void:
     if not _enabled:
         return
-    if health != null:
-        health.take_damage(amount, source)
-    got_hit.emit(amount, source)
+    hit_received.emit(amount, source, guard_damage_profile)
 
 # ══ Pool lifecycle ════════════════════════════════════════════════════════════
 
