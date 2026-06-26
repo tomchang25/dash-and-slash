@@ -51,7 +51,7 @@ func get_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]
     var cells: Array[Vector2i] = []
     match _attack_pattern:
         AttackPattern.LINE_1X4:
-            for depth in range(4):
+            for depth in range(1, 4):
                 _append_cell_if_in_bounds(cells, origin_cell + facing_cell * depth)
         AttackPattern.WIDE_2X3:
             for depth in range(2):

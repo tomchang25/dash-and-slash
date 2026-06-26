@@ -17,10 +17,10 @@
 [ext_resource type="Script" uid="uid://dkn1smallatk0" path="res://game/entities/enemies/small_enemy_attack_controller.gd" id="16_attack_controller"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
-size = Vector2(112, 112)
+size = Vector2(84, 84)
 
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
-size = Vector2(120, 120)
+size = Vector2(90, 90)
 
 [node name="SmallEnemy" type="CharacterBody2D" unique_id=694366884]
 collision_layer = 0
@@ -29,11 +29,11 @@ script = ExtResource("1_enemy")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1340798399]
 color = Color(0.9, 0.4, 0.3, 1)
-polygon = PackedVector2Array(-56, -56, 56, -56, 56, 56, -56, 56)
+polygon = PackedVector2Array(-42, -42, 42, -42, 42, 42, -42, 42)
 
 [node name="FacingArrow" type="Polygon2D" parent="." unique_id=1441693777]
 color = Color(1, 0.8, 0.2, 0.7)
-polygon = PackedVector2Array(0, 0, -20, 64, 20, 64)
+polygon = PackedVector2Array(0, 0, -15, 48, 15, 48)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1236867143]
 shape = SubResource("body_shape")
@@ -54,8 +54,7 @@ shape = SubResource("hurt_shape")
 script = ExtResource("5_guard")
 
 [node name="AttackHitbox" type="Area2D" parent="." unique_id=585828487]
-collision_layer = 8
-collision_mask = 0
+collision_layer = 0
 monitoring = false
 script = ExtResource("4_hitbox")
 
