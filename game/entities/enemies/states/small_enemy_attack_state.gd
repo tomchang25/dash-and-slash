@@ -4,6 +4,7 @@
 extends SmallEnemyState
 
 var _timer: Timer
+var _return_to_idle := false
 
 
 func _init() -> void:
@@ -11,12 +12,13 @@ func _init() -> void:
 
 
 func _enter() -> void:
-    var grid: GridArena = enemy.get_grid()
-    var front_tile := enemy.get_grid_pos() + Vector2i(int(enemy.get_facing().x), int(enemy.get_facing().y))
-    var hit_pos := grid.cell_center(front_tile)
+    _return_to_idle = false
+    var attack := enemy.get_attack_controller()
+    if attack == null:
+        _return_to_idle = true
+        return
 
-    enemy.set_attack_hitbox_position(hit_pos)
-    enemy.enable_attack_hitbox()
+    attack.begin_attack()
 
     _timer = Timer.new()
     _timer.one_shot = true
@@ -27,7 +29,10 @@ func _enter() -> void:
 
 
 func _exit() -> void:
-    enemy.disable_attack_hitbox()
+    _return_to_idle = false
+    var attack := enemy.get_attack_controller()
+    if attack != null:
+        attack.end_attack()
     if _timer != null and is_instance_valid(_timer):
         _timer.queue_free()
         _timer = null
@@ -35,3 +40,8 @@ func _exit() -> void:
 
 func _on_timer_timeout() -> void:
     change_state(SmallEnemyStateId.RECOVERY)
+
+
+func _physics_update(_delta: float) -> void:
+    if _return_to_idle:
+        change_state(SmallEnemyStateId.IDLE)

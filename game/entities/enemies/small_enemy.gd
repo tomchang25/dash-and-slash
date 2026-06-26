@@ -20,7 +20,7 @@ const PATH_DEBUG_WIDTH := 4.0
 @onready var _hitbox: Hitbox = $AttackHitbox
 @onready var _state_machine: StateMachine = $StateMachine
 @onready var _guard: Guard = $Guard
-@onready var _telegraph: TileTelegraph = $TileTelegraph
+@onready var _attack_controller: SmallEnemyAttackController = $AttackController
 @onready var hurtbox: Hurtbox = $Hurtbox
 
 var _grid: GridArena
@@ -39,9 +39,7 @@ var _has_planned_action: bool = false
 func setup(grid: GridArena, target: Node2D) -> void:
     _grid = grid
     _target = target
-    var t := $TileTelegraph as TileTelegraph
-    if t != null:
-        t.setup(grid)
+    _configure_attack_controller()
 
 # -- Public API (called BY states, not the other way around) --
 
@@ -209,24 +207,8 @@ func register_grid_occupant() -> void:
     _grid.register_occupant(self, [_grid_pos])
 
 
-func start_telegraph(tiles: Array[Vector2i]) -> void:
-    _telegraph.show_warning(tiles)
-
-
-func clear_telegraph() -> void:
-    _telegraph.clear()
-
-
-func enable_attack_hitbox() -> void:
-    _hitbox.set_enabled(true)
-
-
-func disable_attack_hitbox() -> void:
-    _hitbox.set_enabled(false)
-
-
-func set_attack_hitbox_position(pos: Vector2) -> void:
-    _hitbox.global_position = pos
+func get_attack_controller() -> SmallEnemyAttackController:
+    return _attack_controller
 
 
 func get_guard() -> Guard:
@@ -238,8 +220,10 @@ func get_guard() -> Guard:
 func _ready() -> void:
     super()
     _hitbox.set_enabled(false)
-    _grid_pos = _grid.world_to_grid(global_position)
-    _grid.register_occupant(self, [_grid_pos])
+    _configure_attack_controller()
+    if _grid != null:
+        _grid_pos = _grid.world_to_grid(global_position)
+        _grid.register_occupant(self, [_grid_pos])
 
     if hurtbox != null:
         hurtbox.got_hit.connect(_on_got_hit)
@@ -296,7 +280,7 @@ func _update_grid_pos() -> void:
 func _on_guard_broken() -> void:
     _staggered = true
     clear_planned_action()
-    _disable_telegraph_and_hitbox()
+    _cancel_attack()
     _state_machine.request_transition(SmallEnemyState.SmallEnemyStateId.STAGGERED, true)
 
 
@@ -309,11 +293,19 @@ func _on_got_hit(_amount: float, source: Node2D) -> void:
     _guard.take_guard_damage(gd)
 
 
-func _disable_telegraph_and_hitbox() -> void:
-    if _telegraph != null:
-        _telegraph.clear()
-    if _hitbox != null:
-        _hitbox.set_enabled(false)
+func _cancel_attack() -> void:
+    if _attack_controller != null:
+        _attack_controller.cancel()
+
+
+func _configure_attack_controller() -> void:
+    var controller := get_node_or_null("AttackController") as SmallEnemyAttackController
+    if controller == null:
+        return
+    var telegraph := get_node_or_null("TileTelegraph") as TileTelegraph
+    var hitbox := get_node_or_null("AttackHitbox") as Hitbox
+    controller.setup(_grid, telegraph, hitbox)
+    _attack_controller = controller
 
 
 func _find_path_to_attack_cell(start: Vector2i, blocked_cell: Vector2i, attack_cells: Array[Vector2i]) -> Array[Vector2i]:

@@ -1,9 +1,9 @@
 # small_enemy_telegraph_state.gd
-# Telegraph state — shows a warning on the tile in front of the enemy for
-# TELEGRAPH_DURATION, then transitions to ATTACK.
+# Telegraph state prepares an attack snapshot, shows warning tiles, then attacks.
 extends SmallEnemyState
 
 var _timer: Timer
+var _return_to_idle := false
 
 
 func _init() -> void:
@@ -11,14 +11,17 @@ func _init() -> void:
 
 
 func _enter() -> void:
-    var grid: GridArena = enemy.get_grid()
-    var front_tile := enemy.get_grid_pos() + Vector2i(int(enemy.get_facing().x), int(enemy.get_facing().y))
-
-    if not grid.is_in_bounds(front_tile):
-        change_state(SmallEnemyStateId.IDLE)
+    _return_to_idle = false
+    var attack := enemy.get_attack_controller()
+    if attack == null:
+        _return_to_idle = true
         return
 
-    enemy.start_telegraph([front_tile])
+    if not attack.prepare(enemy.get_grid_pos(), enemy.get_facing()):
+        _return_to_idle = true
+        return
+
+    attack.show_telegraph()
 
     _timer = Timer.new()
     _timer.one_shot = true
@@ -28,10 +31,15 @@ func _enter() -> void:
 
 
 func _exit() -> void:
-    enemy.clear_telegraph()
+    _return_to_idle = false
     if _timer != null and is_instance_valid(_timer):
         _timer.queue_free()
         _timer = null
+
+
+func _physics_update(_delta: float) -> void:
+    if _return_to_idle:
+        change_state(SmallEnemyStateId.IDLE)
 
 
 func _on_timer_timeout() -> void:

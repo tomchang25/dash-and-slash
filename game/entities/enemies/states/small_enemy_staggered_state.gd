@@ -1,6 +1,5 @@
 # small_enemy_staggered_state.gd
-# Staggered state — entered when guard is broken. Clears telegraph and disables
-# hitbox on enter, waits for stagger_ended signal from Guard to transition to IDLE.
+# Staggered state cancels attacks and waits for Guard to recover.
 extends SmallEnemyState
 
 func _init() -> void:
@@ -8,8 +7,9 @@ func _init() -> void:
 
 
 func _enter() -> void:
-    enemy.clear_telegraph()
-    enemy.disable_attack_hitbox()
+    var attack := enemy.get_attack_controller()
+    if attack != null:
+        attack.cancel()
     enemy.velocity = Vector2.ZERO
 
     var guard: Guard = enemy.get_guard()

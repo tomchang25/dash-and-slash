@@ -28,6 +28,19 @@ func _ready() -> void:
     _build_arena_collision()
 
 
+func _draw() -> void:
+    for cell: Vector2i in _telegraphs.keys():
+        var phase: int = _telegraphs[cell]
+        var color := _telegraph_color(phase)
+        if color == Color.TRANSPARENT:
+            continue
+        var half := Vector2.ONE * tile_size * 0.45
+        var center := to_local(cell_center(cell))
+        var rect := Rect2(center - half, half * 2.0)
+        draw_rect(rect, color, true)
+        draw_rect(rect, color.lightened(0.5), false, 2.0)
+
+
 func _build_arena_visuals() -> void:
     if _arena_visuals != null:
         _arena_visuals.queue_free()
@@ -212,3 +225,15 @@ func clear_telegraph(tiles: Array[Vector2i]) -> void:
 func clear_all_telegraphs() -> void:
     _telegraphs.clear()
     queue_redraw()
+
+
+func _telegraph_color(phase: int) -> Color:
+    match phase:
+        TelegraphPhase.WARNING:
+            return Color(1.0, 0.4, 0.2, 0.25)
+        TelegraphPhase.CHARGE:
+            return Color(1.0, 0.2, 0.1, 0.45)
+        TelegraphPhase.ACTIVE:
+            return Color(1.0, 0.05, 0.0, 0.7)
+        _:
+            return Color.TRANSPARENT

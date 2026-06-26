@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://cv6m32gigw3xm" path="res://game/entities/enemies/states/small_enemy_attack_state.gd" id="13_attack_state"]
 [ext_resource type="Script" uid="uid://huiuo72mpcw6" path="res://game/entities/enemies/states/small_enemy_recovery_state.gd" id="14_recovery_state"]
 [ext_resource type="Script" uid="uid://bcs8eblexbkwn" path="res://game/entities/enemies/states/small_enemy_staggered_state.gd" id="15_staggered_state"]
+[ext_resource type="Script" uid="uid://dkn1smallatk0" path="res://game/entities/enemies/small_enemy_attack_controller.gd" id="16_attack_controller"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
 size = Vector2(112, 112)
@@ -62,6 +63,9 @@ shape = SubResource("body_shape")
 
 [node name="TileTelegraph" type="Node2D" parent="." unique_id=1762094590]
 script = ExtResource("8_telegraph")
+
+[node name="AttackController" type="Node" parent="." unique_id=1265306577]
+script = ExtResource("16_attack_controller")
 
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
 script = ExtResource("7_sm")
