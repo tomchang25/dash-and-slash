@@ -8,11 +8,14 @@ extends Node2D
 enum Wave { NO_WAVE = -1, WAVE_1 = 0, WAVE_2 = 1, BOSS = 2, COMPLETE = 3 }
 
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
+const ChaseEnemyScene := preload("res://game/entities/enemies/chase_enemy.tscn")
 const BossScene := preload("res://game/entities/enemies/boss.tscn")
 
+const ENEMY_POOL := [SmallEnemyScene, ChaseEnemyScene]
+
 const WAVES := {
-    Wave.WAVE_1: { "count": 3, "scene": SmallEnemyScene },
-    Wave.WAVE_2: { "count": 3, "scene": SmallEnemyScene },
+    Wave.WAVE_1: { "count": 3 },
+    Wave.WAVE_2: { "count": 3 },
     Wave.BOSS: { "count": 1, "scene": BossScene },
 }
 
@@ -137,7 +140,8 @@ func _begin_wave(wave: int) -> void:
 
 
 func _spawn_enemy(scene: PackedScene, index: int) -> void:
-    var enemy := scene.instantiate()
+    var picked: PackedScene = scene if scene != null else ENEMY_POOL[randi() % ENEMY_POOL.size()]
+    var enemy: Node = picked.instantiate()
     var spawn_cell := _choose_enemy_spawn_cell(index)
     enemy.global_position = _grid.cell_center(spawn_cell)
 
