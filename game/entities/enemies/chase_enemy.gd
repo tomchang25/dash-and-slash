@@ -14,6 +14,8 @@ const GUARDED_DAMAGE_MULTIPLIER := 0.2
 const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
+const PUFF_ACTIVE_DURATION := 0.35
+const PUFF_RANGE := 1
 
 @export var death_sfx_event: SpatialAudioEvent
 @export var damaged_sfx_event: SpatialAudioEvent
@@ -24,6 +26,8 @@ const PATH_DEBUG_WIDTH := 4.0
 @onready var _status_bars: EnemyStatusBars = $StatusBars
 @onready var hurtbox: Hurtbox = $Hurtbox
 @onready var _body: Polygon2D = $Body
+@onready var _puff_hitbox: Hitbox = $PuffHitbox
+@onready var _contact_hitbox: Hitbox = $ContactHitbox
 
 var _grid: GridArena
 var _target: Node2D
@@ -196,11 +200,37 @@ func get_guard() -> Guard:
     return _guard
 
 
+func get_body() -> Polygon2D:
+    return _body
+
+
+func is_target_in_puff_range() -> bool:
+    if _grid == null or not has_target():
+        return false
+    var player_cell := _grid.world_to_grid(_target.global_position)
+    var diff := player_cell - _grid_pos
+    return absi(diff.x) <= PUFF_RANGE and absi(diff.y) <= PUFF_RANGE
+
+
+func enable_puff_hitbox(enable: bool) -> void:
+    if _puff_hitbox != null:
+        _puff_hitbox.set_enabled(enable)
+
+
+func set_contact_hitbox_enabled(enable: bool) -> void:
+    if _contact_hitbox != null:
+        _contact_hitbox.set_enabled(enable)
+
+
 func begin_death() -> void:
     velocity = Vector2.ZERO
     clear_planned_action()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
+    if _puff_hitbox != null:
+        _puff_hitbox.set_enabled(false)
+    if _contact_hitbox != null:
+        _contact_hitbox.set_enabled(false)
     if health != null:
         health.set_enabled(false)
     if hurtbox != null:
@@ -461,6 +491,8 @@ func reset() -> void:
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
         _grid.register_occupant(self, [_grid_pos])
+    if _puff_hitbox != null:
+        _puff_hitbox.set_enabled(false)
     if health != null:
         _on_health_changed(health.current(), health.max_health)
     if _guard != null:

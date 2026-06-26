@@ -37,6 +37,10 @@ func _physics_update(_delta: float) -> void:
         enemy.global_position = target_world
         enemy.register_grid_occupant()
 
+        if enemy.is_target_in_puff_range():
+            change_state(ChaseEnemyStateId.PUFF)
+            return
+
         var planned := enemy.plan_next_action()
 
         if enemy.has_planned_path():

@@ -11,6 +11,7 @@ enum ChaseEnemyStateId {
     FACE_ONCE = 2,
     STAGGERED = 3,
     DEAD = 4,
+    PUFF = 5,
 }
 
 var enemy: ChaseEnemy

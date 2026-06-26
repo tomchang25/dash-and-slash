@@ -16,6 +16,11 @@ func _physics_update(_delta: float) -> void:
     if enemy.cooldown_active() or enemy.is_staggered():
         enemy.velocity = Vector2.ZERO
         return
+
+    if enemy.is_target_in_puff_range():
+        change_state(ChaseEnemyStateId.PUFF)
+        return
+
     if not enemy.plan_next_action():
         enemy.velocity = Vector2.ZERO
         return
