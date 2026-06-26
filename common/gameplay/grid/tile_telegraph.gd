@@ -15,24 +15,24 @@ func show_warning(tiles: Array[Vector2i]) -> void:
     clear()
     if _grid == null:
         return
-    _tiles = tiles
-    _grid.set_telegraph(self, tiles, GridArena.TelegraphPhase.WARNING)
+    _tiles = tiles.duplicate()
+    _grid.set_telegraph(self, _tiles, GridArena.TelegraphPhase.WARNING)
 
 
 func show_charge(tiles: Array[Vector2i]) -> void:
     clear()
     if _grid == null:
         return
-    _tiles = tiles
-    _grid.set_telegraph(self, tiles, GridArena.TelegraphPhase.CHARGE)
+    _tiles = tiles.duplicate()
+    _grid.set_telegraph(self, _tiles, GridArena.TelegraphPhase.CHARGE)
 
 
 func show_active(tiles: Array[Vector2i]) -> void:
     clear()
     if _grid == null:
         return
-    _tiles = tiles
-    _grid.set_telegraph(self, tiles, GridArena.TelegraphPhase.ACTIVE)
+    _tiles = tiles.duplicate()
+    _grid.set_telegraph(self, _tiles, GridArena.TelegraphPhase.ACTIVE)
 
 
 func clear() -> void:

@@ -9,8 +9,9 @@ extends Entity
 
 const MOVE_SPEED := 120.0
 const ATTACK_RANGE := 1.5
-const TELEGRAPH_DURATION := 0.6
-const ATTACK_DURATION := 0.25
+const WARNING_DURATION := 0.6
+const CHARGE_DURATION := 0.2
+const ATTACK_DURATION := 0.2
 const RECOVERY_DURATION := 0.4
 const CYCLE_COOLDOWN := 1.0
 const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
@@ -313,7 +314,7 @@ func _configure_attack_controller() -> void:
         return
     var telegraph := get_node_or_null("TileTelegraph") as TileTelegraph
     var hitbox := get_node_or_null("AttackHitbox") as Hitbox
-    controller.setup(_grid, telegraph, hitbox)
+    controller.setup(_grid, telegraph, hitbox, self)
     _attack_controller = controller
 
 

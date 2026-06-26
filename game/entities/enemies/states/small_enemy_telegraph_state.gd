@@ -1,5 +1,6 @@
 # small_enemy_telegraph_state.gd
-# Telegraph state prepares an attack snapshot, shows warning tiles, then attacks.
+# Telegraph state — two-phase: WARNING (grid overlay, 0.6 s) then CHARGE
+# (grid overlay + attack VFX spawn, 0.2 s) before transitioning to ATTACK.
 extends SmallEnemyState
 
 var _timer: Timer
@@ -25,9 +26,9 @@ func _enter() -> void:
 
     _timer = Timer.new()
     _timer.one_shot = true
-    _timer.timeout.connect(_on_timer_timeout)
+    _timer.timeout.connect(_on_warning_done)
     add_child(_timer)
-    _timer.start(enemy.TELEGRAPH_DURATION)
+    _timer.start(enemy.WARNING_DURATION)
 
 
 func _exit() -> void:
@@ -42,5 +43,22 @@ func _physics_update(_delta: float) -> void:
         change_state(SmallEnemyStateId.IDLE)
 
 
-func _on_timer_timeout() -> void:
+func _on_warning_done() -> void:
+    if _timer != null and is_instance_valid(_timer):
+        _timer.queue_free()
+        _timer = null
+
+    var attack := enemy.get_attack_controller()
+    if attack != null:
+        attack.show_charge()
+
+    _timer = Timer.new()
+    _timer.one_shot = true
+    _timer.timeout.connect(_on_charge_done)
+    add_child(_timer)
+
+    _timer.start(enemy.CHARGE_DURATION)
+
+
+func _on_charge_done() -> void:
     change_state(SmallEnemyStateId.ATTACK)

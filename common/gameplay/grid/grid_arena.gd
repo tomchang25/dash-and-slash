@@ -248,8 +248,8 @@ func _telegraph_color(phase: int) -> Color:
         TelegraphPhase.WARNING:
             return Color(1.0, 0.4, 0.2, 0.25)
         TelegraphPhase.CHARGE:
-            return Color(1.0, 0.2, 0.1, 0.45)
+            return Color(1.0, 0.55, 0.0, 0.5)
         TelegraphPhase.ACTIVE:
-            return Color(1.0, 0.05, 0.0, 0.7)
+            return Color(0.95, 0.1, 0.0, 0.75)
         _:
             return Color.TRANSPARENT
