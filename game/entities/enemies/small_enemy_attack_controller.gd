@@ -3,9 +3,15 @@
 class_name SmallEnemyAttackController
 extends Node
 
+enum AttackPattern { LINE_1X4 = 0, WIDE_2X3 = 1, SURROUND_3X3 = 2 }
+
+const ATTACK_PATTERN_COUNT := 3
+
 var _grid: GridArena
 var _telegraph: TileTelegraph
 var _hitbox: Hitbox
+var _hitbox_shape: CollisionShape2D
+var _attack_pattern: int = AttackPattern.LINE_1X4
 var _attack_cells: Array[Vector2i] = []
 var _hitbox_position := Vector2.ZERO
 var _prepared := false
@@ -15,9 +21,50 @@ func setup(grid: GridArena, telegraph: TileTelegraph, hitbox: Hitbox) -> void:
     _grid = grid
     _telegraph = telegraph
     _hitbox = hitbox
+    _hitbox_shape = null
+    if _hitbox != null:
+        _hitbox_shape = _hitbox.get_node_or_null("CollisionShape2D") as CollisionShape2D
     if _telegraph != null:
         _telegraph.setup(grid)
     cancel()
+
+
+func randomize_attack_pattern() -> void:
+    _attack_pattern = randi() % ATTACK_PATTERN_COUNT
+
+
+func set_attack_pattern(attack_pattern: int) -> void:
+    _attack_pattern = clampi(attack_pattern, 0, ATTACK_PATTERN_COUNT - 1)
+
+
+func get_attack_pattern() -> int:
+    return _attack_pattern
+
+
+func get_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
+    var facing_cell := Vector2i(int(facing.x), int(facing.y))
+    if facing_cell == Vector2i.ZERO:
+        var empty_cells: Array[Vector2i] = []
+        return empty_cells
+
+    var right_cell := Vector2i(facing_cell.y, -facing_cell.x)
+    var cells: Array[Vector2i] = []
+    match _attack_pattern:
+        AttackPattern.LINE_1X4:
+            for depth in range(4):
+                _append_cell_if_in_bounds(cells, origin_cell + facing_cell * depth)
+        AttackPattern.WIDE_2X3:
+            for depth in range(2):
+                var center_cell := origin_cell + facing_cell * (depth + 1)
+                _append_cell_if_in_bounds(cells, center_cell - right_cell)
+                _append_cell_if_in_bounds(cells, center_cell)
+                _append_cell_if_in_bounds(cells, center_cell + right_cell)
+        AttackPattern.SURROUND_3X3:
+            for x_offset in range(-1, 2):
+                for y_offset in range(-1, 2):
+                    var offset := Vector2i(x_offset, y_offset)
+                    _append_cell_if_in_bounds(cells, origin_cell + offset)
+    return cells
 
 
 func prepare(origin_cell: Vector2i, facing: Vector2) -> bool:
@@ -25,16 +72,11 @@ func prepare(origin_cell: Vector2i, facing: Vector2) -> bool:
     if _grid == null:
         return false
 
-    var facing_cell := Vector2i(int(facing.x), int(facing.y))
-    if facing_cell == Vector2i.ZERO:
+    _attack_cells = get_attack_cells(origin_cell, facing)
+    if _attack_cells.is_empty():
         return false
 
-    var attack_cell := origin_cell + facing_cell
-    if not _grid.is_in_bounds(attack_cell):
-        return false
-
-    _attack_cells = [attack_cell]
-    _hitbox_position = _grid.cell_center(attack_cell)
+    _apply_hitbox_geometry()
     _prepared = true
     return true
 
@@ -69,3 +111,30 @@ func cancel() -> void:
         _hitbox.set_enabled(false)
     _attack_cells.clear()
     _prepared = false
+
+
+func _append_cell_if_in_bounds(cells: Array[Vector2i], cell: Vector2i) -> void:
+    if _grid != null and not _grid.is_in_bounds(cell):
+        return
+    if cell not in cells:
+        cells.append(cell)
+
+
+func _apply_hitbox_geometry() -> void:
+    if _grid == null or _hitbox_shape == null or _attack_cells.is_empty():
+        return
+
+    var min_cell := _attack_cells[0]
+    var max_cell := _attack_cells[0]
+    for cell in _attack_cells:
+        min_cell.x = mini(min_cell.x, cell.x)
+        min_cell.y = mini(min_cell.y, cell.y)
+        max_cell.x = maxi(max_cell.x, cell.x)
+        max_cell.y = maxi(max_cell.y, cell.y)
+
+    var cell_span := max_cell - min_cell + Vector2i.ONE
+    var rect := RectangleShape2D.new()
+    rect.size = Vector2(cell_span) * _grid.tile_size * 0.9
+    _hitbox_shape.shape = rect
+    _hitbox_position = _grid.cell_center(min_cell)
+    _hitbox_position += Vector2(cell_span - Vector2i.ONE) * _grid.tile_size * 0.5

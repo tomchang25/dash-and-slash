@@ -57,7 +57,10 @@ func set_target(target: Node2D) -> void:
 
 
 func can_attack() -> bool:
-    return global_position.distance_to(_target.global_position) <= _grid.tile_size * ATTACK_RANGE
+    if _grid == null or _attack_controller == null or not has_target():
+        return false
+    var target_cell := _grid.world_to_grid(_target.global_position)
+    return target_cell in _attack_controller.get_attack_cells(_grid_pos, _facing)
 
 
 func is_staggered() -> bool:
@@ -104,33 +107,37 @@ func set_facing(v: Vector2) -> void:
 func plan_next_action() -> bool:
     clear_planned_action()
 
-    if _grid == null or not has_target():
+    if _grid == null or _attack_controller == null or not has_target():
         return false
 
     var start := _grid_pos
     var target_cell := _grid.world_to_grid(_target.global_position)
-    var attack_cells: Array[Vector2i] = []
+    var attack_origins: Array[Vector2i] = []
     var facing_by_cell: Dictionary = { }
 
     for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
-        var attack_cell := target_cell - facing_cell
-        if not _grid.is_in_bounds(attack_cell):
-            continue
-        if attack_cell != start and _grid.is_blocked(attack_cell):
-            continue
-        attack_cells.append(attack_cell)
-        facing_by_cell[attack_cell] = Vector2(facing_cell.x, facing_cell.y)
+        var facing := Vector2(facing_cell.x, facing_cell.y)
+        for x in range(GridArena.GRID_SIZE.x):
+            for y in range(GridArena.GRID_SIZE.y):
+                var origin_cell := Vector2i(x, y)
+                if origin_cell != start and _grid.is_blocked(origin_cell):
+                    continue
+                if target_cell not in _attack_controller.get_attack_cells(origin_cell, facing):
+                    continue
+                if origin_cell not in attack_origins:
+                    attack_origins.append(origin_cell)
+                    facing_by_cell[origin_cell] = facing
 
-    if attack_cells.is_empty():
+    if attack_origins.is_empty():
         return false
 
-    if start in attack_cells:
+    if start in attack_origins:
         _planned_facing = facing_by_cell[start]
         _has_planned_action = true
         queue_redraw()
         return true
 
-    var path := _find_path_to_attack_cell(start, target_cell, attack_cells)
+    var path := _find_path_to_attack_cell(start, target_cell, attack_origins)
     if path.is_empty():
         return false
 
@@ -221,6 +228,8 @@ func _ready() -> void:
     super()
     _hitbox.set_enabled(false)
     _configure_attack_controller()
+    if _attack_controller != null:
+        _attack_controller.randomize_attack_pattern()
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
         _grid.register_occupant(self, [_grid_pos])

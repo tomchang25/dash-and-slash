@@ -48,7 +48,7 @@ invuln_seconds = 0.5
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=13352467]
 visible = false
-collision_mask = 4
+collision_mask = 8
 script = ExtResource("3_hurtbox")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1739906631]
@@ -56,8 +56,8 @@ shape = SubResource("RectangleShape2D_igs2l")
 
 [node name="AttackHitbox" type="Area2D" parent="." unique_id=231943405]
 visible = false
-collision_layer = 2
-collision_mask = 3
+collision_layer = 4
+collision_mask = 0
 monitoring = false
 script = ExtResource("4_hitbox")
 
