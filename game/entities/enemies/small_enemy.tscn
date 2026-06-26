@@ -27,19 +27,22 @@ size = Vector2(84, 84)
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(90, 90)
 
-[node name="SmallEnemy" type="CharacterBody2D" unique_id=694366884]
+[node name="SmallEnemy" type="CharacterBody2D" unique_id=694366884 node_paths=PackedStringArray("health")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_enemy")
+health = NodePath("Health")
 death_sfx_event = ExtResource("18_died_audio")
 damaged_sfx_event = ExtResource("20_damaged_audio")
 blocked_sfx_event = ExtResource("21_blocked_audio")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1340798399]
+unique_name_in_owner = true
 color = Color(0.9, 0.4, 0.3, 1)
 polygon = PackedVector2Array(-42, -42, 42, -42, 42, 42, -42, 42)
 
 [node name="FacingArrow" type="Polygon2D" parent="." unique_id=1441693777]
+unique_name_in_owner = true
 color = Color(1, 0.8, 0.2, 0.7)
 polygon = PackedVector2Array(0, 0, -15, 48, 15, 48)
 
@@ -47,9 +50,11 @@ polygon = PackedVector2Array(0, 0, -15, 48, 15, 48)
 shape = SubResource("body_shape")
 
 [node name="Health" type="Node" parent="." unique_id=1276586402]
+unique_name_in_owner = true
 script = ExtResource("2_health")
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=198748403]
+unique_name_in_owner = true
 collision_layer = 2
 collision_mask = 4
 script = ExtResource("3_hurtbox")
@@ -58,27 +63,34 @@ script = ExtResource("3_hurtbox")
 shape = SubResource("hurt_shape")
 
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
+unique_name_in_owner = true
 script = ExtResource("5_guard")
 max_guard = 16
 
-[node name="AttackHitbox" type="Area2D" parent="." unique_id=585828487]
+[node name="AttackHitbox" type="Area2D" parent="." unique_id=585828487 node_paths=PackedStringArray("collision_shape")]
+unique_name_in_owner = true
 collision_layer = 0
 monitoring = false
 script = ExtResource("4_hitbox")
+collision_shape = NodePath("CollisionShape2D")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox" unique_id=1939408297]
 shape = SubResource("body_shape")
 
 [node name="TileTelegraph" type="Node2D" parent="." unique_id=1762094590]
+unique_name_in_owner = true
 script = ExtResource("8_telegraph")
 
 [node name="AttackController" type="Node" parent="." unique_id=1265306577]
+unique_name_in_owner = true
 script = ExtResource("16_attack_controller")
 
 [node name="StatusBars" parent="." unique_id=702434121 instance=ExtResource("17_status_bars")]
+unique_name_in_owner = true
 position = Vector2(0, -49)
 
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
+unique_name_in_owner = true
 script = ExtResource("7_sm")
 initial_state = NodePath("Idle")
 tick_enabled = false

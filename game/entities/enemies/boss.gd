@@ -2,7 +2,12 @@
 # 2x2 grid actor boss. 4 shields (16 guard), 3 attack patterns:
 # ForwardCleave, LineCharge, CrossStomp. Uses the template's Entity,
 # Health, Hitbox, Hurtbox components plus Guard and TileTelegraph.
+class_name Boss
 extends Entity
+
+signal guard_changed(current: int, maximum: int)
+signal guard_stagger_started
+signal guard_stagger_ended
 
 enum StateId { IDLE = 0, FACE_TARGET = 1, TELEGRAPH = 2, ATTACK = 3, RECOVERY = 4, STAGGERED = 5 }
 
@@ -17,11 +22,12 @@ const BOSS_GUARD := 16
 const GUARDED_DAMAGE_MULTIPLIER := 0.25
 const STAGGER_VFX_COLOR := Color(0.4, 0.6, 1.0, 1.0)
 
-@onready var _state_machine: StateMachine = $StateMachine
-@onready var _guard: Guard = $Guard
-@onready var _telegraph: TileTelegraph = $TileTelegraph
-@onready var _body: Polygon2D = $Body
-@onready var hurtbox: Hurtbox = $Hurtbox
+@onready var _state_machine: StateMachine = %StateMachine
+@onready var _guard: Guard = %Guard
+@onready var _telegraph: TileTelegraph = %TileTelegraph
+@onready var _body: Polygon2D = %Body
+@onready var hurtbox: Hurtbox = %Hurtbox
+@onready var _facing_arrow: Polygon2D = %FacingArrow
 
 var _grid: GridArena
 var _target: Node2D
@@ -42,9 +48,13 @@ var _active_hitboxes: Array[Area2D] = []
 func setup(grid: GridArena, target: Node2D) -> void:
     _grid = grid
     _target = target
-    var t := $TileTelegraph as TileTelegraph
-    if t != null:
-        t.setup(grid)
+    if is_node_ready() and _telegraph != null:
+        _telegraph.setup(grid)
+
+
+func emit_guard_snapshot() -> void:
+    if _guard != null:
+        guard_changed.emit(_guard.current(), _guard.max_guard)
 
 
 func _ready() -> void:
@@ -81,9 +91,14 @@ func _ready() -> void:
     add_child(_cooldown_timer)
 
     if _guard != null:
+        _guard.guard_changed.connect(_on_guard_changed)
         _guard.guard_broken.connect(_on_guard_broken)
         _guard.stagger_started.connect(_on_stagger_started)
         _guard.stagger_ended.connect(_on_stagger_ended)
+        emit_guard_snapshot()
+
+    if _telegraph != null:
+        _telegraph.setup(_grid)
 
     if hurtbox != null:
         hurtbox.hit_received.connect(_on_hit_received)
@@ -145,9 +160,8 @@ func _cardinal_snap(v: Vector2) -> Vector2:
 
 
 func _face_arrow() -> void:
-    var arr: Polygon2D = get_node_or_null("FacingArrow") as Polygon2D
-    if arr != null:
-        arr.rotation = _facing.angle() - PI / 2.0
+    if _facing_arrow != null:
+        _facing_arrow.rotation = _facing.angle() - PI / 2.0
 
 
 func _choose_pattern() -> void:
@@ -251,8 +265,13 @@ func _on_guard_broken() -> void:
     _state_machine.request_transition(StateId.STAGGERED, true)
 
 
+func _on_guard_changed(current: int, maximum: int) -> void:
+    guard_changed.emit(current, maximum)
+
+
 func _on_stagger_started() -> void:
     _staggered = true
+    guard_stagger_started.emit()
     if _hurt_tween != null and _hurt_tween.is_valid():
         return
     _start_stagger_vfx()
@@ -268,6 +287,7 @@ func _start_stagger_vfx() -> void:
 
 func _on_stagger_ended() -> void:
     _staggered = false
+    guard_stagger_ended.emit()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
     if _body != null:

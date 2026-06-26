@@ -24,13 +24,15 @@ const PATH_DEBUG_WIDTH := 4.0
 @export var damaged_sfx_event: SpatialAudioEvent
 @export var blocked_sfx_event: SpatialAudioEvent
 
-@onready var _hitbox: Hitbox = $AttackHitbox
-@onready var _state_machine: StateMachine = $StateMachine
-@onready var _guard: Guard = $Guard
-@onready var _attack_controller: SmallEnemyAttackController = $AttackController
-@onready var _status_bars: EnemyStatusBars = $StatusBars
-@onready var hurtbox: Hurtbox = $Hurtbox
-@onready var _body: Polygon2D = $Body
+@onready var _hitbox: Hitbox = %AttackHitbox
+@onready var _state_machine: StateMachine = %StateMachine
+@onready var _guard: Guard = %Guard
+@onready var _attack_controller: SmallEnemyAttackController = %AttackController
+@onready var _status_bars: EnemyStatusBars = %StatusBars
+@onready var hurtbox: Hurtbox = %Hurtbox
+@onready var _body: Polygon2D = %Body
+@onready var _facing_arrow: Polygon2D = %FacingArrow
+@onready var _telegraph: TileTelegraph = %TileTelegraph
 
 var _grid: GridArena
 var _target: Node2D
@@ -48,7 +50,8 @@ var _has_active_path_cell: bool = false
 func setup(grid: GridArena, target: Node2D) -> void:
     _grid = grid
     _target = target
-    _configure_attack_controller()
+    if is_node_ready():
+        _configure_attack_controller()
 
 # -- Public API (called BY states, not the other way around) --
 
@@ -203,9 +206,8 @@ func cardinal_snap(v: Vector2) -> Vector2:
 
 
 func face_arrow() -> void:
-    var arr: Polygon2D = get_node_or_null("FacingArrow") as Polygon2D
-    if arr != null:
-        arr.rotation = _facing.angle() - PI / 2.0
+    if _facing_arrow != null:
+        _facing_arrow.rotation = _facing.angle() - PI / 2.0
 
 
 func register_grid_occupant() -> void:
@@ -412,13 +414,9 @@ func _cancel_attack() -> void:
 
 
 func _configure_attack_controller() -> void:
-    var controller := get_node_or_null("AttackController") as SmallEnemyAttackController
-    if controller == null:
+    if _attack_controller == null:
         return
-    var telegraph := get_node_or_null("TileTelegraph") as TileTelegraph
-    var hitbox := get_node_or_null("AttackHitbox") as Hitbox
-    controller.setup(_grid, telegraph, hitbox, self)
-    _attack_controller = controller
+    _attack_controller.setup(_grid, _telegraph, _hitbox, self)
 
 
 func _find_path_to_attack_cell(start: Vector2i, blocked_cell: Vector2i, attack_cells: Array[Vector2i]) -> Array[Vector2i]:

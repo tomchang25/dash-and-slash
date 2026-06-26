@@ -14,12 +14,14 @@ size = Vector2(56, 56)
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(60, 60)
 
-[node name="Boss" type="CharacterBody2D" unique_id=308864669]
+[node name="Boss" type="CharacterBody2D" unique_id=308864669 node_paths=PackedStringArray("health")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_boss")
+health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1387936035]
+unique_name_in_owner = true
 color = Color(0.8, 0.3, 0.6, 1)
 polygon = PackedVector2Array(-28, -28, 28, -28, 28, 28, -28, 28)
 
@@ -28,6 +30,7 @@ color = Color(0.6, 0.2, 0.4, 1)
 polygon = PackedVector2Array(0, 0, 28, 0, 28, 28, 0, 28)
 
 [node name="FacingArrow" type="Polygon2D" parent="." unique_id=158003013]
+unique_name_in_owner = true
 color = Color(1, 0.8, 0.2, 0.7)
 polygon = PackedVector2Array(0, 0, -8, 28, 8, 28)
 
@@ -35,11 +38,13 @@ polygon = PackedVector2Array(0, 0, -8, 28, 8, 28)
 shape = SubResource("body_shape")
 
 [node name="Health" type="Node" parent="." unique_id=136558344]
+unique_name_in_owner = true
 script = ExtResource("2_health")
 max_health = 200.0
 invuln_seconds = 0.3
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=574371579]
+unique_name_in_owner = true
 collision_layer = 3
 collision_mask = 2
 script = ExtResource("3_hurtbox")
@@ -48,13 +53,16 @@ script = ExtResource("3_hurtbox")
 shape = SubResource("hurt_shape")
 
 [node name="Guard" type="Node" parent="." unique_id=148406137]
+unique_name_in_owner = true
 script = ExtResource("4_guard")
 max_guard = 16
 
 [node name="TileTelegraph" type="Node2D" parent="." unique_id=1304441992]
+unique_name_in_owner = true
 script = ExtResource("7_telegraph")
 
 [node name="StateMachine" type="Node" parent="." unique_id=2020914960 node_paths=PackedStringArray("initial_state")]
+unique_name_in_owner = true
 script = ExtResource("6_sm")
 initial_state = NodePath("Idle")
 tick_enabled = false

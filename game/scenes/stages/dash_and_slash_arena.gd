@@ -38,13 +38,13 @@ const ENEMY_SPAWN_OFFSETS := [
     Vector2i(-1, -2),
 ]
 
-@onready var _grass_tiles: TileMapLayer = $TileMapLayer
-@onready var _grid: GridArena = $GridArena
-@onready var _player = $Player
-@onready var _hp_label: Label = $HUD/VBox/HpLabel
-@onready var _dash_label: Label = $HUD/VBox/DashLabel
-@onready var _wave_label: Label = $HUD/VBox/WaveLabel
-@onready var _boss_guard_label: Label = $HUD/VBox/BossGuardLabel
+@onready var _grass_tiles: TileMapLayer = %TileMapLayer
+@onready var _grid: GridArena = %GridArena
+@onready var _player: Entity = %Player
+@onready var _hp_label: Label = %HpLabel
+@onready var _dash_label: Label = %DashLabel
+@onready var _wave_label: Label = %WaveLabel
+@onready var _boss_guard_label: Label = %BossGuardLabel
 
 var _current_wave: int = Wave.NO_WAVE
 var _alive_enemies: Array[Node] = []
@@ -60,20 +60,14 @@ func _ready() -> void:
     if _player.has_method("setup"):
         _player.setup(_grid)
 
-    var cam: Camera2D = $Player/Camera2D as Camera2D
-    if cam != null:
-        cam.make_current()
-
     _wave_gap_timer = Timer.new()
     _wave_gap_timer.one_shot = true
     _wave_gap_timer.timeout.connect(_start_next_wave)
     # node-src: timer
     add_child(_wave_gap_timer)
 
-    if _player.has_node("Health"):
-        var hp := _player.get_node("Health") as Health
-        hp.health_changed.connect(_on_player_health_changed)
-        _on_player_health_changed(hp.current(), hp.max_health)
+    _player.health_changed.connect(_on_player_health_changed)
+    _player.emit_health_snapshot()
 
     _boss_guard_label.visible = false
 
@@ -158,12 +152,11 @@ func _spawn_enemy(scene: PackedScene, index: int) -> void:
 
     if _current_wave == Wave.BOSS:
         _boss_ref = enemy
-        if enemy.has_node("Guard"):
-            var g := enemy.get_node("Guard") as Guard
-            if g != null:
-                g.guard_changed.connect(_on_boss_guard_changed)
-                g.stagger_started.connect(func() -> void: _boss_guard_label.text = "GUARD BROKEN — STAGGERED!")
-                g.stagger_ended.connect(func() -> void: _on_boss_guard_changed(g.current(), g.max_guard))
+        var boss := enemy as Boss
+        if boss != null:
+            boss.guard_changed.connect(_on_boss_guard_changed)
+            boss.guard_stagger_started.connect(func() -> void: _boss_guard_label.text = "GUARD BROKEN - STAGGERED!")
+            boss.emit_guard_snapshot()
 
 
 func _choose_enemy_spawn_cell(index: int) -> Vector2i:

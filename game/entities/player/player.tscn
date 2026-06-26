@@ -25,14 +25,16 @@ height = 208.0
 [sub_resource type="RectangleShape2D" id="dash_shape"]
 size = Vector2(100, 100)
 
-[node name="Player" type="CharacterBody2D" unique_id=1806983416]
+[node name="Player" type="CharacterBody2D" unique_id=1806983416 node_paths=PackedStringArray("health")]
 collision_layer = 0
 collision_mask = 5
 script = ExtResource("1_player")
+health = NodePath("Health")
 attack_sfx_event = ExtResource("2_igs2l")
 damaged_sfx_event = ExtResource("3_t9m4n")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=863972589]
+unique_name_in_owner = true
 color = Color(0.3, 0.7, 0.9, 1)
 polygon = PackedVector2Array(-48, -48, 48, -48, 48, 48, -48, 48)
 metadata/_edit_lock_ = true
@@ -41,14 +43,17 @@ metadata/_edit_lock_ = true
 shape = SubResource("body_shape")
 
 [node name="FacingArrow" type="Polygon2D" parent="." unique_id=135999653]
+unique_name_in_owner = true
 color = Color(1, 1, 1, 0.7)
 polygon = PackedVector2Array(0, 0, -24, 80, 24, 80)
 
 [node name="Health" type="Node" parent="." unique_id=1228953014]
+unique_name_in_owner = true
 script = ExtResource("2_health")
 invuln_seconds = 3.0
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=13352467]
+unique_name_in_owner = true
 visible = false
 collision_mask = 8
 script = ExtResource("3_hurtbox")
@@ -56,30 +61,35 @@ script = ExtResource("3_hurtbox")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1739906631]
 shape = SubResource("RectangleShape2D_igs2l")
 
-[node name="AttackHitbox" type="Area2D" parent="." unique_id=231943405]
+[node name="AttackHitbox" type="Area2D" parent="." unique_id=231943405 node_paths=PackedStringArray("collision_shape")]
+unique_name_in_owner = true
 visible = false
 collision_layer = 0
 collision_mask = 2
 monitoring = false
 script = ExtResource("4_hitbox")
+collision_shape = NodePath("CollisionShape2D")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox" unique_id=526577508]
 shape = SubResource("attack_shape")
 debug_color = Color(0.6745098, 0.6, 0.69803923, 0.22352941)
 
-[node name="DashHitbox" type="Area2D" parent="." unique_id=855634475]
+[node name="DashHitbox" type="Area2D" parent="." unique_id=855634475 node_paths=PackedStringArray("collision_shape")]
+unique_name_in_owner = true
 collision_layer = 2
 collision_mask = 3
 monitoring = false
 script = ExtResource("4_hitbox")
 damage = 25.0
 guard_damage_profile = 1
+collision_shape = NodePath("CollisionShape2D")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DashHitbox" unique_id=1187639664]
 shape = SubResource("dash_shape")
 debug_color = Color(0.81960785, 0.23529412, 0.69803923, 0.1764706)
 
 [node name="AttackVfx" type="Polygon2D" parent="." unique_id=1423578965]
+unique_name_in_owner = true
 visible = false
 color = Color(0.7, 0.85, 1, 0.5)
 polygon = PackedVector2Array(-72, -112, 72, -112, 72, 112, -72, 112)
@@ -102,4 +112,5 @@ script = ExtResource("9_attack_state")
 script = ExtResource("10_dash_state")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=5077053]
+unique_name_in_owner = true
 position_smoothing_enabled = true

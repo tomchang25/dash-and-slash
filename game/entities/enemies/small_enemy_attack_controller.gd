@@ -12,7 +12,6 @@ const VFX_DURATION := 0.5
 var _grid: GridArena
 var _telegraph: TileTelegraph
 var _hitbox: Hitbox
-var _hitbox_shape: CollisionShape2D
 var _attack_pattern: int = AttackPattern.LINE_1X4
 var _attack_cells: Array[Vector2i] = []
 var _hitbox_position := Vector2.ZERO
@@ -26,9 +25,6 @@ func setup(grid: GridArena, telegraph: TileTelegraph, hitbox: Hitbox, vfx_parent
     _telegraph = telegraph
     _hitbox = hitbox
     _vfx_parent = vfx_parent
-    _hitbox_shape = null
-    if _hitbox != null:
-        _hitbox_shape = _hitbox.get_node_or_null("CollisionShape2D") as CollisionShape2D
     if _telegraph != null:
         _telegraph.setup(grid)
     cancel()
@@ -143,7 +139,7 @@ func _on_vfx_tween_done(vfx: Polygon2D) -> void:
 
 
 func _apply_hitbox_geometry() -> void:
-    if _grid == null or _hitbox_shape == null or _attack_cells.is_empty():
+    if _grid == null or _hitbox == null or _attack_cells.is_empty():
         return
 
     var min_cell := _attack_cells[0]
@@ -157,6 +153,6 @@ func _apply_hitbox_geometry() -> void:
     var cell_span := max_cell - min_cell + Vector2i.ONE
     var rect := RectangleShape2D.new()
     rect.size = Vector2(cell_span) * _grid.tile_size * 0.9
-    _hitbox_shape.shape = rect
+    _hitbox.set_collision_shape(rect)
     _hitbox_position = _grid.cell_center(min_cell)
     _hitbox_position += Vector2(cell_span - Vector2i.ONE) * _grid.tile_size * 0.5

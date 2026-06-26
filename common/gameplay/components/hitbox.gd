@@ -20,6 +20,8 @@ enum GuardDamageProfile { NORMAL, DASH }
 ## Seconds between repeated hits on the same victim. 0 = hit once on enter only.
 @export var damage_interval: float = 0.0
 
+@export var collision_shape: CollisionShape2D
+
 # ── State ─────────────────────────────────────────────────────────────────────
 
 var _enabled: bool = true
@@ -89,3 +91,8 @@ func set_enabled(value: bool) -> void:
     _enabled = value
     _hit_times.clear()
     set_deferred("monitoring", value)
+
+
+func set_collision_shape(shape: Shape2D) -> void:
+    if collision_shape != null:
+        collision_shape.shape = shape

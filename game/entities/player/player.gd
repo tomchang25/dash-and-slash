@@ -23,12 +23,13 @@ const ATTACK_CAPSULE_HEIGHT := 208.0
 @export var dash_attack_damage: float = 80.0
 
 # -- Node references ----------------------------------------------------------
-@onready var _attack_hitbox: Hitbox = $AttackHitbox
-@onready var _dash_hitbox: Hitbox = $DashHitbox
-@onready var _attack_vfx: Polygon2D = $AttackVfx
-@onready var _facing_arrow: Polygon2D = $FacingArrow
-@onready var _hurtbox: Hurtbox = $Hurtbox
-@onready var _body: Polygon2D = $Body
+@onready var _attack_hitbox: Hitbox = %AttackHitbox
+@onready var _dash_hitbox: Hitbox = %DashHitbox
+@onready var _attack_vfx: Polygon2D = %AttackVfx
+@onready var _facing_arrow: Polygon2D = %FacingArrow
+@onready var _hurtbox: Hurtbox = %Hurtbox
+@onready var _body: Polygon2D = %Body
+@onready var _camera: Camera2D = %Camera2D
 
 var _move_dir := Vector2.ZERO
 var _last_move_dir := Vector2.DOWN
@@ -160,6 +161,9 @@ func _ready() -> void:
 
     if health != null:
         health.damaged.connect(_on_player_damaged)
+
+    if _camera != null:
+        _camera.make_current()
 
 
 func _physics_process(delta: float) -> void:
