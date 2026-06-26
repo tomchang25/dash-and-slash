@@ -11,7 +11,6 @@ const DASH_SPEED := 1000.0
 const DASH_DURATION := 0.2
 const DASH_COOLDOWN := 2.0
 const ATTACK_DURATION := 0.25
-const NORMAL_ATTACK_DAMAGE := 10.0
 const ATTACK_RANGE := 152.0
 const ATTACK_CAPSULE_RADIUS := 64.0
 const ATTACK_CAPSULE_HEIGHT := 208.0
@@ -19,7 +18,9 @@ const ATTACK_CAPSULE_HEIGHT := 208.0
 # -- Exports --------------------------------------------------------------------
 @export var attack_sfx_event: SpatialAudioEvent
 @export var damaged_sfx_event: SpatialAudioEvent
-@export var dash_attack_damage: float = 25.0
+
+@export var normal_attack_damage: float = 20.0
+@export var dash_attack_damage: float = 80.0
 
 # -- Node references ----------------------------------------------------------
 @onready var _attack_hitbox: Hitbox = $AttackHitbox
@@ -109,7 +110,7 @@ func disable_dash_hitbox() -> void:
 
 func begin_normal_attack(aim_dir: Vector2) -> void:
     _position_attack_shape(aim_dir)
-    _attack_hitbox.damage = NORMAL_ATTACK_DAMAGE
+    _attack_hitbox.damage = normal_attack_damage
     _attack_hitbox.set_enabled(true)
     if attack_sfx_event != null:
         AudioManager.play_event(attack_sfx_event, global_position)
