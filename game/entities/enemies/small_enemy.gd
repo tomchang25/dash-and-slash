@@ -33,8 +33,6 @@ var _staggered: bool = false
 var _planned_path: Array[Vector2i] = []
 var _active_path_cell: Vector2i
 var _has_active_path_cell: bool = false
-var _planned_facing: Vector2 = Vector2.DOWN
-var _has_planned_action: bool = false
 
 
 func setup(grid: GridArena, target: Node2D) -> void:
@@ -114,7 +112,6 @@ func plan_next_action() -> bool:
     var start := _grid_pos
     var target_cell := _grid.world_to_grid(_target.global_position)
     var attack_origins: Array[Vector2i] = []
-    var facing_by_cell: Dictionary = { }
 
     for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
         var facing := Vector2(facing_cell.x, facing_cell.y)
@@ -127,14 +124,11 @@ func plan_next_action() -> bool:
                     continue
                 if origin_cell not in attack_origins:
                     attack_origins.append(origin_cell)
-                    facing_by_cell[origin_cell] = facing
 
     if attack_origins.is_empty():
         return false
 
     if start in attack_origins:
-        _planned_facing = facing_by_cell[start]
-        _has_planned_action = true
         queue_redraw()
         return true
 
@@ -143,8 +137,6 @@ func plan_next_action() -> bool:
         return false
 
     _planned_path = path
-    _planned_facing = facing_by_cell[path[path.size() - 1]]
-    _has_planned_action = true
     _grid.reserve_cell(self, path[path.size() - 1])
     queue_redraw()
     return true
@@ -155,12 +147,11 @@ func clear_planned_action() -> void:
         _grid.clear_reservation(self)
     _planned_path.clear()
     _has_active_path_cell = false
-    _has_planned_action = false
     queue_redraw()
 
 
 func has_planned_action() -> bool:
-    return _has_planned_action
+    return not _planned_path.is_empty()
 
 
 func has_planned_path() -> bool:
@@ -181,11 +172,6 @@ func face_toward_cell(target_cell: Vector2i) -> void:
     if step == Vector2i.ZERO:
         return
     _facing = Vector2(signi(step.x), signi(step.y))
-    face_arrow()
-
-
-func apply_planned_facing() -> void:
-    _facing = _planned_facing
     face_arrow()
 
 
@@ -254,8 +240,7 @@ func _physics_process(_delta: float) -> void:
         return
 
     move_and_slide()
-    if _has_planned_action:
-        queue_redraw()
+    queue_redraw()
 
 
 func _draw() -> void:

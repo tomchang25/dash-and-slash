@@ -1,5 +1,7 @@
 # small_enemy_reposition_state.gd
-# Reposition step state — follows one committed grid path without re-targeting.
+# Reposition step state — moves one grid cell at a time. On each arrival,
+# re-evaluates the plan using the player's current position so the enemy
+# naturally chases the player and attacks as soon as it is in range.
 extends SmallEnemyState
 
 var _target_cell: Vector2i
@@ -21,10 +23,7 @@ func _enter() -> void:
 func _physics_update(_delta: float) -> void:
     if not _has_step:
         enemy.velocity = Vector2.ZERO
-        if enemy.has_planned_action():
-            change_state(SmallEnemyStateId.FACE_ONCE)
-        else:
-            change_state(SmallEnemyStateId.IDLE)
+        change_state(SmallEnemyStateId.FACE_ONCE)
         return
 
     var grid: GridArena = enemy.get_grid()
@@ -37,7 +36,8 @@ func _physics_update(_delta: float) -> void:
         enemy.set_grid_pos(_target_cell)
         enemy.global_position = target_world
         enemy.register_grid_occupant()
-        enemy.velocity = Vector2.ZERO
+
+        var planned := enemy.plan_next_action()
 
         if enemy.has_planned_path():
             _target_cell = enemy.consume_next_planned_cell()
@@ -45,6 +45,7 @@ func _physics_update(_delta: float) -> void:
             var next_world := grid.cell_center(_target_cell)
             var next_dir := (next_world - enemy.global_position).normalized()
             enemy.velocity = next_dir * enemy.MOVE_SPEED
-        else:
-            enemy.clear_planned_action()
+        elif planned:
             change_state(SmallEnemyStateId.FACE_ONCE)
+        else:
+            change_state(SmallEnemyStateId.IDLE)

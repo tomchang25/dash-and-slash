@@ -1,5 +1,6 @@
 # small_enemy_face_target_state.gd
-# Face once state — applies committed cardinal facing, then starts telegraph.
+# Face once state — faces the current player position, then starts telegraph
+# if the player is still in attack range. Falls back to IDLE to re-plan.
 extends SmallEnemyState
 
 func _init() -> void:
@@ -8,8 +9,11 @@ func _init() -> void:
 
 func _enter() -> void:
     enemy.velocity = Vector2.ZERO
-    enemy.apply_planned_facing()
+    enemy.face_target_position()
 
 
 func _physics_update(_delta: float) -> void:
-    change_state(SmallEnemyStateId.TELEGRAPH)
+    if enemy.can_attack():
+        change_state(SmallEnemyStateId.TELEGRAPH)
+    else:
+        change_state(SmallEnemyStateId.IDLE)
