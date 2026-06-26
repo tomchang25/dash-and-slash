@@ -20,6 +20,8 @@ const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
 
+@export var death_sfx_event: SpatialAudioEvent
+
 @onready var _hitbox: Hitbox = $AttackHitbox
 @onready var _state_machine: StateMachine = $StateMachine
 @onready var _guard: Guard = $Guard
@@ -215,6 +217,25 @@ func get_attack_controller() -> SmallEnemyAttackController:
 func get_guard() -> Guard:
     return _guard
 
+
+func begin_death() -> void:
+    velocity = Vector2.ZERO
+    clear_planned_action()
+    _cancel_attack()
+    if _stagger_tween != null and is_instance_valid(_stagger_tween):
+        _stagger_tween.kill()
+    if health != null:
+        health.set_enabled(false)
+    if hurtbox != null:
+        hurtbox.set_enabled(false)
+    if _hitbox != null:
+        _hitbox.set_enabled(false)
+
+
+func play_death_sfx() -> void:
+    if death_sfx_event != null:
+        AudioManager.play_event(death_sfx_event, global_position)
+
 # -- Lifecycle --
 
 
@@ -346,6 +367,7 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
         health.take_damage(hp, source)
 
     if health != null and not health.is_alive():
+        _state_machine.request_transition(SmallEnemyState.SmallEnemyStateId.DEAD, true)
         return
 
     if _guard != null:

@@ -16,6 +16,8 @@
 [ext_resource type="Script" uid="uid://bcs8eblexbkwn" path="res://game/entities/enemies/states/small_enemy_staggered_state.gd" id="15_staggered_state"]
 [ext_resource type="Script" uid="uid://dkn1smallatk0" path="res://game/entities/enemies/small_enemy_attack_controller.gd" id="16_attack_controller"]
 [ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/components/enemy_status_bars.tscn" id="17_status_bars"]
+[ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="18_died_audio"]
+[ext_resource type="Script" uid="uid://bsoqp4c2d5hhf" path="res://game/entities/enemies/states/small_enemy_dead_state.gd" id="19_dead_state"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
 size = Vector2(84, 84)
@@ -27,6 +29,7 @@ size = Vector2(90, 90)
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_enemy")
+death_sfx_event = ExtResource("18_died_audio")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1340798399]
 color = Color(0.9, 0.4, 0.3, 1)
@@ -96,3 +99,6 @@ script = ExtResource("14_recovery_state")
 
 [node name="Staggered" type="Node" parent="StateMachine" unique_id=1988416278]
 script = ExtResource("15_staggered_state")
+
+[node name="Dead" type="Node" parent="StateMachine" unique_id=1875734917]
+script = ExtResource("19_dead_state")

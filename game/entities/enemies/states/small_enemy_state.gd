@@ -13,6 +13,7 @@ enum SmallEnemyStateId {
     ATTACK = 4,
     RECOVERY = 5,
     STAGGERED = 6,
+    DEAD = 7,
 }
 
 var enemy: SmallEnemy
