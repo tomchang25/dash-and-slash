@@ -439,6 +439,10 @@ func get_arrival_override_state_id() -> int:
 func get_move_speed() -> float:
     return MOVE_SPEED
 
+
+func get_recovery_duration() -> float:
+    return 3.0
+
 # == Grid helpers ==============================================================
 
 

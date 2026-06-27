@@ -96,6 +96,10 @@ func get_pre_plan_state_id() -> int:
     return -1
 
 
+func get_recovery_duration() -> float:
+    return RECOVERY_DURATION
+
+
 func get_arrival_override_state_id() -> int:
     if is_player_in_same_line():
         return ChargeEnemyState.ChargeEnemyStateId.CHARGE_TELEGRAPH

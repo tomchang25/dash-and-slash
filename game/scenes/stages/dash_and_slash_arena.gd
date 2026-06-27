@@ -10,7 +10,7 @@ enum Wave { NO_WAVE = -1, WAVE_1 = 0, WAVE_2 = 1, BOSS = 2, COMPLETE = 3 }
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
 const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
-const BossScene := preload("res://game/entities/enemies/boss.tscn")
+const BossScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 
 const ENEMY_POOL := [SmallEnemyScene, PuffEnemyScene, ChargeEnemyScene]
 
@@ -153,7 +153,7 @@ func _spawn_enemy(scene: PackedScene, index: int) -> void:
 
     if _current_wave == Wave.BOSS:
         _boss_ref = enemy
-        var boss := enemy as Boss
+        var boss := enemy as ModeEnemy
         if boss != null:
             boss.guard_changed.connect(_on_boss_guard_changed)
             boss.guard_stagger_started.connect(func() -> void: _boss_guard_label.text = "GUARD BROKEN - STAGGERED!")
