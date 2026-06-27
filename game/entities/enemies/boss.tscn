@@ -15,10 +15,11 @@
 [ext_resource type="Script" path="res://game/entities/enemies/states/boss_recovery_state.gd" id="13_recovery"]
 [ext_resource type="Script" path="res://game/entities/enemies/states/boss_staggered_state.gd" id="14_staggered"]
 [ext_resource type="Script" path="res://game/entities/enemies/states/boss_dead_state.gd" id="15_dead"]
-[ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="16_died_audio"]
-[ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="17_damaged_audio"]
-[ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="18_blocked_audio"]
-[ext_resource type="Resource" uid="uid://d2s4krk5m4bxe" path="res://common/audio/presets/sfx/default_slash_audio.tres" id="19_attack_audio"]
+[ext_resource type="Script" path="res://game/entities/enemies/states/boss_reposition_state.gd" id="16_repos"]
+[ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="17_died_audio"]
+[ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="18_damaged_audio"]
+[ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
+[ext_resource type="Resource" uid="uid://d2s4krk5m4bxe" path="res://common/audio/presets/sfx/default_slash_audio.tres" id="20_attack_audio"]
 
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(116, 116)
@@ -36,10 +37,10 @@ size = Vector2(256, 256)
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_boss")
-death_sfx_event = ExtResource("16_died_audio")
-damaged_sfx_event = ExtResource("17_damaged_audio")
-blocked_sfx_event = ExtResource("18_blocked_audio")
-attack_sfx_event = ExtResource("19_attack_audio")
+death_sfx_event = ExtResource("17_died_audio")
+damaged_sfx_event = ExtResource("18_damaged_audio")
+blocked_sfx_event = ExtResource("19_blocked_audio")
+attack_sfx_event = ExtResource("20_attack_audio")
 health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1387936035]
@@ -126,6 +127,9 @@ tick_enabled = false
 
 [node name="Idle" type="Node" parent="StateMachine" unique_id=1466879869]
 script = ExtResource("9_idle")
+
+[node name="Reposition" type="Node" parent="StateMachine" unique_id=1699999999]
+script = ExtResource("16_repos")
 
 [node name="FaceTarget" type="Node" parent="StateMachine" unique_id=1065533041]
 script = ExtResource("10_face")

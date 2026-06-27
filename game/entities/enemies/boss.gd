@@ -13,9 +13,12 @@ const ATTACK_DURATION := 0.55
 const RECOVERY_DURATION := 0.8
 const CYCLE_COOLDOWN := 1.5
 const CHARGING_SPEED := 520.0
+const MOVE_SPEED := 120.0
 const GUARDED_DAMAGE_MULTIPLIER := 0.25
 const STAGGER_VFX_COLOR := Color(0.4, 0.6, 1.0, 1.0)
 const BOSS_FOOTPRINT := Vector2i(2, 2)
+const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
+const NO_BLOCKED_CELL := Vector2i(-1, -1)
 
 # -- Exports ------------------------------------------------------------------
 @export var death_sfx_event: SpatialAudioEvent
@@ -32,6 +35,9 @@ var _mode_index := 0
 var _staggered := false
 var _charge_cells: Array[Vector2i] = []
 var _charge_index := 0
+var _planned_path: Array[Vector2i] = []
+var _active_path_cell: Vector2i
+var _has_active_path_cell: bool = false
 
 # -- Timer / tween handles ----------------------------------------------------
 var _cooldown_timer: Timer
@@ -92,6 +98,7 @@ func _physics_process(_delta: float) -> void:
 
 func _on_guard_broken() -> void:
     _staggered = true
+    clear_planned_action()
     cancel_attack()
     _state_machine.request_transition(BossState.BossStateId.STAGGERED, true)
 
@@ -191,8 +198,24 @@ func set_target(target: Node2D) -> void:
     _target = target
 
 
+func get_grid() -> GridArena:
+    return _grid
+
+
 func is_staggered() -> bool:
     return _staggered
+
+
+func get_grid_pos() -> Vector2i:
+    return _grid_pos
+
+
+func get_move_speed() -> float:
+    return MOVE_SPEED
+
+
+func tile_size() -> float:
+    return _tile_size()
 
 
 func cooldown_active() -> bool:
@@ -228,6 +251,99 @@ func face_target_position() -> void:
         return
     _facing = _cardinal_snap(direction)
     _face_arrow()
+
+
+func face_toward_cell(cell: Vector2i) -> void:
+    var step := cell - _grid_pos
+    if step == Vector2i.ZERO:
+        return
+    _facing = Vector2(signi(step.x), signi(step.y))
+    _face_arrow()
+
+
+func snap_to_grid_cell(cell: Vector2i) -> void:
+    if _grid == null:
+        return
+    _grid_pos = cell
+    global_position = _grid.cell_center(cell)
+    _refresh_occupied()
+    if _telegraph != null:
+        _telegraph.clear_cell(cell)
+
+
+func is_player_in_same_line() -> bool:
+    if _grid == null or not has_target():
+        return false
+
+    var tile := _tile_size()
+    var boss_left := global_position.x - tile * 0.5
+    var boss_right := global_position.x + tile * 1.5
+    var boss_top := global_position.y - tile * 0.5
+    var boss_bottom := global_position.y + tile * 1.5
+    var player_pos := _target.global_position
+
+    return (player_pos.x >= boss_left and player_pos.x <= boss_right) or \
+    (player_pos.y >= boss_top and player_pos.y <= boss_bottom)
+
+
+func plan_next_action() -> bool:
+    clear_planned_action()
+    if _grid == null or not has_target():
+        return false
+
+    var start := _grid_pos
+    var target_cell := _grid.world_to_grid(_target.global_position)
+
+    if not _grid.is_in_bounds(target_cell):
+        return false
+
+    if is_player_in_same_line():
+        return true
+
+    var path: Array[Vector2i] = []
+
+    var line_goals := _collect_line_goal_cells(target_cell)
+    line_goals.erase(start)
+    if not line_goals.is_empty():
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals)
+
+    if path.is_empty():
+        if _is_footprint_free(target_cell):
+            path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
+
+    if path.is_empty():
+        var fallback_goals := _collect_adjacent_goal_cells(target_cell)
+        if not fallback_goals.is_empty():
+            if start in fallback_goals:
+                return true
+            path = _find_path_to_cell(start, target_cell, fallback_goals)
+
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    _refresh_planned_reservations()
+    return true
+
+
+func clear_planned_action() -> void:
+    if _grid != null:
+        _grid.clear_reservation(self)
+    _planned_path.clear()
+    _has_active_path_cell = false
+
+
+func has_planned_path() -> bool:
+    return not _planned_path.is_empty()
+
+
+func consume_next_planned_cell() -> Vector2i:
+    var next := _planned_path[0]
+    _planned_path.remove_at(0)
+    _active_path_cell = next
+    _has_active_path_cell = true
+    _refresh_planned_reservations()
+    return next
 
 
 func prepare_attack() -> bool:
@@ -306,6 +422,7 @@ func cancel_attack() -> void:
 
 func begin_death() -> void:
     velocity = Vector2.ZERO
+    clear_planned_action()
     cancel_attack()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
@@ -351,6 +468,126 @@ func _tile_size() -> float:
     return _grid.tile_size if _grid else 64.0
 
 
+func _is_boss_cell(cell: Vector2i) -> bool:
+    return cell in _occupied_tiles()
+
+
+func _is_footprint_free(cell: Vector2i) -> bool:
+    if _grid == null:
+        return false
+    for x in range(BOSS_FOOTPRINT.x):
+        for y in range(BOSS_FOOTPRINT.y):
+            var foot_cell := cell + Vector2i(x, y)
+            if not _grid.is_in_bounds(foot_cell):
+                return false
+            if _is_boss_cell(foot_cell):
+                continue
+            if _grid.is_blocked(foot_cell):
+                return false
+    return true
+
+
+func _can_path_through(cell: Vector2i, start: Vector2i, blocked_cell: Vector2i) -> bool:
+    if _grid == null:
+        return false
+    for x in range(BOSS_FOOTPRINT.x):
+        for y in range(BOSS_FOOTPRINT.y):
+            var foot_cell := cell + Vector2i(x, y)
+            if not _grid.is_in_bounds(foot_cell):
+                return false
+            if foot_cell == blocked_cell:
+                return false
+            if _is_boss_cell(foot_cell):
+                continue
+            if _grid.is_blocked(foot_cell):
+                return false
+    return true
+
+
+func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Array[Vector2i]) -> Array[Vector2i]:
+    var queue: Array[Vector2i] = [start]
+    var came_from: Dictionary = { }
+    var queue_index := 0
+    var goal := Vector2i(-1, -1)
+    came_from[start] = start
+
+    while queue_index < queue.size():
+        var current := queue[queue_index]
+        queue_index += 1
+
+        if current in goal_cells:
+            goal = current
+            break
+
+        for direction: Vector2i in CARDINAL_DIRECTIONS:
+            var next := current + direction
+            if came_from.has(next):
+                continue
+            if not _can_path_through(next, start, blocked_cell):
+                continue
+            came_from[next] = current
+            queue.append(next)
+
+    if goal == Vector2i(-1, -1):
+        return []
+
+    var path: Array[Vector2i] = []
+    var path_cell := goal
+    while came_from[path_cell] != path_cell:
+        path.push_front(path_cell)
+        path_cell = came_from[path_cell]
+    return path
+
+
+func _collect_line_goal_cells(target_cell: Vector2i) -> Array[Vector2i]:
+    var goals: Array[Vector2i] = []
+    var grid_size := _grid.GRID_SIZE
+    for x in range(grid_size.x - BOSS_FOOTPRINT.x + 1):
+        for y in range(grid_size.y - BOSS_FOOTPRINT.y + 1):
+            var cell := Vector2i(x, y)
+            var aligned := (cell.x <= target_cell.x and target_cell.x < cell.x + BOSS_FOOTPRINT.x) or \
+            (cell.y <= target_cell.y and target_cell.y < cell.y + BOSS_FOOTPRINT.y)
+            if not aligned:
+                continue
+            if _is_footprint_free(cell):
+                goals.append(cell)
+    return goals
+
+
+func _collect_adjacent_goal_cells(target_cell: Vector2i) -> Array[Vector2i]:
+    var goals: Array[Vector2i] = []
+    for direction: Vector2i in CARDINAL_DIRECTIONS:
+        var neighbor := target_cell + direction
+        if not _grid.is_in_bounds(neighbor):
+            continue
+        if _is_footprint_free(neighbor):
+            goals.append(neighbor)
+    return goals
+
+
+func _refresh_planned_reservations() -> void:
+    if _grid == null:
+        return
+
+    var reserved: Array[Vector2i] = []
+    if _has_active_path_cell:
+        for x in range(BOSS_FOOTPRINT.x):
+            for y in range(BOSS_FOOTPRINT.y):
+                reserved.append(_active_path_cell + Vector2i(x, y))
+    if not _planned_path.is_empty():
+        var final_cell := _planned_path[_planned_path.size() - 1]
+        for x in range(BOSS_FOOTPRINT.x):
+            for y in range(BOSS_FOOTPRINT.y):
+                var c := final_cell + Vector2i(x, y)
+                if c not in reserved:
+                    reserved.append(c)
+
+    if reserved.is_empty():
+        _grid.clear_reservation(self)
+    else:
+        _grid.reserve_cells(self, reserved)
+
+
 func _move_to_charge_cell(cell: Vector2i) -> void:
     if _grid == null:
         velocity = Vector2.ZERO
@@ -387,6 +624,7 @@ func reset() -> void:
         _stagger_tween.kill()
     if _body != null:
         _body.modulate = Color.WHITE
+    clear_planned_action()
     cancel_attack()
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)

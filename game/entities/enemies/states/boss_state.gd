@@ -6,12 +6,13 @@ extends State
 enum BossStateId {
     NULL = -1,
     IDLE = 0,
-    FACE_TARGET = 1,
-    TELEGRAPH = 2,
-    ATTACK = 3,
-    RECOVERY = 4,
-    STAGGERED = 5,
-    DEAD = 6,
+    REPOSITION = 1,
+    FACE_TARGET = 2,
+    TELEGRAPH = 3,
+    ATTACK = 4,
+    RECOVERY = 5,
+    STAGGERED = 6,
+    DEAD = 7,
 }
 
 var enemy: Boss
