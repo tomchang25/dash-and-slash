@@ -95,6 +95,7 @@ Entities are authored in `data/yaml/*.yaml`, converted to `.tres` via `dev/tools
 - **Scene routing**: `SceneRouter` owns production scene transitions; read `dev/standards/scene_routing_standard.md` and `dev/skills/scene_router_usage.md` before changing navigation.
 - **Main Menu**: read `dev/standards/main_menu_standard.md` before editing `game/meta/main_menu/`.
 - **Settings overlay**: `SettingsStore` owns `user://settings.json`; read `dev/standards/settings_overlay_standard.md` and `dev/skills/settings_overlay_usage.md` before adding settings.
+- **Theme and UI styling**: read `dev/standards/theme_standard.md` and `dev/skills/godot4_theme_override.md` before changing fonts, StyleBoxes, theme type variations, or static UI colors.
 - **Debug mode**: check `Debug.enabled`, not `OS.is_debug_build()` directly; read `dev/standards/debug_standard.md` and `dev/skills/debug_mode_usage.md` before adding debug behavior.
 - **GDScript structure & scene architecture**: scripts follow `dev/standards/gdscript_structure_standard.md`; persistent scene nodes and runtime `add_child()` exceptions follow `dev/standards/scene_node_source_standard.md`; reusable component layout/preview rules follow `dev/standards/component_scene_standard.md`. Node-source and no-`[connection]` rules are lint-enforced.
 - **Standards**: run `python dev/tools/lint_standards.py --files <changed>` before finishing if you are an agent without the in-loop lint hook.

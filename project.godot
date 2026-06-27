@@ -54,6 +54,10 @@ folder_colors={
 "res://global/": "yellow"
 }
 
+[gui]
+
+theme/custom="res://global/theme/main_theme.tres"
+
 [input]
 
 dash={
