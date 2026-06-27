@@ -1,15 +1,6 @@
 # charge_enemy_face_target_state.gd
-# Face once state — faces the current player position, then returns to IDLE.
-extends ChargeEnemyState
+# ChargeEnemy wrapper for the shared face-once state.
+extends EnemyFaceOnceState
 
 func _init() -> void:
-    state_id = ChargeEnemyStateId.FACE_ONCE
-
-
-func _enter() -> void:
-    enemy.velocity = Vector2.ZERO
-    enemy.face_target_position()
-
-
-func _physics_update(_delta: float) -> void:
-    change_state(ChargeEnemyStateId.IDLE)
+    state_id = ChargeEnemyState.ChargeEnemyStateId.FACE_ONCE

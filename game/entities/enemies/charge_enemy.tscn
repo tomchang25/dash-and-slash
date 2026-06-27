@@ -30,14 +30,17 @@ blocked_sfx_event = ExtResource("19_blocked_audio")
 health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=2079355181]
+unique_name_in_owner = true
 color = Color(1, 0.55, 0.1, 1)
 polygon = PackedVector2Array(0, -57, -56, -20, -44, 57, 44, 57, 56, -20)
 
 [node name="Health" type="Node" parent="." unique_id=995602641]
+unique_name_in_owner = true
 script = ExtResource("2_health")
 max_health = 150.0
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=811675199]
+unique_name_in_owner = true
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("3_hurtbox")
@@ -46,6 +49,7 @@ script = ExtResource("3_hurtbox")
 polygon = PackedVector2Array(0, -60, -59, -22, -47, 60, 47, 60, 59, -22)
 
 [node name="ContactHitbox" type="Area2D" parent="." unique_id=891038711 node_paths=PackedStringArray("collision_shape")]
+unique_name_in_owner = true
 collision_layer = 0
 script = ExtResource("4_hitbox")
 damage = 8.0
@@ -56,13 +60,16 @@ collision_shape = NodePath("CollisionPolygon2D")
 polygon = PackedVector2Array(0, -55, -53, -19, -42, 55, 42, 55, 53, -19)
 
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
+unique_name_in_owner = true
 script = ExtResource("5_guard")
 max_guard = 32
 
 [node name="TileTelegraph" type="Node2D" parent="." unique_id=1234567890]
+unique_name_in_owner = true
 script = ExtResource("13_telegraph")
 
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
+unique_name_in_owner = true
 script = ExtResource("6_sm")
 initial_state = NodePath("Idle")
 tick_enabled = false
@@ -92,4 +99,5 @@ script = ExtResource("10_staggered")
 script = ExtResource("11_dead")
 
 [node name="StatusBars" parent="." unique_id=702434121 instance=ExtResource("12_status_bars")]
+unique_name_in_owner = true
 position = Vector2(0, -70)

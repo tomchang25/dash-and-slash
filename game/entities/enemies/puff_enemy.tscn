@@ -36,14 +36,17 @@ blocked_sfx_event = ExtResource("15_blocked_audio")
 health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=2079355181]
+unique_name_in_owner = true
 color = Color(1, 0.9, 0.1, 1)
 polygon = PackedVector2Array(0, -18, -18, 18, 18, 18)
 
 [node name="Health" type="Node" parent="." unique_id=995602641]
+unique_name_in_owner = true
 script = ExtResource("2_health")
 max_health = 30.0
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=811675199]
+unique_name_in_owner = true
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("3_hurtbox")
@@ -52,6 +55,7 @@ script = ExtResource("3_hurtbox")
 shape = SubResource("hurt_shape")
 
 [node name="ContactHitbox" type="Area2D" parent="." unique_id=891038711 node_paths=PackedStringArray("collision_shape")]
+unique_name_in_owner = true
 collision_layer = 0
 script = ExtResource("4_hitbox")
 damage = 8.0
@@ -62,6 +66,7 @@ collision_shape = NodePath("CollisionShape2D")
 shape = SubResource("contact_shape")
 
 [node name="PuffHitbox" type="Area2D" parent="." unique_id=891038712 node_paths=PackedStringArray("collision_shape")]
+unique_name_in_owner = true
 collision_layer = 4
 monitoring = false
 script = ExtResource("4_hitbox")
@@ -73,11 +78,13 @@ collision_shape = NodePath("CollisionShape2D")
 shape = SubResource("CircleShape2D_xvy1v")
 
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
+unique_name_in_owner = true
 script = ExtResource("5_guard")
 max_guard = 16
 stagger_duration = 10.0
 
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
+unique_name_in_owner = true
 script = ExtResource("6_sm")
 initial_state = NodePath("Idle")
 tick_enabled = false
@@ -101,4 +108,5 @@ script = ExtResource("11_dead")
 script = ExtResource("16_puff")
 
 [node name="StatusBars" parent="." unique_id=702434121 instance=ExtResource("12_status_bars")]
+unique_name_in_owner = true
 position = Vector2(0, -49)

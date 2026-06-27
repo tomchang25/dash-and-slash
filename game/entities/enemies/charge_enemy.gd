@@ -1,210 +1,28 @@
 # charge_enemy.gd
-# Grid-based charge enemy. Moves toward the player one cell at a time and deals
-# continuous contact damage via its always-on ContactHitbox. Uses a simplified
-# state machine (Idle -> RepositionStep -> FaceOnce -> Idle) with Staggered and
-# Dead states for defense/death. Guard/stagger systems from the template.
+# 1x1 grid enemy that lines up with the target, telegraphs, then rushes forward.
 class_name ChargeEnemy
-extends Enemy
+extends GridEnemy
 
-const MOVE_SPEED := 120.0
-const CYCLE_COOLDOWN := 1.0
 const CHARGING_SPEED := 480.0
 const WARNING_DURATION := 1.0
 const RECOVERY_DURATION := 3.0
-const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
-const NO_BLOCKED_CELL := Vector2i(-1, -1)
-const GUARDED_DAMAGE_MULTIPLIER := 0.2
-const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
-const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
-const PATH_DEBUG_WIDTH := 4.0
 
-@export var death_sfx_event: SpatialAudioEvent
-@export var damaged_sfx_event: SpatialAudioEvent
-@export var blocked_sfx_event: SpatialAudioEvent
-
-@onready var _state_machine: StateMachine = $StateMachine
-@onready var _guard: Guard = $Guard
-@onready var _status_bars: EnemyStatusBars = $StatusBars
-@onready var hurtbox: Hurtbox = $Hurtbox
-@onready var _body: Polygon2D = $Body
-@onready var _contact_hitbox: Hitbox = $ContactHitbox
-@onready var _telegraph: TileTelegraph = $TileTelegraph
-
-var _grid: GridArena
-var _target: Node2D
-var _grid_pos: Vector2i
-var _facing: Vector2 = Vector2.DOWN
-var _cooldown_timer: Timer
-var _staggered: bool = false
-var _stagger_tween: Tween
-var _hurt_tween: Tween
-var _planned_path: Array[Vector2i] = []
-var _active_path_cell: Vector2i
-var _has_active_path_cell: bool = false
+# -- State --------------------------------------------------------------------
 var _charge_cells: Array[Vector2i] = []
 
+# -- Node references ----------------------------------------------------------
+@onready var _contact_hitbox: Hitbox = _find_child_node("ContactHitbox") as Hitbox
+@onready var _telegraph: TileTelegraph = _find_child_node("TileTelegraph") as TileTelegraph
 
-func setup(grid: GridArena, target: Node2D) -> void:
-    _grid = grid
-    _target = target
-    if is_node_ready() and _telegraph != null:
-        _telegraph.setup(grid)
-
-
-func has_target() -> bool:
-    return is_instance_valid(_target)
+# == Lifecycle ================================================================
 
 
-func get_target() -> Node2D:
-    return _target
+func _ready() -> void:
+    super()
+    if _telegraph != null:
+        _telegraph.setup(_grid)
 
-
-func set_target(target: Node2D) -> void:
-    _target = target
-
-
-func is_staggered() -> bool:
-    return _staggered
-
-
-func set_staggered(value: bool) -> void:
-    _staggered = value
-
-
-func cooldown_active() -> bool:
-    return _cooldown_timer != null and _cooldown_timer.time_left > 0.0
-
-
-func start_cooldown() -> void:
-    if _cooldown_timer != null:
-        _cooldown_timer.start(CYCLE_COOLDOWN)
-
-
-func tile_size() -> float:
-    return _grid.tile_size if _grid else 64.0
-
-
-func get_grid() -> GridArena:
-    return _grid
-
-
-func get_grid_pos() -> Vector2i:
-    return _grid_pos
-
-
-func set_grid_pos(pos: Vector2i) -> void:
-    _grid_pos = pos
-
-
-func get_facing() -> Vector2:
-    return _facing
-
-
-func set_facing(v: Vector2) -> void:
-    _facing = v
-
-
-func plan_next_action() -> bool:
-    clear_planned_action()
-
-    if _grid == null or not has_target():
-        return false
-
-    var start := _grid_pos
-    var target_cell := _grid.world_to_grid(_target.global_position)
-
-    if not _grid.is_in_bounds(target_cell):
-        return false
-
-    if start == target_cell:
-        queue_redraw()
-        return true
-
-    var path: Array[Vector2i] = []
-
-    # Charge enemy prefers to path to same row/column as player first.
-    var line_goals := _collect_charge_line_goal_cells(target_cell, start)
-    if not line_goals.is_empty():
-        if start in line_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals)
-
-    # Fallback: path directly to target cell.
-    if path.is_empty() and not _grid.is_blocked(target_cell):
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
-
-    # Fallback: adjacent cells around the target.
-    if path.is_empty():
-        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
-        if fallback_goals.is_empty():
-            return false
-        if start in fallback_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, target_cell, fallback_goals)
-
-    if path.is_empty():
-        return false
-
-    _planned_path = path
-    _refresh_planned_reservations()
-    queue_redraw()
-    return true
-
-
-func clear_planned_action() -> void:
-    if _grid != null:
-        _grid.clear_reservation(self)
-    _planned_path.clear()
-    _has_active_path_cell = false
-    queue_redraw()
-
-
-func has_planned_action() -> bool:
-    return not _planned_path.is_empty()
-
-
-func has_planned_path() -> bool:
-    return not _planned_path.is_empty()
-
-
-func consume_next_planned_cell() -> Vector2i:
-    var next := _planned_path[0]
-    _planned_path.remove_at(0)
-    _active_path_cell = next
-    _has_active_path_cell = true
-    _refresh_planned_reservations()
-    queue_redraw()
-    return next
-
-
-func face_toward_cell(target_cell: Vector2i) -> void:
-    var step := target_cell - _grid_pos
-    if step == Vector2i.ZERO:
-        return
-    _facing = Vector2(signi(step.x), signi(step.y))
-    face_arrow()
-
-
-func face_target_position() -> void:
-    if not has_target():
-        return
-    var direction := _target.global_position - global_position
-    if direction == Vector2.ZERO:
-        return
-    _facing = cardinal_snap(direction)
-    face_arrow()
-
-
-func cardinal_snap(v: Vector2) -> Vector2:
-    if abs(v.x) > abs(v.y):
-        return Vector2(sign(v.x), 0.0)
-    return Vector2(0.0, sign(v.y))
-
-
-func face_arrow() -> void:
-    _body.rotation = _facing.angle() + PI / 2.0
+# == Common API ================================================================
 
 
 func is_player_in_same_line() -> bool:
@@ -228,14 +46,6 @@ func get_charge_cells() -> Array[Vector2i]:
     return get_charge_cells_from_pos(_grid_pos, _facing)
 
 
-func register_grid_occupant() -> void:
-    _grid.register_occupant(self, [_grid_pos])
-
-
-func get_guard() -> Guard:
-    return _guard
-
-
 func get_body() -> Polygon2D:
     return _body
 
@@ -256,249 +66,108 @@ func clear_stored_charge_cells() -> void:
     _charge_cells.clear()
 
 
-func begin_death() -> void:
-    velocity = Vector2.ZERO
+func get_idle_state_id() -> int:
+    return ChargeEnemyState.ChargeEnemyStateId.IDLE
+
+
+func get_reposition_state_id() -> int:
+    return ChargeEnemyState.ChargeEnemyStateId.REPOSITION_STEP
+
+
+func get_face_state_id() -> int:
+    return ChargeEnemyState.ChargeEnemyStateId.FACE_ONCE
+
+
+func get_recovery_state_id() -> int:
+    return ChargeEnemyState.ChargeEnemyStateId.RECOVERY
+
+
+func get_staggered_state_id() -> int:
+    return ChargeEnemyState.ChargeEnemyStateId.STAGGERED
+
+
+func get_dead_state_id() -> int:
+    return ChargeEnemyState.ChargeEnemyStateId.DEAD
+
+
+func get_pre_plan_state_id() -> int:
+    if is_player_in_same_line():
+        return ChargeEnemyState.ChargeEnemyStateId.CHARGE_TELEGRAPH
+    return -1
+
+
+func get_arrival_override_state_id() -> int:
+    if is_player_in_same_line():
+        return ChargeEnemyState.ChargeEnemyStateId.CHARGE_TELEGRAPH
+    return -1
+
+
+func plan_next_action() -> bool:
     clear_planned_action()
-    if _telegraph != null:
-        _telegraph.clear()
-    if _stagger_tween != null and is_instance_valid(_stagger_tween):
-        _stagger_tween.kill()
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
-    if health != null:
-        health.set_enabled(false)
-    if hurtbox != null:
-        hurtbox.set_enabled(false)
+
+    if _grid == null or not has_target():
+        return false
+
+    var start := _grid_pos
+    var target_cell := _grid.world_to_grid(_target.global_position)
+
+    if not _grid.is_in_bounds(target_cell):
+        return false
+
+    if start == target_cell:
+        queue_redraw()
+        return true
+
+    var path: Array[Vector2i] = []
+    var line_goals := _collect_charge_line_goal_cells(target_cell, start)
+    if not line_goals.is_empty():
+        if start in line_goals:
+            queue_redraw()
+            return true
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals)
+
+    if path.is_empty() and not _grid.is_blocked(target_cell):
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
+
+    if path.is_empty():
+        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
+        if fallback_goals.is_empty():
+            return false
+        if start in fallback_goals:
+            queue_redraw()
+            return true
+        path = _find_path_to_cell(start, target_cell, fallback_goals)
+
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    _refresh_planned_reservations()
+    queue_redraw()
+    return true
+
+# == Setup helpers =============================================================
 
 
-func play_death_sfx() -> void:
-    if death_sfx_event != null:
-        AudioManager.play_event(death_sfx_event, global_position)
-
-
-func _ready() -> void:
-    super()
-    if _grid != null:
-        _grid_pos = _grid.world_to_grid(global_position)
-        _grid.register_occupant(self, [_grid_pos])
-
-    if hurtbox != null:
-        hurtbox.hit_received.connect(_on_hit_received)
-
-    if health != null:
-        health.damaged.connect(_on_damaged)
-        _on_health_changed(health.current(), health.max_health)
-
-    _cooldown_timer = Timer.new()
-    _cooldown_timer.one_shot = true
-    add_child(_cooldown_timer)
-
+func _after_setup_ready() -> void:
     if _telegraph != null:
         _telegraph.setup(_grid)
 
-    if _guard != null:
-        _guard.guard_changed.connect(_on_guard_changed)
-        _guard.guard_broken.connect(_on_guard_broken)
-        _guard.stagger_started.connect(_on_stagger_started)
-        _guard.stagger_ended.connect(_on_stagger_ended)
-        _on_guard_changed(_guard.current(), _guard.max_guard)
 
-    face_arrow()
-
-
-func _physics_process(_delta: float) -> void:
-    if not is_instance_valid(_target):
-        velocity = Vector2.ZERO
-        move_and_slide()
-        return
-
-    # Fallback steering when no grid is set (e.g. testbed usage).
-    if _grid == null:
-        velocity = global_position.direction_to(_target.global_position) * MOVE_SPEED
-
-    move_and_slide()
-    queue_redraw()
-
-
-func _draw() -> void:
-    if _grid == null or (not _has_active_path_cell and _planned_path.is_empty()):
-        return
-
-    var previous := Vector2.ZERO
-    if _has_active_path_cell:
-        var active_point := to_local(_grid.cell_center(_active_path_cell))
-        draw_line(previous, active_point, PATH_DEBUG_COLOR, PATH_DEBUG_WIDTH)
-        draw_circle(active_point, PATH_DEBUG_WIDTH * 1.5, PATH_DEBUG_COLOR)
-        previous = active_point
-    else:
-        previous = to_local(_grid.cell_center(_grid_pos))
-
-    for cell in _planned_path:
-        var point := to_local(_grid.cell_center(cell))
-        draw_line(previous, point, PATH_DEBUG_COLOR, PATH_DEBUG_WIDTH)
-        draw_circle(point, PATH_DEBUG_WIDTH * 1.5, PATH_DEBUG_COLOR)
-        previous = point
-
-
-func _update_grid_pos() -> void:
-    var new_cell := _grid.world_to_grid(global_position)
-    if new_cell != _grid_pos:
-        _grid_pos = new_cell
-        _grid.register_occupant(self, [_grid_pos])
-
-
-func _on_guard_broken() -> void:
-    _staggered = true
-    clear_planned_action()
+func _on_guard_broken_extra() -> void:
     if _telegraph != null:
         _telegraph.clear()
-    _state_machine.request_transition(ChargeEnemyState.ChargeEnemyStateId.STAGGERED, true)
 
 
-func _on_guard_changed(current: int, maximum: int) -> void:
-    if _status_bars != null:
-        _status_bars.set_guard(current, maximum)
+func _on_begin_death_extra() -> void:
+    if _telegraph != null:
+        _telegraph.clear()
+    if _contact_hitbox != null:
+        _contact_hitbox.set_enabled(false)
 
 
-func _on_health_changed(current: float, maximum: float) -> void:
-    super(current, maximum)
-    if _status_bars != null:
-        _status_bars.set_health(current, maximum)
-
-
-func _on_damaged(_amount: float, _source: Node) -> void:
-    if _hurt_tween != null and _hurt_tween.is_valid():
-        _hurt_tween.kill()
-
-    _hurt_tween = create_tween()
-    _hurt_tween.tween_property(_body, "modulate", Color.WHITE, 0.03)
-    _hurt_tween.tween_property(_body, "modulate", Color(0.8, 0.2, 0.2, 1.0), 0.06)
-    _hurt_tween.tween_property(_body, "modulate", Color.WHITE, 0.08)
-    _hurt_tween.finished.connect(
-        func():
-            if _body != null:
-                if _staggered:
-                    _start_stagger_vfx()
-                else:
-                    _body.modulate = Color.WHITE,
-        CONNECT_ONE_SHOT,
-    )
-
-
-func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) -> void:
-    if not (source is Node2D):
-        return
-
-    var src_pos := (source as Node2D).global_position
-    var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
-    var gd: int
-    if guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
-        gd = DirectionResolver.dash_guard_damage(angle)
-    else:
-        gd = DirectionResolver.normal_guard_damage(angle)
-
-    var will_break_guard := _guard != null and not _guard.is_staggered() and _guard.current() > 0 and gd >= _guard.current()
-    var full_damage := _guard == null or _guard.is_staggered() or will_break_guard
-    var hp := amount if full_damage else amount * GUARDED_DAMAGE_MULTIPLIER
-
-    if full_damage:
-        if damaged_sfx_event != null:
-            AudioManager.play_event(damaged_sfx_event, global_position)
-    else:
-        var sfx_event := damaged_sfx_event if angle == DirectionResolver.HitAngle.BACK else blocked_sfx_event
-        if sfx_event != null:
-            AudioManager.play_event(sfx_event, global_position)
-
-    if health != null:
-        health.take_damage(hp, source)
-
-    if health != null and not health.is_alive():
-        _state_machine.request_transition(ChargeEnemyState.ChargeEnemyStateId.DEAD, true)
-        return
-
-    if _guard != null:
-        _guard.take_guard_damage(gd)
-
-
-func _on_stagger_started() -> void:
-    _staggered = true
-    if _hurt_tween != null and _hurt_tween.is_valid():
-        return
-    _start_stagger_vfx()
-
-
-func _start_stagger_vfx() -> void:
-    if _body != null:
-        if _stagger_tween != null and is_instance_valid(_stagger_tween):
-            _stagger_tween.kill()
-        _stagger_tween = create_tween()
-        _stagger_tween.tween_property(_body, "modulate", STAGGER_VFX_COLOR, 0.2)
-
-
-func _on_stagger_ended() -> void:
-    _staggered = false
-    if _body != null:
-        if _stagger_tween != null and is_instance_valid(_stagger_tween):
-            _stagger_tween.kill()
-        _stagger_tween = create_tween()
-        _stagger_tween.tween_property(_body, "modulate", Color.WHITE, 0.3)
-
-
-func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Array[Vector2i]) -> Array[Vector2i]:
-    var queue: Array[Vector2i] = [start]
-    var came_from: Dictionary = { }
-    var queue_index := 0
-    var goal := Vector2i(-1, -1)
-    came_from[start] = start
-
-    while queue_index < queue.size():
-        var current := queue[queue_index]
-        queue_index += 1
-
-        if current in goal_cells:
-            goal = current
-            break
-
-        for direction: Vector2i in CARDINAL_DIRECTIONS:
-            var next := current + direction
-            if came_from.has(next):
-                continue
-            if not _can_path_through(next, start, blocked_cell):
-                continue
-            came_from[next] = current
-            queue.append(next)
-
-    if goal == Vector2i(-1, -1):
-        var empty_path: Array[Vector2i] = []
-        return empty_path
-
-    var path: Array[Vector2i] = []
-    var path_cell := goal
-    while came_from[path_cell] != path_cell:
-        path.push_front(path_cell)
-        path_cell = came_from[path_cell]
-    return path
-
-
-func _can_path_through(cell: Vector2i, start: Vector2i, blocked_cell: Vector2i) -> bool:
-    if not _grid.is_in_bounds(cell):
-        return false
-    if cell == blocked_cell:
-        return false
-    if cell != start and _grid.is_blocked(cell):
-        return false
-    return true
-
-
-func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
-    var goal_cells: Array[Vector2i] = []
-    for direction: Vector2i in CARDINAL_DIRECTIONS:
-        var neighbor := target_cell + direction
-        if not _grid.is_in_bounds(neighbor):
-            continue
-        if neighbor == start or not _grid.is_blocked(neighbor):
-            goal_cells.append(neighbor)
-    return goal_cells
+func _reset_extra() -> void:
+    _charge_cells.clear()
 
 
 func _collect_charge_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
@@ -518,38 +187,3 @@ func _collect_charge_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> 
         if cell == start or not _grid.is_blocked(cell):
             goals.append(cell)
     return goals
-
-
-func _refresh_planned_reservations() -> void:
-    if _grid == null:
-        return
-
-    var reserved_cells: Array[Vector2i] = []
-    if _has_active_path_cell:
-        reserved_cells.append(_active_path_cell)
-    if not _planned_path.is_empty():
-        var final_cell := _planned_path[_planned_path.size() - 1]
-        if final_cell not in reserved_cells:
-            reserved_cells.append(final_cell)
-
-    if reserved_cells.is_empty():
-        _grid.clear_reservation(self)
-    else:
-        _grid.reserve_cells(self, reserved_cells)
-
-
-func reset() -> void:
-    super()
-    _staggered = false
-    if _body != null:
-        _body.modulate = Color.WHITE
-    if _stagger_tween != null and is_instance_valid(_stagger_tween):
-        _stagger_tween.kill()
-    clear_planned_action()
-    if _grid != null:
-        _grid_pos = _grid.world_to_grid(global_position)
-        _grid.register_occupant(self, [_grid_pos])
-    if health != null:
-        _on_health_changed(health.current(), health.max_health)
-    if _guard != null:
-        _on_guard_changed(_guard.current(), _guard.max_guard)

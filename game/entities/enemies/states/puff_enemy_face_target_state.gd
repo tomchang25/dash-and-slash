@@ -1,15 +1,6 @@
 # puff_enemy_face_target_state.gd
-# Face once state — faces the current player position, then returns to IDLE.
-extends PuffEnemyState
+# PuffEnemy wrapper for the shared face-once state.
+extends EnemyFaceOnceState
 
 func _init() -> void:
-    state_id = PuffEnemyStateId.FACE_ONCE
-
-
-func _enter() -> void:
-    enemy.velocity = Vector2.ZERO
-    enemy.face_target_position()
-
-
-func _physics_update(_delta: float) -> void:
-    change_state(PuffEnemyStateId.IDLE)
+    state_id = PuffEnemyState.PuffEnemyStateId.FACE_ONCE
