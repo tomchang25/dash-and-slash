@@ -59,7 +59,7 @@ extends CharacterBody2D
 @export var animation_module: AnimationModule
 @export var combat_module: CombatModule
 
-# -- Public API (called BY states, not the other way around) --
+# == Common API ==
 
 func get_move_input() -> Vector2:
     return Input.get_vector("move_left", "move_right", "move_up", "move_down")

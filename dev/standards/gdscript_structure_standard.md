@@ -85,18 +85,18 @@ Rules:
 Variable groups at the top of the file use the single-line format.
 
 ```gdscript
-# -- Group name ----------------------------------------------------------------
+# -- Group name --
 ```
 
-The dashes extend to about column 80. Use a consistent label from the table below.
+Use a consistent label from the table below.
 
 | Header | Contents |
 | --- | --- |
-| `# -- Constants --...` | `const` and `preload` |
-| `# -- Exports --...` | `@export` vars |
-| `# -- State --...` | Runtime logic variables |
-| `# -- Timer / tween handles --...` | `Timer`, `Tween` vars |
-| `# -- Node references --...` | `@onready` node references bound to `.tscn` nodes via `%UniqueName` |
+| `# -- Constants --` | `const` and `preload` |
+| `# -- Exports --` | `@export` vars |
+| `# -- State --` | Runtime logic variables |
+| `# -- Timer / tween handles --` | `Timer`, `Tween` vars |
+| `# -- Node references --` | `@onready` node references bound to `.tscn` nodes via `%UniqueName` |
 
 Only include groups that have at least one variable. Do not create custom group names unless no standard label fits.
 
@@ -107,10 +107,10 @@ Only include groups that have at least one variable. Do not create custom group 
 Function groups use the double-line format.
 
 ```gdscript
-# == Section name ==============================================================
+# == Section name ==
 ```
 
-The `=` characters extend to about column 80.
+Use ASCII `=` and `-` header characters. Do not pad headers to a fixed column. Legacy padded or Unicode headers may remain in old files; update touched headers opportunistically rather than performing bulk-only rewrites.
 
 ---
 
@@ -216,16 +216,16 @@ Apply data and connect signals before `add_child()` because `add_child()` trigge
 A reusable component's `setup()` is its apply function, but it has a specific internal shape because it may be called either before or after the component enters the scene tree.
 
 ```gdscript
-# -- State --------------------------------------------------------------------
+# -- State --
 
 var _entity: ExampleEntityData = null
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 
 @onready var _name_label: Label = %NameLabel
 
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 func _ready() -> void:
     _select_button.pressed.connect(func() -> void: selected.emit())
@@ -234,7 +234,7 @@ func _ready() -> void:
         _apply()
 
 
-# == Common API ================================================================
+# == Common API ==
 
 func setup(entity: ExampleEntityData) -> void:
     _entity = entity
@@ -248,7 +248,7 @@ func refresh() -> void:
         _apply()
 
 
-# == View =====================================================================
+# == View ==
 
 func _apply() -> void:
     _name_label.text = _entity.display_name

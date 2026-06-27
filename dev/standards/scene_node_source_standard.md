@@ -38,7 +38,7 @@ Do not use `_build_ui()` to construct persistent structural nodes in code.
 Preferred for new scenes and any scene being actively edited:
 
 ```gdscript
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 
 @onready var _confirm_button: Button = %ConfirmButton
 @onready var _row_container: VBoxContainer = %RowContainer
