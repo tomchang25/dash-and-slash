@@ -5,7 +5,7 @@
 # Uses the template's StateMachine with behaviour-delegation: states own logic,
 # the entity provides a public query/command API.
 class_name SmallEnemy
-extends Entity
+extends Enemy
 
 const MOVE_SPEED := 120.0
 const ATTACK_RANGE := 1.5

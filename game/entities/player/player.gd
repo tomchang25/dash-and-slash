@@ -6,6 +6,9 @@
 class_name Player
 extends Entity
 
+signal died(entity: Player)
+signal health_changed(current: float, maximum: float)
+
 const MOVE_SPEED := 440.0
 const DASH_SPEED := 1000.0
 const DASH_DURATION := 0.2
@@ -16,6 +19,7 @@ const ATTACK_CAPSULE_RADIUS := 64.0
 const ATTACK_CAPSULE_HEIGHT := 208.0
 
 # -- Exports --------------------------------------------------------------------
+@export var health: Health
 @export var attack_sfx_event: SpatialAudioEvent
 @export var damaged_sfx_event: SpatialAudioEvent
 
@@ -43,6 +47,11 @@ var _hurt_tween: Tween
 
 func setup(grid: GridArena) -> void:
     _grid = grid
+
+
+func emit_health_snapshot() -> void:
+    if health != null:
+        health_changed.emit(health.current(), health.max_health)
 
 
 func get_dash_cooldown() -> float:
@@ -153,14 +162,17 @@ func _reset_attack_vfx() -> void:
 func _ready() -> void:
     super()
 
+    if health != null:
+        health.died.connect(_on_health_died)
+        health.health_changed.connect(_on_health_changed)
+        health.damaged.connect(_on_player_damaged)
+        emit_health_snapshot()
+
     _attack_hitbox.set_enabled(false)
     _dash_hitbox.set_enabled(false)
 
     if _hurtbox != null:
         _hurtbox.hit_received.connect(_on_hit_received)
-
-    if health != null:
-        health.damaged.connect(_on_player_damaged)
 
     if _camera != null:
         _camera.make_current()
@@ -193,6 +205,14 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_hit_received(amount: float, source: Node, _guard_damage_profile: int) -> void:
     if health != null:
         health.take_damage(amount, source)
+
+
+func _on_health_died() -> void:
+    died.emit(self)
+
+
+func _on_health_changed(current: float, maximum: float) -> void:
+    health_changed.emit(current, maximum)
 
 
 func _on_player_damaged(_amount: float, _source: Node) -> void:

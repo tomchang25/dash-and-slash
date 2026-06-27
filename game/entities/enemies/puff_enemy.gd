@@ -4,7 +4,7 @@
 # state machine (Idle -> RepositionStep -> FaceOnce -> Idle) with Staggered and
 # Dead states for defense/death. Guard/stagger systems from the template.
 class_name PuffEnemy
-extends Entity
+extends Enemy
 
 const MOVE_SPEED := 120.0
 const CYCLE_COOLDOWN := 1.0

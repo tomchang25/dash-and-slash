@@ -1,9 +1,9 @@
 # boss.gd
 # 2x2 grid actor boss. 4 shields (16 guard), 3 attack patterns:
-# ForwardCleave, LineCharge, CrossStomp. Uses the template's Entity,
-# Health, Hitbox, Hurtbox components plus Guard and TileTelegraph.
+# ForwardCleave, LineCharge, CrossStomp. Uses the Enemy base plus Health,
+# Hitbox, Hurtbox, Guard, and TileTelegraph components.
 class_name Boss
-extends Entity
+extends Enemy
 
 signal guard_changed(current: int, maximum: int)
 signal guard_stagger_started
