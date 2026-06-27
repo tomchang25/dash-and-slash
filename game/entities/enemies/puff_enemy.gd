@@ -352,8 +352,11 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
 
     var src_pos := (source as Node2D).global_position
     var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
+    var is_puffing := _state_machine.current_state.state_id == PuffEnemyState.PuffEnemyStateId.PUFF
     var gd: int
-    if guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
+    if is_puffing:
+        gd = DirectionResolver.normal_guard_damage(DirectionResolver.HitAngle.FRONT)
+    elif guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
         gd = DirectionResolver.dash_guard_damage(angle)
     else:
         gd = DirectionResolver.normal_guard_damage(angle)
@@ -366,7 +369,7 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
         if damaged_sfx_event != null:
             AudioManager.play_event(damaged_sfx_event, global_position)
     else:
-        var sfx_event := damaged_sfx_event if angle == DirectionResolver.HitAngle.BACK else blocked_sfx_event
+        var sfx_event := damaged_sfx_event if (not is_puffing and angle == DirectionResolver.HitAngle.BACK) else blocked_sfx_event
         if sfx_event != null:
             AudioManager.play_event(sfx_event, global_position)
 

@@ -75,6 +75,7 @@ shape = SubResource("CircleShape2D_xvy1v")
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
 script = ExtResource("5_guard")
 max_guard = 16
+stagger_duration = 10.0
 
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
 script = ExtResource("6_sm")
