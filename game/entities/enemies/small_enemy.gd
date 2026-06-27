@@ -58,6 +58,12 @@ func get_staggered_state_id() -> int:
     return SmallEnemyState.SmallEnemyStateId.STAGGERED
 
 
+func get_pre_plan_state_id() -> int:
+    if can_attack():
+        return SmallEnemyState.SmallEnemyStateId.TELEGRAPH
+    return -1
+
+
 func get_dead_state_id() -> int:
     return SmallEnemyState.SmallEnemyStateId.DEAD
 
