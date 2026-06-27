@@ -10,7 +10,7 @@ Dash & Slash is a Godot 4.6 project built on the data-driven template base layer
 
 ## Agent Rules
 
-Agent-specific instructions live in `dev/agent_rules/`. Read them before starting relevant work. Key rules: `sandbox_environment.md` (shell vs. file tools), `lint_before_finish.md` (run linter on changed files), `git_operations.md` (git is read-only — never stage/commit, only suggest commit messages), `godot_test_check.md` (never run Godot against the mount — use the /tmp snapshot procedure, and `/tmp` must be container-native, not a Windows bind mount), `godot_tests.md` (how to run the GUT unit suite), `save_migrations.md` (never delete migration code without sign-off).
+Agent-specific instructions live in `dev/agent_rules/`. Read them before starting relevant work. Key rules: `sandbox_environment.md` (shell vs. file tools), `lint_before_finish.md` (run linter on changed files), `git_operations.md` (git is read-only — never stage/commit, only suggest commit messages), `godot_test_check.md` (never run Godot against the mount — use the /tmp snapshot procedure, and `/tmp` must be container-native, not a Windows bind mount), `godot_tests.md` (how to run the GUT unit suite), `save_migrations.md` (never delete migration code without sign-off), `navigation_settings_debug.md` (SceneRouter, Main Menu, settings overlay, and Debug gate work).
 
 ## Dev File Placement
 
@@ -71,6 +71,8 @@ dev/              Development tooling and documentation
   tools/          YAML pipeline scripts
   workflows/      Development process formats
 game/             Game feature scenes
+  meta/           Main Menu and meta flow screens
+  shared/         Shared UI, including settings overlay and settings button overlay
 global/           Autoloads and project-wide resources
   autoloads/      All autoload scripts
   constants/      DataPaths
@@ -90,5 +92,9 @@ Entities are authored in `data/yaml/*.yaml`, converted to `.tres` via `dev/tools
 - **Commits**: conventional commits format — read `dev/skills/conventional_commits.md` when writing commit messages. Do not hard-wrap prose.
 - **Registries**: extend `ResourceRegistry`; required API: `get_<singular>_by_id`, `get_all_<plural>`, `size`. See `dev/standards/registries.md`.
 - **Save providers**: an object that serializes a slice of state must also own that state — no save adapter that only serializes another object's fields.
+- **Scene routing**: `SceneRouter` owns production scene transitions; read `dev/standards/scene_routing_standard.md` and `dev/skills/scene_router_usage.md` before changing navigation.
+- **Main Menu**: read `dev/standards/main_menu_standard.md` before editing `game/meta/main_menu/`.
+- **Settings overlay**: `SettingsStore` owns `user://settings.json`; read `dev/standards/settings_overlay_standard.md` and `dev/skills/settings_overlay_usage.md` before adding settings.
+- **Debug mode**: check `Debug.enabled`, not `OS.is_debug_build()` directly; read `dev/standards/debug_standard.md` and `dev/skills/debug_mode_usage.md` before adding debug behavior.
 - **GDScript structure & scene architecture**: scripts follow `dev/standards/gdscript_structure_standard.md`; persistent scene nodes and runtime `add_child()` exceptions follow `dev/standards/scene_node_source_standard.md`; reusable component layout/preview rules follow `dev/standards/component_scene_standard.md`. Node-source and no-`[connection]` rules are lint-enforced.
 - **Standards**: run `python dev/tools/lint_standards.py --files <changed>` before finishing if you are an agent without the in-loop lint hook.

@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://das_settings_button"]
+
+[ext_resource type="Script" uid="uid://das_settings_button_script" path="res://game/shared/settings_button_overlay/settings_button_overlay.gd" id="1_button"]
+
+[node name="SettingsButtonOverlay" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_button")
+
+[node name="SettingsButton" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(132, 56)
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -148.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = 68.0
+grow_horizontal = 0
+text = "Settings"
