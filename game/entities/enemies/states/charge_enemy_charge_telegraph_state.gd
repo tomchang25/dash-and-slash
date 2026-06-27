@@ -14,6 +14,7 @@ func _init() -> void:
 
 func _enter() -> void:
     _return_to_idle = false
+    enemy.velocity = Vector2.ZERO
     if not enemy.has_target():
         _return_to_idle = true
         return

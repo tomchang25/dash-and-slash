@@ -37,6 +37,10 @@ func _physics_update(_delta: float) -> void:
         enemy.global_position = target_world
         enemy.register_grid_occupant()
 
+        if enemy.is_player_in_same_line():
+            change_state(ChargeEnemyStateId.CHARGE_TELEGRAPH)
+            return
+
         var planned := enemy.plan_next_action()
 
         if enemy.has_planned_path():

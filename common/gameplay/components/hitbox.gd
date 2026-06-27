@@ -20,7 +20,7 @@ enum GuardDamageProfile { NORMAL, DASH }
 ## Seconds between repeated hits on the same victim. 0 = hit once on enter only.
 @export var damage_interval: float = 0.0
 
-@export var collision_shape: CollisionShape2D
+@export var collision_shape: Node
 
 # ── State ─────────────────────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-    if not _enabled or damage_interval <= 0.0:
+    if not _enabled or damage_interval <= 0.0 or not monitoring:
         return
     # Purge victims freed without firing area_exited.
     for victim: Variant in _hit_times.keys():

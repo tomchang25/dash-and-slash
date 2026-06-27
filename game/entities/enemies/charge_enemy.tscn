@@ -12,21 +12,22 @@
 [ext_resource type="Script" uid="uid://5aqh6dax345l" path="res://game/entities/enemies/states/charge_enemy_staggered_state.gd" id="10_staggered"]
 [ext_resource type="Script" uid="uid://bs5wp3l72hx5x" path="res://game/entities/enemies/states/charge_enemy_dead_state.gd" id="11_dead"]
 [ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/components/enemy_status_bars.tscn" id="12_status_bars"]
-[ext_resource type="Script" path="res://common/gameplay/grid/tile_telegraph.gd" id="13_telegraph"]
-[ext_resource type="Script" path="res://game/entities/enemies/states/charge_enemy_charge_telegraph_state.gd" id="14_charge_telegraph"]
-[ext_resource type="Script" path="res://game/entities/enemies/states/charge_enemy_charge_attack_state.gd" id="15_charge_attack"]
-[ext_resource type="Script" path="res://game/entities/enemies/states/charge_enemy_recovery_state.gd" id="16_recovery"]
+[ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="13_telegraph"]
+[ext_resource type="Script" uid="uid://dapgi2s820m3s" path="res://game/entities/enemies/states/charge_enemy_charge_telegraph_state.gd" id="14_charge_telegraph"]
+[ext_resource type="Script" uid="uid://djp3xq2tgkt8y" path="res://game/entities/enemies/states/charge_enemy_charge_attack_state.gd" id="15_charge_attack"]
+[ext_resource type="Script" uid="uid://bn2w034g6j00t" path="res://game/entities/enemies/states/charge_enemy_recovery_state.gd" id="16_recovery"]
+[ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="17_died_audio"]
+[ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="18_damaged_audio"]
+[ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
 
-[sub_resource type="ConvexPolygonShape2D" id="hurt_shape"]
-points = PackedVector2Array(0, -60, -59, -22, -47, 60, 47, 60, 59, -22)
-
-[sub_resource type="ConvexPolygonShape2D" id="contact_shape"]
-points = PackedVector2Array(0, -55, -53, -19, -42, 55, 42, 55, 53, -19)
-
-[node name="Enemy" type="CharacterBody2D" unique_id=1436900450]
+[node name="Enemy" type="CharacterBody2D" unique_id=1436900450 node_paths=PackedStringArray("health")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_enemy")
+death_sfx_event = ExtResource("17_died_audio")
+damaged_sfx_event = ExtResource("18_damaged_audio")
+blocked_sfx_event = ExtResource("19_blocked_audio")
+health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=2079355181]
 color = Color(1, 0.55, 0.1, 1)
@@ -41,18 +42,18 @@ collision_layer = 2
 collision_mask = 0
 script = ExtResource("3_hurtbox")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=304733513]
-shape = SubResource("hurt_shape")
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Hurtbox" unique_id=304733513]
+polygon = PackedVector2Array(0, -60, -59, -22, -47, 60, 47, 60, 59, -22)
 
 [node name="ContactHitbox" type="Area2D" parent="." unique_id=891038711 node_paths=PackedStringArray("collision_shape")]
 collision_layer = 0
 script = ExtResource("4_hitbox")
 damage = 8.0
 damage_interval = 0.6
-collision_shape = NodePath("CollisionShape2D")
+collision_shape = NodePath("CollisionPolygon2D")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ContactHitbox" unique_id=1437237617]
-shape = SubResource("contact_shape")
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="ContactHitbox" unique_id=1437237617]
+polygon = PackedVector2Array(0, -55, -53, -19, -42, 55, 42, 55, 53, -19)
 
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
 script = ExtResource("5_guard")

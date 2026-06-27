@@ -121,9 +121,20 @@ func plan_next_action() -> bool:
         return true
 
     var path: Array[Vector2i] = []
-    if not _grid.is_blocked(target_cell):
+
+    # Charge enemy prefers to path to same row/column as player first.
+    var line_goals := _collect_charge_line_goal_cells(target_cell, start)
+    if not line_goals.is_empty():
+        if start in line_goals:
+            queue_redraw()
+            return true
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals)
+
+    # Fallback: path directly to target cell.
+    if path.is_empty() and not _grid.is_blocked(target_cell):
         path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
 
+    # Fallback: adjacent cells around the target.
     if path.is_empty():
         var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
         if fallback_goals.is_empty():
@@ -488,6 +499,25 @@ func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Arr
         if neighbor == start or not _grid.is_blocked(neighbor):
             goal_cells.append(neighbor)
     return goal_cells
+
+
+func _collect_charge_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
+    var goals: Array[Vector2i] = []
+    for x in range(_grid.GRID_SIZE.x):
+        var cell := Vector2i(x, target_cell.y)
+        if cell == target_cell:
+            continue
+        if cell == start or not _grid.is_blocked(cell):
+            goals.append(cell)
+    for y in range(_grid.GRID_SIZE.y):
+        var cell := Vector2i(target_cell.x, y)
+        if cell == target_cell:
+            continue
+        if cell in goals:
+            continue
+        if cell == start or not _grid.is_blocked(cell):
+            goals.append(cell)
+    return goals
 
 
 func _refresh_planned_reservations() -> void:
