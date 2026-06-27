@@ -487,7 +487,7 @@ func _is_footprint_free(cell: Vector2i) -> bool:
     return true
 
 
-func _can_path_through(cell: Vector2i, start: Vector2i, blocked_cell: Vector2i) -> bool:
+func _can_path_through(cell: Vector2i, _start: Vector2i, blocked_cell: Vector2i) -> bool:
     if _grid == null:
         return false
     for x in range(BOSS_FOOTPRINT.x):
