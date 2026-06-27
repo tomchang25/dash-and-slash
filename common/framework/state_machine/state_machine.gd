@@ -97,7 +97,13 @@ func _physics_process(delta: float) -> void:
 ## cannot corrupt the FSM with a late-arriving signal.
 func _on_transition_requested(from: State, to: int) -> void:
     if _transitioning:
-        push_warning("StateMachine: transition requested mid-transition from '%s', ignoring" % from.name)
+        push_warning(
+            "StateMachine: '%s' called change_state() from _enter() or _exit() — transition to state id %d ignored. Move change_state() calls to _update() or _physics_update()."
+            % [
+                from.name,
+                to,
+            ],
+        )
         return
 
     if from != current_state:

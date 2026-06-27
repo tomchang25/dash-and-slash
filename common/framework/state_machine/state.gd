@@ -63,6 +63,7 @@ func physics_update(delta: float) -> void:
 ## External systems must use StateMachine.request_transition() instead.
 func change_state(to: int) -> void:
     if _locked:
+        push_warning("State '%s' tried change_state(%s) while locked — called from _exit()? Ignoring." % [name, to])
         return
     if to == state_id:
         return

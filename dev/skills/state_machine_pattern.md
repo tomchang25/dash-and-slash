@@ -205,3 +205,4 @@ StateMachine (Node, script=state_machine.gd, tick_enabled=false, initial_state=N
 6. Connect animation-finished / attack-finished signals in `_enter()`, disconnect in `_exit()`.
 7. Set `state_id` in `_init()`, not in `_ready()`, so the StateMachine can register states before entering the initial state.
 8. The enum of state IDs lives in the state base class (e.g. `PlayerState.PlayerStateId`), not in the entity, to avoid circular dependency.
+9. NEVER call `change_state()` inside `_enter()` or `_exit()`. The state machine sets a re-entrant guard (`_transitioning = true`) during `_do_transition()`, so inner `change_state()` calls are silently swallowed. Call `change_state()` only from `_update()`, `_physics_update()`, or signal callbacks that fire after the transition completes.
