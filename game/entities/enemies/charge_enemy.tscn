@@ -12,6 +12,10 @@
 [ext_resource type="Script" uid="uid://5aqh6dax345l" path="res://game/entities/enemies/states/charge_enemy_staggered_state.gd" id="10_staggered"]
 [ext_resource type="Script" uid="uid://bs5wp3l72hx5x" path="res://game/entities/enemies/states/charge_enemy_dead_state.gd" id="11_dead"]
 [ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/components/enemy_status_bars.tscn" id="12_status_bars"]
+[ext_resource type="Script" path="res://common/gameplay/grid/tile_telegraph.gd" id="13_telegraph"]
+[ext_resource type="Script" path="res://game/entities/enemies/states/charge_enemy_charge_telegraph_state.gd" id="14_charge_telegraph"]
+[ext_resource type="Script" path="res://game/entities/enemies/states/charge_enemy_charge_attack_state.gd" id="15_charge_attack"]
+[ext_resource type="Script" path="res://game/entities/enemies/states/charge_enemy_recovery_state.gd" id="16_recovery"]
 
 [sub_resource type="ConvexPolygonShape2D" id="hurt_shape"]
 points = PackedVector2Array(0, -60, -59, -22, -47, 60, 47, 60, 59, -22)
@@ -54,6 +58,9 @@ shape = SubResource("contact_shape")
 script = ExtResource("5_guard")
 max_guard = 32
 
+[node name="TileTelegraph" type="Node2D" parent="." unique_id=1234567890]
+script = ExtResource("13_telegraph")
+
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
 script = ExtResource("6_sm")
 initial_state = NodePath("Idle")
@@ -67,6 +74,15 @@ script = ExtResource("8_reposition")
 
 [node name="FaceOnce" type="Node" parent="StateMachine" unique_id=1246309414]
 script = ExtResource("9_face")
+
+[node name="ChargeTelegraph" type="Node" parent="StateMachine" unique_id=1234567891]
+script = ExtResource("14_charge_telegraph")
+
+[node name="ChargeAttack" type="Node" parent="StateMachine" unique_id=1234567892]
+script = ExtResource("15_charge_attack")
+
+[node name="Recovery" type="Node" parent="StateMachine" unique_id=1234567893]
+script = ExtResource("16_recovery")
 
 [node name="Staggered" type="Node" parent="StateMachine" unique_id=1988416278]
 script = ExtResource("10_staggered")

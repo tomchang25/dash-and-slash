@@ -17,6 +17,10 @@ func _physics_update(_delta: float) -> void:
         enemy.velocity = Vector2.ZERO
         return
 
+    if enemy.is_player_in_same_line():
+        change_state(ChargeEnemyStateId.CHARGE_TELEGRAPH)
+        return
+
     if not enemy.plan_next_action():
         enemy.velocity = Vector2.ZERO
         return

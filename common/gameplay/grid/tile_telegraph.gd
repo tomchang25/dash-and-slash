@@ -35,6 +35,12 @@ func show_active(tiles: Array[Vector2i]) -> void:
     _grid.set_telegraph(self, _tiles, GridArena.TelegraphPhase.ACTIVE)
 
 
+func clear_cell(cell: Vector2i) -> void:
+    if _grid != null:
+        _grid.clear_telegraph(self, [cell])
+    _tiles.erase(cell)
+
+
 func clear() -> void:
     if _grid != null and not _tiles.is_empty():
         _grid.clear_telegraph(self, _tiles)

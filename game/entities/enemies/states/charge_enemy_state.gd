@@ -11,6 +11,9 @@ enum ChargeEnemyStateId {
     FACE_ONCE = 2,
     STAGGERED = 3,
     DEAD = 4,
+    CHARGE_TELEGRAPH = 5,
+    CHARGE_ATTACK = 6,
+    RECOVERY = 7,
 }
 
 var enemy: ChargeEnemy

@@ -8,6 +8,9 @@ extends Entity
 
 const MOVE_SPEED := 120.0
 const CYCLE_COOLDOWN := 1.0
+const CHARGING_SPEED := 480.0
+const WARNING_DURATION := 1.0
+const RECOVERY_DURATION := 3.0
 const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
 const NO_BLOCKED_CELL := Vector2i(-1, -1)
 const GUARDED_DAMAGE_MULTIPLIER := 0.2
@@ -25,6 +28,7 @@ const PATH_DEBUG_WIDTH := 4.0
 @onready var hurtbox: Hurtbox = $Hurtbox
 @onready var _body: Polygon2D = $Body
 @onready var _contact_hitbox: Hitbox = $ContactHitbox
+@onready var _telegraph: TileTelegraph = $TileTelegraph
 
 var _grid: GridArena
 var _target: Node2D
@@ -37,11 +41,14 @@ var _hurt_tween: Tween
 var _planned_path: Array[Vector2i] = []
 var _active_path_cell: Vector2i
 var _has_active_path_cell: bool = false
+var _charge_cells: Array[Vector2i] = []
 
 
 func setup(grid: GridArena, target: Node2D) -> void:
     _grid = grid
     _target = target
+    if is_node_ready() and _telegraph != null:
+        _telegraph.setup(grid)
 
 
 func has_target() -> bool:
@@ -189,6 +196,27 @@ func face_arrow() -> void:
     _body.rotation = _facing.angle() + PI / 2.0
 
 
+func is_player_in_same_line() -> bool:
+    if _grid == null or not has_target():
+        return false
+    var player_cell := _grid.world_to_grid(_target.global_position)
+    return _grid_pos.x == player_cell.x or _grid_pos.y == player_cell.y
+
+
+func get_charge_cells_from_pos(from: Vector2i, facing: Vector2) -> Array[Vector2i]:
+    var f := Vector2i(int(facing.x), int(facing.y))
+    var cells: Array[Vector2i] = []
+    var cell := from + f
+    while _grid.is_in_bounds(cell):
+        cells.append(cell)
+        cell += f
+    return cells
+
+
+func get_charge_cells() -> Array[Vector2i]:
+    return get_charge_cells_from_pos(_grid_pos, _facing)
+
+
 func register_grid_occupant() -> void:
     _grid.register_occupant(self, [_grid_pos])
 
@@ -201,9 +229,27 @@ func get_body() -> Polygon2D:
     return _body
 
 
+func get_telegraph() -> TileTelegraph:
+    return _telegraph
+
+
+func get_stored_charge_cells() -> Array[Vector2i]:
+    return _charge_cells
+
+
+func set_stored_charge_cells(cells: Array[Vector2i]) -> void:
+    _charge_cells = cells
+
+
+func clear_stored_charge_cells() -> void:
+    _charge_cells.clear()
+
+
 func begin_death() -> void:
     velocity = Vector2.ZERO
     clear_planned_action()
+    if _telegraph != null:
+        _telegraph.clear()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
     if _contact_hitbox != null:
@@ -235,6 +281,9 @@ func _ready() -> void:
     _cooldown_timer = Timer.new()
     _cooldown_timer.one_shot = true
     add_child(_cooldown_timer)
+
+    if _telegraph != null:
+        _telegraph.setup(_grid)
 
     if _guard != null:
         _guard.guard_changed.connect(_on_guard_changed)
@@ -290,6 +339,8 @@ func _update_grid_pos() -> void:
 func _on_guard_broken() -> void:
     _staggered = true
     clear_planned_action()
+    if _telegraph != null:
+        _telegraph.clear()
     _state_machine.request_transition(ChargeEnemyState.ChargeEnemyStateId.STAGGERED, true)
 
 
