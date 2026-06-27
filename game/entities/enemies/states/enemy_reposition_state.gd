@@ -15,7 +15,7 @@ func _enter() -> void:
         enemy.face_toward_cell(_target_cell)
 
 
-func _physics_update(_delta: float) -> void:
+func _physics_update(delta: float) -> void:
     if not _has_step:
         enemy.velocity = Vector2.ZERO
         change_state(enemy.get_face_state_id())
@@ -26,7 +26,7 @@ func _physics_update(_delta: float) -> void:
     var dir := (target_world - enemy.global_position).normalized()
     enemy.velocity = dir * enemy.get_move_speed()
 
-    var arrival_threshold := enemy.tile_size() * 0.1
+    var arrival_threshold := maxf(1.0, enemy.get_move_speed() * delta)
     if enemy.global_position.distance_squared_to(target_world) < arrival_threshold * arrival_threshold:
         enemy.set_grid_pos(_target_cell)
         enemy.global_position = target_world
