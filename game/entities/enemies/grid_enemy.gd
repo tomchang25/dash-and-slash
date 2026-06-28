@@ -397,6 +397,8 @@ func face_arrow() -> void:
         _facing_arrow.rotation = _facing.angle() - PI / 2.0
     elif _body != null:
         _body.rotation = _facing.angle() + PI / 2.0
+    if hurtbox != null:
+        hurtbox.rotation = _facing.angle() + PI / 2.0
 
 
 func register_grid_occupant() -> void:

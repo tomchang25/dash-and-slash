@@ -59,6 +59,12 @@ func clear_stored_charge_cells() -> void:
     _charge_cells.clear()
 
 
+func face_arrow() -> void:
+    super()
+    if _contact_hitbox != null:
+        _contact_hitbox.rotation = _facing.angle() + PI / 2.0
+
+
 func get_idle_state_id() -> int:
     return ChargeEnemyState.ChargeEnemyStateId.IDLE
 
