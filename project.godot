@@ -36,6 +36,7 @@ GameManager="*res://global/autoloads/game_manager/game_manager.gd"
 
 [debug]
 
+settings/stdout/print_fps=true
 gdscript/warnings/integer_division=0
 gdscript/warnings/inference_on_variant=0
 

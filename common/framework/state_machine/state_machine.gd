@@ -1,6 +1,8 @@
 class_name StateMachine
 extends Node
 
+signal state_changed(from: State, to: State)
+
 @export var initial_state: State
 @onready var target: Node = owner
 
@@ -168,9 +170,11 @@ func _do_transition(new_state: State) -> void:
         return
 
     _transitioning = true
-    current_state.exit()
+    var old_state := current_state
+    old_state.exit()
     current_state = new_state
     current_state.enter()
+    state_changed.emit(old_state, current_state)
     _transitioning = false
 
     # Reset accumulators on transition so the new state gets a full tick interval

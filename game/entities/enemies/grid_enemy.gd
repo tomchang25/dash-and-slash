@@ -86,6 +86,7 @@ func _ready() -> void:
         _on_guard_changed(_guard.current(), _guard.max_guard)
 
     face_arrow()
+    _init_debug_fsm_state()
 
 
 func _physics_process(_delta: float) -> void:
@@ -646,6 +647,55 @@ func _refresh_planned_reservations() -> void:
         _grid.reserve_cells(self, reserved_cells)
 
 # == Setup helpers =============================================================
+
+var _fsm_debug_label: Label
+
+
+func _init_debug_fsm_state() -> void:
+    if _state_machine == null:
+        return
+    if not _state_machine.state_changed.is_connected(_on_fsm_state_changed):
+        _state_machine.state_changed.connect(_on_fsm_state_changed)
+    if not Debug.toggled.is_connected(_on_debug_mode_toggled):
+        Debug.toggled.connect(_on_debug_mode_toggled)
+    if Debug.enabled:
+        _ensure_fsm_label()
+        _sync_fsm_label.call_deferred()
+
+
+func _on_debug_mode_toggled(enabled: bool) -> void:
+    if enabled:
+        _ensure_fsm_label()
+        _sync_fsm_label.call_deferred()
+    elif _fsm_debug_label != null:
+        _fsm_debug_label.visible = false
+
+
+func _ensure_fsm_label() -> void:
+    if _fsm_debug_label != null:
+        _fsm_debug_label.visible = true
+        return
+    _fsm_debug_label = Label.new()
+    _fsm_debug_label.name = "FsmStateDebugLabel"
+    _fsm_debug_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    _fsm_debug_label.add_theme_color_override("font_color", Color(0.0, 1.0, 0.8))
+    _fsm_debug_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
+    _fsm_debug_label.add_theme_constant_override("shadow_outline_size", 1)
+    _fsm_debug_label.position = Vector2(0.0, 0.0)
+    # node-src: debug
+    add_child(_fsm_debug_label)
+
+
+func _sync_fsm_label() -> void:
+    if _fsm_debug_label == null or _state_machine == null:
+        return
+    if _state_machine.current_state != null:
+        _fsm_debug_label.text = _state_machine.current_state.name
+
+
+func _on_fsm_state_changed(_from: State, to: State) -> void:
+    if _fsm_debug_label != null:
+        _fsm_debug_label.text = to.name
 
 
 func _find_state_machine() -> StateMachine:
