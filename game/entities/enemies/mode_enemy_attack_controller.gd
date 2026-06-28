@@ -76,7 +76,7 @@ func get_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]
         Mode.CHARGE:
             return _get_charge_cells(origin_cell, facing)
         Mode.PUFF:
-            return _get_puff_cells(origin_cell)
+            return AttackCellShapes.square(origin_cell, 1, _grid, true)
     return []
 
 
@@ -198,30 +198,12 @@ func _get_tile_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vec
 
     match _tile_shape:
         TileShape.WIDE_2X3:
-            return _get_wide_2x3_cells(origin_cell, facing_cell)
+            return AttackCellShapes.wide(origin_cell, facing_cell, 2, 3, _grid, true)
         TileShape.SELF_3X3:
-            return _get_puff_cells(origin_cell)
+            return AttackCellShapes.square(origin_cell, 1, _grid, true)
         TileShape.LINE_1X4:
-            return _get_line_1x4_cells(origin_cell, facing_cell)
+            return AttackCellShapes.line(origin_cell, facing_cell, 4, _grid, true)
     return []
-
-
-func _get_wide_2x3_cells(origin_cell: Vector2i, facing_cell: Vector2i) -> Array[Vector2i]:
-    var right_cell := Vector2i(facing_cell.y, -facing_cell.x)
-    var cells: Array[Vector2i] = []
-    for depth in range(2):
-        var center_cell := origin_cell + facing_cell * (depth + 1)
-        _append_cell_if_in_bounds(cells, center_cell - right_cell)
-        _append_cell_if_in_bounds(cells, center_cell)
-        _append_cell_if_in_bounds(cells, center_cell + right_cell)
-    return cells
-
-
-func _get_line_1x4_cells(origin_cell: Vector2i, facing_cell: Vector2i) -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    for depth in range(1, 5):
-        _append_cell_if_in_bounds(cells, origin_cell + facing_cell * depth)
-    return cells
 
 
 func _get_charge_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
@@ -232,18 +214,3 @@ func _get_charge_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i
         cells.append(cell)
         cell += facing_cell
     return cells
-
-
-func _get_puff_cells(origin_cell: Vector2i) -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    for x_offset in range(-1, 2):
-        for y_offset in range(-1, 2):
-            _append_cell_if_in_bounds(cells, origin_cell + Vector2i(x_offset, y_offset))
-    return cells
-
-
-func _append_cell_if_in_bounds(cells: Array[Vector2i], cell: Vector2i) -> void:
-    if _grid == null or not _grid.is_in_bounds(cell):
-        return
-    if cell not in cells:
-        cells.append(cell)

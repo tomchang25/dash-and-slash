@@ -41,9 +41,7 @@ func _on_warning_done() -> void:
         _timer.queue_free()
         _timer = null
 
-    var attack := enemy.get_attack_controller()
-    if attack != null:
-        attack.show_charge()
+    enemy.show_attack_charge()
 
     _timer = Timer.new()
     _timer.one_shot = true

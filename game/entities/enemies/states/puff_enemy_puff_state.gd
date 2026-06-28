@@ -27,7 +27,7 @@ func _init() -> void:
 
 
 func _enter() -> void:
-    enemy.begin_committed_action()
+    enemy.begin_puff_action()
     _capture_original_body_state()
     _shrink_vfx_started = false
     _ensure_timers()

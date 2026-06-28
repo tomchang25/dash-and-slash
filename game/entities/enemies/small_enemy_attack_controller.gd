@@ -44,23 +44,12 @@ func get_attack_pattern() -> int:
 
 func get_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
     var facing_cell := Vector2i(int(facing.x), int(facing.y))
-    if facing_cell == Vector2i.ZERO:
-        var empty_cells: Array[Vector2i] = []
-        return empty_cells
-
-    var right_cell := Vector2i(facing_cell.y, -facing_cell.x)
-    var cells: Array[Vector2i] = []
     match _attack_pattern:
         AttackPattern.LINE_1X4:
-            for depth in range(1, 4):
-                _append_cell_if_in_bounds(cells, origin_cell + facing_cell * depth)
+            return AttackCellShapes.line(origin_cell, facing_cell, 3, _grid)
         AttackPattern.WIDE_2X3:
-            for depth in range(2):
-                var center_cell := origin_cell + facing_cell * (depth + 1)
-                _append_cell_if_in_bounds(cells, center_cell - right_cell)
-                _append_cell_if_in_bounds(cells, center_cell)
-                _append_cell_if_in_bounds(cells, center_cell + right_cell)
-    return cells
+            return AttackCellShapes.wide(origin_cell, facing_cell, 2, 3, _grid)
+    return []
 
 
 func prepare(origin_cell: Vector2i, facing: Vector2) -> bool:
@@ -118,13 +107,6 @@ func cancel() -> void:
     _telegraph.clear()
 
     _prepared = false
-
-
-func _append_cell_if_in_bounds(cells: Array[Vector2i], cell: Vector2i) -> void:
-    if _grid != null and not _grid.is_in_bounds(cell):
-        return
-    if cell not in cells:
-        cells.append(cell)
 
 
 func _on_vfx_tween_done(vfx: Polygon2D) -> void:

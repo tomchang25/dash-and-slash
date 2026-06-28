@@ -11,7 +11,9 @@ func _init() -> void:
 
 func _enter() -> void:
     _elapsed = 0.0
-    enemy.begin_committed_action()
+    var mode_enemy := enemy as ModeEnemy
+    if mode_enemy != null:
+        mode_enemy.begin_mode_change()
 
 
 func _physics_update(delta: float) -> void:

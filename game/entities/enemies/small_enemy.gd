@@ -91,6 +91,13 @@ func begin_attack_telegraph() -> bool:
     return true
 
 
+## Shows the committed attack's charge telegraph phase.
+func show_attack_charge() -> void:
+    var attack := get_attack_controller()
+    if attack != null:
+        attack.show_charge()
+
+
 func plan_next_action() -> bool:
     clear_planned_path()
 

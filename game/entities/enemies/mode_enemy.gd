@@ -122,6 +122,11 @@ func get_after_face_state_id() -> int:
     return ModeEnemyState.ModeEnemyStateId.IDLE
 
 
+## Commits the enemy to mode selection and clears any planned movement.
+func begin_mode_change() -> bool:
+    return begin_committed_action()
+
+
 ## Clears movement planning and prepares the current mode telegraph.
 func begin_attack_telegraph() -> bool:
     if not begin_committed_action():
@@ -202,7 +207,7 @@ func can_attack_current_mode() -> bool:
 func plan_next_action() -> bool:
     match _mode:
         ModeEnemyAttackController.Mode.CHARGE:
-            return _plan_charge_action()
+            return plan_charge_line_action()
         ModeEnemyAttackController.Mode.TILE:
             return _plan_tile_action()
     return super()
@@ -360,10 +365,6 @@ func _plan_tile_action() -> bool:
     _refresh_planned_reservations()
     queue_redraw()
     return true
-
-
-func _plan_charge_action() -> bool:
-    return plan_charge_line_action()
 
 
 func _move_to_charge_cell(cell: Vector2i) -> void:

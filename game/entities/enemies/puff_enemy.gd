@@ -19,6 +19,11 @@ func is_target_in_puff_range() -> bool:
     return is_target_within_grid_range(PUFF_RANGE)
 
 
+## Commits the enemy to the puff action and clears any planned movement.
+func begin_puff_action() -> bool:
+    return begin_committed_action()
+
+
 func enable_puff_hitbox(enable: bool) -> void:
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(enable)
