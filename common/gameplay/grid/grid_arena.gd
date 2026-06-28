@@ -7,7 +7,7 @@
 class_name GridArena
 extends Node2D
 
-enum TelegraphPhase { NONE, WARNING, CHARGE, ACTIVE }
+enum TelegraphPhase { NONE, WARNING, CHARGE, ACTIVE, SPAWNING }
 
 const GRID_SIZE := Vector2i(6, 6)
 const WALL_THICKNESS := 128.0
@@ -258,5 +258,7 @@ func _telegraph_color(phase: int) -> Color:
             return Color(1.0, 0.55, 0.0, 0.5)
         TelegraphPhase.ACTIVE:
             return Color(0.95, 0.1, 0.0, 0.75)
+        TelegraphPhase.SPAWNING:
+            return Color.YELLOW
         _:
             return Color.TRANSPARENT

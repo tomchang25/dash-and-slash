@@ -21,6 +21,7 @@ const WAVES := {
 }
 
 const WAVE_GAP := 1.2
+const SPAWN_TELEGRAPH_DURATION := 0.8
 const GRASS_TILE_SIZE := 16.0
 const GRASS_SOURCE_ID := 0
 const GRASS_ATLAS_SIZE := Vector2i(16, 16)
@@ -49,7 +50,9 @@ const ENEMY_SPAWN_OFFSETS := [
 
 var _current_wave: int = Wave.NO_WAVE
 var _alive_enemies: Array[Node] = []
+var _pending_spawns: Array[Dictionary] = []
 var _wave_gap_timer: Timer
+var _spawn_telegraph_timer: Timer
 var _boss_ref: CharacterBody2D = null
 
 
@@ -66,6 +69,12 @@ func _ready() -> void:
     _wave_gap_timer.timeout.connect(_start_next_wave)
     # node-src: timer
     add_child(_wave_gap_timer)
+
+    _spawn_telegraph_timer = Timer.new()
+    _spawn_telegraph_timer.one_shot = true
+    _spawn_telegraph_timer.timeout.connect(_on_spawn_telegraph_timeout)
+    # node-src: timer
+    add_child(_spawn_telegraph_timer)
 
     _player.health_changed.connect(_on_player_health_changed)
     _player.emit_health_snapshot()
@@ -130,14 +139,31 @@ func _begin_wave(wave: int) -> void:
     var count: int = info.get("count", 0)
     var scene: PackedScene = info.get("scene")
 
+    _pending_spawns.clear()
+    var telegraph_cells: Array[Vector2i] = []
     for i in count:
-        _spawn_enemy(scene, i)
+        var picked: PackedScene = scene if scene != null else ENEMY_POOL[randi() % ENEMY_POOL.size()]
+        var cell := _choose_enemy_spawn_cell(i)
+        _pending_spawns.append({ "scene": picked, "cell": cell })
+        telegraph_cells.append(cell)
+
+    _grid.set_telegraph(self, telegraph_cells, GridArena.TelegraphPhase.SPAWNING)
+    _spawn_telegraph_timer.start(SPAWN_TELEGRAPH_DURATION)
 
 
-func _spawn_enemy(scene: PackedScene, index: int) -> void:
-    var picked: PackedScene = scene if scene != null else ENEMY_POOL[randi() % ENEMY_POOL.size()]
+func _on_spawn_telegraph_timeout() -> void:
+    var cells: Array[Vector2i] = []
+    for s in _pending_spawns:
+        cells.append(s["cell"])
+    _grid.clear_telegraph(self, cells)
+
+    for s in _pending_spawns:
+        _spawn_enemy(s["scene"], s["cell"])
+    _pending_spawns.clear()
+
+
+func _spawn_enemy(picked: PackedScene, spawn_cell: Vector2i) -> void:
     var enemy: Node = picked.instantiate()
-    var spawn_cell := _choose_enemy_spawn_cell(index)
     enemy.global_position = _grid.cell_center(spawn_cell)
 
     if enemy.has_method("setup"):
