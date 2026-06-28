@@ -34,6 +34,8 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
+- [grid] Dynamic 16x16 land/sea gameplay grid — see `dev/docs/plans/dynamic_grid_land_sea.sketch.md`
+
 ---
 
 ## Chore
