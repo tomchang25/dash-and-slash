@@ -8,7 +8,6 @@ const PUFF_RANGE := 1
 
 # -- Node references ----------------------------------------------------------
 @onready var _puff_hitbox: Hitbox = _find_child_node("PuffHitbox") as Hitbox
-@onready var _contact_hitbox: Hitbox = _find_child_node("ContactHitbox") as Hitbox
 
 # == Common API ================================================================
 
@@ -28,11 +27,6 @@ func is_target_in_puff_range() -> bool:
 func enable_puff_hitbox(enable: bool) -> void:
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(enable)
-
-
-func set_contact_hitbox_enabled(enable: bool) -> void:
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(enable)
 
 
 func get_idle_state_id() -> int:
@@ -72,8 +66,6 @@ func get_arrival_override_state_id() -> int:
 func _on_begin_death_extra() -> void:
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(false)
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
 
 
 func _reset_extra() -> void:
