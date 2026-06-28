@@ -31,7 +31,7 @@ func _ready() -> void:
 func can_attack() -> bool:
     if _grid == null or _attack_controller == null or not has_target():
         return false
-    var target_cell := _grid.world_to_grid(_target.global_position)
+    var target_cell := get_target_cell()
     var dir_to_target := Vector2(target_cell - _grid_pos)
     if dir_to_target == Vector2.ZERO:
         return false
@@ -78,6 +78,19 @@ func get_after_face_state_id() -> int:
     return SmallEnemyState.SmallEnemyStateId.IDLE
 
 
+## Clears movement planning and prepares the attack telegraph.
+func begin_attack_telegraph() -> bool:
+    if not begin_committed_action():
+        return false
+    var attack := get_attack_controller()
+    if attack == null:
+        return false
+    if not attack.prepare(get_grid_pos(), get_facing()):
+        return false
+    attack.show_warning()
+    return true
+
+
 func plan_next_action() -> bool:
     clear_planned_path()
 
@@ -85,7 +98,7 @@ func plan_next_action() -> bool:
         return false
 
     var start := _grid_pos
-    var target_cell := _grid.world_to_grid(_target.global_position)
+    var target_cell := get_target_cell()
     var attack_origins: Array[Vector2i] = []
     var blocked_cell := target_cell
     var uses_target_collision := false

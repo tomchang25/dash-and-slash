@@ -26,8 +26,7 @@ func _init() -> void:
 
 
 func _enter() -> void:
-    enemy.velocity = Vector2.ZERO
-    enemy.clear_planned_path()
+    enemy.begin_committed_action()
     _capture_original_body_state()
     _shrink_vfx_started = false
     _ensure_timers()

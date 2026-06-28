@@ -13,16 +13,9 @@ func _init() -> void:
 
 func _enter() -> void:
     _return_to_idle = false
-    var attack := enemy.get_attack_controller()
-    if attack == null:
+    if not enemy.begin_attack_telegraph():
         _return_to_idle = true
         return
-
-    if not attack.prepare(enemy.get_grid_pos(), enemy.get_facing()):
-        _return_to_idle = true
-        return
-
-    attack.show_telegraph()
 
     _timer = Timer.new()
     _timer.one_shot = true

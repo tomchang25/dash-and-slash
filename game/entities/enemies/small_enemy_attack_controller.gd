@@ -86,7 +86,7 @@ func get_cells() -> Array[Vector2i]:
     return _attack_cells.duplicate()
 
 
-func show_telegraph() -> void:
+func show_warning() -> void:
     if _prepared and _telegraph != null:
         _telegraph.show_warning(_attack_cells)
 

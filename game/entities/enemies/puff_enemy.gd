@@ -17,11 +17,7 @@ func get_body() -> Polygon2D:
 
 
 func is_target_in_puff_range() -> bool:
-    if _grid == null or not has_target():
-        return false
-    var player_cell := _grid.world_to_grid(_target.global_position)
-    var diff := player_cell - _grid_pos
-    return absi(diff.x) <= PUFF_RANGE and absi(diff.y) <= PUFF_RANGE
+    return is_target_within_grid_range(PUFF_RANGE)
 
 
 func enable_puff_hitbox(enable: bool) -> void:

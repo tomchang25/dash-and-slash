@@ -124,7 +124,7 @@ func get_after_face_state_id() -> int:
 
 ## Clears movement planning and prepares the current mode telegraph.
 func begin_attack_telegraph() -> bool:
-    if not super():
+    if not begin_committed_action():
         return false
     face_target_position()
     if not prepare_attack():
@@ -187,31 +187,16 @@ func can_attack_current_mode() -> bool:
         return false
     match _mode:
         ModeEnemyAttackController.Mode.CHARGE:
-            return is_player_in_same_line()
+            return is_target_cardinally_aligned()
         ModeEnemyAttackController.Mode.PUFF:
-            return is_target_in_puff_range()
+            return is_target_within_grid_range(1)
         ModeEnemyAttackController.Mode.TILE:
-            var target_cell := _grid.world_to_grid(_target.global_position)
+            var target_cell := get_target_cell()
             var dir_to_target := Vector2(target_cell - _grid_pos)
             if dir_to_target == Vector2.ZERO:
                 return false
             return target_cell in _attack_controller.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target))
     return false
-
-
-func is_player_in_same_line() -> bool:
-    if _grid == null or not has_target():
-        return false
-    var player_cell := _grid.world_to_grid(_target.global_position)
-    return _grid_pos.x == player_cell.x or _grid_pos.y == player_cell.y
-
-
-func is_target_in_puff_range() -> bool:
-    if _grid == null or not has_target():
-        return false
-    var player_cell := _grid.world_to_grid(_target.global_position)
-    var diff := player_cell - _grid_pos
-    return absi(diff.x) <= 1 and absi(diff.y) <= 1
 
 
 func plan_next_action() -> bool:
@@ -347,7 +332,7 @@ func _plan_tile_action() -> bool:
         return false
 
     var start := _grid_pos
-    var target_cell := _grid.world_to_grid(_target.global_position)
+    var target_cell := get_target_cell()
     var attack_origins: Array[Vector2i] = []
     for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
         var facing := Vector2(facing_cell.x, facing_cell.y)
@@ -378,64 +363,7 @@ func _plan_tile_action() -> bool:
 
 
 func _plan_charge_action() -> bool:
-    clear_planned_path()
-    if _grid == null or not has_target():
-        return false
-
-    var start := _grid_pos
-    var target_cell := _grid.world_to_grid(_target.global_position)
-    if not _grid.is_in_bounds(target_cell):
-        return false
-    if start == target_cell:
-        queue_redraw()
-        return true
-
-    var path: Array[Vector2i] = []
-    var line_goals := _collect_charge_line_goal_cells(target_cell, start)
-    if not line_goals.is_empty():
-        if start in line_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals)
-
-    if path.is_empty() and not _grid.is_blocked(target_cell):
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
-
-    if path.is_empty():
-        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
-        if fallback_goals.is_empty():
-            return false
-        if start in fallback_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, target_cell, fallback_goals)
-
-    if path.is_empty():
-        return false
-
-    _planned_path = path
-    _refresh_planned_reservations()
-    queue_redraw()
-    return true
-
-
-func _collect_charge_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
-    var goals: Array[Vector2i] = []
-    for x in range(_grid.GRID_SIZE.x):
-        var cell := Vector2i(x, target_cell.y)
-        if cell == target_cell:
-            continue
-        if cell == start or not _grid.is_blocked(cell):
-            goals.append(cell)
-    for y in range(_grid.GRID_SIZE.y):
-        var cell := Vector2i(target_cell.x, y)
-        if cell == target_cell:
-            continue
-        if cell in goals:
-            continue
-        if cell == start or not _grid.is_blocked(cell):
-            goals.append(cell)
-    return goals
+    return plan_charge_line_action()
 
 
 func _move_to_charge_cell(cell: Vector2i) -> void:

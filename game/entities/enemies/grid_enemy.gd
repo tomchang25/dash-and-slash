@@ -251,6 +251,13 @@ func get_target() -> Node2D:
     return _target
 
 
+## Returns the target's current grid cell, or NO_BLOCKED_CELL when unavailable.
+func get_target_cell() -> Vector2i:
+    if _grid == null or not has_target():
+        return NO_BLOCKED_CELL
+    return _grid.world_to_grid(_target.global_position)
+
+
 func set_target(target: Node2D) -> void:
     _target = target
 
@@ -303,7 +310,7 @@ func plan_next_action() -> bool:
         return false
 
     var start := _grid_pos
-    var target_cell := _grid.world_to_grid(_target.global_position)
+    var target_cell := get_target_cell()
 
     if not _grid.is_in_bounds(target_cell):
         return false
@@ -397,6 +404,23 @@ func register_grid_occupant() -> void:
         _grid.register_occupant(self, [_grid_pos])
 
 
+## Returns true when the target shares this enemy's row or column.
+func is_target_cardinally_aligned() -> bool:
+    if _grid == null or not has_target():
+        return false
+    var target_cell := get_target_cell()
+    return _grid_pos.x == target_cell.x or _grid_pos.y == target_cell.y
+
+
+## Returns true when the target is within Chebyshev grid range.
+func is_target_within_grid_range(cell_range: int) -> bool:
+    if _grid == null or not has_target():
+        return false
+    var target_cell := get_target_cell()
+    var diff := target_cell - _grid_pos
+    return absi(diff.x) <= cell_range and absi(diff.y) <= cell_range
+
+
 func get_guard() -> Guard:
     return _guard
 
@@ -454,10 +478,58 @@ func get_arrival_override_state_id() -> int:
     return -1
 
 
-## Performs shared setup when an enemy commits to an attack telegraph.
-func begin_attack_telegraph() -> bool:
+## Performs shared setup when an enemy commits to a non-reposition action.
+func begin_committed_action() -> bool:
     velocity = Vector2.ZERO
     clear_planned_path()
+    return true
+
+
+## Default attack telegraph entry; enemies with telegraphs extend this setup.
+func begin_attack_telegraph() -> bool:
+    return begin_committed_action()
+
+
+## Plans a charge approach that prefers lining up with the target row or column.
+func plan_charge_line_action() -> bool:
+    clear_planned_path()
+    if _grid == null or not has_target():
+        return false
+
+    var start := _grid_pos
+    var target_cell := get_target_cell()
+    if not _grid.is_in_bounds(target_cell):
+        return false
+    if start == target_cell:
+        queue_redraw()
+        return true
+
+    var path: Array[Vector2i] = []
+    var line_goals := _collect_line_goal_cells(target_cell, start)
+    if not line_goals.is_empty():
+        if start in line_goals:
+            queue_redraw()
+            return true
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals)
+
+    if path.is_empty() and not _grid.is_blocked(target_cell):
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
+
+    if path.is_empty():
+        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
+        if fallback_goals.is_empty():
+            return false
+        if start in fallback_goals:
+            queue_redraw()
+            return true
+        path = _find_path_to_cell(start, target_cell, fallback_goals)
+
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    _refresh_planned_reservations()
+    queue_redraw()
     return true
 
 
@@ -533,6 +605,25 @@ func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Arr
         if neighbor == start or not _grid.is_blocked(neighbor):
             goal_cells.append(neighbor)
     return goal_cells
+
+
+func _collect_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
+    var goals: Array[Vector2i] = []
+    for x in range(_grid.GRID_SIZE.x):
+        var cell := Vector2i(x, target_cell.y)
+        if cell == target_cell:
+            continue
+        if cell == start or not _grid.is_blocked(cell):
+            goals.append(cell)
+    for y in range(_grid.GRID_SIZE.y):
+        var cell := Vector2i(target_cell.x, y)
+        if cell == target_cell:
+            continue
+        if cell in goals:
+            continue
+        if cell == start or not _grid.is_blocked(cell):
+            goals.append(cell)
+    return goals
 
 
 func _refresh_planned_reservations() -> void:
