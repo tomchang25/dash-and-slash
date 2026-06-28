@@ -6,11 +6,28 @@ extends Enemy
 const MOVE_SPEED := 120.0
 const CYCLE_COOLDOWN := 1.0
 const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
+const EIGHT_DIRECTIONS := [
+    Vector2i.RIGHT,
+    Vector2i.LEFT,
+    Vector2i.DOWN,
+    Vector2i.UP,
+    Vector2i(1, 1),
+    Vector2i(1, -1),
+    Vector2i(-1, 1),
+    Vector2i(-1, -1),
+]
 const NO_BLOCKED_CELL := Vector2i(-1, -1)
 const GUARDED_DAMAGE_MULTIPLIER := 0.2
 const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
+
+# -- Movement -----------------------------------------------------------------
+var _allow_diagonal_movement: bool = false
+
+
+func _get_movement_directions() -> Array:
+    return EIGHT_DIRECTIONS if _allow_diagonal_movement else CARDINAL_DIRECTIONS
 
 # -- Exports ------------------------------------------------------------------
 @export var death_sfx_event: SpatialAudioEvent
@@ -468,7 +485,7 @@ func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Arr
             goal = current
             break
 
-        for direction: Vector2i in CARDINAL_DIRECTIONS:
+        for direction: Vector2i in _get_movement_directions():
             var next := current + direction
             if came_from.has(next):
                 continue
@@ -501,7 +518,7 @@ func _can_path_through(cell: Vector2i, start: Vector2i, blocked_cell: Vector2i) 
 
 func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
     var goal_cells: Array[Vector2i] = []
-    for direction: Vector2i in CARDINAL_DIRECTIONS:
+    for direction: Vector2i in _get_movement_directions():
         var neighbor := target_cell + direction
         if not _grid.is_in_bounds(neighbor):
             continue

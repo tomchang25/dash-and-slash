@@ -41,6 +41,7 @@ var _charge_index := 0
 
 func _ready() -> void:
     super()
+    _allow_diagonal_movement = true
     _configure_attack_controller()
     _disable_mode_hitboxes()
     _apply_current_mode_color()
@@ -180,7 +181,10 @@ func can_attack_current_mode() -> bool:
             return is_target_in_puff_range()
         ModeEnemyAttackController.Mode.TILE:
             var target_cell := _grid.world_to_grid(_target.global_position)
-            return target_cell in _attack_controller.get_attack_cells(_grid_pos, _facing)
+            var dir_to_target := Vector2(target_cell - _grid_pos)
+            if dir_to_target == Vector2.ZERO:
+                return false
+            return target_cell in _attack_controller.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target))
     return false
 
 

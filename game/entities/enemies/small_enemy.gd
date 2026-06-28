@@ -19,6 +19,7 @@ const RECOVERY_DURATION := 0.4
 
 func _ready() -> void:
     super()
+    _allow_diagonal_movement = true
     _hitbox.set_enabled(false)
     _configure_attack_controller()
     if _attack_controller != null:
@@ -31,7 +32,10 @@ func can_attack() -> bool:
     if _grid == null or _attack_controller == null or not has_target():
         return false
     var target_cell := _grid.world_to_grid(_target.global_position)
-    return target_cell in _attack_controller.get_attack_cells(_grid_pos, _facing)
+    var dir_to_target := Vector2(target_cell - _grid_pos)
+    if dir_to_target == Vector2.ZERO:
+        return false
+    return target_cell in _attack_controller.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target))
 
 
 func get_attack_controller() -> SmallEnemyAttackController:
@@ -166,7 +170,7 @@ func _configure_attack_controller() -> void:
 
 func _collect_adjacent_attack_origin_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
     var origin_cells: Array[Vector2i] = []
-    for direction: Vector2i in CARDINAL_DIRECTIONS:
+    for direction: Vector2i in _get_movement_directions():
         var neighbor := target_cell + direction
         if not _grid.is_in_bounds(neighbor):
             continue
