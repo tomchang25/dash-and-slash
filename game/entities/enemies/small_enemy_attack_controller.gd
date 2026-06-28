@@ -1,6 +1,7 @@
 # small_enemy_attack_controller.gd
 # Owns SmallEnemy attack snapshots, telegraph display, hitbox activation,
 # and per-cell attack VFX spawned on charge.
+# Deprecated: retained until Phase 3 cleanup; SmallEnemy now uses EnemyAttackController.
 class_name SmallEnemyAttackController
 extends Node
 
