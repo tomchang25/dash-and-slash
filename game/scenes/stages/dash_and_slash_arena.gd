@@ -22,7 +22,6 @@ const WAVES := {
 
 const WAVE_GAP := 1.2
 const SPAWN_TELEGRAPH_DURATION := 0.8
-const VISUAL_TILE_SIZE := 16.0
 const ENEMY_SPAWN_OFFSETS := [
     Vector2i(2, 0),
     Vector2i(-2, 0),
@@ -38,8 +37,6 @@ const ENEMY_SPAWN_OFFSETS := [
     Vector2i(-1, -2),
 ]
 
-@onready var _land_tiles: TileMapLayer = %TileMapLayer
-@onready var _water_tiles: TileMapLayer = %WaterBackground
 @onready var _grid: GridArena = %GridArena
 @onready var _player: Entity = %Player
 @onready var _hp_label: Label = %HpLabel
@@ -56,13 +53,8 @@ var _boss_ref: CharacterBody2D = null
 
 
 func _ready() -> void:
-    _position_tile_layers()
-    _setup_background()
     if Engine.is_editor_hint():
         return
-
-    if _grid.terrain_layer == null:
-        _grid.terrain_layer = _land_tiles
 
     if _player.has_method("setup"):
         _player.setup(_grid)
@@ -83,23 +75,6 @@ func _ready() -> void:
     _boss_guard_label.visible = false
 
     _start_next_wave()
-
-
-func _position_tile_layers() -> void:
-    var total := Vector2(_grid.grid_size) * _grid.tile_size
-    var top_left := _grid.position - total * 0.5
-    _land_tiles.position = top_left
-    _water_tiles.position = top_left
-
-
-func _setup_background() -> void:
-    _water_tiles.clear()
-    var total := Vector2(_grid.grid_size) * _grid.tile_size
-
-    var tile_count := Vector2i(total / VISUAL_TILE_SIZE)
-    for x in tile_count.x:
-        for y in tile_count.y:
-            _water_tiles.set_cell(Vector2i(x, y), 0, Vector2i.ZERO)
 
 
 func _process(_delta: float) -> void:
