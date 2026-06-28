@@ -4,6 +4,12 @@ This file is the canonical safe snapshot and plain headless check procedure for 
 
 Running `Godot --headless` directly against the mounted working tree is **forbidden**: the mount serves tail-truncated views of recently-modified files (see `sandbox_environment.md`), so Godot reports bogus parse errors that don't exist in the real files.
 
+## When to run
+
+- Run this procedure when the user asks for `/godot-test`, when a GDScript/scene/resource change needs Godot parser/import validation, or when a gameplay behavior change cannot be verified by a narrower test.
+- Do not run Godot checks for docs-only, TODO-only, workflow-only, or agent-rule-only changes unless the user explicitly asks.
+- If a change only updates planning docs, run the standards linter instead; Godot cannot add useful signal for that work.
+
 ## Cross-OS mount warning
 
 The safe snapshot procedure only works when `/tmp` is a container-native Linux filesystem. Do not point Godot editor/import/headless at any project directory or temporary snapshot path backed by a Windows bind mount.
