@@ -3,8 +3,7 @@
 class_name PuffEnemy
 extends GridEnemy
 
-const PUFF_ACTIVE_DURATION := 0.35
-const PUFF_RANGE := 1
+const PUFF_RANGE := 2
 
 # -- Node references ----------------------------------------------------------
 @onready var _puff_hitbox: Hitbox = _find_child_node("PuffHitbox") as Hitbox
@@ -23,6 +22,19 @@ func is_target_in_puff_range() -> bool:
 func enable_puff_hitbox(enable: bool) -> void:
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(enable)
+
+
+## Returns the actual circular puff hitbox radius used by the scene.
+func get_puff_hitbox_radius() -> float:
+    if _puff_hitbox == null:
+        return tile_size() * float(PUFF_RANGE)
+    var collision_shape := _puff_hitbox.collision_shape as CollisionShape2D
+    if collision_shape == null:
+        return tile_size() * float(PUFF_RANGE)
+    var circle := collision_shape.shape as CircleShape2D
+    if circle == null:
+        return tile_size() * float(PUFF_RANGE)
+    return circle.radius
 
 
 func get_idle_state_id() -> int:

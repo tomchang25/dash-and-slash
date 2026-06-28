@@ -4,9 +4,9 @@
 class_name SmallEnemyAttackController
 extends Node
 
-enum AttackPattern { LINE_1X4 = 0, WIDE_2X3 = 1, SURROUND_3X3 = 2 }
+enum AttackPattern { LINE_1X4 = 0, WIDE_2X3 = 1 }
 
-const ATTACK_PATTERN_COUNT := 3
+const ATTACK_PATTERN_COUNT := 2
 const VFX_DURATION := 0.5
 
 var _grid: GridArena
@@ -60,11 +60,6 @@ func get_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]
                 _append_cell_if_in_bounds(cells, center_cell - right_cell)
                 _append_cell_if_in_bounds(cells, center_cell)
                 _append_cell_if_in_bounds(cells, center_cell + right_cell)
-        AttackPattern.SURROUND_3X3:
-            for x_offset in range(-1, 2):
-                for y_offset in range(-1, 2):
-                    var offset := Vector2i(x_offset, y_offset)
-                    _append_cell_if_in_bounds(cells, origin_cell + offset)
     return cells
 
 

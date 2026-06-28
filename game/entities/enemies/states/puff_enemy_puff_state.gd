@@ -1,14 +1,15 @@
 # puff_enemy_puff_state.gd
-# Zone-denial pulse state. The enemy stops, plays a puff expand VFX, enables a
-# larger puff hitbox for a short window, then cools down. If the target is still
-# within 3x3 grid range after the cooldown the puff repeats; otherwise the enemy
-# returns to IDLE.
+# Zone-denial puff state. The enemy stops, expands to match its puff hitbox,
+# keeps the area active while the target stays in range, then shrinks back to IDLE.
 extends PuffEnemyState
 
 const MINIMUM_PUFF_DURATION := 3.0
 const RECHECK_INTERVAL := 1.0
-const STAR_OUTER_RADIUS := 42.0
-const STAR_INNER_RADIUS := 17.0
+const PUFF_EXPAND_SCALE := 3.0
+const PUFF_EXPAND_DURATION := 0.12
+const PUFF_SHRINK_DURATION := 0.18
+const PUFF_COLOR := Color(1.0, 0.5, 0.5, 1.0)
+const STAR_INNER_RADIUS_RATIO := 0.4
 const STAR_POINTS := 21
 
 var _minimum_timer: Timer
@@ -113,8 +114,8 @@ func _play_expand_vfx() -> void:
 
     _puff_tween = enemy.create_tween()
     _puff_tween.set_parallel()
-    _puff_tween.tween_property(body, "scale", _original_scale * 1.8, 0.12)
-    _puff_tween.tween_property(body, "color", Color(1.0, 0.5, 0.5, 1.0), 0.12)
+    _puff_tween.tween_property(body, "scale", _original_scale * PUFF_EXPAND_SCALE, PUFF_EXPAND_DURATION)
+    _puff_tween.tween_property(body, "color", PUFF_COLOR, PUFF_EXPAND_DURATION)
     _puff_tween.finished.connect(_on_expand_finished, CONNECT_ONE_SHOT)
 
 
@@ -131,15 +132,17 @@ func _play_shrink_vfx() -> void:
 
     _shrink_tween = enemy.create_tween()
     _shrink_tween.set_parallel()
-    _shrink_tween.tween_property(body, "scale", _original_scale, 0.18)
-    _shrink_tween.tween_property(body, "color", _original_color, 0.18)
+    _shrink_tween.tween_property(body, "scale", _original_scale, PUFF_SHRINK_DURATION)
+    _shrink_tween.tween_property(body, "color", _original_color, PUFF_SHRINK_DURATION)
 
 
 func _swap_to_star_polygon() -> void:
     var body: Polygon2D = enemy.get_body()
     if body == null:
         return
-    body.polygon = _generate_star_polygon(STAR_POINTS, STAR_OUTER_RADIUS, STAR_INNER_RADIUS)
+    var outer_radius := enemy.get_puff_hitbox_radius() / PUFF_EXPAND_SCALE
+    var inner_radius := outer_radius * STAR_INNER_RADIUS_RATIO
+    body.polygon = _generate_star_polygon(STAR_POINTS, outer_radius, inner_radius)
 
 
 static func _generate_star_polygon(points: int, outer_radius: float, inner_radius: float) -> PackedVector2Array:
