@@ -1,29 +1,40 @@
 @tool
 # grid_arena.gd
-# 6x6 grid manager. Owns tile occupancy, world↔grid coordinate conversion,
-# telegraph state, and node-based arena visuals. Enemy AI queries this node for
-# pathfinding obstacles and player position; the player is never constrained
-# by the grid — only enemies are.
+# Dynamic grid manager with LAND/SEA terrain, generation, TileMapLayer drawing,
+# occupancy, reservations, and telegraph system. Enemy AI queries terrain + occupancy
+# for pathfinding; the player is never constrained by the grid.
 class_name GridArena
 extends Node2D
 
 enum TelegraphPhase { NONE, WARNING, CHARGE, ACTIVE, SPAWNING }
+enum TerrainTile { SEA, LAND }
 
-const GRID_SIZE := Vector2i(6, 6)
 const WALL_THICKNESS := 128.0
 
+@export var grid_size := Vector2i(16, 16)
+@export var starting_land_size := Vector2i(8, 8)
 @export var tile_size: float = 128.0
+@export var visual_tile_size := 16
+@export var terrain_layer: TileMapLayer
+@export var terrain_set := 0
+@export var land_terrain := 0
 @export var grid_color: Color = Color(0.3, 0.3, 0.3, 0.6)
 @export var grid_line_width: float = 1.0
 
-var _occupants: Dictionary = { } # { Object: Array[Vector2i] }
-var _reservations: Dictionary = { } # { Object: Array[Vector2i] }
-var _telegraphs: Dictionary = { } # { cell: { source: phase } }
+var _terrain: Array[int] = []
+var _occupants: Dictionary = { }
+var _reservations: Dictionary = { }
+var _telegraphs: Dictionary = { }
 var _player_grid: Vector2i = Vector2i.ZERO
 var _arena_visuals: Node2D
+var _generated := false
+
+# == Lifecycle ================================================================
 
 
 func _ready() -> void:
+    if not _generated:
+        generate_grid()
     _build_arena_visuals()
     _build_arena_collision()
 
@@ -41,6 +52,157 @@ func _draw() -> void:
         draw_rect(rect, color, true)
         draw_rect(rect, color.lightened(0.5), false, 2.0)
 
+# == Terrain Generation =======================================================
+
+
+func generate_grid() -> void:
+    var total_cells := grid_size.x * grid_size.y
+    if _terrain.size() != total_cells:
+        _terrain.resize(total_cells)
+    for i in total_cells:
+        _terrain[i] = TerrainTile.SEA
+    _generate_starting_land()
+    _ensure_spawn_land()
+    redraw_terrain_layer()
+    _generated = true
+
+
+func _generate_starting_land() -> void:
+    var offset := (grid_size - starting_land_size) / 2
+    for x in starting_land_size.x:
+        for y in starting_land_size.y:
+            var cell := Vector2i(offset.x + x, offset.y + y)
+            _terrain[_terrain_index(cell)] = TerrainTile.LAND
+
+
+func _ensure_spawn_land() -> void:
+    var center := grid_size / 2
+    if is_in_bounds(center) and not is_land(center):
+        _terrain[_terrain_index(center)] = TerrainTile.LAND
+
+# == Terrain Queries ==========================================================
+
+
+func _terrain_index(cell: Vector2i) -> int:
+    return cell.y * grid_size.x + cell.x
+
+
+func is_land(cell: Vector2i) -> bool:
+    return is_in_bounds(cell) and _terrain[_terrain_index(cell)] == TerrainTile.LAND
+
+
+func is_sea(cell: Vector2i) -> bool:
+    return not is_land(cell)
+
+
+func is_walkable(cell: Vector2i) -> bool:
+    return is_land(cell)
+
+
+func can_move_between(from: Vector2i, to: Vector2i) -> bool:
+    if not is_land(to):
+        return false
+    var delta := to - from
+    if absi(delta.x) == 1 and absi(delta.y) == 1:
+        if not is_land(from + Vector2i(delta.x, 0)):
+            return false
+        if not is_land(from + Vector2i(0, delta.y)):
+            return false
+    return true
+
+# == Terrain Mutation =========================================================
+
+
+func set_land(cell: Vector2i) -> bool:
+    if not is_in_bounds(cell):
+        return false
+    _terrain[_terrain_index(cell)] = TerrainTile.LAND
+    redraw_after_terrain_mutation(cell)
+    return true
+
+
+func set_sea(cell: Vector2i) -> bool:
+    if not can_remove_land(cell):
+        return false
+    _terrain[_terrain_index(cell)] = TerrainTile.SEA
+    redraw_after_terrain_mutation(cell)
+    return true
+
+
+func can_remove_land(cell: Vector2i) -> bool:
+    if not is_land(cell):
+        return false
+    if is_occupied(cell) or is_reserved(cell):
+        return false
+    if _player_grid == cell:
+        return false
+    return true
+
+# == TileMapLayer Drawing =====================================================
+
+
+func redraw_terrain_layer() -> void:
+    if terrain_layer == null:
+        return
+
+    terrain_layer.clear()
+    var cells_per_gameplay := int(tile_size / float(visual_tile_size))
+    var land_visual_cells: Array[Vector2i] = []
+
+    for x in grid_size.x:
+        for y in grid_size.y:
+            var cell := Vector2i(x, y)
+            if not is_land(cell):
+                continue
+            var visual_origin := cell * cells_per_gameplay
+            for vx in cells_per_gameplay:
+                for vy in cells_per_gameplay:
+                    land_visual_cells.append(visual_origin + Vector2i(vx, vy))
+
+    if not land_visual_cells.is_empty():
+        terrain_layer.set_cells_terrain_connect(land_visual_cells, terrain_set, land_terrain)
+
+
+func redraw_after_terrain_mutation(cell: Vector2i) -> void:
+    redraw_cell_and_neighbors(cell)
+
+
+func redraw_cell_and_neighbors(cell: Vector2i) -> void:
+    if terrain_layer == null:
+        return
+
+    var cells_per_gameplay := int(tile_size / float(visual_tile_size))
+    var visual_cells: Array[Vector2i] = []
+
+    for ox in range(-1, 2):
+        for oy in range(-1, 2):
+            var gameplay_cell := cell + Vector2i(ox, oy)
+            if not is_in_bounds(gameplay_cell):
+                continue
+            var visual_origin := gameplay_cell * cells_per_gameplay
+            for vx in cells_per_gameplay:
+                for vy in cells_per_gameplay:
+                    visual_cells.append(visual_origin + Vector2i(vx, vy))
+
+    for visual_cell in visual_cells:
+        terrain_layer.erase_cell(visual_cell)
+
+    var land_visual_cells: Array[Vector2i] = []
+    for ox in range(-1, 2):
+        for oy in range(-1, 2):
+            var gameplay_cell := cell + Vector2i(ox, oy)
+            if not is_land(gameplay_cell):
+                continue
+            var visual_origin := gameplay_cell * cells_per_gameplay
+            for vx in cells_per_gameplay:
+                for vy in cells_per_gameplay:
+                    land_visual_cells.append(visual_origin + Vector2i(vx, vy))
+
+    if not land_visual_cells.is_empty():
+        terrain_layer.set_cells_terrain_connect(land_visual_cells, terrain_set, land_terrain)
+
+# == Arena Visuals ============================================================
+
 
 func _build_arena_visuals() -> void:
     if _arena_visuals != null:
@@ -48,7 +210,6 @@ func _build_arena_visuals() -> void:
 
     _arena_visuals = Node2D.new()
     _arena_visuals.name = "ArenaVisuals"
-    # node-src: runtime visual grid
     add_child(_arena_visuals)
 
     var style := StyleBoxFlat.new()
@@ -59,9 +220,9 @@ func _build_arena_visuals() -> void:
     style.border_width_right = int(grid_line_width)
     style.border_width_bottom = int(grid_line_width)
 
-    var origin := -Vector2(GRID_SIZE) * tile_size * 0.5
-    for x in GRID_SIZE.x:
-        for y in GRID_SIZE.y:
+    var origin := -Vector2(grid_size) * tile_size * 0.5
+    for x in grid_size.x:
+        for y in grid_size.y:
             var tile := Panel.new()
             tile.name = "Tile_%d_%d" % [x, y]
             tile.position = origin + Vector2(x, y) * tile_size
@@ -74,13 +235,11 @@ func _build_arena_visuals() -> void:
 func _build_arena_collision() -> void:
     var collision := Node2D.new()
     collision.name = "ArenaCollision"
-    # node-src: runtime arena walls
     add_child(collision)
 
-    var half := Vector2(GRID_SIZE) * tile_size * 0.5
+    var half := Vector2(grid_size) * tile_size * 0.5
     var shape := RectangleShape2D.new()
 
-    # Top wall
     var top := StaticBody2D.new()
     top.name = "WallTop"
     shape.size = Vector2(half.x * 2.0 + WALL_THICKNESS * 2.0, WALL_THICKNESS)
@@ -90,7 +249,6 @@ func _build_arena_collision() -> void:
     top.position = Vector2(0.0, -half.y - WALL_THICKNESS * 0.5)
     collision.add_child(top)
 
-    # Bottom wall
     var bottom := StaticBody2D.new()
     bottom.name = "WallBottom"
     shape = RectangleShape2D.new()
@@ -101,7 +259,6 @@ func _build_arena_collision() -> void:
     bottom.position = Vector2(0.0, half.y + WALL_THICKNESS * 0.5)
     collision.add_child(bottom)
 
-    # Left wall
     var left := StaticBody2D.new()
     left.name = "WallLeft"
     shape = RectangleShape2D.new()
@@ -112,7 +269,6 @@ func _build_arena_collision() -> void:
     left.position = Vector2(-half.x - WALL_THICKNESS * 0.5, 0.0)
     collision.add_child(left)
 
-    # Right wall
     var right := StaticBody2D.new()
     right.name = "WallRight"
     shape = RectangleShape2D.new()
@@ -123,9 +279,11 @@ func _build_arena_collision() -> void:
     right.position = Vector2(half.x + WALL_THICKNESS * 0.5, 0.0)
     collision.add_child(right)
 
+# == Coordinate Conversion ====================================================
+
 
 func _top_left() -> Vector2:
-    var total := Vector2(GRID_SIZE) * tile_size
+    var total := Vector2(grid_size) * tile_size
     return global_position - total * 0.5
 
 
@@ -143,7 +301,9 @@ func cell_center(cell: Vector2i) -> Vector2:
 
 
 func is_in_bounds(cell: Vector2i) -> bool:
-    return cell.x >= 0 and cell.y >= 0 and cell.x < GRID_SIZE.x and cell.y < GRID_SIZE.y
+    return cell.x >= 0 and cell.y >= 0 and cell.x < grid_size.x and cell.y < grid_size.y
+
+# == Occupancy ================================================================
 
 
 func is_occupied(cell: Vector2i) -> bool:
@@ -207,8 +367,8 @@ func nearest_empty_cell(near: Vector2) -> Vector2i:
         return center
     var best: Vector2i = Vector2i.ZERO
     var best_dist := 9999.0
-    for x in GRID_SIZE.x:
-        for y in GRID_SIZE.y:
+    for x in grid_size.x:
+        for y in grid_size.y:
             var c := Vector2i(x, y)
             if is_empty(c):
                 var d := Vector2(c).distance_squared_to(Vector2(center))
@@ -216,6 +376,8 @@ func nearest_empty_cell(near: Vector2) -> Vector2i:
                     best_dist = d
                     best = c
     return best
+
+# == Telegraph =================================================================
 
 
 func set_telegraph(source: Object, tiles: Array[Vector2i], phase: TelegraphPhase) -> void:

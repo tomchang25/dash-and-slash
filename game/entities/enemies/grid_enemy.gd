@@ -608,8 +608,8 @@ func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
     var attack_origins: Array[Vector2i] = []
     for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
         var facing := Vector2(facing_cell.x, facing_cell.y)
-        for x in range(GridArena.GRID_SIZE.x):
-            for y in range(GridArena.GRID_SIZE.y):
+        for x in range(_grid.grid_size.x):
+            for y in range(_grid.grid_size.y):
                 var origin_cell := Vector2i(x, y)
                 if origin_cell != start and _grid.is_blocked(origin_cell):
                     continue
@@ -664,7 +664,7 @@ func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Arr
             var next := current + direction
             if came_from.has(next):
                 continue
-            if not _can_path_through(next, start, blocked_cell):
+            if not _can_path_through(current, next, start, blocked_cell):
                 continue
             came_from[next] = current
             queue.append(next)
@@ -681,12 +681,12 @@ func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Arr
     return path
 
 
-func _can_path_through(cell: Vector2i, start: Vector2i, blocked_cell: Vector2i) -> bool:
-    if not _grid.is_in_bounds(cell):
+func _can_path_through(current: Vector2i, next: Vector2i, start: Vector2i, blocked_cell: Vector2i) -> bool:
+    if not _grid.can_move_between(current, next):
         return false
-    if cell == blocked_cell:
+    if next == blocked_cell:
         return false
-    if cell != start and _grid.is_blocked(cell):
+    if next != start and _grid.is_blocked(next):
         return false
     return true
 
@@ -704,13 +704,13 @@ func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Arr
 
 func _collect_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
     var goals: Array[Vector2i] = []
-    for x in range(_grid.GRID_SIZE.x):
+    for x in range(_grid.grid_size.x):
         var cell := Vector2i(x, target_cell.y)
         if cell == target_cell:
             continue
         if cell == start or not _grid.is_blocked(cell):
             goals.append(cell)
-    for y in range(_grid.GRID_SIZE.y):
+    for y in range(_grid.grid_size.y):
         var cell := Vector2i(target_cell.x, y)
         if cell == target_cell:
             continue

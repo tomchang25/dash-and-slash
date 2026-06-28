@@ -1,6 +1,6 @@
 @tool
 # dash_and_slash_arena.gd
-# Main game scene for Dash & Slash. Contains the 6x6 GridArena, Player,
+# Main game scene for Dash & Slash. Contains the dynamic GridArena, Player,
 # Camera2D, and HUD. Manages the run flow: Wave 1 → Wave 2 → Boss.
 # Spawns enemies, tracks alive counts, transitions waves.
 extends Node2D
@@ -22,9 +22,7 @@ const WAVES := {
 
 const WAVE_GAP := 1.2
 const SPAWN_TELEGRAPH_DURATION := 0.8
-const GRASS_TILE_SIZE := 16.0
-const GRASS_SOURCE_ID := 3
-const GRASS_ATLAS_SIZE := Vector2i(16, 16)
+const VISUAL_TILE_SIZE := 16.0
 const ENEMY_SPAWN_OFFSETS := [
     Vector2i(2, 0),
     Vector2i(-2, 0),
@@ -40,7 +38,7 @@ const ENEMY_SPAWN_OFFSETS := [
     Vector2i(-1, -2),
 ]
 
-@onready var _grass_tiles: TileMapLayer = %TileMapLayer
+@onready var _land_tiles: TileMapLayer = %TileMapLayer
 @onready var _water_tiles: TileMapLayer = %WaterBackground
 @onready var _grid: GridArena = %GridArena
 @onready var _player: Entity = %Player
@@ -58,9 +56,13 @@ var _boss_ref: CharacterBody2D = null
 
 
 func _ready() -> void:
+    _position_tile_layers()
     _setup_background()
     if Engine.is_editor_hint():
         return
+
+    if _grid.terrain_layer == null:
+        _grid.terrain_layer = _land_tiles
 
     if _player.has_method("setup"):
         _player.setup(_grid)
@@ -68,13 +70,11 @@ func _ready() -> void:
     _wave_gap_timer = Timer.new()
     _wave_gap_timer.one_shot = true
     _wave_gap_timer.timeout.connect(_start_next_wave)
-    # node-src: timer
     add_child(_wave_gap_timer)
 
     _spawn_telegraph_timer = Timer.new()
     _spawn_telegraph_timer.one_shot = true
     _spawn_telegraph_timer.timeout.connect(_on_spawn_telegraph_timeout)
-    # node-src: timer
     add_child(_spawn_telegraph_timer)
 
     _player.health_changed.connect(_on_player_health_changed)
@@ -85,12 +85,18 @@ func _ready() -> void:
     _start_next_wave()
 
 
+func _position_tile_layers() -> void:
+    var total := Vector2(_grid.grid_size) * _grid.tile_size
+    var top_left := _grid.position - total * 0.5
+    _land_tiles.position = top_left
+    _water_tiles.position = top_left
+
+
 func _setup_background() -> void:
     _water_tiles.clear()
-    var total := Vector2(GridArena.GRID_SIZE) * _grid.tile_size
-    _water_tiles.position = _grid.position - total * 0.5
+    var total := Vector2(_grid.grid_size) * _grid.tile_size
 
-    var tile_count := Vector2i(total / GRASS_TILE_SIZE)
+    var tile_count := Vector2i(total / VISUAL_TILE_SIZE)
     for x in tile_count.x:
         for y in tile_count.y:
             _water_tiles.set_cell(Vector2i(x, y), 0, Vector2i.ZERO)
@@ -191,8 +197,8 @@ func _choose_enemy_spawn_cell(index: int) -> Vector2i:
 
     var best := Vector2i(-1, -1)
     var best_distance := INF
-    for x in GridArena.GRID_SIZE.x:
-        for y in GridArena.GRID_SIZE.y:
+    for x in _grid.grid_size.x:
+        for y in _grid.grid_size.y:
             var candidate := Vector2i(x, y)
             if not _is_enemy_spawn_cell_available(candidate, player_cell):
                 continue
@@ -205,7 +211,7 @@ func _choose_enemy_spawn_cell(index: int) -> Vector2i:
 
 
 func _is_enemy_spawn_cell_available(cell: Vector2i, player_cell: Vector2i) -> bool:
-    return cell != player_cell and _grid.is_in_bounds(cell) and _grid.is_empty(cell)
+    return cell != player_cell and _grid.is_in_bounds(cell) and _grid.is_walkable(cell) and _grid.is_empty(cell)
 
 
 func _on_enemy_died(enemy: Entity) -> void:
@@ -232,7 +238,7 @@ func _on_boss_guard_changed(current: int, maximum: int) -> void:
     var max_shields := maximum / 4
     var s := ""
     for i in max_shields:
-        s += "[" + ("▓" if i < shields else "░") + "] "
+        s += "[" + ("\u2593" if i < shields else "\u2591") + "] "
     _boss_guard_label.text = "Boss Guard: " + s
 
 
