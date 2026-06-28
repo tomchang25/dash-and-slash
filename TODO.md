@@ -22,11 +22,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-- [enemy] Data-backed enemy structure — see `dev/docs/plans/enemy_data_backed_structure.md`
-- [enemy] Phase 1 enemy data resources — see `dev/docs/plans/enemy_data_resources.sketch.md`
-- [enemy] Phase 2 cell attack controller — see `dev/docs/plans/enemy_cell_attack_controller.sketch.md`
-- [enemy] Phase 3 special attack data integration — see `dev/docs/plans/enemy_special_attack_data.sketch.md`
-- [enemy] Phase 4 state consolidation — see `dev/docs/plans/enemy_state_consolidation.sketch.md`
+[player_dash] Make dash follow mouse aim and add hit-reward invulnerability — [ref plans/player_dash_mouse_invulnerability.sketch.md]
 
 ---
 
@@ -34,7 +30,9 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-- [grid] Dynamic 16x16 land/sea gameplay grid — see `dev/docs/plans/dynamic_grid_land_sea.sketch.md`
+[enemy_priority] Resolve contested enemy grid movement with deterministic priority — [ref plans/enemy_grid_move_priority.sketch.md]
+[combat_feedback] Add charge, shielded-hit, guard-break, and full-damage combat VFX — [ref plans/combat_feedback_vfx.sketch.md]
+[wave_rewards] Add wave reward cards with terrain choices, enemy escalation, and Major/Minor categories — [ref plans/wave_reward_cards.sketch.md]
 
 ---
 
@@ -56,4 +54,18 @@ _(no known bugs)_
 
 Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
 
-_(no draft ideas yet)_
+### Weapon Class Attack Variants
+
+Player sprite addon and player attack hitbox rework for weapon/class readability.
+
+- Kunai / Ninja: thrust attack, fast but weak, dash damage creates a long line attack.
+- Katana / Samurai: 45-degree slash, average damage and speed, dash damage stays direct.
+- Heavy axe / undecided class: 180-degree slash, high damage and slow speed, dash damage creates a landing circle area hitbox.
+
+### Enemy Character Sprite Readability
+
+Replace prototype enemy bodies with real character sprites and readable animation.
+
+- Full version: each enemy gets four-direction movement sprites and four-direction attack sprites.
+- Simpler version: use left/right sprites with flipping, then tween squash and tilt to imitate movement and attack.
+- Needs a clear visual rule for enemies with contact attacks versus enemies without contact attacks.
