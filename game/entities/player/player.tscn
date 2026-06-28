@@ -27,7 +27,7 @@ size = Vector2(100, 100)
 
 [node name="Player" type="CharacterBody2D" unique_id=1806983416 node_paths=PackedStringArray("health")]
 collision_layer = 0
-collision_mask = 5
+collision_mask = 4
 script = ExtResource("1_player")
 health = NodePath("Health")
 attack_sfx_event = ExtResource("2_igs2l")
