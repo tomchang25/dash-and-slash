@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://cipqwuymcgx88"]
+
+[ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://game/entities/enemies/enemy_attack_data.gd" id="1_a15uu"]
+[ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://game/entities/enemies/enemy_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+enemy_id = "puff_enemy"
+display_name = "Puff Enemy"

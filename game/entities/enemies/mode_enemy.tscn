@@ -21,6 +21,7 @@
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
 [ext_resource type="Resource" uid="uid://d2s4krk5m4bxe" path="res://common/audio/presets/sfx/default_slash_audio.tres" id="20_attack_audio"]
 [ext_resource type="Script" path="res://game/entities/enemies/states/mode_enemy_mode_change_state.gd" id="21_mode_change"]
+[ext_resource type="Resource" path="res://game/entities/enemies/data/mode_enemy.tres" id="22_enemy_data"]
 
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(56, 56)
@@ -42,6 +43,7 @@ death_sfx_event = ExtResource("17_died_audio")
 damaged_sfx_event = ExtResource("18_damaged_audio")
 blocked_sfx_event = ExtResource("19_blocked_audio")
 attack_sfx_event = ExtResource("20_attack_audio")
+enemy_data = ExtResource("22_enemy_data")
 health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1387936035]

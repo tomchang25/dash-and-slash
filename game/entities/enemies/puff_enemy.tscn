@@ -16,6 +16,7 @@
 [ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="14_damaged_audio"]
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="15_blocked_audio"]
 [ext_resource type="Script" uid="uid://dcpiobfpvqls7" path="res://game/entities/enemies/states/puff_enemy_puff_state.gd" id="16_puff"]
+[ext_resource type="Resource" path="res://game/entities/enemies/data/puff_enemy.tres" id="17_enemy_data"]
 
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(30, 30)
@@ -30,6 +31,7 @@ script = ExtResource("1_enemy")
 death_sfx_event = ExtResource("13_died_audio")
 damaged_sfx_event = ExtResource("14_damaged_audio")
 blocked_sfx_event = ExtResource("15_blocked_audio")
+enemy_data = ExtResource("17_enemy_data")
 health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=2079355181]

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://game/entities/enemies/enemy_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+enemy_id = "charge_enemy"
+display_name = "Charge Enemy"
+move_speed = 120.0
+cycle_cooldown = 1.0
+default_recovery_duration = 3.0

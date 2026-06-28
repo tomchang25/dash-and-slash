@@ -33,6 +33,7 @@ func _get_movement_directions() -> Array:
 @export var death_sfx_event: SpatialAudioEvent
 @export var damaged_sfx_event: SpatialAudioEvent
 @export var blocked_sfx_event: SpatialAudioEvent
+@export var enemy_data: EnemyData
 
 # -- State --------------------------------------------------------------------
 var _grid: GridArena
@@ -96,7 +97,7 @@ func _physics_process(_delta: float) -> void:
         return
 
     if _grid == null:
-        velocity = global_position.direction_to(_target.global_position) * MOVE_SPEED
+        velocity = global_position.direction_to(_target.global_position) * get_move_speed()
 
     move_and_slide()
     queue_redraw()
@@ -275,9 +276,13 @@ func cooldown_active() -> bool:
     return _cooldown_timer != null and _cooldown_timer.time_left > 0.0
 
 
+func get_cycle_cooldown() -> float:
+    return enemy_data.cycle_cooldown if enemy_data != null else CYCLE_COOLDOWN
+
+
 func start_cooldown() -> void:
     if _cooldown_timer != null:
-        _cooldown_timer.start(CYCLE_COOLDOWN)
+        _cooldown_timer.start(get_cycle_cooldown())
 
 
 func tile_size() -> float:
@@ -537,11 +542,11 @@ func plan_charge_line_action() -> bool:
 
 
 func get_move_speed() -> float:
-    return MOVE_SPEED
+    return enemy_data.move_speed if enemy_data != null else MOVE_SPEED
 
 
 func get_recovery_duration() -> float:
-    return 3.0
+    return enemy_data.default_recovery_duration if enemy_data != null else 3.0
 
 # == Grid helpers ==============================================================
 
