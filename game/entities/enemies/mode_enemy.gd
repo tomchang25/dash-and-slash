@@ -122,6 +122,17 @@ func get_after_face_state_id() -> int:
     return ModeEnemyState.ModeEnemyStateId.IDLE
 
 
+## Clears movement planning and prepares the current mode telegraph.
+func begin_attack_telegraph() -> bool:
+    if not super():
+        return false
+    face_target_position()
+    if not prepare_attack():
+        return false
+    show_attack_warning()
+    return true
+
+
 func get_recovery_duration() -> float:
     return RECOVERY_DURATION
 
@@ -331,7 +342,7 @@ func _apply_current_mode_color() -> void:
 
 
 func _plan_tile_action() -> bool:
-    clear_planned_action()
+    clear_planned_path()
     if _grid == null or _attack_controller == null or not has_target():
         return false
 
@@ -367,7 +378,7 @@ func _plan_tile_action() -> bool:
 
 
 func _plan_charge_action() -> bool:
-    clear_planned_action()
+    clear_planned_path()
     if _grid == null or not has_target():
         return false
 

@@ -106,8 +106,27 @@ func get_arrival_override_state_id() -> int:
     return -1
 
 
+## Clears movement planning and prepares the charge telegraph.
+func begin_attack_telegraph() -> bool:
+    if not super():
+        return false
+    if not has_target():
+        return false
+
+    face_target_position()
+    var cells := get_charge_cells()
+    if cells.is_empty():
+        return false
+
+    set_stored_charge_cells(cells)
+    var telegraph := get_telegraph()
+    if telegraph != null:
+        telegraph.show_warning(cells)
+    return true
+
+
 func plan_next_action() -> bool:
-    clear_planned_action()
+    clear_planned_path()
 
     if _grid == null or not has_target():
         return false

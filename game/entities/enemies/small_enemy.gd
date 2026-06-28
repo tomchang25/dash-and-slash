@@ -79,7 +79,7 @@ func get_after_face_state_id() -> int:
 
 
 func plan_next_action() -> bool:
-    clear_planned_action()
+    clear_planned_path()
 
     if _grid == null or _attack_controller == null or not has_target():
         return false

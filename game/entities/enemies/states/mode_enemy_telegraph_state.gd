@@ -16,12 +16,10 @@ func _enter() -> void:
     if mode_enemy == null:
         _return_to_idle = true
         return
-    mode_enemy.face_target_position()
-    if not mode_enemy.prepare_attack():
+    if not mode_enemy.begin_attack_telegraph():
         _return_to_idle = true
         return
 
-    mode_enemy.show_attack_warning()
     _timer = Timer.new()
     _timer.one_shot = true
     _timer.timeout.connect(_on_warning_done)

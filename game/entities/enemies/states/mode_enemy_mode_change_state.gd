@@ -12,7 +12,7 @@ func _init() -> void:
 func _enter() -> void:
     _elapsed = 0.0
     enemy.velocity = Vector2.ZERO
-    enemy.clear_planned_action()
+    enemy.clear_planned_path()
 
 
 func _physics_update(delta: float) -> void:

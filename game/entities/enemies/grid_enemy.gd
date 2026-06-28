@@ -130,7 +130,7 @@ func reset() -> void:
         _body.modulate = Color.WHITE
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
-    clear_planned_action()
+    clear_planned_path()
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
         register_grid_occupant()
@@ -145,7 +145,7 @@ func reset() -> void:
 
 func _on_guard_broken() -> void:
     _staggered = true
-    clear_planned_action()
+    clear_planned_path()
     _on_guard_broken_extra()
     var staggered_state_id := get_staggered_state_id()
     if _state_machine != null and staggered_state_id >= 0:
@@ -297,7 +297,7 @@ func set_facing(v: Vector2) -> void:
 
 
 func plan_next_action() -> bool:
-    clear_planned_action()
+    clear_planned_path()
 
     if _grid == null or not has_target():
         return false
@@ -334,7 +334,8 @@ func plan_next_action() -> bool:
     return true
 
 
-func clear_planned_action() -> void:
+## Clears pending grid movement, active path debug state, and path reservations.
+func clear_planned_path() -> void:
     if _grid != null:
         _grid.clear_reservation(self)
     _planned_path.clear()
@@ -402,7 +403,7 @@ func get_guard() -> Guard:
 
 func begin_death() -> void:
     velocity = Vector2.ZERO
-    clear_planned_action()
+    clear_planned_path()
     _on_begin_death_extra()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
@@ -451,6 +452,13 @@ func get_pre_plan_state_id() -> int:
 
 func get_arrival_override_state_id() -> int:
     return -1
+
+
+## Performs shared setup when an enemy commits to an attack telegraph.
+func begin_attack_telegraph() -> bool:
+    velocity = Vector2.ZERO
+    clear_planned_path()
+    return true
 
 
 func get_move_speed() -> float:
