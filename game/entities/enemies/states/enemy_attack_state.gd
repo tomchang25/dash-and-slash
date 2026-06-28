@@ -6,6 +6,8 @@ extends EnemyState
 
 var _timer: Timer
 var _return_to_idle := false
+var _attack_started := false
+var _attack_failed := false
 
 
 func _init() -> void:
@@ -14,8 +16,13 @@ func _init() -> void:
 
 func _enter() -> void:
     _return_to_idle = false
+    _attack_started = false
+    _attack_failed = false
     enemy.velocity = Vector2.ZERO
-    enemy.begin_attack()
+    if not enemy.begin_attack():
+        _attack_failed = true
+        return
+    _attack_started = true
 
     _timer = Timer.new()
     _timer.one_shot = true
@@ -27,13 +34,19 @@ func _enter() -> void:
 
 func _exit() -> void:
     _return_to_idle = false
-    enemy.end_attack()
+    _attack_failed = false
+    if _attack_started:
+        enemy.end_attack()
+    _attack_started = false
     if _timer != null and is_instance_valid(_timer):
         _timer.queue_free()
         _timer = null
 
 
 func _physics_update(delta: float) -> void:
+    if _attack_failed:
+        change_state(EnemyStateId.IDLE)
+        return
     if _return_to_idle:
         change_state(enemy.get_recovery_state_id())
         return

@@ -159,7 +159,7 @@ func _cancel_attack() -> void:
 func _configure_attack_controller() -> void:
     if _attack_controller == null:
         return
-    _attack_controller.setup(_grid, _telegraph, _hitbox, null, null)
+    _attack_controller.setup(_grid, _telegraph, _hitbox)
 
 
 ## Picks a random attack from enemy data. Falls back to a LINE attack when data

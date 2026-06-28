@@ -1,25 +1,21 @@
 # enemy_attack_controller.gd
 # Shared cell-based attack controller that owns cell snapshots, telegraph phases,
-# hitbox setup, hitbox enablement, and cleanup for tile attacks.
+# tile hitbox setup, hitbox enablement, and cleanup for tile attacks.
 class_name EnemyAttackController
 extends Node
 
 var _grid: GridArena
 var _telegraph: TileTelegraph
 var _tile_hitbox: Hitbox
-var _contact_hitbox: Hitbox
-var _puff_hitbox: Hitbox
 var _attack_cells: Array[Vector2i] = []
 var _tile_hitbox_position := Vector2.ZERO
 var _prepared := false
 
 
-func setup(grid: GridArena, telegraph: TileTelegraph, tile_hitbox: Hitbox, contact_hitbox: Hitbox, puff_hitbox: Hitbox) -> void:
+func setup(grid: GridArena, telegraph: TileTelegraph, tile_hitbox: Hitbox) -> void:
     _grid = grid
     _telegraph = telegraph
     _tile_hitbox = tile_hitbox
-    _contact_hitbox = contact_hitbox
-    _puff_hitbox = puff_hitbox
     if _telegraph != null:
         _telegraph.setup(grid)
     cancel()
@@ -87,10 +83,6 @@ func begin_attack() -> void:
 func end_attack() -> void:
     if _tile_hitbox != null:
         _tile_hitbox.set_enabled(false)
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
-    if _puff_hitbox != null:
-        _puff_hitbox.set_enabled(false)
     if _telegraph != null:
         _telegraph.clear()
     _attack_cells.clear()
@@ -100,10 +92,6 @@ func end_attack() -> void:
 func cancel() -> void:
     if _tile_hitbox != null:
         _tile_hitbox.set_enabled(false)
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
-    if _puff_hitbox != null:
-        _puff_hitbox.set_enabled(false)
     if _telegraph != null:
         _telegraph.clear()
     _attack_cells.clear()
