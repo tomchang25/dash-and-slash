@@ -39,6 +39,8 @@ Command workflows live in `dev/workflows/commands/`. When asked to do a command 
 
 The opencode slash-command files under `.opencode/commands/` are thin entry wrappers only. They must not duplicate the workflow. The final source of truth remains `dev/workflows/commands/`.
 
+Reviews use `dev/workflows/review_standard.md`; command files define the review scope, and the shared review standard defines depth, related-code search, reporting, and verdict language.
+
 - `/closeout` -> `dev/workflows/commands/closeout.md`: closes out completed work — staged changes or a feature branch covering one or more plans (CHANGELOG + TODO + archive plans, optional commit-message suggestion only when explicitly asked).
 - `/commit-msg` -> `dev/workflows/commands/commit-msg.md`: suggests a conventional commit message for currently staged changes without staging, committing, pushing, or opening a PR.
 - `/godot-test` -> `dev/workflows/commands/godot-test.md`: runs the safe `/tmp` snapshot Godot test workflow without mutating git or trusting the sandbox mount.
@@ -89,13 +91,19 @@ Entities are authored in `data/yaml/*.yaml`, converted to `.tres` via `dev/tools
 ## Conventions
 
 - **Docstrings**: every `.gd` file starts with `# filename` + one-line purpose. All public functions and complex private functions get a `##` GDDoc comment. Never strip or reduce existing comments when editing code.
+- **Project structure and naming**: read `dev/standards/project_structure.md` before adding, moving, or reorganizing files; read `dev/standards/naming_conventions.md` before adding or renaming scripts, scenes, classes, signals, constants, or persistent scene nodes.
 - **Commits**: conventional commits format — read `dev/skills/conventional_commits.md` when writing commit messages. Do not hard-wrap prose.
+- **Change summaries**: read `dev/standards/change_summary_standard.md` before writing commit messages, PR descriptions, CHANGELOG entries, closeout output, review summaries, or other completed-work summaries.
 - **Registries**: extend `ResourceRegistry`; required API: `get_<singular>_by_id`, `get_all_<plural>`, `size`. See `dev/standards/registries.md`.
+- **Audio events**: use `AudioManager.play_event()` for gameplay, UI, and music playback; read `dev/skills/audio_event_usage.md` before changing audio playback, SFX resources, music, or `AudioManager` call sites.
 - **Save providers**: an object that serializes a slice of state must also own that state — no save adapter that only serializes another object's fields.
+- **State machines**: the `StateMachine` + `State` framework is behavior-delegation, not a state-label holder; read `dev/skills/state_machine_pattern.md` before changing entity states, FSM scene wiring, or transition logic.
 - **Scene routing**: `SceneRouter` owns production scene transitions; read `dev/standards/scene_routing_standard.md` and `dev/skills/scene_router_usage.md` before changing navigation.
 - **Main Menu**: read `dev/standards/main_menu_standard.md` before editing `game/meta/main_menu/`.
 - **Settings overlay**: `SettingsStore` owns `user://settings.json`; read `dev/standards/settings_overlay_standard.md` and `dev/skills/settings_overlay_usage.md` before adding settings.
 - **Theme and UI styling**: read `dev/standards/theme_standard.md` and `dev/skills/godot4_theme_override.md` before changing fonts, StyleBoxes, theme type variations, or static UI colors.
 - **Debug mode**: check `Debug.enabled`, not `OS.is_debug_build()` directly; read `dev/standards/debug_standard.md` and `dev/skills/debug_mode_usage.md` before adding debug behavior.
+- **GDScript abstract APIs**: read `dev/skills/gdscript_abstract.md` before introducing or changing `@abstract` classes or methods.
 - **GDScript structure & scene architecture**: scripts follow `dev/standards/gdscript_structure_standard.md`; persistent scene nodes and runtime `add_child()` exceptions follow `dev/standards/scene_node_source_standard.md`; reusable component layout/preview rules follow `dev/standards/component_scene_standard.md`. Node-source and no-`[connection]` rules are lint-enforced.
-- **Standards**: run `python dev/tools/lint_standards.py --files <changed>` before finishing if you are an agent without the in-loop lint hook.
+- **Versioning**: read `dev/skills/semantic_versioning.md` before release/version bump work or when a change needs public API version impact assessment.
+- **Standards**: run `python dev/tools/lint_standards.py --files <changed>` before finishing if you are an agent without the in-loop lint hook. See `dev/standards/standards_enforcement.md` for active checks and how new machine-checkable rules are added.
