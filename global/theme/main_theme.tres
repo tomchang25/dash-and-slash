@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=9 format=3 uid="uid://m8fg7e20e3g"]
+[gd_resource type="Theme" format=3 uid="uid://m8fg7e20e3g"]
 
 [sub_resource type="StyleBoxFlat" id="btn_disabled"]
 content_margin_left = 12.0
@@ -76,6 +76,9 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
+[sub_resource type="StyleBoxLine" id="separator_line"]
+color = Color(0.25, 0.25, 0.3, 1)
+
 [sub_resource type="StyleBoxFlat" id="panel_bg"]
 content_margin_left = 12.0
 content_margin_top = 8.0
@@ -91,9 +94,6 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxLine" id="separator_line"]
-color = Color(0.25, 0.25, 0.3, 1)
 
 [sub_resource type="StyleBoxFlat" id="tooltip_panel"]
 content_margin_left = 8.0
@@ -113,6 +113,7 @@ corner_radius_bottom_left = 3
 corner_detail = 5
 
 [resource]
+default_font_size = 24
 BodyLabel/base_type = &"Label"
 BodyLabel/font_sizes/font_size = 24
 BodyLargeLabel/base_type = &"Label"
@@ -166,4 +167,3 @@ TooltipPanel/styles/panel = SubResource("tooltip_panel")
 VBoxContainer/constants/separation = 8
 VSeparator/constants/separation = 8
 VSeparator/styles/separator = SubResource("separator_line")
-default_font_size = 24

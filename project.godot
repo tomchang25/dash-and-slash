@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Dash & Slash"
-run/main_scene="res://game/meta/main_menu/main_menu_scene.tscn"
+run/main_scene="uid://dkv135mbdb8px"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
