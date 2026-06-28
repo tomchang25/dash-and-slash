@@ -3,12 +3,10 @@
 class_name PuffEnemy
 extends GridEnemy
 
-const PUFF_ACTIVE_DURATION := 0.35
-const PUFF_RANGE := 1
+const PUFF_RANGE := 2
 
 # -- Node references ----------------------------------------------------------
 @onready var _puff_hitbox: Hitbox = _find_child_node("PuffHitbox") as Hitbox
-@onready var _contact_hitbox: Hitbox = _find_child_node("ContactHitbox") as Hitbox
 
 # == Common API ================================================================
 
@@ -18,11 +16,12 @@ func get_body() -> Polygon2D:
 
 
 func is_target_in_puff_range() -> bool:
-    if _grid == null or not has_target():
-        return false
-    var player_cell := _grid.world_to_grid(_target.global_position)
-    var diff := player_cell - _grid_pos
-    return absi(diff.x) <= PUFF_RANGE and absi(diff.y) <= PUFF_RANGE
+    return is_target_within_grid_range(PUFF_RANGE)
+
+
+## Commits the enemy to the puff action and clears any planned movement.
+func begin_puff_action() -> bool:
+    return begin_committed_action()
 
 
 func enable_puff_hitbox(enable: bool) -> void:
@@ -30,9 +29,17 @@ func enable_puff_hitbox(enable: bool) -> void:
         _puff_hitbox.set_enabled(enable)
 
 
-func set_contact_hitbox_enabled(enable: bool) -> void:
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(enable)
+## Returns the actual circular puff hitbox radius used by the scene.
+func get_puff_hitbox_radius() -> float:
+    if _puff_hitbox == null:
+        return tile_size() * float(PUFF_RANGE)
+    var collision_shape := _puff_hitbox.collision_shape as CollisionShape2D
+    if collision_shape == null:
+        return tile_size() * float(PUFF_RANGE)
+    var circle := collision_shape.shape as CircleShape2D
+    if circle == null:
+        return tile_size() * float(PUFF_RANGE)
+    return circle.radius
 
 
 func get_idle_state_id() -> int:
@@ -72,8 +79,6 @@ func get_arrival_override_state_id() -> int:
 func _on_begin_death_extra() -> void:
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(false)
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
 
 
 func _reset_extra() -> void:

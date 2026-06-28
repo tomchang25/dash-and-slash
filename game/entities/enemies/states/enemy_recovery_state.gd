@@ -13,7 +13,7 @@ func _enter() -> void:
     _timer.timeout.connect(_on_recovery_done)
     # node-src: timer
     add_child(_timer)
-    _timer.start(enemy.RECOVERY_DURATION)
+    _timer.start(enemy.get_recovery_duration())
 
 
 func _exit() -> void:

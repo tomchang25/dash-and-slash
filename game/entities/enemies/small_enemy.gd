@@ -19,6 +19,7 @@ const RECOVERY_DURATION := 0.4
 
 func _ready() -> void:
     super()
+    _allow_diagonal_movement = true
     _hitbox.set_enabled(false)
     _configure_attack_controller()
     if _attack_controller != null:
@@ -30,8 +31,11 @@ func _ready() -> void:
 func can_attack() -> bool:
     if _grid == null or _attack_controller == null or not has_target():
         return false
-    var target_cell := _grid.world_to_grid(_target.global_position)
-    return target_cell in _attack_controller.get_attack_cells(_grid_pos, _facing)
+    var target_cell := get_target_cell()
+    var dir_to_target := Vector2(target_cell - _grid_pos)
+    if dir_to_target == Vector2.ZERO:
+        return false
+    return target_cell in _attack_controller.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target))
 
 
 func get_attack_controller() -> SmallEnemyAttackController:
@@ -58,6 +62,12 @@ func get_staggered_state_id() -> int:
     return SmallEnemyState.SmallEnemyStateId.STAGGERED
 
 
+func get_pre_plan_state_id() -> int:
+    if can_attack():
+        return SmallEnemyState.SmallEnemyStateId.TELEGRAPH
+    return -1
+
+
 func get_dead_state_id() -> int:
     return SmallEnemyState.SmallEnemyStateId.DEAD
 
@@ -68,36 +78,47 @@ func get_after_face_state_id() -> int:
     return SmallEnemyState.SmallEnemyStateId.IDLE
 
 
+## Clears movement planning and prepares the attack telegraph.
+func begin_attack_telegraph() -> bool:
+    if not begin_committed_action():
+        return false
+    var attack := get_attack_controller()
+    if attack == null:
+        return false
+    if not attack.prepare(get_grid_pos(), get_facing()):
+        return false
+    attack.show_warning()
+    return true
+
+
+## Shows the committed attack's charge telegraph phase.
+func show_attack_charge() -> void:
+    var attack := get_attack_controller()
+    if attack != null:
+        attack.show_charge()
+
+
 func plan_next_action() -> bool:
-    clear_planned_action()
+    clear_planned_path()
 
     if _grid == null or _attack_controller == null or not has_target():
         return false
 
     var start := _grid_pos
-    var target_cell := _grid.world_to_grid(_target.global_position)
+    var target_cell := get_target_cell()
     var attack_origins: Array[Vector2i] = []
-    var blocked_cell := target_cell
-    var uses_target_collision := false
 
-    if _attack_controller.get_attack_pattern() == SmallEnemyAttackController.AttackPattern.SURROUND_3X3:
-        if not _grid.is_in_bounds(target_cell):
-            return false
-        uses_target_collision = true
-        attack_origins.append(target_cell)
-        blocked_cell = NO_BLOCKED_CELL
-    else:
-        for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
-            var facing := Vector2(facing_cell.x, facing_cell.y)
-            for x in range(GridArena.GRID_SIZE.x):
-                for y in range(GridArena.GRID_SIZE.y):
-                    var origin_cell := Vector2i(x, y)
-                    if origin_cell != start and _grid.is_blocked(origin_cell):
-                        continue
-                    if target_cell not in _attack_controller.get_attack_cells(origin_cell, facing):
-                        continue
-                    if origin_cell not in attack_origins:
-                        attack_origins.append(origin_cell)
+    for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
+        var facing := Vector2(facing_cell.x, facing_cell.y)
+        for x in range(GridArena.GRID_SIZE.x):
+            for y in range(GridArena.GRID_SIZE.y):
+                var origin_cell := Vector2i(x, y)
+                if origin_cell != start and _grid.is_blocked(origin_cell):
+                    continue
+                if target_cell not in _attack_controller.get_attack_cells(origin_cell, facing):
+                    continue
+                if origin_cell not in attack_origins:
+                    attack_origins.append(origin_cell)
 
     if attack_origins.is_empty():
         return false
@@ -106,16 +127,7 @@ func plan_next_action() -> bool:
         queue_redraw()
         return true
 
-    var path := _find_path_to_cell(start, blocked_cell, attack_origins)
-    if path.is_empty() and uses_target_collision:
-        attack_origins = _collect_adjacent_attack_origin_cells(target_cell, start)
-        blocked_cell = target_cell
-        if attack_origins.is_empty():
-            return false
-        if start in attack_origins:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, blocked_cell, attack_origins)
+    var path := _find_path_to_cell(start, target_cell, attack_origins)
 
     if path.is_empty():
         return false
@@ -156,14 +168,3 @@ func _configure_attack_controller() -> void:
     if _attack_controller == null:
         return
     _attack_controller.setup(_grid, _telegraph, _hitbox, self)
-
-
-func _collect_adjacent_attack_origin_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
-    var origin_cells: Array[Vector2i] = []
-    for direction: Vector2i in CARDINAL_DIRECTIONS:
-        var neighbor := target_cell + direction
-        if not _grid.is_in_bounds(neighbor):
-            continue
-        if neighbor == start or not _grid.is_blocked(neighbor):
-            origin_cells.append(neighbor)
-    return origin_cells

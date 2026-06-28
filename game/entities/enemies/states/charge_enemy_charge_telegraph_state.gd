@@ -14,21 +14,9 @@ func _init() -> void:
 
 func _enter() -> void:
     _return_to_idle = false
-    enemy.velocity = Vector2.ZERO
-    if not enemy.has_target():
+    if not enemy.begin_attack_telegraph():
         _return_to_idle = true
         return
-
-    enemy.face_target_position()
-    var cells := enemy.get_charge_cells()
-    if cells.is_empty():
-        _return_to_idle = true
-        return
-
-    enemy.set_stored_charge_cells(cells)
-    var telegraph := enemy.get_telegraph()
-    if telegraph != null:
-        telegraph.show_warning(cells)
 
     _timer = Timer.new()
     _timer.one_shot = true

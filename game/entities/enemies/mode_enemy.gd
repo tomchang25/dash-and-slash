@@ -1,0 +1,376 @@
+# mode_enemy.gd
+# 1x1 special enemy that randomly changes between tile, puff, and charge modes.
+class_name ModeEnemy
+extends GridEnemy
+
+signal guard_changed(current: int, maximum: int)
+signal guard_stagger_started
+signal guard_stagger_ended
+
+const MODE_CHANGE_DURATION := 3.0
+const MODE_PREVIEW_INTERVAL := 0.25
+const TELEGRAPH_DURATION := 0.8
+const CHARGE_DURATION := 0.2
+const TILE_ATTACK_DURATION := 0.25
+const PUFF_ATTACK_DURATION := 1.0
+const CHARGE_ATTACK_TIMEOUT := 1.2
+const RECOVERY_DURATION := 0.8
+const CHARGING_SPEED := 480.0
+const TILE_MODE_COLOR := Color(0.9, 0.35, 0.25, 1.0)
+const PUFF_MODE_COLOR := Color(0.95, 0.8, 0.2, 1.0)
+const CHARGE_MODE_COLOR := Color(0.35, 0.6, 1.0, 1.0)
+
+# -- Exports ------------------------------------------------------------------
+@export var attack_sfx_event: SpatialAudioEvent
+
+# -- State --------------------------------------------------------------------
+var _mode: int = ModeEnemyAttackController.Mode.TILE
+var _mode_ready := false
+var _charge_cells: Array[Vector2i] = []
+var _charge_index := 0
+
+# -- Node references ----------------------------------------------------------
+@onready var _attack_controller: ModeEnemyAttackController = %AttackController
+@onready var _telegraph: TileTelegraph = %TileTelegraph
+@onready var _tile_hitbox: Hitbox = %TileAttackHitbox
+@onready var _contact_hitbox: Hitbox = %ContactHitbox
+@onready var _puff_hitbox: Hitbox = %PuffHitbox
+
+# == Lifecycle ================================================================
+
+
+func _ready() -> void:
+    super()
+    _allow_diagonal_movement = true
+    _configure_attack_controller()
+    _disable_mode_hitboxes()
+    _apply_current_mode_color()
+
+# == Overridden Custom Methods ================================================
+
+
+func start_cooldown() -> void:
+    super()
+    _mode_ready = false
+
+# == Signal handlers ==========================================================
+
+
+func _on_guard_changed(current: int, maximum: int) -> void:
+    super(current, maximum)
+    guard_changed.emit(current, maximum)
+
+
+func _on_stagger_started() -> void:
+    super()
+    guard_stagger_started.emit()
+
+
+func _on_stagger_ended() -> void:
+    super()
+    guard_stagger_ended.emit()
+
+# == Common API ================================================================
+
+
+func emit_guard_snapshot() -> void:
+    if _guard != null:
+        guard_changed.emit(_guard.current(), _guard.max_guard)
+
+
+func get_idle_state_id() -> int:
+    return ModeEnemyState.ModeEnemyStateId.IDLE
+
+
+func get_reposition_state_id() -> int:
+    return ModeEnemyState.ModeEnemyStateId.REPOSITION
+
+
+func get_face_state_id() -> int:
+    return ModeEnemyState.ModeEnemyStateId.FACE_TARGET
+
+
+func get_recovery_state_id() -> int:
+    return ModeEnemyState.ModeEnemyStateId.RECOVERY
+
+
+func get_staggered_state_id() -> int:
+    return ModeEnemyState.ModeEnemyStateId.STAGGERED
+
+
+func get_dead_state_id() -> int:
+    return ModeEnemyState.ModeEnemyStateId.DEAD
+
+
+func get_pre_plan_state_id() -> int:
+    if not _mode_ready:
+        return ModeEnemyState.ModeEnemyStateId.MODE_CHANGE
+    if can_attack_current_mode():
+        return ModeEnemyState.ModeEnemyStateId.TELEGRAPH
+    return -1
+
+
+func get_arrival_override_state_id() -> int:
+    if can_attack_current_mode():
+        return ModeEnemyState.ModeEnemyStateId.TELEGRAPH
+    return -1
+
+
+func get_after_face_state_id() -> int:
+    if can_attack_current_mode():
+        return ModeEnemyState.ModeEnemyStateId.TELEGRAPH
+    return ModeEnemyState.ModeEnemyStateId.IDLE
+
+
+## Commits the enemy to mode selection and clears any planned movement.
+func begin_mode_change() -> bool:
+    return begin_committed_action()
+
+
+## Clears movement planning and prepares the current mode telegraph.
+func begin_attack_telegraph() -> bool:
+    if not begin_committed_action():
+        return false
+    face_target_position()
+    if not prepare_attack():
+        return false
+    show_attack_warning()
+    return true
+
+
+func get_recovery_duration() -> float:
+    return RECOVERY_DURATION
+
+
+func get_attack_duration() -> float:
+    match _mode:
+        ModeEnemyAttackController.Mode.PUFF:
+            return PUFF_ATTACK_DURATION
+        ModeEnemyAttackController.Mode.CHARGE:
+            return CHARGE_ATTACK_TIMEOUT
+    return TILE_ATTACK_DURATION
+
+
+func get_mode_preview_interval() -> float:
+    return MODE_PREVIEW_INTERVAL
+
+
+func get_current_mode() -> int:
+    return _mode
+
+
+func choose_random_mode() -> void:
+    _mode = randi() % ModeEnemyAttackController.MODE_COUNT
+    _mode_ready = true
+    if _attack_controller != null:
+        _attack_controller.set_mode(_mode)
+        if _mode == ModeEnemyAttackController.Mode.TILE:
+            _attack_controller.randomize_tile_shape()
+    _apply_current_mode_color()
+
+
+func set_preview_mode(mode: int) -> void:
+    if _body != null:
+        _body.color = get_mode_color(mode)
+
+
+func apply_current_mode_color() -> void:
+    _apply_current_mode_color()
+
+
+func get_mode_color(mode: int) -> Color:
+    match mode:
+        ModeEnemyAttackController.Mode.PUFF:
+            return PUFF_MODE_COLOR
+        ModeEnemyAttackController.Mode.CHARGE:
+            return CHARGE_MODE_COLOR
+    return TILE_MODE_COLOR
+
+
+func can_attack_current_mode() -> bool:
+    if _grid == null or _attack_controller == null or not has_target() or not _mode_ready:
+        return false
+    match _mode:
+        ModeEnemyAttackController.Mode.CHARGE:
+            return is_target_cardinally_aligned()
+        ModeEnemyAttackController.Mode.PUFF:
+            return is_target_within_grid_range(1)
+        ModeEnemyAttackController.Mode.TILE:
+            var target_cell := get_target_cell()
+            var dir_to_target := Vector2(target_cell - _grid_pos)
+            if dir_to_target == Vector2.ZERO:
+                return false
+            return target_cell in _attack_controller.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target))
+    return false
+
+
+func plan_next_action() -> bool:
+    match _mode:
+        ModeEnemyAttackController.Mode.CHARGE:
+            return plan_charge_line_action()
+        ModeEnemyAttackController.Mode.TILE:
+            return _plan_tile_action()
+    return super()
+
+
+func prepare_attack() -> bool:
+    if _attack_controller == null:
+        return false
+    return _attack_controller.prepare(_grid_pos, _facing)
+
+
+func show_attack_warning() -> void:
+    if _attack_controller != null:
+        _attack_controller.show_warning()
+
+
+func show_attack_charge() -> void:
+    if _attack_controller != null:
+        _attack_controller.show_charge()
+
+
+func begin_attack() -> void:
+    velocity = Vector2.ZERO
+    _charge_cells.clear()
+    _charge_index = 0
+    if _attack_controller == null:
+        return
+    if attack_sfx_event != null:
+        AudioManager.play_event(attack_sfx_event, global_position)
+
+    _attack_controller.begin_attack()
+    if _mode == ModeEnemyAttackController.Mode.CHARGE:
+        _charge_cells = _attack_controller.get_cells()
+        if not _charge_cells.is_empty():
+            _move_to_charge_cell(_charge_cells[0])
+
+
+func update_attack_motion(_delta: float) -> bool:
+    if _mode != ModeEnemyAttackController.Mode.CHARGE:
+        return false
+    if _charge_index >= _charge_cells.size():
+        return true
+
+    var target_cell := _charge_cells[_charge_index]
+    var target_world := _grid.cell_center(target_cell)
+    var arrival_threshold := tile_size() * 0.1
+    if global_position.distance_squared_to(target_world) >= arrival_threshold * arrival_threshold:
+        return false
+
+    _grid_pos = target_cell
+    global_position = target_world
+    register_grid_occupant()
+    if _attack_controller != null:
+        _attack_controller.clear_cell(target_cell)
+
+    _charge_index += 1
+    if _charge_index >= _charge_cells.size():
+        velocity = Vector2.ZERO
+        return true
+
+    _move_to_charge_cell(_charge_cells[_charge_index])
+    return false
+
+
+func end_attack() -> void:
+    velocity = Vector2.ZERO
+    _charge_cells.clear()
+    _charge_index = 0
+    if _attack_controller != null:
+        _attack_controller.end_attack()
+
+
+func cancel_attack() -> void:
+    velocity = Vector2.ZERO
+    _charge_cells.clear()
+    _charge_index = 0
+    if _attack_controller != null:
+        _attack_controller.cancel()
+
+# == Setup helpers =============================================================
+
+
+func _after_setup_ready() -> void:
+    _configure_attack_controller()
+
+
+func _on_guard_broken_extra() -> void:
+    cancel_attack()
+
+
+func _on_begin_death_extra() -> void:
+    cancel_attack()
+    _disable_mode_hitboxes()
+
+
+func _reset_extra() -> void:
+    _mode_ready = false
+    _charge_cells.clear()
+    _charge_index = 0
+    cancel_attack()
+    _apply_current_mode_color()
+
+
+func _configure_attack_controller() -> void:
+    if _attack_controller == null:
+        return
+    _attack_controller.setup(_grid, _telegraph, _tile_hitbox, _contact_hitbox, _puff_hitbox)
+
+
+func _disable_mode_hitboxes() -> void:
+    if _tile_hitbox != null:
+        _tile_hitbox.set_enabled(false)
+    if _contact_hitbox != null:
+        _contact_hitbox.set_enabled(false)
+    if _puff_hitbox != null:
+        _puff_hitbox.set_enabled(false)
+
+
+func _apply_current_mode_color() -> void:
+    if _body != null:
+        _body.color = get_mode_color(_mode)
+
+
+func _plan_tile_action() -> bool:
+    clear_planned_path()
+    if _grid == null or _attack_controller == null or not has_target():
+        return false
+
+    var start := _grid_pos
+    var target_cell := get_target_cell()
+    var attack_origins: Array[Vector2i] = []
+    for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
+        var facing := Vector2(facing_cell.x, facing_cell.y)
+        for x in range(GridArena.GRID_SIZE.x):
+            for y in range(GridArena.GRID_SIZE.y):
+                var origin_cell := Vector2i(x, y)
+                if origin_cell != start and _grid.is_blocked(origin_cell):
+                    continue
+                if target_cell not in _attack_controller.get_attack_cells(origin_cell, facing):
+                    continue
+                if origin_cell not in attack_origins:
+                    attack_origins.append(origin_cell)
+
+    if attack_origins.is_empty():
+        return false
+    if start in attack_origins:
+        queue_redraw()
+        return true
+
+    var path := _find_path_to_cell(start, target_cell, attack_origins)
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    _refresh_planned_reservations()
+    queue_redraw()
+    return true
+
+
+func _move_to_charge_cell(cell: Vector2i) -> void:
+    if _grid == null:
+        velocity = Vector2.ZERO
+        return
+    var target_world := _grid.cell_center(cell)
+    var direction := (target_world - global_position).normalized()
+    velocity = direction * CHARGING_SPEED

@@ -4,8 +4,9 @@
 class_name RegistryAudit
 extends RefCounted
 
-
-## Placeholder — scene wiring audit removed; GameManager now owns its scene
-## table as a const Dictionary. Called from GameManager._ready() for API compat.
-static func check_scene_registry(_unused: Variant) -> bool:
-	return true
+## Validates project-level scene route wiring during boot.
+static func check_scene_registry(scene_registry: SceneRegistry) -> bool:
+    if scene_registry == null:
+        push_error("RegistryAudit: SceneRouter.scenes is null")
+        return false
+    return scene_registry.validate()

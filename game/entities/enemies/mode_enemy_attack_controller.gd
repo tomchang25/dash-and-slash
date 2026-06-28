@@ -1,12 +1,13 @@
-# boss_attack_controller.gd
-# Owns Boss attack mode selection snapshots, telegraphs, and hitbox activation.
-class_name BossAttackController
+# mode_enemy_attack_controller.gd
+# Controls ModeEnemy attack snapshots, telegraphs, and mode-specific hitboxes.
+class_name ModeEnemyAttackController
 extends Node
 
-enum BossMode { TILE_ATTACK = 0, CONTACT_CHARGE = 1, PUFF_STATION = 2 }
+enum Mode { TILE = 0, PUFF = 1, CHARGE = 2 }
+enum TileShape { WIDE_2X3 = 0, SELF_3X3 = 1, LINE_1X4 = 2 }
 
 const MODE_COUNT := 3
-const BOSS_FOOTPRINT := Vector2i(2, 2)
+const TILE_SHAPE_COUNT := 3
 const TILE_ATTACK_DAMAGE := 12.0
 const CONTACT_DAMAGE := 10.0
 const PUFF_DAMAGE := 14.0
@@ -16,7 +17,8 @@ var _telegraph: TileTelegraph
 var _tile_hitbox: Hitbox
 var _contact_hitbox: Hitbox
 var _puff_hitbox: Hitbox
-var _mode: int = BossMode.TILE_ATTACK
+var _mode: int = Mode.TILE
+var _tile_shape: int = TileShape.WIDE_2X3
 var _attack_cells: Array[Vector2i] = []
 var _tile_hitbox_position := Vector2.ZERO
 var _prepared := false
@@ -41,24 +43,41 @@ func get_mode() -> int:
     return _mode
 
 
+func randomize_tile_shape() -> void:
+    _tile_shape = randi() % TILE_SHAPE_COUNT
+
+
+func get_tile_shape() -> int:
+    return _tile_shape
+
+
 func prepare(origin_cell: Vector2i, facing: Vector2) -> bool:
     cancel()
     if _grid == null:
         return false
 
+    _attack_cells = get_attack_cells(origin_cell, facing)
     match _mode:
-        BossMode.TILE_ATTACK:
-            _attack_cells = _get_tile_attack_cells(origin_cell, facing)
+        Mode.TILE:
             _configure_tile_hitbox(TILE_ATTACK_DAMAGE)
-        BossMode.CONTACT_CHARGE:
-            _attack_cells = _get_charge_cells(origin_cell, facing)
+        Mode.CHARGE:
             _configure_contact_hitbox()
-        BossMode.PUFF_STATION:
-            _attack_cells = _get_puff_cells(origin_cell)
+        Mode.PUFF:
             _configure_puff_hitbox()
 
     _prepared = not _attack_cells.is_empty()
     return _prepared
+
+
+func get_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
+    match _mode:
+        Mode.TILE:
+            return _get_tile_attack_cells(origin_cell, facing)
+        Mode.CHARGE:
+            return _get_charge_cells(origin_cell, facing)
+        Mode.PUFF:
+            return AttackCellShapes.square(origin_cell, 1, _grid, true)
+    return []
 
 
 func show_warning() -> void:
@@ -71,21 +90,24 @@ func show_charge() -> void:
         _telegraph.show_charge(_attack_cells)
 
 
+func show_active() -> void:
+    if _prepared and _telegraph != null:
+        _telegraph.show_active(_attack_cells)
+
+
 func begin_attack() -> void:
     if not _prepared:
         return
-    if _telegraph != null:
-        _telegraph.show_active(_attack_cells)
-
+    show_active()
     match _mode:
-        BossMode.TILE_ATTACK:
+        Mode.TILE:
             if _tile_hitbox != null:
                 _tile_hitbox.global_position = _tile_hitbox_position
                 _tile_hitbox.set_enabled(true)
-        BossMode.CONTACT_CHARGE:
+        Mode.CHARGE:
             if _contact_hitbox != null:
                 _contact_hitbox.set_enabled(true)
-        BossMode.PUFF_STATION:
+        Mode.PUFF:
             if _puff_hitbox != null:
                 _puff_hitbox.set_enabled(true)
 
@@ -171,46 +193,24 @@ func _apply_tile_hitbox_geometry(hitbox: Hitbox) -> void:
 
 func _get_tile_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
     var facing_cell := Vector2i(int(facing.x), int(facing.y))
-    var right_cell := Vector2i(facing_cell.y, -facing_cell.x)
-    var cells: Array[Vector2i] = []
-    for depth in range(1, 4):
-        var center := origin_cell + Vector2i(1, 1) + facing_cell * depth
-        _append_cell_if_in_bounds(cells, center - right_cell)
-        _append_cell_if_in_bounds(cells, center)
-        _append_cell_if_in_bounds(cells, center + right_cell)
-    return cells
+    if facing_cell == Vector2i.ZERO:
+        return []
+
+    match _tile_shape:
+        TileShape.WIDE_2X3:
+            return AttackCellShapes.wide(origin_cell, facing_cell, 2, 3, _grid, true)
+        TileShape.SELF_3X3:
+            return AttackCellShapes.square(origin_cell, 1, _grid, true)
+        TileShape.LINE_1X4:
+            return AttackCellShapes.line(origin_cell, facing_cell, 4, _grid, true)
+    return []
 
 
 func _get_charge_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
     var facing_cell := Vector2i(int(facing.x), int(facing.y))
     var cells: Array[Vector2i] = []
     var cell := origin_cell + facing_cell
-    while _is_valid_footprint(cell) and cells.size() < 3:
+    while _grid.is_in_bounds(cell):
         cells.append(cell)
         cell += facing_cell
     return cells
-
-
-func _get_puff_cells(origin_cell: Vector2i) -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    for x_offset in range(-1, BOSS_FOOTPRINT.x + 1):
-        for y_offset in range(-1, BOSS_FOOTPRINT.y + 1):
-            _append_cell_if_in_bounds(cells, origin_cell + Vector2i(x_offset, y_offset))
-    return cells
-
-
-func _append_cell_if_in_bounds(cells: Array[Vector2i], cell: Vector2i) -> void:
-    if _grid == null or not _grid.is_in_bounds(cell):
-        return
-    if cell not in cells:
-        cells.append(cell)
-
-
-func _is_valid_footprint(top_left: Vector2i) -> bool:
-    if _grid == null:
-        return false
-    for x in range(BOSS_FOOTPRINT.x):
-        for y in range(BOSS_FOOTPRINT.y):
-            if not _grid.is_in_bounds(top_left + Vector2i(x, y)):
-                return false
-    return true

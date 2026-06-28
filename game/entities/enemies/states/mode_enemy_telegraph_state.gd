@@ -1,27 +1,31 @@
-# boss_telegraph_state.gd
-# Telegraph state shows warning then charge overlays for the selected boss mode.
-extends BossState
+# mode_enemy_telegraph_state.gd
+# ModeEnemy telegraph state shows warning and charge overlays for the selected mode.
+extends EnemyState
 
 var _timer: Timer
 var _return_to_idle := false
 
 
 func _init() -> void:
-    state_id = BossStateId.TELEGRAPH
+    state_id = ModeEnemyState.ModeEnemyStateId.TELEGRAPH
 
 
 func _enter() -> void:
     _return_to_idle = false
-    if not enemy.prepare_attack():
+    var mode_enemy := enemy as ModeEnemy
+    if mode_enemy == null:
+        _return_to_idle = true
+        return
+    if not mode_enemy.begin_attack_telegraph():
         _return_to_idle = true
         return
 
-    enemy.show_attack_warning()
     _timer = Timer.new()
     _timer.one_shot = true
     _timer.timeout.connect(_on_warning_done)
+    # node-src: timer
     add_child(_timer)
-    _timer.start(enemy.TELEGRAPH_DURATION)
+    _timer.start(mode_enemy.TELEGRAPH_DURATION)
 
 
 func _exit() -> void:
@@ -33,7 +37,7 @@ func _exit() -> void:
 
 func _physics_update(_delta: float) -> void:
     if _return_to_idle:
-        change_state(BossStateId.IDLE)
+        change_state(ModeEnemyState.ModeEnemyStateId.IDLE)
 
 
 func _on_warning_done() -> void:
@@ -41,13 +45,17 @@ func _on_warning_done() -> void:
         _timer.queue_free()
         _timer = null
 
-    enemy.show_attack_charge()
+    var mode_enemy := enemy as ModeEnemy
+    if mode_enemy != null:
+        mode_enemy.show_attack_charge()
+
     _timer = Timer.new()
     _timer.one_shot = true
     _timer.timeout.connect(_on_charge_done)
+    # node-src: timer
     add_child(_timer)
-    _timer.start(enemy.CHARGE_DURATION)
+    _timer.start(mode_enemy.CHARGE_DURATION if mode_enemy != null else 0.2)
 
 
 func _on_charge_done() -> void:
-    change_state(BossStateId.ATTACK)
+    change_state(ModeEnemyState.ModeEnemyStateId.ATTACK)
