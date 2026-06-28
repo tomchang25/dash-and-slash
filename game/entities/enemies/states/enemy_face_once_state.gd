@@ -3,6 +3,10 @@
 class_name EnemyFaceOnceState
 extends EnemyState
 
+func _init() -> void:
+    state_id = EnemyStateId.FACE_TARGET
+
+
 func _enter() -> void:
     enemy.velocity = Vector2.ZERO
     enemy.face_target_position()

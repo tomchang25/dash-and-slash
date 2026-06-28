@@ -3,6 +3,10 @@
 class_name EnemyStaggeredState
 extends EnemyState
 
+func _init() -> void:
+    state_id = EnemyStateId.STAGGERED
+
+
 func _enter() -> void:
     enemy.velocity = Vector2.ZERO
     var guard: Guard = enemy.get_guard()

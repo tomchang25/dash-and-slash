@@ -451,27 +451,27 @@ func play_death_sfx() -> void:
 
 
 func get_idle_state_id() -> int:
-    return -1
+    return EnemyState.EnemyStateId.IDLE
 
 
 func get_reposition_state_id() -> int:
-    return -1
+    return EnemyState.EnemyStateId.REPOSITION
 
 
 func get_face_state_id() -> int:
-    return -1
+    return EnemyState.EnemyStateId.FACE_TARGET
 
 
 func get_recovery_state_id() -> int:
-    return -1
+    return EnemyState.EnemyStateId.RECOVERY
 
 
 func get_staggered_state_id() -> int:
-    return -1
+    return EnemyState.EnemyStateId.STAGGERED
 
 
 func get_dead_state_id() -> int:
-    return -1
+    return EnemyState.EnemyStateId.DEAD
 
 
 func get_after_face_state_id() -> int:
@@ -515,6 +515,30 @@ func begin_committed_action() -> bool:
 ## Default attack telegraph entry; enemies with telegraphs extend this setup.
 func begin_attack_telegraph() -> bool:
     return begin_committed_action()
+
+
+func get_attack_state_id() -> int:
+    return EnemyState.EnemyStateId.ATTACK
+
+
+## Shows the charge telegraph phase. Enemies with telegraphs extend this.
+func show_attack_charge() -> void:
+    pass
+
+
+## Starts the active attack phase. Returns false if attack cannot begin.
+func begin_attack() -> bool:
+    return false
+
+
+## Ends the active attack phase and disables hitboxes.
+func end_attack() -> void:
+    pass
+
+
+## Updates per-frame attack motion. Returns true when motion is complete.
+func update_attack_motion(_delta: float) -> bool:
+    return false
 
 
 ## Plans a charge approach that prefers lining up with the target row or column.

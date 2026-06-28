@@ -80,47 +80,47 @@ func emit_guard_snapshot() -> void:
 
 
 func get_idle_state_id() -> int:
-    return ModeEnemyState.ModeEnemyStateId.IDLE
+    return EnemyState.EnemyStateId.IDLE
 
 
 func get_reposition_state_id() -> int:
-    return ModeEnemyState.ModeEnemyStateId.REPOSITION
+    return EnemyState.EnemyStateId.REPOSITION
 
 
 func get_face_state_id() -> int:
-    return ModeEnemyState.ModeEnemyStateId.FACE_TARGET
+    return EnemyState.EnemyStateId.FACE_TARGET
 
 
 func get_recovery_state_id() -> int:
-    return ModeEnemyState.ModeEnemyStateId.RECOVERY
+    return EnemyState.EnemyStateId.RECOVERY
 
 
 func get_staggered_state_id() -> int:
-    return ModeEnemyState.ModeEnemyStateId.STAGGERED
+    return EnemyState.EnemyStateId.STAGGERED
 
 
 func get_dead_state_id() -> int:
-    return ModeEnemyState.ModeEnemyStateId.DEAD
+    return EnemyState.EnemyStateId.DEAD
 
 
 func get_pre_plan_state_id() -> int:
     if not _mode_ready:
-        return ModeEnemyState.ModeEnemyStateId.MODE_CHANGE
+        return EnemyState.EnemyStateId.MODE_CHANGE
     if can_attack_current_mode():
-        return ModeEnemyState.ModeEnemyStateId.TELEGRAPH
+        return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
 
 func get_arrival_override_state_id() -> int:
     if can_attack_current_mode():
-        return ModeEnemyState.ModeEnemyStateId.TELEGRAPH
+        return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
 
 func get_after_face_state_id() -> int:
     if can_attack_current_mode():
-        return ModeEnemyState.ModeEnemyStateId.TELEGRAPH
-    return ModeEnemyState.ModeEnemyStateId.IDLE
+        return EnemyState.EnemyStateId.TELEGRAPH
+    return EnemyState.EnemyStateId.IDLE
 
 
 ## Commits the enemy to mode selection and clears any planned movement.
@@ -243,12 +243,12 @@ func show_attack_charge() -> void:
         _attack_controller.show_charge()
 
 
-func begin_attack() -> void:
+func begin_attack() -> bool:
     velocity = Vector2.ZERO
     _charge_cells.clear()
     _charge_index = 0
     if _attack_controller == null:
-        return
+        return false
     if attack_sfx_event != null:
         AudioManager.play_event(attack_sfx_event, global_position)
 
@@ -257,6 +257,8 @@ func begin_attack() -> void:
         _charge_cells = _attack_controller.get_cells()
         if not _charge_cells.is_empty():
             _move_to_charge_cell(_charge_cells[0])
+
+    return true
 
 
 func update_attack_motion(_delta: float) -> bool:

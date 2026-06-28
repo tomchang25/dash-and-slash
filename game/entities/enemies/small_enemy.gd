@@ -40,44 +40,48 @@ func can_attack() -> bool:
     return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target), _attack_data, _grid)
 
 
+func get_current_attack_data() -> EnemyAttackData:
+    return _attack_data
+
+
 func get_attack_controller() -> EnemyAttackController:
     return _attack_controller
 
 
 func get_idle_state_id() -> int:
-    return SmallEnemyState.SmallEnemyStateId.IDLE
+    return EnemyState.EnemyStateId.IDLE
 
 
 func get_reposition_state_id() -> int:
-    return SmallEnemyState.SmallEnemyStateId.REPOSITION_STEP
+    return EnemyState.EnemyStateId.REPOSITION
 
 
 func get_face_state_id() -> int:
-    return SmallEnemyState.SmallEnemyStateId.FACE_ONCE
+    return EnemyState.EnemyStateId.FACE_TARGET
 
 
 func get_recovery_state_id() -> int:
-    return SmallEnemyState.SmallEnemyStateId.RECOVERY
+    return EnemyState.EnemyStateId.RECOVERY
 
 
 func get_staggered_state_id() -> int:
-    return SmallEnemyState.SmallEnemyStateId.STAGGERED
+    return EnemyState.EnemyStateId.STAGGERED
 
 
 func get_pre_plan_state_id() -> int:
     if can_attack():
-        return SmallEnemyState.SmallEnemyStateId.TELEGRAPH
+        return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
 
 func get_dead_state_id() -> int:
-    return SmallEnemyState.SmallEnemyStateId.DEAD
+    return EnemyState.EnemyStateId.DEAD
 
 
 func get_after_face_state_id() -> int:
     if can_attack():
-        return SmallEnemyState.SmallEnemyStateId.TELEGRAPH
-    return SmallEnemyState.SmallEnemyStateId.IDLE
+        return EnemyState.EnemyStateId.TELEGRAPH
+    return EnemyState.EnemyStateId.IDLE
 
 
 ## Clears movement planning and prepares the attack telegraph.
@@ -99,6 +103,20 @@ func show_attack_charge() -> void:
     var attack := get_attack_controller()
     if attack != null:
         attack.show_charge()
+
+
+func begin_attack() -> bool:
+    var attack := get_attack_controller()
+    if attack == null:
+        return false
+    attack.begin_attack()
+    return true
+
+
+func end_attack() -> void:
+    var attack := get_attack_controller()
+    if attack != null:
+        attack.end_attack()
 
 
 func plan_next_action() -> bool:

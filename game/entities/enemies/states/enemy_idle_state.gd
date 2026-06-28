@@ -3,6 +3,10 @@
 class_name EnemyIdleState
 extends EnemyState
 
+func _init() -> void:
+    state_id = EnemyStateId.IDLE
+
+
 func _enter() -> void:
     enemy.velocity = Vector2.ZERO
 

@@ -6,7 +6,7 @@ var _elapsed := 0.0
 
 
 func _init() -> void:
-    state_id = ModeEnemyState.ModeEnemyStateId.MODE_CHANGE
+    state_id = EnemyStateId.MODE_CHANGE
 
 
 func _enter() -> void:
@@ -19,7 +19,7 @@ func _enter() -> void:
 func _physics_update(delta: float) -> void:
     var mode_enemy := enemy as ModeEnemy
     if mode_enemy == null:
-        change_state(ModeEnemyState.ModeEnemyStateId.IDLE)
+        change_state(EnemyStateId.IDLE)
         return
 
     _elapsed += delta
@@ -28,4 +28,4 @@ func _physics_update(delta: float) -> void:
 
     if _elapsed >= mode_enemy.MODE_CHANGE_DURATION:
         mode_enemy.choose_random_mode()
-        change_state(ModeEnemyState.ModeEnemyStateId.IDLE)
+        change_state(EnemyStateId.IDLE)

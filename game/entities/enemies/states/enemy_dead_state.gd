@@ -3,6 +3,10 @@
 class_name EnemyDeadState
 extends EnemyState
 
+func _init() -> void:
+    state_id = EnemyStateId.DEAD
+
+
 const DEATH_DURATION := 0.5
 const DEATH_ROTATION_RADIANS := TAU
 

@@ -68,32 +68,32 @@ func face_arrow() -> void:
 
 
 func get_idle_state_id() -> int:
-    return ChargeEnemyState.ChargeEnemyStateId.IDLE
+    return EnemyState.EnemyStateId.IDLE
 
 
 func get_reposition_state_id() -> int:
-    return ChargeEnemyState.ChargeEnemyStateId.REPOSITION_STEP
+    return EnemyState.EnemyStateId.REPOSITION
 
 
 func get_face_state_id() -> int:
-    return ChargeEnemyState.ChargeEnemyStateId.FACE_ONCE
+    return EnemyState.EnemyStateId.FACE_TARGET
 
 
 func get_recovery_state_id() -> int:
-    return ChargeEnemyState.ChargeEnemyStateId.RECOVERY
+    return EnemyState.EnemyStateId.RECOVERY
 
 
 func get_staggered_state_id() -> int:
-    return ChargeEnemyState.ChargeEnemyStateId.STAGGERED
+    return EnemyState.EnemyStateId.STAGGERED
 
 
 func get_dead_state_id() -> int:
-    return ChargeEnemyState.ChargeEnemyStateId.DEAD
+    return EnemyState.EnemyStateId.DEAD
 
 
 func get_pre_plan_state_id() -> int:
     if is_target_cardinally_aligned():
-        return ChargeEnemyState.ChargeEnemyStateId.CHARGE_TELEGRAPH
+        return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
 
@@ -109,9 +109,19 @@ func get_charge_speed() -> float:
     return _attack_data.charge_speed if _attack_data != null else CHARGING_SPEED
 
 
+func get_attack_state_id() -> int:
+    return EnemyState.EnemyStateId.CHARGE_ATTACK
+
+
+func show_attack_charge() -> void:
+    var telegraph := get_telegraph()
+    if telegraph != null:
+        telegraph.show_charge(get_stored_charge_cells())
+
+
 func get_arrival_override_state_id() -> int:
     if is_target_cardinally_aligned():
-        return ChargeEnemyState.ChargeEnemyStateId.CHARGE_TELEGRAPH
+        return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
 

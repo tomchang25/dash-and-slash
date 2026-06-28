@@ -3,6 +3,10 @@
 class_name EnemyRepositionState
 extends EnemyState
 
+func _init() -> void:
+    state_id = EnemyStateId.REPOSITION
+
+
 var _target_cell: Vector2i
 var _has_step: bool = false
 

@@ -73,34 +73,34 @@ func get_puff_recheck_interval() -> float:
 
 
 func get_idle_state_id() -> int:
-    return PuffEnemyState.PuffEnemyStateId.IDLE
+    return EnemyState.EnemyStateId.IDLE
 
 
 func get_reposition_state_id() -> int:
-    return PuffEnemyState.PuffEnemyStateId.REPOSITION_STEP
+    return EnemyState.EnemyStateId.REPOSITION
 
 
 func get_face_state_id() -> int:
-    return PuffEnemyState.PuffEnemyStateId.FACE_ONCE
+    return EnemyState.EnemyStateId.FACE_TARGET
 
 
 func get_staggered_state_id() -> int:
-    return PuffEnemyState.PuffEnemyStateId.STAGGERED
+    return EnemyState.EnemyStateId.STAGGERED
 
 
 func get_dead_state_id() -> int:
-    return PuffEnemyState.PuffEnemyStateId.DEAD
+    return EnemyState.EnemyStateId.DEAD
 
 
 func get_pre_plan_state_id() -> int:
     if is_target_in_puff_range():
-        return PuffEnemyState.PuffEnemyStateId.PUFF
+        return EnemyState.EnemyStateId.PUFF
     return -1
 
 
 func get_arrival_override_state_id() -> int:
     if is_target_in_puff_range():
-        return PuffEnemyState.PuffEnemyStateId.PUFF
+        return EnemyState.EnemyStateId.PUFF
     return -1
 
 # == Setup helpers =============================================================
@@ -164,4 +164,4 @@ func _get_blocked_hit_sfx(angle: int) -> SpatialAudioEvent:
 
 
 func _is_puffing() -> bool:
-    return _state_machine != null and _state_machine.current_state != null and _state_machine.current_state.state_id == PuffEnemyState.PuffEnemyStateId.PUFF
+    return _state_machine != null and _state_machine.current_state != null and _state_machine.current_state.state_id == EnemyState.EnemyStateId.PUFF

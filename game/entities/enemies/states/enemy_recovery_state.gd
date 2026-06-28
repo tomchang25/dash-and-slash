@@ -3,6 +3,10 @@
 class_name EnemyRecoveryState
 extends EnemyState
 
+func _init() -> void:
+    state_id = EnemyStateId.RECOVERY
+
+
 var _timer: Timer
 
 
