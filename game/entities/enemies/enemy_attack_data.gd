@@ -25,6 +25,7 @@ enum CellShape {
 @export var charge_duration := 0.2
 @export var active_duration := 0.2
 @export var recovery_duration := 0.4
+@export var recheck_interval := 1.0
 @export var line_length := 3
 @export var width := 3
 @export var depth := 2

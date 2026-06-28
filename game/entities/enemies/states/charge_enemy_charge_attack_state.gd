@@ -18,11 +18,13 @@ func _enter() -> void:
     if _charge_cells.is_empty():
         change_state(ChargeEnemyStateId.IDLE)
         return
+    enemy.begin_charge_attack()
     _move_to_cell(_charge_cells[0])
 
 
 func _exit() -> void:
     _charge_cells.clear()
+    enemy.end_charge_attack()
     enemy.clear_stored_charge_cells()
 
 
@@ -59,4 +61,4 @@ func _move_to_cell(cell: Vector2i) -> void:
     var grid := enemy.get_grid()
     var target_world := grid.cell_center(cell)
     var dir := (target_world - enemy.global_position).normalized()
-    enemy.velocity = dir * enemy.CHARGING_SPEED
+    enemy.velocity = dir * enemy.get_charge_speed()

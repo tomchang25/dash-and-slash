@@ -486,6 +486,25 @@ func get_arrival_override_state_id() -> int:
     return -1
 
 
+func get_current_attack_data() -> EnemyAttackData:
+    return null
+
+
+func get_warning_duration() -> float:
+    var attack := get_current_attack_data()
+    return attack.warning_duration if attack != null else 0.6
+
+
+func get_charge_duration() -> float:
+    var attack := get_current_attack_data()
+    return attack.charge_duration if attack != null else 0.2
+
+
+func get_attack_duration() -> float:
+    var attack := get_current_attack_data()
+    return attack.active_duration if attack != null else 0.2
+
+
 ## Performs shared setup when an enemy commits to a non-reposition action.
 func begin_committed_action() -> bool:
     velocity = Vector2.ZERO

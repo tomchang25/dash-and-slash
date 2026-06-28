@@ -5,8 +5,21 @@ extends GridEnemy
 
 const PUFF_RANGE := 2
 
+# -- State --------------------------------------------------------------------
+var _attack_data: EnemyAttackData
+
 # -- Node references ----------------------------------------------------------
 @onready var _puff_hitbox: Hitbox = _find_child_node("PuffHitbox") as Hitbox
+
+# == Lifecycle ================================================================
+
+
+func _ready() -> void:
+    super()
+    _select_attack_data()
+    _configure_puff_hitbox()
+    if _puff_hitbox != null:
+        _puff_hitbox.set_enabled(false)
 
 # == Common API ================================================================
 
@@ -16,11 +29,12 @@ func get_body() -> Polygon2D:
 
 
 func is_target_in_puff_range() -> bool:
-    return is_target_within_grid_range(PUFF_RANGE)
+    return is_target_within_grid_range(get_puff_range())
 
 
 ## Commits the enemy to the puff action and clears any planned movement.
 func begin_puff_action() -> bool:
+    _configure_puff_hitbox()
     return begin_committed_action()
 
 
@@ -40,6 +54,22 @@ func get_puff_hitbox_radius() -> float:
     if circle == null:
         return tile_size() * float(PUFF_RANGE)
     return circle.radius
+
+
+func get_current_attack_data() -> EnemyAttackData:
+    return _attack_data
+
+
+func get_puff_range() -> int:
+    return _attack_data.radius if _attack_data != null else PUFF_RANGE
+
+
+func get_puff_minimum_duration() -> float:
+    return _attack_data.active_duration if _attack_data != null else 3.0
+
+
+func get_puff_recheck_interval() -> float:
+    return _attack_data.recheck_interval if _attack_data != null else 1.0
 
 
 func get_idle_state_id() -> int:
@@ -76,6 +106,11 @@ func get_arrival_override_state_id() -> int:
 # == Setup helpers =============================================================
 
 
+func _after_setup_ready() -> void:
+    _select_attack_data()
+    _configure_puff_hitbox()
+
+
 func _on_begin_death_extra() -> void:
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(false)
@@ -84,6 +119,36 @@ func _on_begin_death_extra() -> void:
 func _reset_extra() -> void:
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(false)
+
+
+func _select_attack_data() -> void:
+    if enemy_data != null:
+        for attack: EnemyAttackData in enemy_data.attacks:
+            if attack != null and attack.attack_kind == EnemyAttackData.AttackKind.PUFF:
+                _attack_data = attack
+                return
+    _attack_data = _create_fallback_attack_data()
+
+
+func _configure_puff_hitbox() -> void:
+    if _puff_hitbox == null:
+        return
+    var attack_data := get_current_attack_data()
+    _puff_hitbox.damage = attack_data.damage if attack_data != null else 12.0
+    _puff_hitbox.damage_interval = attack_data.damage_interval if attack_data != null else 0.35
+    _puff_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
+
+
+func _create_fallback_attack_data() -> EnemyAttackData:
+    var attack_data := EnemyAttackData.new()
+    attack_data.attack_kind = EnemyAttackData.AttackKind.PUFF
+    attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
+    attack_data.damage = 12.0
+    attack_data.damage_interval = 0.35
+    attack_data.active_duration = 3.0
+    attack_data.recheck_interval = 1.0
+    attack_data.radius = PUFF_RANGE
+    return attack_data
 
 
 func _resolve_guard_damage(angle: int, guard_damage_profile: int) -> int:

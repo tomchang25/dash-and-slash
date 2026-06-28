@@ -19,6 +19,7 @@ var _contact_hitbox: Hitbox
 var _puff_hitbox: Hitbox
 var _mode: int = Mode.TILE
 var _tile_shape: int = TileShape.WIDE_2X3
+var _attack_data: EnemyAttackData
 var _attack_cells: Array[Vector2i] = []
 var _tile_hitbox_position := Vector2.ZERO
 var _prepared := false
@@ -51,6 +52,14 @@ func get_tile_shape() -> int:
     return _tile_shape
 
 
+func set_attack_data(attack_data: EnemyAttackData) -> void:
+    _attack_data = attack_data
+
+
+func get_attack_data() -> EnemyAttackData:
+    return _attack_data
+
+
 func prepare(origin_cell: Vector2i, facing: Vector2) -> bool:
     cancel()
     if _grid == null:
@@ -59,7 +68,9 @@ func prepare(origin_cell: Vector2i, facing: Vector2) -> bool:
     _attack_cells = get_attack_cells(origin_cell, facing)
     match _mode:
         Mode.TILE:
-            _configure_tile_hitbox(TILE_ATTACK_DAMAGE)
+            var tile_damage := _attack_data.damage if _attack_data != null else TILE_ATTACK_DAMAGE
+            var tile_damage_interval := _attack_data.damage_interval if _attack_data != null else 0.0
+            _configure_tile_hitbox(tile_damage, tile_damage_interval)
         Mode.CHARGE:
             _configure_contact_hitbox()
         Mode.PUFF:
@@ -70,6 +81,9 @@ func prepare(origin_cell: Vector2i, facing: Vector2) -> bool:
 
 
 func get_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
+    if _attack_data != null:
+        return EnemyAttackController.get_attack_cells(origin_cell, facing, _attack_data, _grid)
+
     match _mode:
         Mode.TILE:
             return _get_tile_attack_cells(origin_cell, facing)
@@ -146,11 +160,11 @@ func _disable_hitboxes() -> void:
         _puff_hitbox.set_enabled(false)
 
 
-func _configure_tile_hitbox(damage: float) -> void:
+func _configure_tile_hitbox(damage: float, damage_interval: float) -> void:
     if _tile_hitbox == null:
         return
     _tile_hitbox.damage = damage
-    _tile_hitbox.damage_interval = 0.0
+    _tile_hitbox.damage_interval = damage_interval
     _tile_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
     _apply_tile_hitbox_geometry(_tile_hitbox)
 
@@ -158,16 +172,16 @@ func _configure_tile_hitbox(damage: float) -> void:
 func _configure_contact_hitbox() -> void:
     if _contact_hitbox == null:
         return
-    _contact_hitbox.damage = CONTACT_DAMAGE
-    _contact_hitbox.damage_interval = 0.45
+    _contact_hitbox.damage = _attack_data.damage if _attack_data != null else CONTACT_DAMAGE
+    _contact_hitbox.damage_interval = _attack_data.damage_interval if _attack_data != null else 0.45
     _contact_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
 
 
 func _configure_puff_hitbox() -> void:
     if _puff_hitbox == null:
         return
-    _puff_hitbox.damage = PUFF_DAMAGE
-    _puff_hitbox.damage_interval = 0.0
+    _puff_hitbox.damage = _attack_data.damage if _attack_data != null else PUFF_DAMAGE
+    _puff_hitbox.damage_interval = _attack_data.damage_interval if _attack_data != null else 0.0
     _puff_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
 
 

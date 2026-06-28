@@ -3,8 +3,6 @@
 # keeps the area active while the target stays in range, then shrinks back to IDLE.
 extends PuffEnemyState
 
-const MINIMUM_PUFF_DURATION := 3.0
-const RECHECK_INTERVAL := 1.0
 const PUFF_EXPAND_SCALE := 3.0
 const PUFF_EXPAND_DURATION := 0.12
 const PUFF_SHRINK_DURATION := 0.18
@@ -70,7 +68,7 @@ func _ensure_timers() -> void:
 func _begin_puff() -> void:
     _swap_to_star_polygon()
     _play_expand_vfx()
-    _minimum_timer.start(MINIMUM_PUFF_DURATION)
+    _minimum_timer.start(enemy.get_puff_minimum_duration())
 
 
 func _on_minimum_timeout() -> void:
@@ -85,7 +83,7 @@ func _try_shrink_or_recheck() -> void:
     if not enemy.has_target() or not enemy.is_target_in_puff_range():
         _start_shrink_and_idle()
         return
-    _recheck_timer.start(RECHECK_INTERVAL)
+    _recheck_timer.start(enemy.get_puff_recheck_interval())
 
 
 func _start_shrink_and_idle() -> void:

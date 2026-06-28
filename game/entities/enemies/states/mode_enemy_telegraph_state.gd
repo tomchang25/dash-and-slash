@@ -25,7 +25,7 @@ func _enter() -> void:
     _timer.timeout.connect(_on_warning_done)
     # node-src: timer
     add_child(_timer)
-    _timer.start(mode_enemy.TELEGRAPH_DURATION)
+    _timer.start(mode_enemy.get_warning_duration())
 
 
 func _exit() -> void:
@@ -54,7 +54,7 @@ func _on_warning_done() -> void:
     _timer.timeout.connect(_on_charge_done)
     # node-src: timer
     add_child(_timer)
-    _timer.start(mode_enemy.CHARGE_DURATION if mode_enemy != null else 0.2)
+    _timer.start(mode_enemy.get_charge_duration() if mode_enemy != null else 0.2)
 
 
 func _on_charge_done() -> void:

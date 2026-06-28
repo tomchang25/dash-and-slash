@@ -1,11 +1,22 @@
-[gd_resource type="Resource" script_class="EnemyData" format=3]
+[gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://cfqgbpgdk2ovj"]
 
-[ext_resource type="Script" path="res://game/entities/enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://game/entities/enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://game/entities/enemies/enemy_attack_data.gd" id="2_attack_data"]
+
+[sub_resource type="Resource" id="attack_charge"]
+script = ExtResource("2_attack_data")
+attack_id = "charge"
+attack_kind = 1
+cell_shape = 3
+damage = 8.0
+damage_interval = 0.6
+warning_duration = 1.0
+charge_duration = 0.0
+active_duration = 1.2
+recovery_duration = 3.0
 
 [resource]
 script = ExtResource("1_data")
 enemy_id = "charge_enemy"
 display_name = "Charge Enemy"
-move_speed = 120.0
-cycle_cooldown = 1.0
-default_recovery_duration = 3.0
+attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_charge")])

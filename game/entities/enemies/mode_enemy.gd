@@ -26,6 +26,7 @@ const CHARGE_MODE_COLOR := Color(0.35, 0.6, 1.0, 1.0)
 # -- State --------------------------------------------------------------------
 var _mode: int = ModeEnemyAttackController.Mode.TILE
 var _mode_ready := false
+var _current_attack_data: EnemyAttackData
 var _charge_cells: Array[Vector2i] = []
 var _charge_index := 0
 
@@ -139,10 +140,16 @@ func begin_attack_telegraph() -> bool:
 
 
 func get_recovery_duration() -> float:
-    return RECOVERY_DURATION
+    return _current_attack_data.recovery_duration if _current_attack_data != null else RECOVERY_DURATION
+
+
+func get_current_attack_data() -> EnemyAttackData:
+    return _current_attack_data
 
 
 func get_attack_duration() -> float:
+    if _current_attack_data != null:
+        return _current_attack_data.active_duration
     match _mode:
         ModeEnemyAttackController.Mode.PUFF:
             return PUFF_ATTACK_DURATION
@@ -162,10 +169,10 @@ func get_current_mode() -> int:
 func choose_random_mode() -> void:
     _mode = randi() % ModeEnemyAttackController.MODE_COUNT
     _mode_ready = true
+    _current_attack_data = _select_attack_data_for_mode(_mode)
     if _attack_controller != null:
         _attack_controller.set_mode(_mode)
-        if _mode == ModeEnemyAttackController.Mode.TILE:
-            _attack_controller.randomize_tile_shape()
+        _attack_controller.set_attack_data(_current_attack_data)
     _apply_current_mode_color()
 
 
@@ -179,6 +186,8 @@ func apply_current_mode_color() -> void:
 
 
 func get_mode_color(mode: int) -> Color:
+    if enemy_data != null and mode >= 0 and mode < enemy_data.mode_colors.size():
+        return enemy_data.mode_colors[mode]
     match mode:
         ModeEnemyAttackController.Mode.PUFF:
             return PUFF_MODE_COLOR
@@ -194,7 +203,7 @@ func can_attack_current_mode() -> bool:
         ModeEnemyAttackController.Mode.CHARGE:
             return is_target_cardinally_aligned()
         ModeEnemyAttackController.Mode.PUFF:
-            return is_target_within_grid_range(1)
+            return is_target_within_grid_range(_get_current_puff_range())
         ModeEnemyAttackController.Mode.TILE:
             var target_cell := get_target_cell()
             var dir_to_target := Vector2(target_cell - _grid_pos)
@@ -310,6 +319,7 @@ func _on_begin_death_extra() -> void:
 
 func _reset_extra() -> void:
     _mode_ready = false
+    _current_attack_data = null
     _charge_cells.clear()
     _charge_index = 0
     cancel_attack()
@@ -342,4 +352,73 @@ func _move_to_charge_cell(cell: Vector2i) -> void:
         return
     var target_world := _grid.cell_center(cell)
     var direction := (target_world - global_position).normalized()
-    velocity = direction * CHARGING_SPEED
+    var charge_speed := _current_attack_data.charge_speed if _current_attack_data != null else CHARGING_SPEED
+    velocity = direction * charge_speed
+
+
+func _select_attack_data_for_mode(mode: int) -> EnemyAttackData:
+    var kind := _attack_kind_for_mode(mode)
+    var attacks := _get_attacks_for_kind(kind)
+    if attacks.is_empty():
+        return _create_fallback_attack_data(mode)
+    return attacks[randi() % attacks.size()] if kind == EnemyAttackData.AttackKind.TILE else attacks[0]
+
+
+func _get_attacks_for_kind(kind: int) -> Array[EnemyAttackData]:
+    var attacks: Array[EnemyAttackData] = []
+    if enemy_data == null:
+        return attacks
+    for attack: EnemyAttackData in enemy_data.attacks:
+        if attack != null and attack.attack_kind == kind:
+            attacks.append(attack)
+    return attacks
+
+
+func _attack_kind_for_mode(mode: int) -> int:
+    match mode:
+        ModeEnemyAttackController.Mode.CHARGE:
+            return EnemyAttackData.AttackKind.CHARGE
+        ModeEnemyAttackController.Mode.PUFF:
+            return EnemyAttackData.AttackKind.PUFF
+    return EnemyAttackData.AttackKind.TILE
+
+
+func _get_current_puff_range() -> int:
+    return _current_attack_data.radius if _current_attack_data != null else 1
+
+
+func _create_fallback_attack_data(mode: int) -> EnemyAttackData:
+    var attack_data := EnemyAttackData.new()
+    attack_data.warning_duration = TELEGRAPH_DURATION
+    attack_data.charge_duration = CHARGE_DURATION
+    attack_data.recovery_duration = RECOVERY_DURATION
+    match mode:
+        ModeEnemyAttackController.Mode.CHARGE:
+            attack_data.attack_kind = EnemyAttackData.AttackKind.CHARGE
+            attack_data.cell_shape = EnemyAttackData.CellShape.FULL_LINE
+            attack_data.damage = 10.0
+            attack_data.damage_interval = 0.45
+            attack_data.active_duration = CHARGE_ATTACK_TIMEOUT
+            attack_data.charge_speed = CHARGING_SPEED
+        ModeEnemyAttackController.Mode.PUFF:
+            attack_data.attack_kind = EnemyAttackData.AttackKind.PUFF
+            attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
+            attack_data.damage = 14.0
+            attack_data.active_duration = PUFF_ATTACK_DURATION
+            attack_data.radius = 1
+        _:
+            attack_data.attack_kind = EnemyAttackData.AttackKind.TILE
+            attack_data.damage = 12.0
+            attack_data.active_duration = TILE_ATTACK_DURATION
+            var shape := randi() % 3
+            if shape == 0:
+                attack_data.cell_shape = EnemyAttackData.CellShape.WIDE
+                attack_data.width = 3
+                attack_data.depth = 2
+            elif shape == 1:
+                attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
+                attack_data.radius = 1
+            else:
+                attack_data.cell_shape = EnemyAttackData.CellShape.LINE
+                attack_data.line_length = 4
+    return attack_data

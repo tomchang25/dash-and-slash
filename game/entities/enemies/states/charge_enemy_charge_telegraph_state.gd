@@ -22,7 +22,7 @@ func _enter() -> void:
     _timer.one_shot = true
     _timer.timeout.connect(_on_warning_done)
     add_child(_timer)
-    _timer.start(enemy.WARNING_DURATION)
+    _timer.start(enemy.get_warning_duration())
 
 
 func _exit() -> void:

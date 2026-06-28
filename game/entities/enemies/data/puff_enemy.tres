@@ -1,8 +1,20 @@
 [gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://cipqwuymcgx88"]
 
 [ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://game/entities/enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://game/entities/enemies/enemy_attack_data.gd" id="2_attack_data"]
+
+[sub_resource type="Resource" id="attack_puff"]
+script = ExtResource("2_attack_data")
+attack_id = "puff"
+attack_kind = 2
+cell_shape = 2
+damage = 12.0
+damage_interval = 0.35
+active_duration = 3.0
+radius = 2
 
 [resource]
 script = ExtResource("1_data")
 enemy_id = "puff_enemy"
 display_name = "Puff Enemy"
+attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_puff")])

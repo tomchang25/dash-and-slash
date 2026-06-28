@@ -8,6 +8,7 @@ const WARNING_DURATION := 1.0
 const RECOVERY_DURATION := 3.0
 
 # -- State --------------------------------------------------------------------
+var _attack_data: EnemyAttackData
 var _charge_cells: Array[Vector2i] = []
 
 # -- Node references ----------------------------------------------------------
@@ -19,6 +20,10 @@ var _charge_cells: Array[Vector2i] = []
 
 func _ready() -> void:
     super()
+    _select_attack_data()
+    _configure_contact_hitbox()
+    if _contact_hitbox != null:
+        _contact_hitbox.set_enabled(false)
     if _telegraph != null:
         _telegraph.setup(_grid)
 
@@ -26,13 +31,10 @@ func _ready() -> void:
 
 
 func get_charge_cells_from_pos(from: Vector2i, facing: Vector2) -> Array[Vector2i]:
-    var f := Vector2i(int(facing.x), int(facing.y))
-    var cells: Array[Vector2i] = []
-    var cell := from + f
-    while _grid.is_in_bounds(cell):
-        cells.append(cell)
-        cell += f
-    return cells
+    var attack_data := get_current_attack_data()
+    if attack_data != null:
+        return EnemyAttackController.get_attack_cells(from, facing, attack_data, _grid)
+    return EnemyAttackController.get_attack_cells(from, facing, _create_fallback_attack_data(), _grid)
 
 
 func get_charge_cells() -> Array[Vector2i]:
@@ -96,7 +98,15 @@ func get_pre_plan_state_id() -> int:
 
 
 func get_recovery_duration() -> float:
-    return RECOVERY_DURATION
+    return _attack_data.recovery_duration if _attack_data != null else RECOVERY_DURATION
+
+
+func get_current_attack_data() -> EnemyAttackData:
+    return _attack_data
+
+
+func get_charge_speed() -> float:
+    return _attack_data.charge_speed if _attack_data != null else CHARGING_SPEED
 
 
 func get_arrival_override_state_id() -> int:
@@ -113,6 +123,7 @@ func begin_attack_telegraph() -> bool:
         return false
 
     face_target_position()
+    _configure_contact_hitbox()
     var cells := get_charge_cells()
     if cells.is_empty():
         return false
@@ -127,10 +138,22 @@ func begin_attack_telegraph() -> bool:
 func plan_next_action() -> bool:
     return plan_charge_line_action()
 
+
+func begin_charge_attack() -> void:
+    if _contact_hitbox != null:
+        _contact_hitbox.set_enabled(true)
+
+
+func end_charge_attack() -> void:
+    if _contact_hitbox != null:
+        _contact_hitbox.set_enabled(false)
+
 # == Setup helpers =============================================================
 
 
 func _after_setup_ready() -> void:
+    _select_attack_data()
+    _configure_contact_hitbox()
     if _telegraph != null:
         _telegraph.setup(_grid)
 
@@ -138,6 +161,7 @@ func _after_setup_ready() -> void:
 func _on_guard_broken_extra() -> void:
     if _telegraph != null:
         _telegraph.clear()
+    end_charge_attack()
 
 
 func _on_begin_death_extra() -> void:
@@ -149,3 +173,35 @@ func _on_begin_death_extra() -> void:
 
 func _reset_extra() -> void:
     _charge_cells.clear()
+    end_charge_attack()
+
+
+func _select_attack_data() -> void:
+    if enemy_data != null:
+        for attack: EnemyAttackData in enemy_data.attacks:
+            if attack != null and attack.attack_kind == EnemyAttackData.AttackKind.CHARGE:
+                _attack_data = attack
+                return
+    _attack_data = _create_fallback_attack_data()
+
+
+func _configure_contact_hitbox() -> void:
+    if _contact_hitbox == null:
+        return
+    var attack_data := get_current_attack_data()
+    _contact_hitbox.damage = attack_data.damage if attack_data != null else 8.0
+    _contact_hitbox.damage_interval = attack_data.damage_interval if attack_data != null else 0.6
+    _contact_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
+
+
+func _create_fallback_attack_data() -> EnemyAttackData:
+    var attack_data := EnemyAttackData.new()
+    attack_data.attack_kind = EnemyAttackData.AttackKind.CHARGE
+    attack_data.cell_shape = EnemyAttackData.CellShape.FULL_LINE
+    attack_data.damage = 8.0
+    attack_data.damage_interval = 0.6
+    attack_data.warning_duration = WARNING_DURATION
+    attack_data.charge_duration = 0.0
+    attack_data.recovery_duration = RECOVERY_DURATION
+    attack_data.charge_speed = CHARGING_SPEED
+    return attack_data
