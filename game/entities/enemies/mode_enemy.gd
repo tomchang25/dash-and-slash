@@ -209,7 +209,12 @@ func plan_next_action() -> bool:
         ModeEnemyAttackController.Mode.CHARGE:
             return plan_charge_line_action()
         ModeEnemyAttackController.Mode.TILE:
-            return _plan_tile_action()
+            if _attack_controller == null:
+                return false
+            return plan_cell_attack_action(
+                func(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
+                    return _attack_controller.get_attack_cells(origin_cell, facing)
+            )
     return super()
 
 
@@ -329,42 +334,6 @@ func _disable_mode_hitboxes() -> void:
 func _apply_current_mode_color() -> void:
     if _body != null:
         _body.color = get_mode_color(_mode)
-
-
-func _plan_tile_action() -> bool:
-    clear_planned_path()
-    if _grid == null or _attack_controller == null or not has_target():
-        return false
-
-    var start := _grid_pos
-    var target_cell := get_target_cell()
-    var attack_origins: Array[Vector2i] = []
-    for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
-        var facing := Vector2(facing_cell.x, facing_cell.y)
-        for x in range(GridArena.GRID_SIZE.x):
-            for y in range(GridArena.GRID_SIZE.y):
-                var origin_cell := Vector2i(x, y)
-                if origin_cell != start and _grid.is_blocked(origin_cell):
-                    continue
-                if target_cell not in _attack_controller.get_attack_cells(origin_cell, facing):
-                    continue
-                if origin_cell not in attack_origins:
-                    attack_origins.append(origin_cell)
-
-    if attack_origins.is_empty():
-        return false
-    if start in attack_origins:
-        queue_redraw()
-        return true
-
-    var path := _find_path_to_cell(start, target_cell, attack_origins)
-    if path.is_empty():
-        return false
-
-    _planned_path = path
-    _refresh_planned_reservations()
-    queue_redraw()
-    return true
 
 
 func _move_to_charge_cell(cell: Vector2i) -> void:

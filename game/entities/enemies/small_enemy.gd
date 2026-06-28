@@ -11,8 +11,11 @@ const RECOVERY_DURATION := 0.4
 
 # -- Node references ----------------------------------------------------------
 @onready var _hitbox: Hitbox = %AttackHitbox
-@onready var _attack_controller: SmallEnemyAttackController = %AttackController
+@onready var _attack_controller: EnemyAttackController = %AttackController
 @onready var _telegraph: TileTelegraph = %TileTelegraph
+
+# -- State --------------------------------------------------------------------
+var _attack_data: EnemyAttackData
 
 # == Lifecycle ================================================================
 
@@ -22,23 +25,22 @@ func _ready() -> void:
     _allow_diagonal_movement = true
     _hitbox.set_enabled(false)
     _configure_attack_controller()
-    if _attack_controller != null:
-        _attack_controller.randomize_attack_pattern()
+    _select_attack_data()
 
 # == Common API ================================================================
 
 
 func can_attack() -> bool:
-    if _grid == null or _attack_controller == null or not has_target():
+    if _grid == null or _attack_controller == null or not has_target() or _attack_data == null:
         return false
     var target_cell := get_target_cell()
     var dir_to_target := Vector2(target_cell - _grid_pos)
     if dir_to_target == Vector2.ZERO:
         return false
-    return target_cell in _attack_controller.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target))
+    return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target), _attack_data, _grid)
 
 
-func get_attack_controller() -> SmallEnemyAttackController:
+func get_attack_controller() -> EnemyAttackController:
     return _attack_controller
 
 
@@ -84,9 +86,9 @@ func begin_attack_telegraph() -> bool:
         return false
 
     var attack := get_attack_controller()
-    if attack == null:
+    if attack == null or _attack_data == null:
         return false
-    if not attack.prepare(get_grid_pos(), get_facing()):
+    if not attack.prepare(get_grid_pos(), get_facing(), _attack_data):
         return false
     attack.show_warning()
     return true
@@ -100,49 +102,20 @@ func show_attack_charge() -> void:
 
 
 func plan_next_action() -> bool:
-    clear_planned_path()
+    if _attack_controller == null or _attack_data == null:
+        return super()
 
-    if _grid == null or _attack_controller == null or not has_target():
-        return false
-
-    var start := _grid_pos
-    var target_cell := get_target_cell()
-    var attack_origins: Array[Vector2i] = []
-
-    for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
-        var facing := Vector2(facing_cell.x, facing_cell.y)
-        for x in range(GridArena.GRID_SIZE.x):
-            for y in range(GridArena.GRID_SIZE.y):
-                var origin_cell := Vector2i(x, y)
-                if origin_cell != start and _grid.is_blocked(origin_cell):
-                    continue
-                if target_cell not in _attack_controller.get_attack_cells(origin_cell, facing):
-                    continue
-                if origin_cell not in attack_origins:
-                    attack_origins.append(origin_cell)
-
-    if attack_origins.is_empty():
-        return false
-
-    if start in attack_origins:
-        queue_redraw()
-        return true
-
-    var path := _find_path_to_cell(start, target_cell, attack_origins)
-
-    if path.is_empty():
-        return false
-
-    _planned_path = path
-    _refresh_planned_reservations()
-    queue_redraw()
-    return true
+    return plan_cell_attack_action(
+        func(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
+            return EnemyAttackController.get_attack_cells(origin_cell, facing, _attack_data, _grid)
+    )
 
 # == Setup helpers =============================================================
 
 
 func _after_setup_ready() -> void:
     _configure_attack_controller()
+    _select_attack_data()
 
 
 func _on_guard_broken_extra() -> void:
@@ -168,4 +141,21 @@ func _cancel_attack() -> void:
 func _configure_attack_controller() -> void:
     if _attack_controller == null:
         return
-    _attack_controller.setup(_grid, _telegraph, _hitbox, self)
+    _attack_controller.setup(_grid, _telegraph, _hitbox, null, null)
+
+
+## Picks a random attack from enemy data. Falls back to a LINE attack when data
+## is unavailable, preserving pre-migration behavior.
+func _select_attack_data() -> void:
+    if enemy_data != null and not enemy_data.attacks.is_empty():
+        _attack_data = enemy_data.attacks[randi() % enemy_data.attacks.size()]
+        return
+
+    var fallback := EnemyAttackData.new()
+    fallback.attack_kind = EnemyAttackData.AttackKind.TILE
+    fallback.cell_shape = EnemyAttackData.CellShape.LINE if randi() % 2 == 0 else EnemyAttackData.CellShape.WIDE
+    fallback.damage = 10.0
+    fallback.line_length = 3
+    fallback.width = 3
+    fallback.depth = 2
+    _attack_data = fallback

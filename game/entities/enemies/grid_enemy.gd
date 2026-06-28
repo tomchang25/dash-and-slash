@@ -548,6 +548,50 @@ func get_move_speed() -> float:
 func get_recovery_duration() -> float:
     return enemy_data.default_recovery_duration if enemy_data != null else 3.0
 
+
+## Shared cell-origin planning for tile attacks. Iterates every possible origin cell and
+## cardinal facing, computes attack cells via the given callable, and finds a path to any
+## origin whose footprint contains the target cell.
+func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
+    clear_planned_path()
+    if _grid == null or not has_target():
+        return false
+
+    var start := _grid_pos
+    var target_cell := get_target_cell()
+    if not _grid.is_in_bounds(target_cell):
+        return false
+
+    var attack_origins: Array[Vector2i] = []
+    for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
+        var facing := Vector2(facing_cell.x, facing_cell.y)
+        for x in range(GridArena.GRID_SIZE.x):
+            for y in range(GridArena.GRID_SIZE.y):
+                var origin_cell := Vector2i(x, y)
+                if origin_cell != start and _grid.is_blocked(origin_cell):
+                    continue
+                var cells: Array[Vector2i] = get_cells_for_origin.call(origin_cell, facing)
+                if target_cell not in cells:
+                    continue
+                if origin_cell not in attack_origins:
+                    attack_origins.append(origin_cell)
+
+    if attack_origins.is_empty():
+        return false
+
+    if start in attack_origins:
+        queue_redraw()
+        return true
+
+    var path := _find_path_to_cell(start, target_cell, attack_origins)
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    _refresh_planned_reservations()
+    queue_redraw()
+    return true
+
 # == Grid helpers ==============================================================
 
 
