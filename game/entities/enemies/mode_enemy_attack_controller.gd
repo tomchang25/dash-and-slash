@@ -224,7 +224,7 @@ func _get_charge_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i
     var facing_cell := Vector2i(int(facing.x), int(facing.y))
     var cells: Array[Vector2i] = []
     var cell := origin_cell + facing_cell
-    while _grid.is_in_bounds(cell):
+    while _grid.is_in_bounds(cell) and _grid.is_land(cell):
         cells.append(cell)
         cell += facing_cell
     return cells

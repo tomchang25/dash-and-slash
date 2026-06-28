@@ -113,7 +113,7 @@ func clear_cell(cell: Vector2i) -> void:
 static func _full_line_cells(origin_cell: Vector2i, facing_cell: Vector2i, grid: GridArena) -> Array[Vector2i]:
     var cells: Array[Vector2i] = []
     var cell := origin_cell + facing_cell
-    while grid != null and grid.is_in_bounds(cell):
+    while grid != null and grid.is_in_bounds(cell) and grid.is_land(cell):
         cells.append(cell)
         cell += facing_cell
     return cells
