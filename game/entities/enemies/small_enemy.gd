@@ -82,7 +82,7 @@ func get_after_face_state_id() -> int:
 func begin_attack_telegraph() -> bool:
     if not begin_committed_action():
         return false
-    face_target_position()
+
     var attack := get_attack_controller()
     if attack == null:
         return false

@@ -396,7 +396,7 @@ func cardinal_snap(v: Vector2) -> Vector2:
 func face_arrow() -> void:
     if _facing_arrow != null:
         _facing_arrow.rotation = _facing.angle() - PI / 2.0
-    elif _body != null:
+    if _body != null:
         _body.rotation = _facing.angle() + PI / 2.0
     if hurtbox != null:
         hurtbox.rotation = _facing.angle() + PI / 2.0
