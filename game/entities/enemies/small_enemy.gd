@@ -10,7 +10,6 @@ const ATTACK_DURATION := 0.2
 const RECOVERY_DURATION := 0.4
 
 # -- Node references ----------------------------------------------------------
-@onready var _hitbox: Hitbox = %AttackHitbox
 @onready var _attack_controller: EnemyAttackController = %AttackController
 @onready var _telegraph: TileTelegraph = %TileTelegraph
 
@@ -23,7 +22,6 @@ var _attack_data: EnemyAttackData
 func _ready() -> void:
     super()
     _allow_diagonal_movement = true
-    _hitbox.set_enabled(false)
     _configure_attack_controller()
     _select_attack_data()
 
@@ -142,13 +140,10 @@ func _on_guard_broken_extra() -> void:
 
 func _on_begin_death_extra() -> void:
     _cancel_attack()
-    if _hitbox != null:
-        _hitbox.set_enabled(false)
 
 
 func _reset_extra() -> void:
-    if _hitbox != null:
-        _hitbox.set_enabled(false)
+    _cancel_attack()
 
 
 func _cancel_attack() -> void:
@@ -159,7 +154,7 @@ func _cancel_attack() -> void:
 func _configure_attack_controller() -> void:
     if _attack_controller == null:
         return
-    _attack_controller.setup(_grid, _telegraph, _hitbox)
+    _attack_controller.setup(_grid, _telegraph, self)
 
 
 ## Picks a random attack from enemy data. Falls back to a LINE attack when data

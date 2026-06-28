@@ -1,21 +1,21 @@
 # enemy_attack_controller.gd
 # Shared cell-based attack controller that owns cell snapshots, telegraph phases,
-# tile hitbox setup, hitbox enablement, and cleanup for tile attacks.
+# per-cell tile hitbox creation, hitbox enablement, and cleanup for tile attacks.
 class_name EnemyAttackController
 extends Node
 
 var _grid: GridArena
 var _telegraph: TileTelegraph
-var _tile_hitbox: Hitbox
+var _tile_hitboxes: Array[Hitbox] = []
+var _hitbox_parent: Node
 var _attack_cells: Array[Vector2i] = []
-var _tile_hitbox_position := Vector2.ZERO
 var _prepared := false
 
 
-func setup(grid: GridArena, telegraph: TileTelegraph, tile_hitbox: Hitbox) -> void:
+func setup(grid: GridArena, telegraph: TileTelegraph, hitbox_parent: Node) -> void:
     _grid = grid
     _telegraph = telegraph
-    _tile_hitbox = tile_hitbox
+    _hitbox_parent = hitbox_parent
     if _telegraph != null:
         _telegraph.setup(grid)
     cancel()
@@ -50,7 +50,7 @@ func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackDat
     if _attack_cells.is_empty():
         return false
 
-    _apply_tile_hitbox_geometry(attack_data.damage, attack_data.damage_interval)
+    _create_tile_hitboxes(attack_data.damage, attack_data.damage_interval)
     _prepared = true
     return true
 
@@ -75,14 +75,13 @@ func begin_attack() -> void:
         return
     if _telegraph != null:
         _telegraph.show_active(_attack_cells)
-    if _tile_hitbox != null:
-        _tile_hitbox.global_position = _tile_hitbox_position
-        _tile_hitbox.set_enabled(true)
+    for hitbox in _tile_hitboxes:
+        hitbox.set_enabled(true)
 
 
 func end_attack() -> void:
-    if _tile_hitbox != null:
-        _tile_hitbox.set_enabled(false)
+    for hitbox in _tile_hitboxes:
+        hitbox.set_enabled(false)
     if _telegraph != null:
         _telegraph.clear()
     _attack_cells.clear()
@@ -90,8 +89,11 @@ func end_attack() -> void:
 
 
 func cancel() -> void:
-    if _tile_hitbox != null:
-        _tile_hitbox.set_enabled(false)
+    for hitbox in _tile_hitboxes:
+        if is_instance_valid(hitbox):
+            hitbox.set_enabled(false)
+            hitbox.queue_free()
+    _tile_hitboxes.clear()
     if _telegraph != null:
         _telegraph.clear()
     _attack_cells.clear()
@@ -117,26 +119,30 @@ static func _full_line_cells(origin_cell: Vector2i, facing_cell: Vector2i, grid:
     return cells
 
 
-## Computes a bounding RectangleShape2D from the attack cells and positions the tile hitbox.
-func _apply_tile_hitbox_geometry(damage: float, damage_interval: float) -> void:
-    if _grid == null or _tile_hitbox == null or _attack_cells.is_empty():
+## Creates one Hitbox per attack cell, each sized to a single tile.
+func _create_tile_hitboxes(damage: float, damage_interval: float) -> void:
+    if _grid == null or _hitbox_parent == null or _attack_cells.is_empty():
         return
 
-    _tile_hitbox.damage = damage
-    _tile_hitbox.damage_interval = damage_interval
-    _tile_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
-
-    var min_cell := _attack_cells[0]
-    var max_cell := _attack_cells[0]
+    var size := Vector2.ONE * _grid.tile_size * 0.9
     for cell in _attack_cells:
-        min_cell.x = mini(min_cell.x, cell.x)
-        min_cell.y = mini(min_cell.y, cell.y)
-        max_cell.x = maxi(max_cell.x, cell.x)
-        max_cell.y = maxi(max_cell.y, cell.y)
+        var hitbox := Hitbox.new()
+        hitbox.damage = damage
+        hitbox.damage_interval = damage_interval
+        hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
 
-    var cell_span := max_cell - min_cell + Vector2i.ONE
-    var rect := RectangleShape2D.new()
-    rect.size = Vector2(cell_span) * _grid.tile_size * 0.9
-    _tile_hitbox.set_collision_shape(rect)
-    _tile_hitbox_position = _grid.cell_center(min_cell)
-    _tile_hitbox_position += Vector2(cell_span - Vector2i.ONE) * _grid.tile_size * 0.5
+        var shape := CollisionShape2D.new()
+        var rect := RectangleShape2D.new()
+        rect.size = size
+        shape.shape = rect
+        hitbox.collision_shape = shape
+
+        # node-src: ephemeral - per-cell tile hitbox collision shape
+        hitbox.add_child(shape)
+
+        hitbox.monitoring = false
+
+        # node-src: ephemeral - per-cell tile hitbox
+        _hitbox_parent.add_child(hitbox)
+        hitbox.global_position = _grid.cell_center(cell)
+        _tile_hitboxes.append(hitbox)
