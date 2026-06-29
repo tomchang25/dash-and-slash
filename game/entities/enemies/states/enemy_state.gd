@@ -16,6 +16,7 @@ enum EnemyStateId {
     MODE_CHANGE = 8,
     PUFF = 9,
     CHARGE_ATTACK = 10,
+    PUFF_CHARGE = 11,
 }
 
 var enemy: GridEnemy

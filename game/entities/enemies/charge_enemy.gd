@@ -142,6 +142,8 @@ func begin_attack_telegraph() -> bool:
     var telegraph := get_telegraph()
     if telegraph != null:
         telegraph.show_warning(cells)
+
+    start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.CHARGE)
     return true
 
 
@@ -150,11 +152,13 @@ func plan_next_action() -> bool:
 
 
 func begin_charge_attack() -> void:
+    stop_attack_windup_vfx()
     if _contact_hitbox != null:
         _contact_hitbox.set_enabled(true)
 
 
 func end_charge_attack() -> void:
+    stop_attack_windup_vfx()
     if _contact_hitbox != null:
         _contact_hitbox.set_enabled(false)
 

@@ -5,8 +5,11 @@
 class_name ChargeEnemyChargeAttackState
 extends EnemyState
 
+const CHARGE_STREAK_INTERVAL := 0.045
+
 var _charge_cells: Array[Vector2i] = []
 var _current_target_index: int = 0
+var _streak_cooldown: float = 0.0
 
 
 func _init() -> void:
@@ -17,11 +20,14 @@ func _enter() -> void:
     var charge_enemy := enemy as ChargeEnemy
     _charge_cells = charge_enemy.get_stored_charge_cells().duplicate()
     _current_target_index = 0
+    _streak_cooldown = 0.0
     if _charge_cells.is_empty():
         change_state(EnemyStateId.IDLE)
         return
     charge_enemy.begin_charge_attack()
+    CombatFeedbackVFX.play_charge_start(charge_enemy.global_position, charge_enemy.get_facing(), charge_enemy)
     _move_to_cell(_charge_cells[0], charge_enemy)
+    _play_charge_streak(charge_enemy)
 
 
 func _exit() -> void:
@@ -32,10 +38,15 @@ func _exit() -> void:
 
 
 func _physics_update(_delta: float) -> void:
+    _streak_cooldown -= _delta
     if _current_target_index >= _charge_cells.size():
         return
 
     var charge_enemy := enemy as ChargeEnemy
+    if _streak_cooldown <= 0.0:
+        _play_charge_streak(charge_enemy)
+        _streak_cooldown = CHARGE_STREAK_INTERVAL
+
     var grid := charge_enemy.get_grid()
     var target_cell := _charge_cells[_current_target_index]
     var target_world := grid.cell_center(target_cell)
@@ -66,3 +77,10 @@ func _move_to_cell(cell: Vector2i, charge_enemy: ChargeEnemy) -> void:
     var target_world := grid.cell_center(cell)
     var dir := (target_world - charge_enemy.global_position).normalized()
     charge_enemy.velocity = dir * charge_enemy.get_charge_speed()
+
+
+func _play_charge_streak(charge_enemy: ChargeEnemy) -> void:
+    var direction := charge_enemy.velocity.normalized()
+    if direction == Vector2.ZERO:
+        direction = charge_enemy.get_facing()
+    CombatFeedbackVFX.play_charge_streak(charge_enemy.global_position, direction, charge_enemy)

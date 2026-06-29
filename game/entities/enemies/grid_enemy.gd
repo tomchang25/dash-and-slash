@@ -45,6 +45,7 @@ var _planned_path: Array[Vector2i] = []
 var _active_path_cell: Vector2i
 var _has_active_path_cell: bool = false
 var _reservation_is_attack: bool = false
+var _attack_windup_vfx: Node2D
 
 # -- Timer / tween handles ----------------------------------------------------
 var _cooldown_timer: Timer
@@ -132,6 +133,7 @@ func _draw() -> void:
 func reset() -> void:
     super()
     _staggered = false
+    stop_attack_windup_vfx()
     if _body != null:
         _body.modulate = Color.WHITE
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
@@ -160,6 +162,7 @@ func _on_reservation_lost(_entity: Object) -> void:
 
 func _on_guard_broken() -> void:
     _staggered = true
+    stop_attack_windup_vfx()
     clear_planned_path()
     _on_guard_broken_extra()
     var staggered_state_id := get_staggered_state_id()
@@ -217,6 +220,13 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
         sfx_event = _get_blocked_hit_sfx(angle)
     if sfx_event != null:
         AudioManager.play_event(sfx_event, global_position)
+
+    if will_break_guard:
+        CombatFeedbackVFX.play_guard_break(global_position, self)
+    elif full_damage:
+        CombatFeedbackVFX.play_full_damage(global_position, self)
+    else:
+        CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
 
     if health != null:
         health.take_damage(hp_damage, source)
@@ -461,6 +471,7 @@ func get_guard() -> Guard:
 
 func begin_death() -> void:
     velocity = Vector2.ZERO
+    stop_attack_windup_vfx()
     clear_planned_path()
     _on_begin_death_extra()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
@@ -560,6 +571,18 @@ func begin_attack() -> bool:
 ## Ends the active attack phase and disables hitboxes.
 func end_attack() -> void:
     pass
+
+
+## Starts a reusable attack windup loop for telegraphed actions.
+func start_attack_windup_vfx(style: int = CombatFeedbackVFX.WindupStyle.TILE) -> void:
+    stop_attack_windup_vfx()
+    _attack_windup_vfx = CombatFeedbackVFX.start_attack_windup_loop(global_position, _facing, self, style)
+
+
+## Stops the active attack windup loop, if one exists.
+func stop_attack_windup_vfx() -> void:
+    CombatFeedbackVFX.stop_loop(_attack_windup_vfx)
+    _attack_windup_vfx = null
 
 
 ## Updates per-frame attack motion. Returns true when motion is complete.
@@ -716,12 +739,12 @@ func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Arr
 
 
 func _can_path_through(
-    current: Vector2i,
-    next: Vector2i,
-    start: Vector2i,
-    blocked_cell: Vector2i,
-    goal_cells: Array[Vector2i],
-    is_attack: bool
+        current: Vector2i,
+        next: Vector2i,
+        start: Vector2i,
+        blocked_cell: Vector2i,
+        goal_cells: Array[Vector2i],
+        is_attack: bool,
 ) -> bool:
     if not _grid.can_move_between(current, next):
         return false
