@@ -69,3 +69,11 @@ Replace prototype enemy bodies with real character sprites and readable animatio
 - Full version: each enemy gets four-direction movement sprites and four-direction attack sprites.
 - Simpler version: use left/right sprites with flipping, then tween squash and tilt to imitate movement and attack.
 - Needs a clear visual rule for enemies with contact attacks versus enemies without contact attacks.
+
+### Player Weapon
+
+Prototype a rounder player body with a weapon/facing marker that communicates aim direction now and can become the class identity read later.
+
+- Add or adjust player prototype weapon/facing marker nodes so the marker points toward the current aim direction.
+- Keep the player body visually round enough that facing is read from the weapon/facing marker rather than the character silhouette.
+- Treat the marker as the future class representation instead of requiring a full player character sprite immediately.
