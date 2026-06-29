@@ -10,13 +10,13 @@ Dash & Slash is a Godot 4.6 project built on the data-driven template base layer
 
 ## Agent Rules
 
-Agent-specific instructions live in `dev/agent_rules/`. Read them before starting relevant work. Key rules: `sandbox_environment.md` (shell vs. file tools), `lint_before_finish.md` (run linter on changed files), `git_operations.md` (git is read-only — never stage/commit, only suggest commit messages), `godot_test_check.md` (never run Godot against the mount — use the /tmp snapshot procedure, and `/tmp` must be container-native, not a Windows bind mount), `godot_tests.md` (how to run the GUT unit suite), `save_migrations.md` (never delete migration code without sign-off), `navigation_settings_debug.md` (SceneRouter, Main Menu, settings overlay, and Debug gate work).
+Agent-specific instructions live in `dev/agent_rules/`. Read them before starting relevant work. Key rules: `sandbox_environment.md` (shell vs. file tools), `lint_before_finish.md` (run linter on changed files), `git_operations.md` (git is read-only — never stage/commit, only suggest commit messages), `save_migrations.md` (never delete migration code without sign-off), `navigation_settings_debug.md` (SceneRouter, Main Menu, settings overlay, and Debug gate work). Dedicated engine validation workflows are opt-in only; do not recommend them as normal implementation verification.
 
 ## Dev File Placement
 
 Before creating or moving files under `dev/`, classify by the primary thing the file governs, not by who reads it:
 
-- `dev/agent_rules/`: agent behavior and execution constraints. Use for sandbox, git permissions, lint/test requirements, headless checks, approval rules, and required agent habits.
+- `dev/agent_rules/`: agent behavior and execution constraints. Use for sandbox, git permissions, lint/test requirements, approval rules, and required agent habits.
 - `dev/workflows/`: development process artifacts. Use for plan/spec/sketch/closeout/stage-review formats, lifecycle steps, and how work moves from idea to implementation. Slash-command workflow files live in `dev/workflows/commands/`.
 - `dev/standards/`: project output standards. Use for code architecture, naming, scene structure, registries, themes, error guards, data conventions, change-summary tone, and other rules that define what correct repo artifacts look like.
 - `dev/skills/`: concrete AI/Godot/GDScript recipes and hazard cards. Use for specific pitfalls, compiler/import failures, API traps, repeatable fixes, and commit/PR formatting references.

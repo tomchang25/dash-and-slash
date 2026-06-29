@@ -9,8 +9,8 @@ The sandboxed Linux shell can return **phantom file corruption** for files in th
 - `git diff`/`git status` read the **working tree through the mount**, so they report phantom diffs (e.g. spurious `\ No newline at end of file`). Only index/object-DB reads are trustworthy: `git show :<file>`, `git cat-file`, `git checkout-index`.
 - The `.git/` directory desyncs too: a phantom `index.lock` returned EEXIST to git while not existing on the Windows side, with `ls`/`stat`/`rm` mutually inconsistent. This is why git mutations are forbidden — see `git_operations.md`.
 - Right after the **user** runs git on the Windows side, even `.git/index` reads through the mount can be garbled (`fatal: unknown index entry format 0x…`). Object-DB reads (`git show HEAD:<file>`) stay reliable; index-based commands (`git show :<file>`, `checkout-index`, `status`) may fail transiently — report and retry later instead of attempting repairs.
-- Consequence for testing: **never run the Godot headless binary against the mounted working tree** — it reads the truncated views and reports bogus parse errors. See `godot_test_check.md` for the safe procedure.
-- Cross-OS `/tmp` bind mounts break the safe snapshot too: mounting `E:/tmp` to container `/tmp` made `/tmp/ds.*` live on the Windows/Docker Desktop mount instead of a native Linux filesystem, and Godot import produced bogus `.import`/UID/cache failures. Commenting out `- 'E:/tmp:/tmp'` made the same import flow normal again.
+- Consequence for testing: normal implementation agents must not run engine/test commands against the mounted working tree. Dedicated test workflows are opt-in only.
+- Cross-OS `/tmp` bind mounts can break dedicated test snapshots too: mounting `E:/tmp` to container `/tmp` made `/tmp/ds.*` live on the Windows/Docker Desktop mount instead of a native Linux filesystem, which produced bogus `.import`, UID, or resource-cache failures. Commenting out `- 'E:/tmp:/tmp'` made the same import flow normal again.
 
 ## Rules
 
@@ -18,5 +18,5 @@ The sandboxed Linux shell can return **phantom file corruption** for files in th
 - Never diagnose "corrupted files" from a shell read alone, and never `git restore`/overwrite working-tree files to "recover" from shell-reported corruption — that risks discarding genuine uncommitted work over a false reading.
 - `git` against the object DB (`git show HEAD:<file>`, `git log`, `git show :<file>`, `git cat-file`) is reliable; working-tree file-content reads through the shell mount are not — including the working-tree side of `git diff`.
 - To check whether the mount is serving a truncated view of a file: compare `wc -c <file>` against `git cat-file -s :<file>`. Mount smaller than index ⇒ truncated view (the index is LF-normalized, so the working tree should never be smaller).
-- Any error found by a shell-side tool (linter, Godot, python) must be cross-checked against the Windows side (Read/Grep file tools) before being reported as real.
-- Do not bind-mount a host Windows directory onto container `/tmp` for Godot checks. The `/tmp` used by `godot_test_check.md` must be container-native Linux storage, or the snapshot procedure is no longer safe.
+- Any error found by a shell-side tool (linter, engine tools, python) must be cross-checked against the Windows side (Read/Grep file tools) before being reported as real.
+- Do not bind-mount a host Windows directory onto container `/tmp` for dedicated test snapshots.

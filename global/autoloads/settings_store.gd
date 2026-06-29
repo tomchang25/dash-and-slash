@@ -7,11 +7,14 @@ signal settings_changed
 
 const SETTINGS_PATH := "user://settings.json"
 const SettingsOverlayScene := preload("res://game/shared/settings_overlay/settings_overlay.tscn")
+const DASH_DIRECTION_MODE_MOUSE := "mouse"
+const DASH_DIRECTION_MODE_MOVEMENT := "movement"
 
 var master_volume: float = 1.0
 var sfx_volume: float = 1.0
 var music_volume: float = 1.0
 var fullscreen: bool = false
+var dash_direction_mode: String = DASH_DIRECTION_MODE_MOUSE
 var debug_mode: bool = false:
     set(value):
         if debug_mode == value:
@@ -20,7 +23,6 @@ var debug_mode: bool = false:
         debug_mode_changed.emit(value)
         settings_changed.emit()
 
-var tutorial_skip_all: bool = false
 var _overlay_instance: CanvasLayer = null
 var _was_paused := false
 
@@ -49,8 +51,8 @@ func save_settings() -> void:
         "sfx_volume": sfx_volume,
         "music_volume": music_volume,
         "fullscreen": fullscreen,
+        "dash_direction_mode": dash_direction_mode,
         "debug_mode": debug_mode,
-        "tutorial_skip_all": tutorial_skip_all,
     }
     var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
     if file == null:
@@ -76,8 +78,18 @@ func load_settings() -> void:
     sfx_volume = float(data.get("sfx_volume", sfx_volume))
     music_volume = float(data.get("music_volume", music_volume))
     fullscreen = bool(data.get("fullscreen", fullscreen))
+    set_dash_direction_mode(str(data.get("dash_direction_mode", dash_direction_mode)))
     debug_mode = bool(data.get("debug_mode", debug_mode))
-    tutorial_skip_all = bool(data.get("tutorial_skip_all", tutorial_skip_all))
+
+
+## Sets the persisted dash direction preference, falling back to mouse aim for unknown values.
+func set_dash_direction_mode(value: String) -> void:
+    if value != DASH_DIRECTION_MODE_MOUSE and value != DASH_DIRECTION_MODE_MOVEMENT:
+        value = DASH_DIRECTION_MODE_MOUSE
+    if dash_direction_mode == value:
+        return
+    dash_direction_mode = value
+    settings_changed.emit()
 
 
 ## Applies persisted linear volume values to the project audio buses.
