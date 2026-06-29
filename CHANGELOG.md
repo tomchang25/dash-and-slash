@@ -16,6 +16,11 @@ Rules:
 
 ## [unreleased]
 
+### Combat Feedback VFX
+
+- 2026-06-29 — [enemy] Charge enemies display directional windup pulses and dash streaks; guarded hits show blue shield spark, guard breaks show white flash with blue fragments, and staggers show red damage burst
+- 2026-06-29 — [enemy] Puff enemy gains a charge windup state with radial telegraph pulses and a readable dodge window before expansion
+
 ### Player Dash Mouse Aim And Invulnerability
 
 - 2026-06-29 — [player] Dash direction follows mouse aim, with base invulnerability during the dash active window and a 0.25 s hit-reward extension on landed dash hits; player prototype body updated to a rounder shape

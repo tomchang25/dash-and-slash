@@ -22,7 +22,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-[combat_feedback] Add charge, shielded-hit, guard-break, and full-damage combat VFX — [ref plans/combat_feedback_vfx.implementation.md]
+Nothing currently in progress.
 
 ---
 
