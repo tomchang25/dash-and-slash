@@ -19,6 +19,16 @@ const ATTACK_RANGE := 152.0
 const ATTACK_CAPSULE_RADIUS := 64.0
 const ATTACK_CAPSULE_HEIGHT := 208.0
 const DASH_INVULN_EXTEND := 1.0
+const DASH_GHOST_INTERVAL := 0.04
+const DASH_GHOST_FADE_SEC := 0.32
+const DASH_WIND_FADE_SEC := 0.2
+const DASH_SPEED_LINE_FADE_SEC := 0.24
+const DASH_BODY_PUNCH_SEC := 0.08
+const DASH_BODY_RECOVER_SEC := 0.12
+const DASH_FLASH_FADE_SEC := 0.16
+const DASH_CAMERA_PUNCH_SEC := 0.12
+const DASH_BODY_STRETCH_SCALE := Vector2(1.65, 0.72)
+const DASH_CAMERA_PUNCH_DISTANCE := 7.0
 
 # -- Exports --------------------------------------------------------------------
 @export var health: Health
@@ -48,6 +58,9 @@ var _hurt_tween: Tween
 var _dash_invulnerable := false
 var _dash_invuln_end_msec := 0
 var _dash_invuln_blink_tween: Tween
+var _dash_body_punch_tween: Tween
+var _dash_camera_punch_tween: Tween
+var _dash_vfx_elapsed := 0.0
 
 
 func setup(grid: GridArena) -> void:
@@ -137,6 +150,36 @@ func end_normal_attack() -> void:
     _reset_attack_vfx()
 
 
+## Starts the dash trail and wind visuals for the captured dash direction.
+func begin_dash_vfx(dash_direction: Vector2) -> void:
+    _dash_vfx_elapsed = 0.0
+    _play_dash_body_punch(dash_direction)
+    _play_dash_camera_punch(dash_direction)
+    _spawn_dash_flash()
+    _spawn_dash_ghost()
+    _spawn_dash_wind_burst(dash_direction)
+    _spawn_dash_speed_lines(dash_direction)
+
+
+## Updates timed dash visuals while the dash state is active.
+func update_dash_vfx(delta: float) -> void:
+    _dash_vfx_elapsed += delta
+    while _dash_vfx_elapsed >= DASH_GHOST_INTERVAL:
+        _dash_vfx_elapsed -= DASH_GHOST_INTERVAL
+        _spawn_dash_ghost()
+
+
+## Clears dash visual timing state when the dash ends.
+func end_dash_vfx() -> void:
+    _dash_vfx_elapsed = 0.0
+    if _dash_body_punch_tween != null and _dash_body_punch_tween.is_valid():
+        _dash_body_punch_tween.kill()
+        _dash_body_punch_tween = null
+    if _body != null:
+        _body.scale = Vector2.ONE
+        _body.rotation = 0.0
+
+
 func begin_dash_invulnerability() -> void:
     _dash_invulnerable = true
     _dash_invuln_end_msec = Time.get_ticks_msec() + int(DASH_DURATION * 1000.0)
@@ -178,6 +221,145 @@ func _reset_attack_vfx() -> void:
     _attack_vfx.visible = false
     _attack_vfx.modulate = Color(1.0, 1.0, 1.0, 0.85)
     _attack_vfx.scale = Vector2.ONE
+
+# == Dash VFX ==
+
+
+func _spawn_dash_ghost() -> void:
+    if _body == null:
+        return
+
+    var ghost := Polygon2D.new()
+    ghost.polygon = _body.polygon
+    ghost.color = Color(0.75, 0.96, 1.0, 0.68)
+    ghost.z_index = _body.z_index - 1
+
+    var effects_parent := _get_dash_effects_parent()
+    # node-src: ephemeral - dash trail snapshot fades out immediately
+    effects_parent.add_child(ghost)
+    ghost.global_transform = _body.global_transform
+    ghost.scale *= 1.08
+
+    var tween := create_tween()
+    tween.tween_property(ghost, "modulate:a", 0.0, DASH_GHOST_FADE_SEC)
+    tween.tween_callback(ghost.queue_free)
+
+
+func _spawn_dash_flash() -> void:
+    if _body == null:
+        return
+
+    var flash := Polygon2D.new()
+    flash.polygon = _body.polygon
+    flash.color = Color(1.0, 1.0, 1.0, 0.8)
+    flash.z_index = _body.z_index + 1
+
+    var effects_parent := _get_dash_effects_parent()
+    # node-src: ephemeral - dash startup flash fades out immediately
+    effects_parent.add_child(flash)
+    flash.global_transform = _body.global_transform
+    flash.scale *= 1.45
+
+    var tween := create_tween()
+    tween.tween_property(flash, "scale", flash.scale * 1.35, DASH_FLASH_FADE_SEC)
+    tween.parallel().tween_property(flash, "modulate:a", 0.0, DASH_FLASH_FADE_SEC)
+    tween.tween_callback(flash.queue_free)
+
+
+func _spawn_dash_wind_burst(dash_dir: Vector2) -> void:
+    if dash_dir == Vector2.ZERO:
+        return
+
+    var burst := Polygon2D.new()
+    burst.polygon = PackedVector2Array(
+        [
+            Vector2(90.0, 0.0),
+            Vector2(-30.0, -34.0),
+            Vector2(-4.0, 0.0),
+            Vector2(-30.0, 34.0),
+        ],
+    )
+    burst.color = Color(1.0, 1.0, 1.0, 0.72)
+    burst.z_index = _body.z_index - 2
+
+    var effects_parent := _get_dash_effects_parent()
+    # node-src: ephemeral - dash wind burst fades out immediately
+    effects_parent.add_child(burst)
+    burst.global_position = global_position + dash_dir * 54.0
+    burst.global_rotation = dash_dir.angle()
+    burst.scale = Vector2(0.8, 1.0)
+
+    var tween := create_tween()
+    tween.tween_property(burst, "scale", Vector2(1.7, 1.25), 0.08)
+    tween.parallel().tween_property(
+        burst,
+        "global_position",
+        global_position + dash_dir * 126.0,
+        DASH_WIND_FADE_SEC,
+    )
+    tween.parallel().tween_property(burst, "modulate:a", 0.0, DASH_WIND_FADE_SEC)
+    tween.tween_callback(burst.queue_free)
+
+
+func _spawn_dash_speed_lines(dash_dir: Vector2) -> void:
+    if dash_dir == Vector2.ZERO:
+        return
+
+    var side_dir := dash_dir.orthogonal()
+    var offsets := [-42.0, -14.0, 14.0, 42.0]
+    for offset in offsets:
+        var line := Line2D.new()
+        line.width = 10.0
+        line.default_color = Color(1.0, 1.0, 1.0, 0.82)
+        line.z_index = _body.z_index - 3
+        line.points = PackedVector2Array(
+            [
+                global_position - dash_dir * 26.0 + side_dir * offset,
+                global_position - dash_dir * 170.0 + side_dir * offset * 1.45,
+            ],
+        )
+
+        var effects_parent := _get_dash_effects_parent()
+        # node-src: ephemeral - dash speed line fades out immediately
+        effects_parent.add_child(line)
+
+        var tween := create_tween()
+        tween.tween_property(line, "modulate:a", 0.0, DASH_SPEED_LINE_FADE_SEC)
+        tween.parallel().tween_property(line, "position", -dash_dir * 54.0, DASH_SPEED_LINE_FADE_SEC)
+        tween.tween_callback(line.queue_free)
+
+
+func _play_dash_body_punch(dash_dir: Vector2) -> void:
+    if _body == null or dash_dir == Vector2.ZERO:
+        return
+    if _dash_body_punch_tween != null and _dash_body_punch_tween.is_valid():
+        _dash_body_punch_tween.kill()
+
+    _body.rotation = dash_dir.angle()
+    _body.scale = DASH_BODY_STRETCH_SCALE
+    _dash_body_punch_tween = create_tween()
+    _dash_body_punch_tween.tween_property(_body, "scale", DASH_BODY_STRETCH_SCALE, DASH_BODY_PUNCH_SEC)
+    _dash_body_punch_tween.tween_property(_body, "scale", Vector2.ONE, DASH_BODY_RECOVER_SEC)
+    _dash_body_punch_tween.parallel().tween_property(_body, "rotation", 0.0, DASH_BODY_RECOVER_SEC)
+
+
+func _play_dash_camera_punch(dash_dir: Vector2) -> void:
+    if _camera == null or dash_dir == Vector2.ZERO:
+        return
+    if _dash_camera_punch_tween != null and _dash_camera_punch_tween.is_valid():
+        _dash_camera_punch_tween.kill()
+
+    var base_offset := _camera.offset
+    _camera.offset = base_offset - dash_dir * DASH_CAMERA_PUNCH_DISTANCE
+    _dash_camera_punch_tween = create_tween()
+    _dash_camera_punch_tween.tween_property(_camera, "offset", base_offset, DASH_CAMERA_PUNCH_SEC)
+
+
+func _get_dash_effects_parent() -> Node2D:
+    var parent_node := get_parent()
+    if parent_node is Node2D:
+        return parent_node
+    return self
 
 # == Dash invulnerability ==
 

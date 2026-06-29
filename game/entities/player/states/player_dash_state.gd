@@ -19,6 +19,7 @@ func _enter() -> void:
     player.begin_dash_invulnerability()
     player.enable_dash_hitbox()
     _dash_dir = player.consume_dash_direction()
+    player.begin_dash_vfx(_dash_dir)
     player.velocity = _dash_dir * player.DASH_SPEED
     _timer = Timer.new()
     _timer.one_shot = true
@@ -27,11 +28,13 @@ func _enter() -> void:
     _timer.start(player.DASH_DURATION)
 
 
-func _physics_update(_delta: float) -> void:
+func _physics_update(delta: float) -> void:
+    player.update_dash_vfx(delta)
     player.velocity = _dash_dir * player.DASH_SPEED
 
 
 func _exit() -> void:
+    player.end_dash_vfx()
     player.disable_dash_hitbox()
     if player.dash_hit_landed.is_connected(_on_dash_hit_landed):
         player.dash_hit_landed.disconnect(_on_dash_hit_landed)
