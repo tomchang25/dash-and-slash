@@ -95,5 +95,5 @@ Grid enemies duplicated attack-cell-shape helper logic across three enemy types,
 
 ## Testing
 
-- `godot_console --headless --path /tmp/snapshot --test-unit`
+- `python dev/tools/lint_standards.py --files game/enemies/charge_enemy.gd game/enemies/puff_enemy.gd game/enemies/grid_enemy.gd`
 - Manually verified attack telegraphs match visual grid overlay for all three enemy types

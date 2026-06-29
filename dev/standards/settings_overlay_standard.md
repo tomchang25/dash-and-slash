@@ -8,7 +8,7 @@ This document defines project-wide settings and the shared settings overlay.
 
 `SettingsStore` owns user/device preferences and persists them to `user://settings.json`. These preferences are not gameplay save data and must not be stored in `SaveManager` sections.
 
-Settings-store data includes volume, fullscreen, debug preference, and tutorial skip preference. Gameplay save data includes player progression, unlocks, arena state, and any future run/profile state.
+Settings-store data includes volume, fullscreen, debug preference, and input preferences such as dash direction mode. Gameplay save data includes player progression, unlocks, arena state, and any future run/profile state.
 
 ---
 
