@@ -8,15 +8,17 @@ extends Entity
 
 signal died(entity: Player)
 signal health_changed(current: float, maximum: float)
+signal dash_hit_landed
 
 const MOVE_SPEED := 440.0
 const DASH_SPEED := 1000.0
-const DASH_DURATION := 0.2
+const DASH_DURATION := 0.3
 const DASH_COOLDOWN := 2.0
 const ATTACK_DURATION := 0.25
 const ATTACK_RANGE := 152.0
 const ATTACK_CAPSULE_RADIUS := 64.0
 const ATTACK_CAPSULE_HEIGHT := 208.0
+const DASH_INVULN_EXTEND := 1.0
 
 # -- Exports --------------------------------------------------------------------
 @export var health: Health
@@ -43,6 +45,9 @@ var _dash_requested_dir := Vector2.ZERO
 var _dash_cooldown_remaining := 0.0
 var _grid: GridArena
 var _hurt_tween: Tween
+var _dash_invulnerable := false
+var _dash_invuln_end_msec := 0
+var _dash_invuln_blink_tween: Tween
 
 
 func setup(grid: GridArena) -> void:
@@ -131,6 +136,24 @@ func end_normal_attack() -> void:
     _attack_hitbox.set_enabled(false)
     _reset_attack_vfx()
 
+
+func begin_dash_invulnerability() -> void:
+    _dash_invulnerable = true
+    _dash_invuln_end_msec = Time.get_ticks_msec() + int(DASH_DURATION * 1000.0)
+    _start_dash_invuln_blink()
+
+
+func extend_dash_invulnerability(extra_sec: float) -> void:
+    var new_end := Time.get_ticks_msec() + int(extra_sec * 1000.0)
+    if new_end > _dash_invuln_end_msec:
+        _dash_invuln_end_msec = new_end
+
+
+func end_dash_invulnerability() -> void:
+    _dash_invulnerable = false
+    _dash_invuln_end_msec = 0
+    _stop_dash_invuln_blink()
+
 # == Combat helpers =============================================================
 
 
@@ -156,6 +179,37 @@ func _reset_attack_vfx() -> void:
     _attack_vfx.modulate = Color(1.0, 1.0, 1.0, 0.85)
     _attack_vfx.scale = Vector2.ONE
 
+# == Dash invulnerability ==
+
+
+func _start_dash_invuln_blink() -> void:
+    _stop_dash_invuln_blink()
+    _dash_invuln_blink_tween = create_tween()
+    _dash_invuln_blink_tween.set_loops()
+    var colors := [
+        Color(1, 0, 0),
+        Color(1, 1, 0),
+        Color(0, 1, 0),
+        Color(0, 1, 1),
+        Color(0, 0, 1),
+        Color(1, 0, 1),
+    ]
+    for c in colors:
+        _dash_invuln_blink_tween.tween_property(_body, "modulate", c, 0.15)
+
+
+func _stop_dash_invuln_blink() -> void:
+    if _dash_invuln_blink_tween != null and _dash_invuln_blink_tween.is_valid():
+        _dash_invuln_blink_tween.kill()
+        _dash_invuln_blink_tween = null
+    if _body != null:
+        _body.modulate = Color.WHITE
+
+
+func _update_dash_invulnerability() -> void:
+    if _dash_invulnerable and Time.get_ticks_msec() >= _dash_invuln_end_msec:
+        end_dash_invulnerability()
+
 # -- Lifecycle --
 
 
@@ -173,6 +227,7 @@ func _ready() -> void:
 
     if _hurtbox != null:
         _hurtbox.hit_received.connect(_on_hit_received)
+    _dash_hitbox.hit_landed.connect(_on_dash_hitbox_hit_landed)
 
     if _camera != null:
         _camera.make_current()
@@ -190,6 +245,7 @@ func _physics_process(delta: float) -> void:
         _grid.set_player_cell(global_position)
 
     update_aim_visual()
+    _update_dash_invulnerability()
     move_and_slide()
 
 
@@ -198,11 +254,12 @@ func _unhandled_input(event: InputEvent) -> void:
         _attack_requested = true
     elif event.is_action_pressed("dash"):
         _dash_requested = true
-        var mv_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-        _dash_requested_dir = get_aim_direction() if mv_dir == Vector2.ZERO else mv_dir
+        _dash_requested_dir = get_aim_direction()
 
 
 func _on_hit_received(amount: float, source: Node, _guard_damage_profile: int) -> void:
+    if _dash_invulnerable and Time.get_ticks_msec() < _dash_invuln_end_msec:
+        return
     if health != null:
         health.take_damage(amount, source)
 
@@ -239,3 +296,7 @@ func _start_invuln_blink() -> void:
                 _body.modulate = Color.WHITE,
         CONNECT_ONE_SHOT,
     )
+
+
+func _on_dash_hitbox_hit_landed(_target: Hurtbox) -> void:
+    dash_hit_landed.emit()

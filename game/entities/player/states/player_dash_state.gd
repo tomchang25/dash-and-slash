@@ -5,6 +5,7 @@ extends PlayerState
 
 var _timer: Timer
 var _dash_dir: Vector2
+var _dash_hit_landed := false
 
 
 func _init() -> void:
@@ -12,6 +13,10 @@ func _init() -> void:
 
 
 func _enter() -> void:
+    _dash_hit_landed = false
+    if not player.dash_hit_landed.is_connected(_on_dash_hit_landed):
+        player.dash_hit_landed.connect(_on_dash_hit_landed)
+    player.begin_dash_invulnerability()
     player.enable_dash_hitbox()
     _dash_dir = player.consume_dash_direction()
     player.velocity = _dash_dir * player.DASH_SPEED
@@ -28,6 +33,10 @@ func _physics_update(_delta: float) -> void:
 
 func _exit() -> void:
     player.disable_dash_hitbox()
+    if player.dash_hit_landed.is_connected(_on_dash_hit_landed):
+        player.dash_hit_landed.disconnect(_on_dash_hit_landed)
+    if not _dash_hit_landed:
+        player.end_dash_invulnerability()
     if _timer != null and is_instance_valid(_timer):
         _timer.queue_free()
         _timer = null
@@ -35,3 +44,8 @@ func _exit() -> void:
 
 func _on_timer_timeout() -> void:
     change_state(PlayerStateId.IDLE)
+
+
+func _on_dash_hit_landed() -> void:
+    _dash_hit_landed = true
+    player.extend_dash_invulnerability(player.DASH_INVULN_EXTEND)
