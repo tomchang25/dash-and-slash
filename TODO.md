@@ -30,7 +30,13 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-[wave_rewards] Add wave reward cards with terrain choices, enemy escalation, and Major/Minor categories — [ref plans/wave_reward_cards.sketch.md]
+[wave_rewards] Main roguelite wave reward loop design with wave 5 boss and first-pass card boundaries — [ref plans/roguelite_wave_reward_loop.md]
+[wave_rewards] Add the wave reward choice controller with random three-card offers and immediate application — [ref plans/wave_reward_choice_controller.sketch.md]
+[wave_rewards] Reposition the player to a safe central land cell when each wave starts — [ref plans/wave_start_player_reposition.sketch.md]
+[wave_rewards] Replace the fixed wave sequence with data-driven waves and future enemy modifiers — [ref plans/data_driven_wave_controller.sketch.md]
+[wave_rewards] Add a run-scoped data-driven player stat path for reward buffs — [ref plans/data_driven_player_stats.sketch.md]
+[wave_rewards] Add first-pass Minor reward cards for numeric player stat buffs — [ref plans/minor_wave_reward_cards.sketch.md]
+[wave_rewards] Add the Major reward card skeleton with a class-change placeholder — [ref plans/major_wave_reward_card_skeleton.sketch.md]
 
 ---
 
@@ -59,6 +65,15 @@ Player sprite addon and player attack hitbox rework for weapon/class readability
 - Kunai / Ninja: thrust attack, fast but weak, dash damage creates a long line attack.
 - Katana / Samurai: 45-degree slash, average damage and speed, dash damage stays direct.
 - Heavy axe / undecided class: 180-degree slash, high damage and slow speed, dash damage creates a landing circle area hitbox.
+
+### Wave Reward Deferred Ideas
+
+Later work that should not ride on the first wave reward loop PR.
+
+- Real Major class changes that swap class identity, action behavior, or weapon rules.
+- Manual terrain targeting with tile preview, validity highlight, confirmation, and cancellation.
+- Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
+- Advanced terrain shaping beyond random connected add and random safe connected remove.
 
 ### Enemy Character Sprite Readability
 

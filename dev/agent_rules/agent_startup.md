@@ -93,6 +93,7 @@ Entities are authored in `data/yaml/*.yaml`, converted to `.tres` via `dev/tools
 
 - **Docstrings**: every `.gd` file starts with `# filename` + one-line purpose. All public functions and complex private functions get a `##` GDDoc comment. Never strip or reduce existing comments when editing code.
 - **Project structure and naming**: read `dev/standards/project_structure.md` before adding, moving, or reorganizing files; read `dev/standards/naming_conventions.md` before adding or renaming scripts, scenes, classes, signals, constants, or persistent scene nodes.
+- **Runtime ownership**: read `dev/standards/runtime_ownership.md` before introducing or renaming Controllers, Systems, Stores, Services, save providers, or other runtime state owners.
 - **Commits**: conventional commits format — read `dev/skills/conventional_commits.md` when writing commit messages. Do not hard-wrap prose.
 - **Change summaries**: read `dev/standards/change_summary_standard.md` before writing commit messages, PR descriptions, CHANGELOG entries, closeout output, review summaries, or other completed-work summaries.
 - **Registries**: extend `ResourceRegistry`; required API: `get_<singular>_by_id`, `get_all_<plural>`, `size`. See `dev/standards/registries.md`.
