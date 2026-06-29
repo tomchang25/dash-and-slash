@@ -343,8 +343,8 @@ func plan_next_action() -> bool:
         return true
 
     var path: Array[Vector2i] = []
-    if not _grid.is_blocked(target_cell):
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
+    if _can_plan_goal_cell(target_cell, false):
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell], false)
 
     if path.is_empty():
         var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
@@ -353,7 +353,7 @@ func plan_next_action() -> bool:
         if start in fallback_goals:
             queue_redraw()
             return true
-        path = _find_path_to_cell(start, target_cell, fallback_goals)
+        path = _find_path_to_cell(start, target_cell, fallback_goals, false)
 
     if path.is_empty():
         return false
@@ -589,10 +589,10 @@ func plan_charge_line_action() -> bool:
         if start in line_goals:
             queue_redraw()
             return true
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals)
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals, false)
 
-    if path.is_empty() and not _grid.is_blocked(target_cell):
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell])
+    if path.is_empty() and _can_plan_goal_cell(target_cell, false):
+        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell], false)
 
     if path.is_empty():
         var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
@@ -601,7 +601,7 @@ func plan_charge_line_action() -> bool:
         if start in fallback_goals:
             queue_redraw()
             return true
-        path = _find_path_to_cell(start, target_cell, fallback_goals)
+        path = _find_path_to_cell(start, target_cell, fallback_goals, false)
 
     if path.is_empty():
         return false
@@ -643,7 +643,7 @@ func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
         for x in range(_grid.grid_size.x):
             for y in range(_grid.grid_size.y):
                 var origin_cell := Vector2i(x, y)
-                if origin_cell != start and _grid.is_blocked(origin_cell):
+                if origin_cell != start and not _can_plan_goal_cell(origin_cell, true):
                     continue
                 var cells: Array[Vector2i] = get_cells_for_origin.call(origin_cell, facing)
                 if target_cell not in cells:
@@ -658,7 +658,7 @@ func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
         queue_redraw()
         return true
 
-    var path := _find_path_to_cell(start, target_cell, attack_origins)
+    var path := _find_path_to_cell(start, target_cell, attack_origins, true)
     if path.is_empty():
         return false
 
@@ -679,7 +679,7 @@ func _update_grid_pos() -> void:
         register_grid_occupant()
 
 
-func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Array[Vector2i]) -> Array[Vector2i]:
+func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Array[Vector2i], is_attack: bool) -> Array[Vector2i]:
     var queue: Array[Vector2i] = [start]
     var came_from: Dictionary = { }
     var queue_index := 0
@@ -698,7 +698,7 @@ func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Arr
             var next := current + direction
             if came_from.has(next):
                 continue
-            if not _can_path_through(current, next, start, blocked_cell):
+            if not _can_path_through(current, next, start, blocked_cell, goal_cells, is_attack):
                 continue
             came_from[next] = current
             queue.append(next)
@@ -715,14 +715,33 @@ func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Arr
     return path
 
 
-func _can_path_through(current: Vector2i, next: Vector2i, start: Vector2i, blocked_cell: Vector2i) -> bool:
+func _can_path_through(
+    current: Vector2i,
+    next: Vector2i,
+    start: Vector2i,
+    blocked_cell: Vector2i,
+    goal_cells: Array[Vector2i],
+    is_attack: bool
+) -> bool:
     if not _grid.can_move_between(current, next):
         return false
     if next == blocked_cell:
         return false
-    if next != start and _grid.is_blocked(next):
-        return false
+    if next != start:
+        if _grid.is_occupied(next):
+            return false
+        if _grid.is_reserved(next):
+            var will_reserve_cell := current == start or next in goal_cells
+            return will_reserve_cell and _grid.can_reserve_cell(self, next, is_attack)
     return true
+
+
+func _can_plan_goal_cell(cell: Vector2i, is_attack: bool) -> bool:
+    if _grid.is_occupied(cell):
+        return false
+    if not _grid.is_reserved(cell):
+        return true
+    return _grid.can_reserve_cell(self, cell, is_attack)
 
 
 func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
@@ -731,7 +750,7 @@ func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Arr
         var neighbor := target_cell + direction
         if not _grid.is_in_bounds(neighbor):
             continue
-        if neighbor == start or not _grid.is_blocked(neighbor):
+        if neighbor == start or _can_plan_goal_cell(neighbor, false):
             goal_cells.append(neighbor)
     return goal_cells
 
@@ -742,7 +761,7 @@ func _collect_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[V
         var cell := Vector2i(x, target_cell.y)
         if cell == target_cell:
             continue
-        if cell == start or not _grid.is_blocked(cell):
+        if cell == start or _can_plan_goal_cell(cell, false):
             goals.append(cell)
     for y in range(_grid.grid_size.y):
         var cell := Vector2i(target_cell.x, y)
@@ -750,7 +769,7 @@ func _collect_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[V
             continue
         if cell in goals:
             continue
-        if cell == start or not _grid.is_blocked(cell):
+        if cell == start or _can_plan_goal_cell(cell, false):
             goals.append(cell)
     return goals
 

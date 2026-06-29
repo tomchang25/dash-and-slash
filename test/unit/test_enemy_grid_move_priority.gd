@@ -25,13 +25,12 @@ func _register_entity(entity: Object, cell: Vector2i) -> void:
     _grid.register_occupant(entity, [cell])
     _grid.register_enemy_entity(entity)
 
-
 # == Ordinary vs Ordinary =======================================================
 
 
 func test_ordinary_distance_decides_when_same_attack_intent() -> void:
-    var closer := Node.new()
-    var farther := Node.new()
+    var closer: Node = autofree(Node.new())
+    var farther: Node = autofree(Node.new())
     _register_entity(closer, Vector2i(4, 3))
     _register_entity(farther, Vector2i(4, 6))
     var target_cell := Vector2i(4, 5)
@@ -45,8 +44,8 @@ func test_ordinary_distance_decides_when_same_attack_intent() -> void:
 
 
 func test_ordinary_tie_uses_registration_order() -> void:
-    var first := Node.new()
-    var second := Node.new()
+    var first: Node = autofree(Node.new())
+    var second: Node = autofree(Node.new())
     _register_entity(first, Vector2i(4, 5))
     _register_entity(second, Vector2i(4, 5))
     var target_cell := Vector2i(4, 6)
@@ -60,8 +59,8 @@ func test_ordinary_tie_uses_registration_order() -> void:
 
 
 func test_ordinary_lower_registration_loses_when_equal_distance() -> void:
-    var early := Node.new()
-    var late := Node.new()
+    var early: Node = autofree(Node.new())
+    var late: Node = autofree(Node.new())
     _register_entity(early, Vector2i(3, 4))
     _register_entity(late, Vector2i(5, 4))
     var target := Vector2i(4, 4)
@@ -73,13 +72,12 @@ func test_ordinary_lower_registration_loses_when_equal_distance() -> void:
     assert_true(early_ok, "earlier index should win at equal distance")
     assert_false(late_ok, "later index should lose at equal distance")
 
-
 # == Attack vs Ordinary =========================================================
 
 
 func test_attack_beats_ordinary_for_same_cell() -> void:
-    var attacker := Node.new()
-    var ordinary := Node.new()
+    var attacker: Node = autofree(Node.new())
+    var ordinary: Node = autofree(Node.new())
     _register_entity(attacker, Vector2i(4, 3))
     _register_entity(ordinary, Vector2i(4, 5))
     var target_cell := Vector2i(4, 4)
@@ -92,8 +90,8 @@ func test_attack_beats_ordinary_for_same_cell() -> void:
 
 
 func test_attack_replaces_existing_ordinary_reservation() -> void:
-    var ordinary := Node.new()
-    var attacker := Node.new()
+    var ordinary: Node = autofree(Node.new())
+    var attacker: Node = autofree(Node.new())
     _register_entity(ordinary, Vector2i(4, 2))
     _register_entity(attacker, Vector2i(4, 6))
     var target := Vector2i(4, 5)
@@ -109,8 +107,8 @@ func test_attack_replaces_existing_ordinary_reservation() -> void:
 
 
 func test_ordinary_does_not_replace_attack_reservation() -> void:
-    var attacker := Node.new()
-    var ordinary := Node.new()
+    var attacker: Node = autofree(Node.new())
+    var ordinary: Node = autofree(Node.new())
     _register_entity(attacker, Vector2i(4, 3))
     _register_entity(ordinary, Vector2i(4, 5))
     var target := Vector2i(4, 4)
@@ -120,50 +118,75 @@ func test_ordinary_does_not_replace_attack_reservation() -> void:
 
     assert_true(_grid.is_reserved_by(target, attacker), "attacker should still own after ordinary attempt")
 
-
 # == Signal emission ============================================================
 
 
 func test_reservation_lost_emitted_when_replaced_by_higher_priority() -> void:
-    var ordinary := Node.new()
-    var attacker := Node.new()
+    var ordinary: Node = autofree(Node.new())
+    var attacker: Node = autofree(Node.new())
     _register_entity(ordinary, Vector2i(4, 2))
     _register_entity(attacker, Vector2i(4, 6))
     var target := Vector2i(4, 5)
 
     assert_true(_grid.reserve_cells(ordinary, [target], false))
 
-    var lost_entity: Object = null
-    var signal_connected := _grid.reservation_lost.connect(func(entity: Object): lost_entity = entity)
+    var lost_entities: Array[Object] = []
+    var signal_connected := _grid.reservation_lost.connect(func(entity: Object): lost_entities.append(entity))
     assert_eq(signal_connected, OK, "signal connection should succeed")
 
     assert_true(_grid.reserve_cells(attacker, [target], true))
 
-    assert_eq(lost_entity, ordinary, "ordinary should receive reservation_lost signal")
+    assert_eq(lost_entities.size(), 1, "exactly one entity should receive reservation_lost signal")
+    assert_eq(lost_entities[0], ordinary, "ordinary should receive reservation_lost signal")
 
 
 func test_no_signal_when_lower_priority_loses() -> void:
-    var first := Node.new()
-    var second := Node.new()
+    var first: Node = autofree(Node.new())
+    var second: Node = autofree(Node.new())
     _register_entity(first, Vector2i(4, 5))
     _register_entity(second, Vector2i(4, 5))
     var target := Vector2i(4, 6)
 
     assert_true(_grid.reserve_cells(first, [target], false))
 
-    var signal_fired := false
-    _grid.reservation_lost.connect(func(_e: Object): signal_fired = true)
+    var lost_entities: Array[Object] = []
+    _grid.reservation_lost.connect(func(entity: Object): lost_entities.append(entity))
 
     assert_false(_grid.reserve_cells(second, [target], false))
-    assert_false(signal_fired, "no signal when lower-priority claim is rejected")
+    assert_true(lost_entities.is_empty(), "no signal when lower-priority claim is rejected")
 
+# == Reservation preview ========================================================
+
+
+func test_can_reserve_reports_attack_takeover_without_mutating() -> void:
+    var ordinary: Node = autofree(Node.new())
+    var attacker: Node = autofree(Node.new())
+    _register_entity(ordinary, Vector2i(4, 2))
+    _register_entity(attacker, Vector2i(4, 6))
+    var target := Vector2i(4, 5)
+
+    assert_true(_grid.reserve_cells(ordinary, [target], false), "ordinary should reserve initially")
+    assert_true(_grid.can_reserve_cells(attacker, [target], true), "attack should be able to take over")
+    assert_true(_grid.is_reserved_by(target, ordinary), "preview should not mutate current owner")
+
+
+func test_can_reserve_rejects_lower_priority_without_mutating() -> void:
+    var first: Node = autofree(Node.new())
+    var second: Node = autofree(Node.new())
+    _register_entity(first, Vector2i(4, 5))
+    _register_entity(second, Vector2i(4, 5))
+    var target := Vector2i(4, 6)
+
+    assert_true(_grid.reserve_cells(first, [target], false), "first should reserve initially")
+    assert_false(_grid.can_reserve_cells(second, [target], false), "lower priority should not be claimable")
+    assert_true(_grid.is_reserved_by(target, first), "preview should not mutate current owner")
 
 # == Registration Index =========================================================
 
 
 func test_registration_index_deterministic_across_cycles() -> void:
-    var a := Node.new()
-    var b := Node.new()
+    var a: Node = autofree(Node.new())
+    var b: Node = autofree(Node.new())
     _register_entity(a, Vector2i(3, 4))
     _register_entity(b, Vector2i(5, 4))
     var target := Vector2i(4, 4)
@@ -182,27 +205,37 @@ func test_registration_index_deterministic_across_cycles() -> void:
     assert_true(_grid.is_reserved_by(target, a), "deterministic: a should win both cycles")
 
 
+func test_unregister_removes_registration_index() -> void:
+    var enemy: Node = autofree(Node.new())
+    _register_entity(enemy, Vector2i(3, 4))
+
+    assert_ne(_grid.get_registration_index(enemy), -1, "enemy should have a registration index")
+
+    _grid.unregister_occupant(enemy)
+
+    assert_eq(_grid.get_registration_index(enemy), -1, "unregistered enemy should not keep stale registration")
+
 # == Multiple cells =============================================================
 
 
 func test_reservation_for_multiple_cells_all_or_nothing() -> void:
-    var first := Node.new()
-    var second := Node.new()
+    var first: Node = autofree(Node.new())
+    var second: Node = autofree(Node.new())
     _register_entity(first, Vector2i(2, 4))
     _register_entity(second, Vector2i(6, 4))
-    var first_cells := [Vector2i(3, 4), Vector2i(4, 4)]
+    var first_cells: Array[Vector2i] = [Vector2i(3, 4), Vector2i(4, 4)]
 
     # First reserves both cells
     assert_true(_grid.reserve_cells(first, first_cells, false))
 
     # Second tries to reserve a cell that conflicts
-    var second_result := _grid.reserve_cells(second, [Vector2i(4, 4), Vector2i(5, 4)], false)
+    var second_cells: Array[Vector2i] = [Vector2i(4, 4), Vector2i(5, 4)]
+    var second_result := _grid.reserve_cells(second, second_cells, false)
     assert_false(second_result, "second should fail when any cell is contested by higher-priority")
 
     # First's reservation should be intact
     assert_true(_grid.is_reserved_by(Vector2i(3, 4), first))
     assert_true(_grid.is_reserved_by(Vector2i(4, 4), first))
-
 
 # == Player occupancy for reference =============================================
 

@@ -199,10 +199,16 @@ func register_occupant(entity: Object, tiles: Array[Vector2i]) -> void:
 func unregister_occupant(entity: Object) -> void:
     _occupants.erase(entity)
     _remove_entity_reservation(entity)
+    _entity_registration_indices.erase(entity)
 
 
 func reserve_cell(entity: Object, cell: Vector2i, is_attack := false) -> bool:
     return reserve_cells(entity, [cell], is_attack)
+
+
+## Returns true when the entity would own the cell after reservation arbitration.
+func can_reserve_cell(entity: Object, cell: Vector2i, is_attack := false) -> bool:
+    return can_reserve_cells(entity, [cell], is_attack)
 
 
 ## Requests a reservation for the given cells. On conflict, compares priority:
@@ -210,6 +216,17 @@ func reserve_cell(entity: Object, cell: Vector2i, is_attack := false) -> bool:
 ## Returns true when the caller still owns all requested cells after arbitration.
 func reserve_cells(entity: Object, cells: Array[Vector2i], is_attack := false) -> bool:
     return _request_reservation_impl(entity, cells, is_attack)
+
+
+## Returns true when the entity would win conflicts for all cells without changing reservations.
+func can_reserve_cells(entity: Object, cells: Array[Vector2i], is_attack := false) -> bool:
+    for cell in cells:
+        var cell_owner: Object = _reservation_owners.get(cell)
+        if cell_owner == null or cell_owner == entity:
+            continue
+        if not _is_higher_priority(entity, is_attack, cell_owner):
+            return false
+    return true
 
 
 ## Registers an enemy entity for deterministic priority ordering.
