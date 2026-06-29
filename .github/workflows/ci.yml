@@ -2,10 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
     branches: [main]
-
+  workflow_dispatch:
 env:
   GODOT_VERSION: "4.6.3"
   GODOT_ZIP: "Godot_v4.6.3-stable_linux.x86_64.zip"
@@ -96,6 +97,10 @@ jobs:
         with:
           name: data-tres
           path: data/tres/
+      - name: Import project
+        timeout-minutes: 1
+        run: |
+          /tmp/godot-bin/${GODOT_BINARY} --headless --path "$PWD" --import 2>&1 || true
       - name: Run unit tests
         timeout-minutes: 2
         shell: bash

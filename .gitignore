@@ -2,13 +2,12 @@
 **/.commitsage
 
 **/shader_cache
-**/assets
 **/script_templates
-**/tres
+# **/tres
+# **/assets
 
 # Generated SFX assets (never hand-edit)
-assets/audio/placeholder/*.wav
-data/tres/audio_events/*.tres
+/assets
 
 **/*_back
 
