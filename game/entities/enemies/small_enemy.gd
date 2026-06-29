@@ -93,6 +93,7 @@ func begin_attack_telegraph() -> bool:
     if not attack.prepare(get_grid_pos(), get_facing(), _attack_data):
         return false
     attack.show_warning()
+    start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.TILE)
     return true
 
 
@@ -107,11 +108,13 @@ func begin_attack() -> bool:
     var attack := get_attack_controller()
     if attack == null:
         return false
+    stop_attack_windup_vfx()
     attack.begin_attack()
     return true
 
 
 func end_attack() -> void:
+    stop_attack_windup_vfx()
     var attack := get_attack_controller()
     if attack != null:
         attack.end_attack()
@@ -147,6 +150,7 @@ func _reset_extra() -> void:
 
 
 func _cancel_attack() -> void:
+    stop_attack_windup_vfx()
     if _attack_controller != null:
         _attack_controller.cancel()
 

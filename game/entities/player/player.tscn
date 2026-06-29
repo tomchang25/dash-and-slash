@@ -32,7 +32,6 @@ script = ExtResource("1_player")
 health = NodePath("Health")
 attack_sfx_event = ExtResource("2_igs2l")
 damaged_sfx_event = ExtResource("3_t9m4n")
-normal_attack_damage = 40.0
 dash_attack_damage = 50000.0
 
 [node name="Body" type="Polygon2D" parent="." unique_id=863972589]
