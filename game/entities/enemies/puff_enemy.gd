@@ -4,6 +4,7 @@ class_name PuffEnemy
 extends GridEnemy
 
 const PUFF_RANGE := 2
+const PUFF_CHARGE_DURATION := 0.6
 
 # -- State --------------------------------------------------------------------
 var _attack_data: EnemyAttackData
@@ -38,6 +39,21 @@ func begin_puff_action() -> bool:
     return begin_committed_action()
 
 
+## Starts the pre-puff charge tell without enabling the area hazard.
+func begin_puff_charge_action() -> bool:
+    if not begin_committed_action():
+        return false
+    _configure_puff_hitbox()
+    face_target_position()
+    start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.PUFF)
+    return true
+
+
+## Stops the pre-puff charge tell before expansion or interruption cleanup.
+func end_puff_charge_action() -> void:
+    stop_attack_windup_vfx()
+
+
 func enable_puff_hitbox(enable: bool) -> void:
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(enable)
@@ -62,6 +78,10 @@ func get_current_attack_data() -> EnemyAttackData:
 
 func get_puff_range() -> int:
     return _attack_data.radius if _attack_data != null else PUFF_RANGE
+
+
+func get_puff_charge_duration() -> float:
+    return _attack_data.warning_duration if _attack_data != null else PUFF_CHARGE_DURATION
 
 
 func get_puff_minimum_duration() -> float:
@@ -94,13 +114,13 @@ func get_dead_state_id() -> int:
 
 func get_pre_plan_state_id() -> int:
     if is_target_in_puff_range():
-        return EnemyState.EnemyStateId.PUFF
+        return EnemyState.EnemyStateId.PUFF_CHARGE
     return -1
 
 
 func get_arrival_override_state_id() -> int:
     if is_target_in_puff_range():
-        return EnemyState.EnemyStateId.PUFF
+        return EnemyState.EnemyStateId.PUFF_CHARGE
     return -1
 
 # == Setup helpers =============================================================
@@ -145,6 +165,7 @@ func _create_fallback_attack_data() -> EnemyAttackData:
     attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
     attack_data.damage = 12.0
     attack_data.damage_interval = 0.35
+    attack_data.warning_duration = PUFF_CHARGE_DURATION
     attack_data.active_duration = 3.0
     attack_data.recheck_interval = 1.0
     attack_data.radius = PUFF_RANGE
