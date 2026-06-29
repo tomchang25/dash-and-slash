@@ -96,6 +96,10 @@ jobs:
         with:
           name: data-tres
           path: data/tres/
+      - name: Import project
+        timeout-minutes: 1
+        run: |
+          /tmp/godot-bin/${GODOT_BINARY} --headless --path "$PWD" --import 2>&1 || true
       - name: Run unit tests
         timeout-minutes: 2
         shell: bash
