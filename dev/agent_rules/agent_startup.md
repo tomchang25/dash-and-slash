@@ -43,6 +43,7 @@ Reviews use `dev/workflows/review_standard.md`; command files define the review 
 
 - `/closeout` -> `dev/workflows/commands/closeout.md`: closes out completed work — staged changes or a feature branch covering one or more plans (CHANGELOG + TODO + archive plans, optional commit-message suggestion only when explicitly asked).
 - `/commit-msg` -> `dev/workflows/commands/commit-msg.md`: suggests a conventional commit message for currently staged changes without staging, committing, pushing, or opening a PR.
+- `/deepseek-start` -> `dev/workflows/commands/deepseek-start.md`: loads `AGENTS.md`, startup instructions, and every request-relevant rule, standard, workflow, skill, or doc before acting.
 - `/godot-test` -> `dev/workflows/commands/godot-test.md`: runs the safe `/tmp` snapshot Godot test workflow without mutating git or trusting the sandbox mount.
 - `/pr-review` -> `dev/workflows/commands/pr-review.md`: reviews the branch against the base branch, then generates a PR title/description without creating files or opening a PR.
 - `/stage-review` -> `dev/workflows/commands/stage-review.md`: checks staged changes against the plan spec and standards lint.
