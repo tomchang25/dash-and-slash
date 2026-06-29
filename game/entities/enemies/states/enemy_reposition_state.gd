@@ -15,6 +15,13 @@ func _enter() -> void:
     enemy.velocity = Vector2.ZERO
     _has_step = enemy.has_planned_path()
     if _has_step:
+        var grid: GridArena = enemy.get_grid()
+        var path_first := enemy.get_planned_path_first()
+        if path_first != enemy.NO_BLOCKED_CELL and not grid.is_reserved_by(path_first, enemy):
+            enemy.clear_planned_path()
+            _has_step = false
+            change_state(enemy.get_face_state_id())
+            return
         _target_cell = enemy.consume_next_planned_cell()
         enemy.face_toward_cell(_target_cell)
 
@@ -26,6 +33,13 @@ func _physics_update(delta: float) -> void:
         return
 
     var grid: GridArena = enemy.get_grid()
+
+    # If we lost reservation for the target cell mid-move, abandon movement
+    if not grid.is_reserved_by(_target_cell, enemy):
+        enemy.clear_planned_path()
+        change_state(enemy.get_face_state_id())
+        return
+
     var target_world := grid.cell_center(_target_cell)
     var dir := (target_world - enemy.global_position).normalized()
     enemy.velocity = dir * enemy.get_move_speed()

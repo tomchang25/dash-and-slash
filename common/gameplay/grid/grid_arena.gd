@@ -7,6 +7,7 @@ extends Node2D
 signal terrain_generated
 signal terrain_cells_changed(cells: Array[Vector2i])
 signal telegraphs_changed
+signal reservation_lost(entity: Object)
 
 enum TelegraphPhase { NONE, WARNING, CHARGE, ACTIVE, SPAWNING }
 enum TerrainTile { SEA, LAND }
@@ -18,9 +19,12 @@ enum TerrainTile { SEA, LAND }
 var _terrain: Array[int] = []
 var _occupants: Dictionary = { }
 var _reservations: Dictionary = { }
+var _reservation_owners: Dictionary = { }
 var _telegraphs: Dictionary = { }
 var _player_grid: Vector2i = Vector2i.ZERO
 var _generated := false
+var _registration_counter := 0
+var _entity_registration_indices: Dictionary = { }
 
 # == Lifecycle ================================================================
 
@@ -177,31 +181,130 @@ func is_occupied(cell: Vector2i) -> bool:
 
 
 func is_reserved(cell: Vector2i) -> bool:
-    for cells in _reservations.values():
-        if cell in cells:
-            return true
-    return false
+    return _reservation_owners.has(cell)
+
+
+## Returns true when the cell is reserved by the given entity.
+func is_reserved_by(cell: Vector2i, entity: Object) -> bool:
+    return _reservation_owners.get(cell) == entity
 
 
 func register_occupant(entity: Object, tiles: Array[Vector2i]) -> void:
     _occupants[entity] = tiles.duplicate()
+    if not _entity_registration_indices.has(entity):
+        _entity_registration_indices[entity] = _registration_counter
+        _registration_counter += 1
 
 
 func unregister_occupant(entity: Object) -> void:
     _occupants.erase(entity)
-    _reservations.erase(entity)
+    _remove_entity_reservation(entity)
 
 
-func reserve_cell(entity: Object, cell: Vector2i) -> void:
-    reserve_cells(entity, [cell])
+func reserve_cell(entity: Object, cell: Vector2i, is_attack := false) -> bool:
+    return reserve_cells(entity, [cell], is_attack)
 
 
-func reserve_cells(entity: Object, cells: Array[Vector2i]) -> void:
-    _reservations[entity] = cells.duplicate()
+## Requests a reservation for the given cells. On conflict, compares priority:
+## attack intent > closer to player > earlier registration index.
+## Returns true when the caller still owns all requested cells after arbitration.
+func reserve_cells(entity: Object, cells: Array[Vector2i], is_attack := false) -> bool:
+    return _request_reservation_impl(entity, cells, is_attack)
+
+
+## Registers an enemy entity for deterministic priority ordering.
+## Returns the assigned registration index.
+func register_enemy_entity(entity: Object) -> int:
+    if _entity_registration_indices.has(entity):
+        return _entity_registration_indices[entity]
+    var idx := _registration_counter
+    _registration_counter += 1
+    _entity_registration_indices[entity] = idx
+    return idx
+
+
+## Returns the entity's registration index, or -1 if unregistered.
+func get_registration_index(entity: Object) -> int:
+    return _entity_registration_indices.get(entity, -1)
 
 
 func clear_reservation(entity: Object) -> void:
+    _remove_entity_reservation(entity)
+
+
+func _remove_entity_reservation(entity: Object) -> void:
+    var data = _reservations.get(entity)
+    if data == null:
+        return
+    for cell in data["cells"]:
+        if _reservation_owners.get(cell) == entity:
+            _reservation_owners.erase(cell)
     _reservations.erase(entity)
+
+
+func _request_reservation_impl(entity: Object, cells: Array[Vector2i], is_attack: bool) -> bool:
+    # Remove this entity's old reservation first
+    _remove_entity_reservation(entity)
+
+    if cells.is_empty():
+        return true
+
+    # Collect entities that currently own any of the requested cells
+    var losers: Array[Object] = []
+    for cell in cells:
+        var cell_owner: Object = _reservation_owners.get(cell)
+        if cell_owner != null and cell_owner != entity and not cell_owner in losers:
+            losers.append(cell_owner)
+
+    # Verify this entity wins against every conflicting owner
+    for other in losers:
+        if not _is_higher_priority(entity, is_attack, other):
+            return false
+
+    # Remove losing reservations and notify
+    for other in losers:
+        _remove_entity_reservation(other)
+        reservation_lost.emit(other)
+
+    # Place the new reservation
+    _reservations[entity] = { "cells": cells.duplicate(), "is_attack": is_attack }
+    for cell in cells:
+        _reservation_owners[cell] = entity
+
+    return true
+
+
+func _is_higher_priority(entity: Object, is_attack: bool, other: Object) -> bool:
+    var other_data = _reservations.get(other)
+    if other_data == null:
+        return true
+
+    var other_is_attack: bool = other_data["is_attack"]
+
+    # Attack intent beats ordinary movement
+    if is_attack and not other_is_attack:
+        return true
+    if not is_attack and other_is_attack:
+        return false
+
+    # Same attack intent level: closer to player wins
+    var entity_dist := _get_entity_distance_to_player(entity)
+    var other_dist := _get_entity_distance_to_player(other)
+    if entity_dist != other_dist:
+        return entity_dist < other_dist
+
+    # Same distance: earlier registration index wins
+    var entity_idx := get_registration_index(entity)
+    var other_idx := get_registration_index(other)
+    return entity_idx < other_idx
+
+
+func _get_entity_distance_to_player(entity: Object) -> int:
+    var tiles: Array[Vector2i] = _occupants.get(entity, [])
+    if tiles.is_empty():
+        return 9999
+    var pos := tiles[0]
+    return absi(pos.x - _player_grid.x) + absi(pos.y - _player_grid.y)
 
 
 func is_blocked(cell: Vector2i) -> bool:

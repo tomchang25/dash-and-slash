@@ -44,6 +44,7 @@ var _staggered: bool = false
 var _planned_path: Array[Vector2i] = []
 var _active_path_cell: Vector2i
 var _has_active_path_cell: bool = false
+var _reservation_is_attack: bool = false
 
 # -- Timer / tween handles ----------------------------------------------------
 var _cooldown_timer: Timer
@@ -66,6 +67,9 @@ func _ready() -> void:
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
         register_grid_occupant()
+        _grid.register_enemy_entity(self)
+        if not _grid.reservation_lost.is_connected(_on_reservation_lost):
+            _grid.reservation_lost.connect(_on_reservation_lost)
 
     if hurtbox != null:
         hurtbox.hit_received.connect(_on_hit_received)
@@ -143,6 +147,15 @@ func reset() -> void:
     _reset_extra()
 
 # == Signal handlers ==========================================================
+
+
+## Clears planned movement when a higher-priority claim takes our reservation.
+func _on_reservation_lost(_entity: Object) -> void:
+    if _entity != self:
+        return
+    if Debug.enabled:
+        print(name, " lost reservation at ", _grid_pos, " — higher-priority claim won")
+    clear_planned_path()
 
 
 func _on_guard_broken() -> void:
@@ -242,6 +255,9 @@ func setup(grid: GridArena, target: Node2D) -> void:
     if is_node_ready() and _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
         register_grid_occupant()
+        _grid.register_enemy_entity(self)
+        if not _grid.reservation_lost.is_connected(_on_reservation_lost):
+            _grid.reservation_lost.connect(_on_reservation_lost)
         _after_setup_ready()
 
 
@@ -311,6 +327,7 @@ func set_facing(v: Vector2) -> void:
 
 func plan_next_action() -> bool:
     clear_planned_path()
+    _reservation_is_attack = false
 
     if _grid == null or not has_target():
         return false
@@ -342,7 +359,9 @@ func plan_next_action() -> bool:
         return false
 
     _planned_path = path
-    _refresh_planned_reservations()
+    if not _refresh_planned_reservations():
+        clear_planned_path()
+        return false
     queue_redraw()
     return true
 
@@ -364,12 +383,19 @@ func has_planned_path() -> bool:
     return not _planned_path.is_empty()
 
 
+## Returns the first cell of the planned path without consuming it, or NO_BLOCKED_CELL.
+func get_planned_path_first() -> Vector2i:
+    return _planned_path[0] if not _planned_path.is_empty() else NO_BLOCKED_CELL
+
+
 func consume_next_planned_cell() -> Vector2i:
     var next := _planned_path[0]
     _planned_path.remove_at(0)
     _active_path_cell = next
     _has_active_path_cell = true
-    _refresh_planned_reservations()
+    if not _refresh_planned_reservations():
+        _planned_path.clear()
+        _grid.clear_reservation(self)
     queue_redraw()
     return next
 
@@ -544,6 +570,8 @@ func update_attack_motion(_delta: float) -> bool:
 ## Plans a charge approach that prefers lining up with the target row or column.
 func plan_charge_line_action() -> bool:
     clear_planned_path()
+    _reservation_is_attack = false
+
     if _grid == null or not has_target():
         return false
 
@@ -579,7 +607,9 @@ func plan_charge_line_action() -> bool:
         return false
 
     _planned_path = path
-    _refresh_planned_reservations()
+    if not _refresh_planned_reservations():
+        clear_planned_path()
+        return false
     queue_redraw()
     return true
 
@@ -597,6 +627,8 @@ func get_recovery_duration() -> float:
 ## origin whose footprint contains the target cell.
 func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
     clear_planned_path()
+    _reservation_is_attack = true
+
     if _grid == null or not has_target():
         return false
 
@@ -631,7 +663,9 @@ func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
         return false
 
     _planned_path = path
-    _refresh_planned_reservations()
+    if not _refresh_planned_reservations():
+        clear_planned_path()
+        return false
     queue_redraw()
     return true
 
@@ -721,9 +755,9 @@ func _collect_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[V
     return goals
 
 
-func _refresh_planned_reservations() -> void:
+func _refresh_planned_reservations() -> bool:
     if _grid == null:
-        return
+        return true
 
     var reserved_cells: Array[Vector2i] = []
     if _has_active_path_cell:
@@ -732,11 +766,16 @@ func _refresh_planned_reservations() -> void:
         var final_cell := _planned_path[_planned_path.size() - 1]
         if final_cell not in reserved_cells:
             reserved_cells.append(final_cell)
+        if not _has_active_path_cell:
+            var first_cell := _planned_path[0]
+            if first_cell not in reserved_cells:
+                reserved_cells.append(first_cell)
 
     if reserved_cells.is_empty():
         _grid.clear_reservation(self)
-    else:
-        _grid.reserve_cells(self, reserved_cells)
+        return true
+
+    return _grid.reserve_cells(self, reserved_cells, _reservation_is_attack)
 
 # == Setup helpers =============================================================
 
