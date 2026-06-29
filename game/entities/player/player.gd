@@ -436,7 +436,7 @@ func _unhandled_input(event: InputEvent) -> void:
         _attack_requested = true
     elif event.is_action_pressed("dash"):
         _dash_requested = true
-        _dash_requested_dir = get_aim_direction()
+        _dash_requested_dir = _resolve_dash_direction()
 
 
 func _on_hit_received(amount: float, source: Node, _guard_damage_profile: int) -> void:
@@ -482,3 +482,12 @@ func _start_invuln_blink() -> void:
 
 func _on_dash_hitbox_hit_landed(_target: Hurtbox) -> void:
     dash_hit_landed.emit()
+
+
+func _resolve_dash_direction() -> Vector2:
+    if SettingsStore.dash_direction_mode == SettingsStore.DASH_DIRECTION_MODE_MOVEMENT:
+        var move_input := get_move_input()
+        if move_input != Vector2.ZERO:
+            return move_input.normalized()
+        return _last_move_dir
+    return get_aim_direction()

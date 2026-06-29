@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dsplayer001" path="res://game/entities/player/player.tscn" id="3_player"]
 [ext_resource type="Script" uid="uid://bq7n4p3yat6ra" path="res://common/gameplay/grid/grid_terrain_view.gd" id="4_grid_view"]
 [ext_resource type="Texture2D" uid="uid://svm2l7nywt4m" path="res://game/scenes/stages/Water.png" id="5_water"]
+[ext_resource type="PackedScene" uid="uid://das_settings_button" path="res://game/shared/settings_button_overlay/settings_button_overlay.tscn" id="6_settings_button"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_water"]
 texture = ExtResource("5_water")
@@ -556,6 +557,8 @@ water_layer = NodePath("../WaterBackground")
 [node name="Player" parent="." unique_id=1469506958 instance=ExtResource("3_player")]
 unique_name_in_owner = true
 metadata/_edit_lock_ = true
+
+[node name="SettingsButtonOverlay" parent="." instance=ExtResource("6_settings_button")]
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=1953026004]
 
