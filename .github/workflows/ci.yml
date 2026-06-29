@@ -4,10 +4,9 @@ on:
   push:
     branches:
       - main
-      - "**"
   pull_request:
     branches: [main]
-
+  workflow_dispatch:
 env:
   GODOT_VERSION: "4.6.3"
   GODOT_ZIP: "Godot_v4.6.3-stable_linux.x86_64.zip"
