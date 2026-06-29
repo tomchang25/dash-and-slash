@@ -22,7 +22,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-[enemy_priority] Resolve contested enemy grid movement with deterministic priority — [ref plans/enemy_grid_move_priority.sketch.md, enemy_grid_move_priority.implementation.md]
+Nothing currently in progress.
 
 ---
 
