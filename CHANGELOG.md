@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Player Dash Mouse Aim And Invulnerability
+
+- 2026-06-29 — [player] Dash direction follows mouse aim, with base invulnerability during the dash active window and a 0.25 s hit-reward extension on landed dash hits; player prototype body updated to a rounder shape
+
 ### Enemy Pathfinding
 
 - 2026-06-25 — Enemy Add BFS pathfinding to small enemy AI with grid reservations, step-by-step path consumption, and grid-based arena spawning

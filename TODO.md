@@ -22,7 +22,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-[player_dash] Make dash follow mouse aim and add hit-reward invulnerability — [ref plans/player_dash_mouse_invulnerability.sketch.md]
+Nothing currently in progress.
 
 ---
 
