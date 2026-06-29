@@ -30,7 +30,6 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-[enemy_priority] Resolve contested enemy grid movement with deterministic priority — [ref plans/enemy_grid_move_priority.sketch.md]
 [combat_feedback] Add charge, shielded-hit, guard-break, and full-damage combat VFX — [ref plans/combat_feedback_vfx.sketch.md]
 [wave_rewards] Add wave reward cards with terrain choices, enemy escalation, and Major/Minor categories — [ref plans/wave_reward_cards.sketch.md]
 
