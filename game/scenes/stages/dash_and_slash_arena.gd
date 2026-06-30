@@ -30,6 +30,7 @@ func _ready() -> void:
 
     if _player.has_method("setup"):
         _player.setup(_grid)
+    _player.setup_run_stats()
 
     _spawn_planner = EnemySpawnPlanner.new(_grid, _player)
     _spawner = EnemySpawner.new(_grid, _player, self)

@@ -23,36 +23,29 @@ For first-pass max health, increasing max health should also increase current he
 Suggested data shape:
 
 ```gdscript
-{
-    "stat_id": "normal_attack_damage",
-    "base_value": 10.0,
-    "min_value": 0.0,
-}
+@export var normal_attack_damage := 20.0
+@export var normal_attack_cooldown := 0.25
+@export var dash_attack_damage := 80.0
+@export var dash_cooldown := 2.0
+@export var max_health := 100.0
 ```
 
-Suggested runtime modifier shape:
+Suggested data resource shape:
 
 ```gdscript
-{
-    "stat_id": "dash_cooldown",
-    "operation": "add",
-    "value": -0.15,
-}
-```
+class_name PlayerStatsData
 
-Suggested owner name and API:
-
-```gdscript
-class_name PlayerStatStore
-
-func apply_stat_modifier(stat_id: StringName, operation: StringName, value: float) -> void:
-    # Validate stat id, update run modifier, then refresh active player values.
+@export var max_health := 100.0
+@export var normal_attack_damage := 20.0
+@export var normal_attack_cooldown := 0.25
+@export var dash_attack_damage := 80.0
+@export var dash_cooldown := 2.0
 ```
 
 Migration steps:
 
 1. Identify the player numeric fields that Minor cards need to affect in the first pass, including normal attack cadence.
-2. Add a run-scoped stat owner or stat state object that resolves base values plus modifiers.
+2. Add a run-local mutable copy of the base player stat resource.
 3. Route player numeric reads through the resolved stat values.
 4. Add an effect entry point for reward cards to apply named stat modifiers.
 5. Define max-health increase behavior and keep health UI snapshots consistent.

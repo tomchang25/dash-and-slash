@@ -34,10 +34,10 @@ Suggested card entries:
 {
     "id": "minor_normal_damage_up",
     "tier": "minor",
-    "category": "player_stat",
+    "category": "player_buff",
     "title": "Sharpened Edge",
     "description": "Normal attack damage up.",
-    "effects": [{ "kind": "player_stat", "stat_id": "normal_attack_damage", "operation": "add", "value": 2.0 }],
+    "effects": [{ "kind": "add_normal_attack_damage", "value": 2.0 }],
 }
 ```
 

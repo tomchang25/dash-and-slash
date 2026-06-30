@@ -179,9 +179,9 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         ),
         WaveRewardEffectDefinition.new(
             "attack_up",
-            WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_DAMAGE,
-            "Attack Up",
-            "+%d attack damage",
+            WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE,
+            "Sharpened Edge",
+            "+%d normal attack damage",
             -1,
             10.0,
             3,
@@ -193,9 +193,54 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
             ],
         ),
         WaveRewardEffectDefinition.new(
+            "normal_attack_cooldown_down",
+            WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN,
+            "Quick Hands",
+            "-%.2fs normal attack cooldown",
+            -1,
+            0.04,
+            3,
+            1,
+            [
+                WaveRewardEffectDefinition.Profile.CONSERVATIVE,
+                WaveRewardEffectDefinition.Profile.BALANCED,
+                WaveRewardEffectDefinition.Profile.AGGRESSIVE,
+            ],
+        ),
+        WaveRewardEffectDefinition.new(
+            "dash_attack_up",
+            WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_ATTACK_DAMAGE,
+            "Impact Dash",
+            "+%d dash attack damage",
+            -1,
+            20.0,
+            3,
+            1,
+            [
+                WaveRewardEffectDefinition.Profile.CONSERVATIVE,
+                WaveRewardEffectDefinition.Profile.BALANCED,
+                WaveRewardEffectDefinition.Profile.AGGRESSIVE,
+            ],
+        ),
+        WaveRewardEffectDefinition.new(
+            "dash_cooldown_down",
+            WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_DASH_COOLDOWN,
+            "Light Footwork",
+            "-%.2fs dash cooldown",
+            -1,
+            0.15,
+            3,
+            1,
+            [
+                WaveRewardEffectDefinition.Profile.CONSERVATIVE,
+                WaveRewardEffectDefinition.Profile.BALANCED,
+                WaveRewardEffectDefinition.Profile.AGGRESSIVE,
+            ],
+        ),
+        WaveRewardEffectDefinition.new(
             "max_health_up",
             WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH,
-            "Max Health Up",
+            "Vital Spark",
             "+%d max health",
             -1,
             20.0,
@@ -247,7 +292,13 @@ func _is_definition_applicable(definition: WaveRewardEffectDefinition, context: 
             return grid != null and not grid.get_remove_safe_connected_land_candidates().is_empty()
         WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY:
             return true
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_DAMAGE:
+        WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE:
+            return context.get("player") is Player
+        WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN:
+            return context.get("player") is Player
+        WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_ATTACK_DAMAGE:
+            return context.get("player") is Player
+        WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_DASH_COOLDOWN:
             return context.get("player") is Player
         WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH:
             return context.get("player") is Player

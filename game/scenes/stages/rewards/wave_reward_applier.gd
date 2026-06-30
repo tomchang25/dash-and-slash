@@ -41,9 +41,18 @@ func _apply_effect(effect: WaveRewardEffect) -> void:
             _apply_remove_land(effect)
         WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY:
             _add_future_enemy_callback.call(int(effect.total_magnitude()))
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_DAMAGE:
+        WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE:
             if _player != null:
                 _player.add_normal_attack_damage(effect.total_magnitude())
+        WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN:
+            if _player != null:
+                _player.reduce_normal_attack_cooldown(effect.total_magnitude())
+        WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_ATTACK_DAMAGE:
+            if _player != null:
+                _player.add_dash_attack_damage(effect.total_magnitude())
+        WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_DASH_COOLDOWN:
+            if _player != null:
+                _player.reduce_dash_cooldown(effect.total_magnitude())
         WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH:
             if _player != null:
                 _player.add_max_health(effect.total_magnitude())
