@@ -106,6 +106,19 @@ func test_attack_replaces_existing_ordinary_reservation() -> void:
     assert_false(_grid.is_reserved_by(target, ordinary), "ordinary should lose ownership")
 
 
+func test_attack_does_not_replace_active_movement_step() -> void:
+    var mover: Node = autofree(Node.new())
+    var attacker: Node = autofree(Node.new())
+    _register_entity(mover, Vector2i(4, 3))
+    _register_entity(attacker, Vector2i(4, 6))
+    var active_step := Vector2i(4, 4)
+
+    assert_true(_grid.reserve_cells_with_active_steps(mover, [active_step], false, [active_step]), "mover should reserve active step")
+    assert_false(_grid.reserve_cells(attacker, [active_step], true), "attack should not replace active movement")
+
+    assert_true(_grid.is_reserved_by(active_step, mover), "active step should remain owned by mover")
+
+
 func test_ordinary_does_not_replace_attack_reservation() -> void:
     var attacker: Node = autofree(Node.new())
     var ordinary: Node = autofree(Node.new())

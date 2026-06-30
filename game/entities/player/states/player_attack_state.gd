@@ -1,7 +1,7 @@
 # player_attack_state.gd
 # Normal attack state — positions the capsule attack hitbox toward the mouse aim
 # direction, plays attack SFX and VFX, allows slight drift movement, and
-# transitions back to IDLE after ATTACK_DURATION.
+# transitions back to IDLE after the player's resolved attack duration.
 extends PlayerState
 
 var _timer: Timer
@@ -18,9 +18,9 @@ func _enter() -> void:
     _timer.one_shot = true
     _timer.timeout.connect(_on_timer_timeout)
 
-    add_child(_timer) # node-src: timer
+    add_child(_timer)
 
-    _timer.start(player.ATTACK_DURATION)
+    _timer.start(player.get_normal_attack_duration())
 
 
 func _physics_update(_delta: float) -> void:

@@ -10,11 +10,15 @@ signal died(entity: Player)
 signal health_changed(current: float, maximum: float)
 signal dash_hit_landed
 
+const DefaultPlayerStats := preload("res://game/entities/player/player_stats.tres")
+
 const MOVE_SPEED := 440.0
 const DASH_SPEED := 1000.0
 const DASH_DURATION := 0.3
 const DASH_COOLDOWN := 2.0
+const MIN_DASH_COOLDOWN := 0.5
 const ATTACK_DURATION := 0.25
+const MIN_ATTACK_DURATION := 0.08
 const ATTACK_RANGE := 152.0
 const ATTACK_CAPSULE_RADIUS := 64.0
 const ATTACK_CAPSULE_HEIGHT := 208.0
@@ -34,9 +38,7 @@ const DASH_CAMERA_PUNCH_DISTANCE := 7.0
 @export var health: Health
 @export var attack_sfx_event: SpatialAudioEvent
 @export var damaged_sfx_event: SpatialAudioEvent
-
-@export var normal_attack_damage: float = 20.0
-@export var dash_attack_damage: float = 80.0
+@export var player_stats: PlayerStatsData = DefaultPlayerStats
 
 # -- Node references ----------------------------------------------------------
 @onready var _attack_hitbox: Hitbox = %AttackHitbox
@@ -55,16 +57,33 @@ var _dash_requested_dir := Vector2.ZERO
 var _dash_cooldown_remaining := 0.0
 var _grid: GridArena
 var _hurt_tween: Tween
+var _input_locked := false
 var _dash_invulnerable := false
 var _dash_invuln_end_msec := 0
 var _dash_invuln_blink_tween: Tween
 var _dash_body_punch_tween: Tween
 var _dash_camera_punch_tween: Tween
 var _dash_vfx_elapsed := 0.0
+var _run_stats: PlayerStatsData
 
 
 func setup(grid: GridArena) -> void:
     _grid = grid
+
+
+## Creates the run-local mutable stat copy from the exported base stats.
+func setup_run_stats() -> void:
+    if player_stats != null:
+        _run_stats = player_stats.duplicate(true) as PlayerStatsData
+    else:
+        _run_stats = PlayerStatsData.new()
+    _sync_health_to_run_stats()
+
+
+## Returns the active run-local player stats.
+func get_run_stats() -> PlayerStatsData:
+    _ensure_run_stats()
+    return _run_stats
 
 
 func emit_health_snapshot() -> void:
@@ -75,10 +94,87 @@ func emit_health_snapshot() -> void:
 func get_dash_cooldown() -> float:
     return _dash_cooldown_remaining
 
+
+## Returns the resolved normal attack duration used as first-pass attack cadence.
+func get_normal_attack_duration() -> float:
+    _ensure_run_stats()
+    return _run_stats.normal_attack_cooldown
+
+
+## Returns the resolved dash cooldown duration.
+func get_dash_cooldown_duration() -> float:
+    _ensure_run_stats()
+    return _run_stats.dash_cooldown
+
+
+## Returns the active run-local normal attack damage.
+func get_normal_attack_damage() -> float:
+    _ensure_run_stats()
+    return _run_stats.normal_attack_damage
+
+
+## Returns the active run-local dash attack damage.
+func get_dash_attack_damage() -> float:
+    _ensure_run_stats()
+    return _run_stats.dash_attack_damage
+
+
+## Adds a run-local bonus to normal attack damage.
+func add_normal_attack_damage(amount: float) -> void:
+    if amount <= 0.0:
+        return
+    _ensure_run_stats()
+    _run_stats.normal_attack_damage += amount
+
+
+## Reduces the run-local normal attack duration, clamped to the first-pass minimum.
+func reduce_normal_attack_cooldown(amount: float) -> void:
+    if amount <= 0.0:
+        return
+    _ensure_run_stats()
+    _run_stats.normal_attack_cooldown = max(_run_stats.normal_attack_cooldown - amount, MIN_ATTACK_DURATION)
+
+
+## Adds a run-local bonus to dash attack damage.
+func add_dash_attack_damage(amount: float) -> void:
+    if amount <= 0.0:
+        return
+    _ensure_run_stats()
+    _run_stats.dash_attack_damage += amount
+
+
+## Reduces the run-local dash cooldown and clamps any active cooldown to the new maximum.
+func reduce_dash_cooldown(amount: float) -> void:
+    if amount <= 0.0:
+        return
+    _ensure_run_stats()
+    _run_stats.dash_cooldown = max(_run_stats.dash_cooldown - amount, MIN_DASH_COOLDOWN)
+    _dash_cooldown_remaining = min(_dash_cooldown_remaining, _run_stats.dash_cooldown)
+
+
+## Adds max health through the owned Health component.
+func add_max_health(amount: float) -> void:
+    if amount <= 0.0:
+        return
+    _ensure_run_stats()
+    _run_stats.max_health += amount
+    if health != null:
+        health.add_max_health(amount)
+
 # -- Public API (called BY states, not the other way around) --
 
 
+func set_input_locked(locked: bool) -> void:
+    _input_locked = locked
+    if locked:
+        _move_dir = Vector2.ZERO
+        _attack_requested = false
+        _dash_requested = false
+
+
 func get_move_input() -> Vector2:
+    if _input_locked:
+        return Vector2.ZERO
     return Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
 
@@ -111,7 +207,7 @@ func consume_dash_request() -> bool:
     var req := _dash_requested
     _dash_requested = false
     if req:
-        _dash_cooldown_remaining = DASH_COOLDOWN
+        _dash_cooldown_remaining = get_dash_cooldown_duration()
     return req
 
 
@@ -128,7 +224,7 @@ func disable_attack_hitbox() -> void:
 
 
 func enable_dash_hitbox() -> void:
-    _dash_hitbox.damage = dash_attack_damage
+    _dash_hitbox.damage = get_dash_attack_damage()
     _dash_hitbox.set_enabled(true)
 
 
@@ -138,7 +234,7 @@ func disable_dash_hitbox() -> void:
 
 func begin_normal_attack(aim_dir: Vector2) -> void:
     _position_attack_shape(aim_dir)
-    _attack_hitbox.damage = normal_attack_damage
+    _attack_hitbox.damage = get_normal_attack_damage()
     _attack_hitbox.set_enabled(true)
     if attack_sfx_event != null:
         AudioManager.play_event(attack_sfx_event, global_position)
@@ -206,6 +302,7 @@ func _position_attack_shape(aim_dir: Vector2) -> void:
 
 
 func _play_attack_vfx(aim_dir: Vector2) -> void:
+    var attack_duration := get_normal_attack_duration()
     _attack_vfx.position = aim_dir * ATTACK_RANGE
     _attack_vfx.rotation = aim_dir.angle() + PI / 2.0
     _attack_vfx.visible = true
@@ -214,7 +311,7 @@ func _play_attack_vfx(aim_dir: Vector2) -> void:
 
     var tween := create_tween()
     tween.tween_property(_attack_vfx, "scale", Vector2.ONE, 0.06)
-    tween.parallel().tween_property(_attack_vfx, "modulate:a", 0.0, ATTACK_DURATION)
+    tween.parallel().tween_property(_attack_vfx, "modulate:a", 0.0, attack_duration)
 
 
 func _reset_attack_vfx() -> void:
@@ -398,6 +495,9 @@ func _update_dash_invulnerability() -> void:
 func _ready() -> void:
     super()
 
+    if _run_stats == null:
+        setup_run_stats()
+
     if health != null:
         health.died.connect(_on_health_died)
         health.health_changed.connect(_on_health_changed)
@@ -419,7 +519,7 @@ func _physics_process(delta: float) -> void:
     if _dash_cooldown_remaining > 0.0:
         _dash_cooldown_remaining = max(_dash_cooldown_remaining - delta, 0.0)
 
-    _move_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+    _move_dir = get_move_input()
     if _move_dir != Vector2.ZERO:
         _last_move_dir = _move_dir
 
@@ -432,6 +532,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+    if _input_locked:
+        return
     if event.is_action_pressed("attack"):
         _attack_requested = true
     elif event.is_action_pressed("dash"):
@@ -491,3 +593,16 @@ func _resolve_dash_direction() -> Vector2:
             return move_input.normalized()
         return _last_move_dir
     return get_aim_direction()
+
+
+func _ensure_run_stats() -> void:
+    if _run_stats == null:
+        setup_run_stats()
+
+
+func _sync_health_to_run_stats() -> void:
+    if health == null:
+        return
+    var delta := _run_stats.max_health - health.max_health
+    if delta > 0.0:
+        health.add_max_health(delta)

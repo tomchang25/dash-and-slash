@@ -122,12 +122,17 @@ func end_attack() -> void:
 
 func plan_next_action() -> bool:
     if _attack_controller == null or _attack_data == null:
-        return super()
+        return plan_approach_action()
 
-    return plan_cell_attack_action(
-        func(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
-            return EnemyAttackController.get_attack_cells(origin_cell, facing, _attack_data, _grid)
-    )
+    var get_cells_for_origin := func(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
+        return EnemyAttackController.get_attack_cells(origin_cell, facing, _attack_data, _grid)
+    var get_origins_for_target := func(target_cell: Vector2i) -> Array[Vector2i]:
+        return EnemyAttackController.get_attack_origin_cells(target_cell, _attack_data, _grid)
+
+    if plan_cell_attack_action(get_cells_for_origin, get_origins_for_target):
+        return true
+
+    return plan_approach_action()
 
 # == Setup helpers =============================================================
 

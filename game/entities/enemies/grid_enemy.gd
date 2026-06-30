@@ -155,8 +155,8 @@ func reset() -> void:
 func _on_reservation_lost(_entity: Object) -> void:
     if _entity != self:
         return
-    if Debug.enabled:
-        print(name, " lost reservation at ", _grid_pos, " — higher-priority claim won")
+    # if Debug.enabled:
+    #     print(name, " lost reservation at ", _grid_pos, " — higher-priority claim won")
     clear_planned_path()
 
 
@@ -376,6 +376,43 @@ func plan_next_action() -> bool:
     return true
 
 
+## Plans ordinary movement to a reachable cell adjacent to the target.
+func plan_approach_action() -> bool:
+    clear_planned_path()
+    _reservation_is_attack = false
+
+    if _grid == null or not has_target():
+        return false
+
+    var start := _grid_pos
+    var target_cell := get_target_cell()
+
+    if not _grid.is_in_bounds(target_cell):
+        return false
+
+    if start == target_cell:
+        queue_redraw()
+        return true
+
+    var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
+    if fallback_goals.is_empty():
+        return false
+    if start in fallback_goals:
+        queue_redraw()
+        return true
+
+    var path := _find_path_to_cell(start, target_cell, fallback_goals, false)
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    if not _refresh_planned_reservations():
+        clear_planned_path()
+        return false
+    queue_redraw()
+    return true
+
+
 ## Clears pending grid movement, active path debug state, and path reservations.
 func clear_planned_path() -> void:
     if _grid != null:
@@ -480,6 +517,18 @@ func begin_death() -> void:
         health.set_enabled(false)
     if hurtbox != null:
         hurtbox.set_enabled(false)
+
+
+## Force-death entry point for boss wave resolution. Routes through the existing
+## death cleanup flow and emits the died signal so owning systems can react.
+func force_death() -> void:
+    if health != null and not health.is_alive():
+        return
+    begin_death()
+    var dead_state_id := get_dead_state_id()
+    if _state_machine != null and dead_state_id >= 0:
+        _state_machine.request_transition(dead_state_id, true)
+    died.emit(self)
 
 
 func play_death_sfx() -> void:
@@ -645,10 +694,9 @@ func get_recovery_duration() -> float:
     return enemy_data.default_recovery_duration if enemy_data != null else 3.0
 
 
-## Shared cell-origin planning for tile attacks. Iterates every possible origin cell and
-## cardinal facing, computes attack cells via the given callable, and finds a path to any
-## origin whose footprint contains the target cell.
-func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
+## Shared cell-origin planning for tile attacks. Computes target-derived origin
+## candidates, verifies the committed facing can hit the target, and paths to one.
+func plan_cell_attack_action(get_cells_for_origin: Callable, get_origins_for_target: Callable = Callable()) -> bool:
     clear_planned_path()
     _reservation_is_attack = true
 
@@ -660,19 +708,19 @@ func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
     if not _grid.is_in_bounds(target_cell):
         return false
 
+    var candidate_origins := _collect_attack_origin_candidates(target_cell, get_origins_for_target)
     var attack_origins: Array[Vector2i] = []
-    for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
-        var facing := Vector2(facing_cell.x, facing_cell.y)
-        for x in range(_grid.grid_size.x):
-            for y in range(_grid.grid_size.y):
-                var origin_cell := Vector2i(x, y)
-                if origin_cell != start and not _can_plan_goal_cell(origin_cell, true):
-                    continue
-                var cells: Array[Vector2i] = get_cells_for_origin.call(origin_cell, facing)
-                if target_cell not in cells:
-                    continue
-                if origin_cell not in attack_origins:
-                    attack_origins.append(origin_cell)
+    for origin_cell: Vector2i in candidate_origins:
+        if origin_cell == target_cell:
+            continue
+        if origin_cell != start and not _can_plan_goal_cell(origin_cell, true):
+            continue
+        var facing := cardinal_snap(Vector2(target_cell - origin_cell))
+        var cells: Array[Vector2i] = get_cells_for_origin.call(origin_cell, facing)
+        if target_cell not in cells:
+            continue
+        if origin_cell not in attack_origins:
+            attack_origins.append(origin_cell)
 
     if attack_origins.is_empty():
         return false
@@ -693,6 +741,21 @@ func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
     return true
 
 # == Grid helpers ==============================================================
+
+
+func _collect_attack_origin_candidates(target_cell: Vector2i, get_origins_for_target: Callable) -> Array[Vector2i]:
+    if get_origins_for_target.is_valid():
+        var origins: Array[Vector2i] = get_origins_for_target.call(target_cell)
+        return origins
+    return _collect_all_grid_origin_cells()
+
+
+func _collect_all_grid_origin_cells() -> Array[Vector2i]:
+    var origins: Array[Vector2i] = []
+    for x in range(_grid.grid_size.x):
+        for y in range(_grid.grid_size.y):
+            origins.append(Vector2i(x, y))
+    return origins
 
 
 func _update_grid_pos() -> void:
@@ -750,21 +813,32 @@ func _can_path_through(
         return false
     if next == blocked_cell:
         return false
-    if next != start:
-        if _grid.is_occupied(next):
-            return false
-        if _grid.is_reserved(next):
-            var will_reserve_cell := current == start or next in goal_cells
-            return will_reserve_cell and _grid.can_reserve_cell(self, next, is_attack)
+    if _needs_committed_path_cell(current, next, start, goal_cells):
+        return _can_claim_committed_path_cell(next, is_attack)
     return true
 
 
-func _can_plan_goal_cell(cell: Vector2i, is_attack: bool) -> bool:
+func _needs_committed_path_cell(
+        current: Vector2i,
+        next: Vector2i,
+        start: Vector2i,
+        goal_cells: Array[Vector2i],
+) -> bool:
+    return current == start or next in goal_cells
+
+
+func _can_claim_committed_path_cell(cell: Vector2i, is_attack: bool) -> bool:
     if _grid.is_occupied(cell):
         return false
     if not _grid.is_reserved(cell):
         return true
     return _grid.can_reserve_cell(self, cell, is_attack)
+
+
+func _can_plan_goal_cell(cell: Vector2i, is_attack: bool) -> bool:
+    if not _grid.is_walkable(cell):
+        return false
+    return _can_claim_committed_path_cell(cell, is_attack)
 
 
 func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
@@ -802,8 +876,10 @@ func _refresh_planned_reservations() -> bool:
         return true
 
     var reserved_cells: Array[Vector2i] = []
+    var active_cells: Array[Vector2i] = []
     if _has_active_path_cell:
         reserved_cells.append(_active_path_cell)
+        active_cells.append(_active_path_cell)
     if not _planned_path.is_empty():
         var final_cell := _planned_path[_planned_path.size() - 1]
         if final_cell not in reserved_cells:
@@ -817,7 +893,7 @@ func _refresh_planned_reservations() -> bool:
         _grid.clear_reservation(self)
         return true
 
-    return _grid.reserve_cells(self, reserved_cells, _reservation_is_attack)
+    return _grid.reserve_cells_with_active_steps(self, reserved_cells, _reservation_is_attack, active_cells)
 
 # == Setup helpers =============================================================
 

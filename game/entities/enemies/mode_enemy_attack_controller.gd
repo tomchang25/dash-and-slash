@@ -94,6 +94,13 @@ func get_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]
     return []
 
 
+func get_attack_origin_cells(target_cell: Vector2i) -> Array[Vector2i]:
+    var attack_data := _attack_data if _attack_data != null else _create_origin_candidate_attack_data()
+    if attack_data == null:
+        return []
+    return EnemyAttackController.get_attack_origin_cells(target_cell, attack_data, _grid)
+
+
 func show_warning() -> void:
     if _prepared and _telegraph != null:
         _telegraph.show_warning(_attack_cells)
@@ -218,6 +225,32 @@ func _get_tile_attack_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vec
         TileShape.LINE_1X4:
             return AttackCellShapes.line(origin_cell, facing_cell, 4, _grid, true)
     return []
+
+
+func _create_origin_candidate_attack_data() -> EnemyAttackData:
+    var attack_data := EnemyAttackData.new()
+    match _mode:
+        Mode.TILE:
+            match _tile_shape:
+                TileShape.WIDE_2X3:
+                    attack_data.cell_shape = EnemyAttackData.CellShape.WIDE
+                    attack_data.width = 3
+                    attack_data.depth = 2
+                TileShape.SELF_3X3:
+                    attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
+                    attack_data.radius = 1
+                TileShape.LINE_1X4:
+                    attack_data.cell_shape = EnemyAttackData.CellShape.LINE
+                    attack_data.line_length = 4
+            return attack_data
+        Mode.CHARGE:
+            attack_data.cell_shape = EnemyAttackData.CellShape.FULL_LINE
+            return attack_data
+        Mode.PUFF:
+            attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
+            attack_data.radius = 1
+            return attack_data
+    return null
 
 
 func _get_charge_cells(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:

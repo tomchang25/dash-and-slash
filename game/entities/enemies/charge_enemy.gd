@@ -41,6 +41,23 @@ func get_charge_cells() -> Array[Vector2i]:
     return get_charge_cells_from_pos(_grid_pos, _facing)
 
 
+func can_charge_target_from_cell(origin_cell: Vector2i) -> bool:
+    if _grid == null or not has_target():
+        return false
+    if not _grid.is_in_bounds(origin_cell) or not _grid.is_walkable(origin_cell):
+        return false
+
+    var target_cell := get_target_cell()
+    if origin_cell == target_cell:
+        return false
+    if origin_cell.x != target_cell.x and origin_cell.y != target_cell.y:
+        return false
+
+    var facing := cardinal_snap(Vector2(target_cell - origin_cell))
+    var cells := get_charge_cells_from_pos(origin_cell, facing)
+    return target_cell in cells
+
+
 func get_body() -> Polygon2D:
     return _body
 
@@ -92,7 +109,7 @@ func get_dead_state_id() -> int:
 
 
 func get_pre_plan_state_id() -> int:
-    if is_target_cardinally_aligned():
+    if can_charge_target_from_cell(_grid_pos):
         return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
@@ -120,7 +137,7 @@ func show_attack_charge() -> void:
 
 
 func get_arrival_override_state_id() -> int:
-    if is_target_cardinally_aligned():
+    if can_charge_target_from_cell(_grid_pos):
         return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
@@ -135,7 +152,7 @@ func begin_attack_telegraph() -> bool:
     face_target_position()
     _configure_contact_hitbox()
     var cells := get_charge_cells()
-    if cells.is_empty():
+    if cells.is_empty() or get_target_cell() not in cells:
         return false
 
     set_stored_charge_cells(cells)
@@ -148,7 +165,37 @@ func begin_attack_telegraph() -> bool:
 
 
 func plan_next_action() -> bool:
-    return plan_charge_line_action()
+    clear_planned_path()
+    _reservation_is_attack = false
+
+    if _grid == null or not has_target():
+        return false
+
+    var start := _grid_pos
+    var target_cell := get_target_cell()
+    if not _grid.is_in_bounds(target_cell):
+        return false
+    if start == target_cell:
+        queue_redraw()
+        return true
+
+    var line_goals := _collect_viable_charge_origin_cells(target_cell, start)
+    if line_goals.is_empty():
+        return plan_approach_action()
+    if start in line_goals:
+        queue_redraw()
+        return true
+
+    var path := _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals, false)
+    if path.is_empty():
+        return plan_approach_action()
+
+    _planned_path = path
+    if not _refresh_planned_reservations():
+        clear_planned_path()
+        return plan_approach_action()
+    queue_redraw()
+    return true
 
 
 func begin_charge_attack() -> void:
@@ -206,6 +253,29 @@ func _configure_contact_hitbox() -> void:
     _contact_hitbox.damage = attack_data.damage if attack_data != null else 8.0
     _contact_hitbox.damage_interval = attack_data.damage_interval if attack_data != null else 0.6
     _contact_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
+
+
+func _collect_viable_charge_origin_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
+    var goals: Array[Vector2i] = []
+    for x in range(_grid.grid_size.x):
+        var cell := Vector2i(x, target_cell.y)
+        if _can_use_charge_origin(cell, target_cell, start):
+            goals.append(cell)
+    for y in range(_grid.grid_size.y):
+        var cell := Vector2i(target_cell.x, y)
+        if cell in goals:
+            continue
+        if _can_use_charge_origin(cell, target_cell, start):
+            goals.append(cell)
+    return goals
+
+
+func _can_use_charge_origin(cell: Vector2i, target_cell: Vector2i, start: Vector2i) -> bool:
+    if cell == target_cell:
+        return false
+    if cell != start and not _can_plan_goal_cell(cell, false):
+        return false
+    return can_charge_target_from_cell(cell)
 
 
 func _create_fallback_attack_data() -> EnemyAttackData:

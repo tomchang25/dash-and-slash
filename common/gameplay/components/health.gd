@@ -66,6 +66,16 @@ func heal(amount: float) -> void:
     _current = min(_current + amount, max_health)
     health_changed.emit(_current, max_health)
 
+
+## Increases maximum hp and optionally heals by the same amount.
+func add_max_health(amount: float, heal_by_amount := true) -> void:
+    if amount <= 0.0:
+        return
+    max_health += amount
+    if heal_by_amount:
+        _current = min(_current + amount, max_health)
+    health_changed.emit(_current, max_health)
+
 # ══ Pool lifecycle ════════════════════════════════════════════════════════════
 
 
