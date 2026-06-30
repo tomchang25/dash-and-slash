@@ -36,8 +36,6 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 
 One-line, no reasoning, no backing doc.
 
-[toast-manager]
-
 ---
 
 ## Bug
@@ -51,14 +49,6 @@ _(no known bugs)_
 ## Draft
 
 Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
-
-### ToastManager
-
-Restore or rebuild the template ToastManager so runtime warnings can surface in-game without hiding the underlying issue.
-
-- Add a `ToastManager.warn` path for recoverable gameplay anomalies such as ChargeEnemy entering charge attack without stored charge cells.
-- Keep engine/developer diagnostics visible through `push_warning` while also showing player-facing or debug-facing toast feedback.
-- Check why the template clone did not bring over ToastManager and align the replacement with current autoload and UI overlay conventions.
 
 ### Charge Enemy Ratio Tweak + Enemy Spawn Ratio Data Drive Refactor
 
