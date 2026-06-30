@@ -28,15 +28,16 @@ func setup(grid: GridArena, player: Player, parent: Node) -> void:
 func spawn_enemy(picked: PackedScene, spawn_cell: Vector2i, died_callback: Callable) -> Node:
     var enemy := picked.instantiate() as Node2D
     if enemy == null:
-        push_warning("enemy scene root must be Node2D")
+        ToastManager.show_dev_error("EnemySpawner: enemy scene root must be Node2D")
         return null
+
     enemy.global_position = _grid.cell_center(spawn_cell)
 
     if enemy.has_method("setup"):
         enemy.setup(_grid, _player)
 
     if not enemy.has_signal("died"):
-        push_warning("enemy missing died signal")
+        ToastManager.show_dev_error("EnemySpawner: enemy missing died signal")
         enemy.free()
         return null
 
