@@ -44,13 +44,29 @@ One-line, no reasoning, no backing doc.
 
 _(no known bugs)_
 
--[bug] charge enemy and mode enemy still suck in idle when player hide in corner, might be to unify enemies logic for fix once for all
+-[bug] charge enemy and mode enemy and puff enemy still suck in idle when player hide in corner, might be to unify enemies logic for fix once for all
 
 ---
 
 ## Draft
 
 Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
+
+### ToastManager
+
+Restore or rebuild the template ToastManager so runtime warnings can surface in-game without hiding the underlying issue.
+
+- Add a `ToastManager.warn` path for recoverable gameplay anomalies such as ChargeEnemy entering charge attack without stored charge cells.
+- Keep engine/developer diagnostics visible through `push_warning` while also showing player-facing or debug-facing toast feedback.
+- Check why the template clone did not bring over ToastManager and align the replacement with current autoload and UI overlay conventions.
+
+### Charge Enemy Ratio Tweak + Enemy Spawn Ratio Data Drive Refactor
+
+Later balance and data work after ChargeEnemy blocked-line behavior is stable.
+
+- Consider lowering ChargeEnemy spawn share to 20% after the AI fallback fix has been tested in real waves.
+- Replace the hard-coded equal `ENEMY_POOL` selection with data-driven enemy spawn weights.
+- Allow spawn weights to vary by wave, stage, or run configuration instead of being fixed in the stage script.
 
 ### Weapon Class Attack Variants
 
@@ -88,19 +104,3 @@ Prototype a rounder player body with a weapon/facing marker that communicates ai
 - Add or adjust player prototype weapon/facing marker nodes so the marker points toward the current aim direction.
 - Keep the player body visually round enough that facing is read from the weapon/facing marker rather than the character silhouette.
 - Treat the marker as the future class representation instead of requiring a full player character sprite immediately.
-
-### ToastManager
-
-Restore or rebuild the template ToastManager so runtime warnings can surface in-game without hiding the underlying issue.
-
-- Add a `ToastManager.warn` path for recoverable gameplay anomalies such as ChargeEnemy entering charge attack without stored charge cells.
-- Keep engine/developer diagnostics visible through `push_warning` while also showing player-facing or debug-facing toast feedback.
-- Check why the template clone did not bring over ToastManager and align the replacement with current autoload and UI overlay conventions.
-
-### Charge Enemy Ratio Tweak + Enemy Spawn Ratio Data Drive Refactor
-
-Later balance and data work after ChargeEnemy blocked-line behavior is stable.
-
-- Consider lowering ChargeEnemy spawn share to 20% after the AI fallback fix has been tested in real waves.
-- Replace the hard-coded equal `ENEMY_POOL` selection with data-driven enemy spawn weights.
-- Allow spawn weights to vary by wave, stage, or run configuration instead of being fixed in the stage script.

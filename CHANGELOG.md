@@ -16,6 +16,15 @@ Rules:
 
 ## [unreleased]
 
+### Roguelite Wave Reward Loop
+
+- 2026-06-30 — [waves] Run progresses through four normal waves and a wave 5 boss; enemy counts are data-driven with base counts of 5–8 plus accumulated future enemy pressure modifiers from rewards
+- 2026-06-30 — [rewards] Clearing a normal wave presents three reward choices from Conservative, Balanced, and Aggressive profiles; selection applies immediately and advances the run
+- 2026-06-30 — [rewards] Minor stat rewards modify normal attack damage/cooldown, dash attack damage/cooldown, and max/current health through run-local player stat data; Major placeholder resolves safely without class behavior changes
+- 2026-06-30 — [rewards] Terrain cards claim one adjacent sea cell and remove one safe connected land cell without isolating the landmass; pressure cards increase future normal/support enemy counts
+- 2026-06-30 — [player] Each wave start repositions the player to a safe land cell near the arena center before enemy spawn planning
+- 2026-06-30 — [boss] Boss death force-clears remaining support enemies and pending spawn telegraphs before the run completes
+
 ### Combat Feedback VFX
 
 - 2026-06-29 — [enemy] Charge enemies display directional windup pulses and dash streaks; guarded hits show blue shield spark, guard breaks show white flash with blue fragments, and staggers show red damage burst
