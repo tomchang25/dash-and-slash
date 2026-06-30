@@ -5,22 +5,12 @@
 # Spawns enemies, tracks alive counts, transitions waves.
 extends Node2D
 
-enum Wave { NO_WAVE = -1, WAVE_1 = 0, WAVE_2 = 1, WAVE_3 = 2, WAVE_4 = 3, BOSS = 4, COMPLETE = 5 }
-
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
 const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const BossScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 
 const ENEMY_POOL := [SmallEnemyScene, PuffEnemyScene, ChargeEnemyScene]
-
-const WAVES := {
-    Wave.WAVE_1: { "count": 5 },
-    Wave.WAVE_2: { "count": 6 },
-    Wave.WAVE_3: { "count": 7 },
-    Wave.WAVE_4: { "count": 8 },
-    Wave.BOSS: { "count": 1, "scene": BossScene },
-}
 
 const WAVE_GAP := 2.0
 const WAVE_BANNER_FADE := 0.35
@@ -42,16 +32,15 @@ const ENEMY_SPAWN_RANDOM_SCORE_WEIGHT := 0.3
 @onready var _wave_banner_label: Label = %WaveBannerLabel
 @onready var _reward_overlay: WaveRewardOverlay = %WaveRewardOverlay
 
-var _current_wave: int = Wave.NO_WAVE
-var _pending_wave: int = Wave.NO_WAVE
+var _wave_controller: WaveController
 var _alive_enemies: Array[Node] = []
 var _pending_spawns: Array[Dictionary] = []
 var _wave_gap_timer: Timer
 var _spawn_telegraph_timer: Timer
 var _wave_banner_tween: Tween
 var _boss_ref: CharacterBody2D = null
+var _boss_resolving: bool = false
 var _reward_controller: WaveRewardChoiceController
-var _future_enemy_bonus := 0
 
 
 func _ready() -> void:
@@ -60,6 +49,8 @@ func _ready() -> void:
 
     if _player.has_method("setup"):
         _player.setup(_grid)
+
+    _wave_controller = WaveController.new()
 
     _wave_gap_timer = Timer.new()
     _wave_gap_timer.one_shot = true
@@ -99,58 +90,32 @@ func _process(_delta: float) -> void:
 
 
 func _start_next_wave() -> void:
-    match _current_wave:
-        Wave.NO_WAVE:
-            _start_wave_gap(Wave.WAVE_1)
-        Wave.WAVE_1:
-            _start_wave_gap(Wave.WAVE_2)
-        Wave.WAVE_2:
-            _start_wave_gap(Wave.WAVE_3)
-        Wave.WAVE_3:
-            _start_wave_gap(Wave.WAVE_4)
-        Wave.WAVE_4:
-            _start_wave_gap(Wave.BOSS)
-        Wave.BOSS:
-            _begin_wave(Wave.COMPLETE)
+    if _wave_controller.advance_wave():
+        _start_wave_gap()
 
 
-func _begin_wave(wave: int) -> void:
-    _current_wave = wave
-
-    match wave:
-        Wave.WAVE_1:
-            _wave_label.text = _wave_display_text(wave)
-        Wave.WAVE_2:
-            _wave_label.text = _wave_display_text(wave)
-        Wave.WAVE_3:
-            _wave_label.text = _wave_display_text(wave)
-        Wave.WAVE_4:
-            _wave_label.text = _wave_display_text(wave)
-        Wave.BOSS:
-            _wave_label.text = _wave_display_text(wave)
-            _boss_guard_label.visible = true
-        Wave.COMPLETE:
-            _wave_label.text = "RUN COMPLETE"
-            _wave_label.modulate.a = 1.0
-            _wave_label.visible = true
-            return
-
+func _begin_wave() -> void:
+    _wave_label.text = _wave_display_text()
+    if _wave_controller.is_boss_wave():
+        _boss_guard_label.visible = true
     _wave_label.visible = false
-    var info: Dictionary = WAVES.get(wave, { })
-    var count: int = info.get("count", 0)
-    if _is_normal_wave(wave):
-        count += _future_enemy_bonus
-    var scene: PackedScene = info.get("scene")
 
     _pending_spawns.clear()
     var reserved_spawn_cells: Array[Vector2i] = []
     var telegraph_cells: Array[Vector2i] = []
-    for i in count:
-        var picked: PackedScene = scene if scene != null else ENEMY_POOL[randi() % ENEMY_POOL.size()]
-        var cell := _choose_enemy_spawn_cell(i, count, reserved_spawn_cells)
+
+    var support_count := _wave_controller.get_support_spawn_count()
+    for i in support_count:
+        var picked: PackedScene = ENEMY_POOL[randi() % ENEMY_POOL.size()]
+        var cell := _choose_enemy_spawn_cell(i, max(support_count, 1), reserved_spawn_cells)
         reserved_spawn_cells.append(cell)
         _pending_spawns.append({ "scene": picked, "cell": cell })
         telegraph_cells.append(cell)
+
+    if _wave_controller.is_boss_wave():
+        var boss_cell := _choose_enemy_spawn_cell(0, 1, reserved_spawn_cells)
+        _pending_spawns.append({ "scene": BossScene, "cell": boss_cell })
+        telegraph_cells.append(boss_cell)
 
     _grid.set_telegraph(self, telegraph_cells, GridArena.TelegraphPhase.SPAWNING)
     _spawn_telegraph_timer.start(SPAWN_TELEGRAPH_DURATION)
@@ -182,7 +147,7 @@ func _spawn_enemy(picked: PackedScene, spawn_cell: Vector2i) -> void:
     add_child(enemy)
     _alive_enemies.append(enemy)
 
-    if _current_wave == Wave.BOSS:
+    if picked == BossScene:
         _boss_ref = enemy
         var boss := enemy as ModeEnemy
         if boss != null:
@@ -318,16 +283,31 @@ func _on_enemy_died(enemy: Entity) -> void:
     _alive_enemies.erase(enemy)
     _grid.unregister_occupant(enemy)
 
-    if _alive_enemies.is_empty():
-        if _current_wave == Wave.BOSS:
-            _boss_ref = null
-            _boss_guard_label.visible = false
-            _current_wave = Wave.COMPLETE
-            _wave_label.modulate.a = 1.0
-            _wave_label.visible = true
-            _wave_label.text = "RUN COMPLETE!"
-        else:
-            _on_normal_wave_complete()
+    if _boss_resolving:
+        return
+
+    if _boss_ref != null and enemy == _boss_ref:
+        _boss_ref = null
+        _boss_guard_label.visible = false
+        _resolve_boss_wave()
+    elif _alive_enemies.is_empty():
+        _on_normal_wave_complete()
+
+
+func _resolve_boss_wave() -> void:
+    _boss_resolving = true
+    _pending_spawns.clear()
+
+    var remaining := _alive_enemies.duplicate()
+    for e in remaining:
+        var ge := e as GridEnemy
+        if ge != null:
+            ge.force_death()
+
+    _wave_label.modulate.a = 1.0
+    _wave_label.visible = true
+    _wave_label.text = "RUN COMPLETE!"
+    _boss_resolving = false
 
 
 func _on_player_health_changed(current: float, maximum: float) -> void:
@@ -362,7 +342,7 @@ func _on_normal_wave_complete() -> void:
 
 func _open_reward_choice() -> void:
     _move_player_to_safe_center_cell()
-    var wave_number := _normal_wave_number(_current_wave)
+    var wave_number := _wave_controller.get_wave_number()
     _reward_controller.open_reward_choice(wave_number, _reward_target_points(wave_number))
 
 
@@ -373,25 +353,7 @@ func _on_reward_choice_applied() -> void:
 
 
 func _add_future_enemy_bonus(amount: int) -> void:
-    _future_enemy_bonus += max(amount, 0)
-
-
-func _is_normal_wave(wave: int) -> bool:
-    return wave == Wave.WAVE_1 or wave == Wave.WAVE_2 or wave == Wave.WAVE_3 or wave == Wave.WAVE_4
-
-
-func _normal_wave_number(wave: int) -> int:
-    match wave:
-        Wave.WAVE_1:
-            return 1
-        Wave.WAVE_2:
-            return 2
-        Wave.WAVE_3:
-            return 3
-        Wave.WAVE_4:
-            return 4
-    push_warning("Wave is not a normal reward wave: %s" % wave)
-    return 1
+    _wave_controller.add_future_enemy_count(amount)
 
 
 func _reward_target_points(wave_number: int) -> float:
@@ -405,16 +367,14 @@ func _move_player_to_safe_center_cell() -> void:
     _grid.set_player_cell(_player.global_position)
 
 
-func _start_wave_gap(wave: int) -> void:
-    _pending_wave = wave
-    _show_wave_banner(_wave_display_text(wave))
+func _start_wave_gap() -> void:
+    _show_wave_banner(_wave_display_text())
     _wave_gap_timer.start(WAVE_GAP)
 
 
 func _on_wave_gap_timeout() -> void:
     _hide_wave_banner()
-    _begin_wave(_pending_wave)
-    _pending_wave = Wave.NO_WAVE
+    _begin_wave()
 
 
 func _show_wave_banner(text: String) -> void:
@@ -436,17 +396,7 @@ func _hide_wave_banner() -> void:
     _wave_banner_overlay.modulate.a = 1.0
 
 
-func _wave_display_text(wave: int) -> String:
-    match wave:
-        Wave.WAVE_1:
-            return "Wave 1"
-        Wave.WAVE_2:
-            return "Wave 2"
-        Wave.WAVE_3:
-            return "Wave 3"
-        Wave.WAVE_4:
-            return "Wave 4"
-        Wave.BOSS:
-            return "Wave 5: BOSS"
-    push_warning("Wave has no display text: %s" % wave)
-    return "Wave"
+func _wave_display_text() -> String:
+    if _wave_controller.is_boss_wave():
+        return "Final Wave: BOSS"
+    return "Wave %d" % _wave_controller.get_wave_number()

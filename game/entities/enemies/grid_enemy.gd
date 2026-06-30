@@ -519,6 +519,18 @@ func begin_death() -> void:
         hurtbox.set_enabled(false)
 
 
+## Force-death entry point for boss wave resolution. Routes through the existing
+## death cleanup flow and emits the died signal so owning systems can react.
+func force_death() -> void:
+    if health != null and not health.is_alive():
+        return
+    begin_death()
+    var dead_state_id := get_dead_state_id()
+    if _state_machine != null and dead_state_id >= 0:
+        _state_machine.request_transition(dead_state_id, true)
+    died.emit(self)
+
+
 func play_death_sfx() -> void:
     if death_sfx_event != null:
         AudioManager.play_event(death_sfx_event, global_position)
