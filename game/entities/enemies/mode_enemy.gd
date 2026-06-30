@@ -220,10 +220,11 @@ func plan_next_action() -> bool:
         ModeEnemyAttackController.Mode.TILE:
             if _attack_controller == null:
                 return false
-            return plan_cell_attack_action(
-                func(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
-                    return _attack_controller.get_attack_cells(origin_cell, facing)
-            )
+            var get_cells_for_origin := func(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
+                return _attack_controller.get_attack_cells(origin_cell, facing)
+            var get_origins_for_target := func(target_cell: Vector2i) -> Array[Vector2i]:
+                return _attack_controller.get_attack_origin_cells(target_cell)
+            return plan_cell_attack_action(get_cells_for_origin, get_origins_for_target)
     return super()
 
 

@@ -279,19 +279,26 @@ func can_reserve_cell(entity: Object, cell: Vector2i, is_attack := false) -> boo
 
 
 ## Requests a reservation for the given cells. On conflict, compares priority:
-## attack intent > closer to player > earlier registration index.
+## active movement step > attack intent > closer to player > earlier registration index.
 ## Returns true when the caller still owns all requested cells after arbitration.
 func reserve_cells(entity: Object, cells: Array[Vector2i], is_attack := false) -> bool:
-    return _request_reservation_impl(entity, cells, is_attack)
+    var active_cells: Array[Vector2i] = []
+    return _request_reservation_impl(entity, cells, is_attack, active_cells)
+
+
+## Requests a reservation while marking cells already being actively moved into.
+func reserve_cells_with_active_steps(entity: Object, cells: Array[Vector2i], is_attack: bool, active_cells: Array[Vector2i]) -> bool:
+    return _request_reservation_impl(entity, cells, is_attack, active_cells)
 
 
 ## Returns true when the entity would win conflicts for all cells without changing reservations.
 func can_reserve_cells(entity: Object, cells: Array[Vector2i], is_attack := false) -> bool:
+    var active_cells: Array[Vector2i] = []
     for cell in cells:
         var cell_owner: Object = _reservation_owners.get(cell)
         if cell_owner == null or cell_owner == entity:
             continue
-        if not _is_higher_priority(entity, is_attack, cell_owner):
+        if not _can_take_reserved_cell(entity, is_attack, active_cells, cell_owner, cell):
             return false
     return true
 
@@ -326,7 +333,7 @@ func _remove_entity_reservation(entity: Object) -> void:
     _reservations.erase(entity)
 
 
-func _request_reservation_impl(entity: Object, cells: Array[Vector2i], is_attack: bool) -> bool:
+func _request_reservation_impl(entity: Object, cells: Array[Vector2i], is_attack: bool, active_cells: Array[Vector2i]) -> bool:
     # Remove this entity's old reservation first
     _remove_entity_reservation(entity)
 
@@ -340,9 +347,12 @@ func _request_reservation_impl(entity: Object, cells: Array[Vector2i], is_attack
         if cell_owner != null and cell_owner != entity and not cell_owner in losers:
             losers.append(cell_owner)
 
-    # Verify this entity wins against every conflicting owner
-    for other in losers:
-        if not _is_higher_priority(entity, is_attack, other):
+    # Verify this entity wins for every conflicting cell.
+    for cell in cells:
+        var cell_owner: Object = _reservation_owners.get(cell)
+        if cell_owner == null or cell_owner == entity:
+            continue
+        if not _can_take_reserved_cell(entity, is_attack, active_cells, cell_owner, cell):
             return false
 
     # Remove losing reservations and notify
@@ -351,11 +361,37 @@ func _request_reservation_impl(entity: Object, cells: Array[Vector2i], is_attack
         reservation_lost.emit(other)
 
     # Place the new reservation
-    _reservations[entity] = { "cells": cells.duplicate(), "is_attack": is_attack }
+    _reservations[entity] = {
+        "cells": cells.duplicate(),
+        "active_cells": active_cells.duplicate(),
+        "is_attack": is_attack,
+    }
     for cell in cells:
         _reservation_owners[cell] = entity
 
     return true
+
+
+func _can_take_reserved_cell(
+        entity: Object,
+        is_attack: bool,
+        active_cells: Array[Vector2i],
+        other: Object,
+        cell: Vector2i,
+) -> bool:
+    if _reservation_has_active_cell(other, cell):
+        return false
+    if cell in active_cells:
+        return true
+    return _is_higher_priority(entity, is_attack, other)
+
+
+func _reservation_has_active_cell(entity: Object, cell: Vector2i) -> bool:
+    var data = _reservations.get(entity)
+    if data == null:
+        return false
+    var active_cells: Array[Vector2i] = data.get("active_cells", [])
+    return cell in active_cells
 
 
 func _is_higher_priority(entity: Object, is_attack: bool, other: Object) -> bool:

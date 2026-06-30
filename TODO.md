@@ -31,8 +31,6 @@ Nothing currently in progress.
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
 [wave_rewards-main] Main roguelite wave reward loop design with wave 5 boss and first-pass card boundaries — [ref plans/roguelite_wave_reward_loop.md]
-[wave_rewards] Add the wave reward choice controller with random three-card offers and immediate application — [ref plans/wave_reward_choice_controller.sketch.md]
-[wave_rewards] Reposition the player to a safe central land cell when each wave starts — [ref plans/wave_start_player_reposition.sketch.md]
 [wave_rewards] Replace the fixed wave sequence with data-driven waves and future enemy modifiers — [ref plans/data_driven_wave_controller.sketch.md]
 [wave_rewards] Add a run-scoped data-driven player stat path for reward buffs — [ref plans/data_driven_player_stats.sketch.md]
 [wave_rewards] Add first-pass Minor reward cards for numeric player stat buffs — [ref plans/minor_wave_reward_cards.sketch.md]
@@ -90,14 +88,6 @@ Prototype a rounder player body with a weapon/facing marker that communicates ai
 - Add or adjust player prototype weapon/facing marker nodes so the marker points toward the current aim direction.
 - Keep the player body visually round enough that facing is read from the weapon/facing marker rather than the character silhouette.
 - Treat the marker as the future class representation instead of requiring a full player character sprite immediately.
-
-### Enemy Grid Attack Planning Optimization
-
-Reduce wasted enemy planning work and make blocked-line charge behavior degrade into normal pursuit.
-
-- Optimize `GridEnemy.plan_cell_attack_action()` by deriving candidate attack origins from the target cell instead of scanning every grid cell and facing.
-- Gate ChargeEnemy telegraph/attack entry on whether the stored charge line can actually travel through walkable cells.
-- When ChargeEnemy has no viable charge origin on the target row or column, fall back to ordinary approach movement toward the player.
 
 ### ToastManager
 
