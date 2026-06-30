@@ -58,6 +58,7 @@ func test_reward_applier_routes_concrete_player_buff() -> void:
     var definition := WaveRewardEffectDefinition.new(
         "dash_damage_up",
         WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_ATTACK_DAMAGE,
+        WaveRewardEffectDefinition.Tier.MINOR,
         "Impact Dash",
         "+%d dash attack damage",
         -1,

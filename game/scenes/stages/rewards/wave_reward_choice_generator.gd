@@ -136,6 +136,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "move_land",
             WaveRewardEffectDefinition.Kind.MOVE_RANDOM_SAFE_LAND,
+            WaveRewardEffectDefinition.Tier.MINOR,
             "Move Land",
             "Move %d land tile",
             0.5,
@@ -151,6 +152,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "remove_land",
             WaveRewardEffectDefinition.Kind.REMOVE_RANDOM_SAFE_LAND,
+            WaveRewardEffectDefinition.Tier.MINOR,
             "Break Land",
             "-%d safe land",
             1,
@@ -165,6 +167,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "future_enemy",
             WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY,
+            WaveRewardEffectDefinition.Tier.MINOR,
             "Raise Pressure",
             "+%d future enemy",
             1,
@@ -180,6 +183,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "attack_up",
             WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE,
+            WaveRewardEffectDefinition.Tier.MINOR,
             "Sharpened Edge",
             "+%d normal attack damage",
             -1,
@@ -195,6 +199,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "normal_attack_cooldown_down",
             WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN,
+            WaveRewardEffectDefinition.Tier.MINOR,
             "Quick Hands",
             "-%.2fs normal attack cooldown",
             -1,
@@ -210,6 +215,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "dash_attack_up",
             WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_ATTACK_DAMAGE,
+            WaveRewardEffectDefinition.Tier.MINOR,
             "Impact Dash",
             "+%d dash attack damage",
             -1,
@@ -225,6 +231,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "dash_cooldown_down",
             WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_DASH_COOLDOWN,
+            WaveRewardEffectDefinition.Tier.MINOR,
             "Light Footwork",
             "-%.2fs dash cooldown",
             -1,
@@ -240,6 +247,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "max_health_up",
             WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH,
+            WaveRewardEffectDefinition.Tier.MINOR,
             "Vital Spark",
             "+%d max health",
             -1,
@@ -255,6 +263,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         WaveRewardEffectDefinition.new(
             "major_placeholder",
             WaveRewardEffectDefinition.Kind.MAJOR_PLACEHOLDER,
+            WaveRewardEffectDefinition.Tier.MAJOR,
             "Major Placeholder",
             "Major placeholder (%d)",
             -4,

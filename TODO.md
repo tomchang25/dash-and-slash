@@ -30,11 +30,6 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-[wave_rewards-main] Main roguelite wave reward loop design with wave 5 boss and first-pass card boundaries — [ref plans/roguelite_wave_reward_loop.md]
-[wave_rewards] Add a run-scoped data-driven player stat path for reward buffs — [ref plans/data_driven_player_stats.sketch.md]
-[wave_rewards] Add first-pass Minor reward cards for numeric player stat buffs — [ref plans/minor_wave_reward_cards.sketch.md]
-[wave_rewards] Add the Major reward card skeleton with a class-change placeholder — [ref plans/major_wave_reward_card_skeleton.sketch.md]
-
 ---
 
 ## Chore
@@ -73,6 +68,10 @@ Later work that should not ride on the first wave reward loop PR.
 - Manual terrain targeting with tile preview, validity highlight, confirmation, and cancellation.
 - Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
 - Advanced terrain shaping beyond random connected add and random safe connected remove.
+
+### Wave Reward Effect Stats Table
+
+A player-facing HUD table that groups applied reward effects by tier and displays `definition.display_name` as a human-readable label per group. The overlay currently only shows effect descriptions inline during choice — the title field exists in `WaveRewardEffectDefinition` but has no UI consumer. Once the table is added, the overlay can drop the extra title line and keep its current concise per-effect description format.
 
 ### Enemy Character Sprite Readability
 

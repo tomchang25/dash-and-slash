@@ -21,8 +21,14 @@ enum Profile {
     AGGRESSIVE,
 }
 
+enum Tier {
+    MINOR,
+    MAJOR,
+}
+
 var effect_id := ""
 var kind := Kind.MOVE_RANDOM_SAFE_LAND
+var tier := Tier.MINOR
 var display_name := ""
 var description_template := ""
 var point_value := 0.0
@@ -37,6 +43,7 @@ var allowed_profiles: Array[int] = []
 func _init(
         init_effect_id: String,
         init_kind: int,
+        init_tier: int,
         init_display_name: String,
         init_description_template: String,
         init_point_value: float,
@@ -47,6 +54,7 @@ func _init(
 ) -> void:
     effect_id = init_effect_id
     kind = init_kind as Kind
+    tier = init_tier as Tier
     display_name = init_display_name
     description_template = init_description_template
     point_value = init_point_value
@@ -60,6 +68,14 @@ func _init(
 
 func allows_profile(profile: int) -> bool:
     return profile in allowed_profiles
+
+
+func is_major() -> bool:
+    return tier == Tier.MAJOR
+
+
+func is_minor() -> bool:
+    return tier == Tier.MINOR
 
 
 func create_effect(stacks: int) -> WaveRewardEffect:
