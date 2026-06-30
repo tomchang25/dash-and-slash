@@ -37,6 +37,8 @@ from pathlib import Path
 
 SCANNED_DIRS = ("game",)
 EXCLUDED_PARTS = (".godot", "data", "global", "addons")
+ERROR_GUARD_DIRS = ("common", "data", "game", "global", "stage")
+ERROR_GUARD_EXCLUDED_PARTS = (".godot", "addons")
 
 # ── node-src markers ─────────────────────────────────────────────────────────
 #
@@ -46,11 +48,11 @@ EXCLUDED_PARTS = (".godot", "data", "global", "addons")
 
 VALID_NODE_SRC_TAGS = frozenset(
     {
-        "instance",    # packed scene instance not auto-detected as instantiate()
-        "ephemeral",   # tooltip, empty-state label, separator in a dynamic list
-        "drawn",       # custom-drawn control (inner class with _draw())
-        "debug",       # debug-only display behind OS.is_debug_build()
-        "timer",       # Timer node (must be created in code, never in .tscn)
+        "instance",  # packed scene instance not auto-detected as instantiate()
+        "ephemeral",  # tooltip, empty-state label, separator in a dynamic list
+        "drawn",  # custom-drawn control (inner class with _draw())
+        "debug",  # debug-only display behind OS.is_debug_build()
+        "timer",  # Timer node (must be created in code, never in .tscn)
     }
 )
 
@@ -190,7 +192,10 @@ def check_node_lookup(path: str, text: str) -> list[Violation]:
         allowed = False
         if i >= 2:
             prev_line = lines[i - 2]
-            allowed = prev_line.lstrip().startswith("#") and NODE_REF_ALLOW_RE.search(prev_line) is not None
+            allowed = (
+                prev_line.lstrip().startswith("#")
+                and NODE_REF_ALLOW_RE.search(prev_line) is not None
+            )
         if allowed:
             continue
 
@@ -237,11 +242,97 @@ def check_tscn_connections(path: str, text: str) -> list[Violation]:
     return violations
 
 
+# ── Tier 1: no bare push_error / push_warning (error_guard_standard.md §3) ──
+
+
+PUSH_ERROR_RE = re.compile(r"\bpush_error\s*\(")
+PUSH_WARNING_RE = re.compile(r"\bpush_warning\s*\(")
+BOOT_MARKER_RE = re.compile(r"#\s*push-error:\s*boot\b")
+PUSH_ERROR_EXEMPT_FILES = frozenset({"global/autoloads/toast_manager.gd"})
+
+
+def check_bare_push_error(path: str, text: str) -> list[Violation]:
+    """Runtime guards must use ToastManager.show_error(), programmer-error
+    guards must use ToastManager.show_dev_error(), and pre-ToastManager boot
+    code must declare its exception with `# push-error: boot`."""
+    if path in PUSH_ERROR_EXEMPT_FILES:
+        return []
+
+    violations: list[Violation] = []
+    lines = text.splitlines()
+    for i, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if stripped.startswith("#") or not PUSH_ERROR_RE.search(line):
+            continue
+
+        has_boot_marker = BOOT_MARKER_RE.search(line) is not None
+        if not has_boot_marker and i >= 2:
+            prev_line = lines[i - 2]
+            has_boot_marker = (
+                prev_line.lstrip().startswith("#")
+                and BOOT_MARKER_RE.search(prev_line) is not None
+            )
+        if has_boot_marker:
+            continue
+
+        violations.append(
+            Violation(
+                path,
+                i,
+                "error-guard",
+                "error_guard §3",
+                "bare push_error() at call site. Runtime guards use "
+                "ToastManager.show_error(); programmer errors use "
+                "ToastManager.show_dev_error(). Code running before "
+                "ToastManager loads may declare `# push-error: boot`.",
+            )
+        )
+    return violations
+
+
+def check_bare_push_warning(path: str, text: str) -> list[Violation]:
+    """Warnings must use ToastManager.show_warning(), with the same boot-phase
+    exception marker as push_error for code that runs before ToastManager loads."""
+    if path in PUSH_ERROR_EXEMPT_FILES:
+        return []
+
+    violations: list[Violation] = []
+    lines = text.splitlines()
+    for i, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if stripped.startswith("#") or not PUSH_WARNING_RE.search(line):
+            continue
+
+        has_boot_marker = BOOT_MARKER_RE.search(line) is not None
+        if not has_boot_marker and i >= 2:
+            prev_line = lines[i - 2]
+            has_boot_marker = (
+                prev_line.lstrip().startswith("#")
+                and BOOT_MARKER_RE.search(prev_line) is not None
+            )
+        if has_boot_marker:
+            continue
+
+        violations.append(
+            Violation(
+                path,
+                i,
+                "error-guard",
+                "error_guard §3",
+                "bare push_warning() at call site. Use "
+                "ToastManager.show_warning(), or `# push-error: boot` for code "
+                "that runs before ToastManager loads.",
+            )
+        )
+    return violations
+
+
 # ── Dispatch ─────────────────────────────────────────────────────────────────
 
 # (suffix, check fn) pairs. Add new checks here as more rules graduate from the
 # manifest into machine enforcement.
 GD_CHECKS = (check_node_source, check_node_lookup)
+GD_ERROR_GUARD_CHECKS = (check_bare_push_error, check_bare_push_warning)
 TSCN_CHECKS = (check_tscn_connections,)
 
 
@@ -254,7 +345,14 @@ def lint_file(path: Path, repo_root: Path) -> list[Violation]:
         return []
 
     if path.suffix == ".gd":
-        return [v for chk in GD_CHECKS for v in chk(rel, text)]
+        violations: list[Violation] = []
+        if _in_scope(path, repo_root):
+            violations.extend(v for chk in GD_CHECKS for v in chk(rel, text))
+        if _in_error_guard_scope(path, repo_root):
+            violations.extend(
+                v for chk in GD_ERROR_GUARD_CHECKS for v in chk(rel, text)
+            )
+        return violations
     if path.suffix == ".tscn":
         return [v for chk in TSCN_CHECKS for v in chk(rel, text)]
     return []
@@ -279,6 +377,15 @@ def _in_scope(path: Path, repo_root: Path) -> bool:
     return not any(part in EXCLUDED_PARTS for part in parts)
 
 
+def _in_error_guard_scope(path: Path, repo_root: Path) -> bool:
+    """True if the file is project GDScript covered by error guard rules."""
+    rel = _rel(path, repo_root)
+    parts = rel.split("/")
+    if parts[0] not in ERROR_GUARD_DIRS:
+        return False
+    return not any(part in ERROR_GUARD_EXCLUDED_PARTS for part in parts)
+
+
 def _collect_tree(repo_root: Path) -> list[Path]:
     files: list[Path] = []
     for d in SCANNED_DIRS:
@@ -287,7 +394,16 @@ def _collect_tree(repo_root: Path) -> list[Path]:
             continue
         files.extend(base.rglob("*.gd"))
         files.extend(base.rglob("*.tscn"))
-    return [f for f in files if _in_scope(f, repo_root)]
+    for d in ERROR_GUARD_DIRS:
+        base = repo_root / d
+        if not base.is_dir():
+            continue
+        files.extend(base.rglob("*.gd"))
+    return [
+        f
+        for f in files
+        if _in_scope(f, repo_root) or _in_error_guard_scope(f, repo_root)
+    ]
 
 
 # ── CLI entry point ──────────────────────────────────────────────────────────
@@ -313,7 +429,12 @@ def main() -> None:
 
     if args.files:
         targets = [Path(f) for f in args.files]
-        targets = [f for f in targets if _in_scope(f, repo_root) and f.is_file()]
+        targets = [
+            f
+            for f in targets
+            if (_in_scope(f, repo_root) or _in_error_guard_scope(f, repo_root))
+            and f.is_file()
+        ]
     else:
         targets = _collect_tree(repo_root)
 
