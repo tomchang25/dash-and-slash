@@ -7,7 +7,7 @@ Add the first Minor reward cards as numeric player buffs that make reward choice
 ## Requirements
 
 1. Minor cards only apply numeric stat changes.
-2. The first Minor pool includes damage up, dash damage up, dash cooldown down, and max health up.
+2. The first Minor pool includes damage up, attack speed up, dash damage up, dash cooldown down, and max health up.
 3. Minor cards use the player-stat data path instead of directly mutating unrelated systems.
 4. A Minor card can be combined with another small effect later, but the first implementation must support single Minor cards clearly.
 5. Minor effects should be readable in the reward UI through title and concise effect text.
@@ -21,6 +21,7 @@ First-pass examples:
 | Card           | Effect                              |
 | -------------- | ----------------------------------- |
 | Sharpened Edge | Normal attack damage up             |
+| Quick Hands    | Normal attack cooldown down         |
 | Impact Dash    | Dash attack damage up               |
 | Light Footwork | Dash cooldown down                  |
 | Vital Spark    | Max health up and current health up |
@@ -44,6 +45,7 @@ Suggested supported stat ids:
 
 ```txt
 normal_attack_damage
+normal_attack_cooldown
 dash_attack_damage
 dash_cooldown
 max_health

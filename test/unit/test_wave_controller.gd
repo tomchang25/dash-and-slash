@@ -107,6 +107,19 @@ func test_get_wave_number() -> void:
     assert_eq(wc.get_wave_number(), 2, "Wave number 2 after second advance")
 
 
+func test_get_wave_display_text_for_normal_wave() -> void:
+    var wc := WaveController.new()
+    wc.advance_wave()
+    assert_eq(wc.get_wave_display_text(), "Wave 1", "Wave display text should include wave number")
+
+
+func test_get_wave_display_text_for_boss_wave() -> void:
+    var wc := WaveController.new()
+    for i in 5:
+        wc.advance_wave()
+    assert_eq(wc.get_wave_display_text(), "Final Wave: BOSS", "Boss wave should use final wave display text")
+
+
 func test_reset_clears_state() -> void:
     var wc := WaveController.new()
     wc.add_future_enemy_count(5)

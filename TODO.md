@@ -31,7 +31,6 @@ Nothing currently in progress.
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
 [wave_rewards-main] Main roguelite wave reward loop design with wave 5 boss and first-pass card boundaries — [ref plans/roguelite_wave_reward_loop.md]
-[wave_rewards] Replace the fixed wave sequence with data-driven waves and future enemy modifiers — [ref plans/data_driven_wave_controller.sketch.md]
 [wave_rewards] Add a run-scoped data-driven player stat path for reward buffs — [ref plans/data_driven_player_stats.sketch.md]
 [wave_rewards] Add first-pass Minor reward cards for numeric player stat buffs — [ref plans/minor_wave_reward_cards.sketch.md]
 [wave_rewards] Add the Major reward card skeleton with a class-change placeholder — [ref plans/major_wave_reward_card_skeleton.sketch.md]
@@ -49,6 +48,8 @@ One-line, no reasoning, no backing doc.
 ## Bug
 
 _(no known bugs)_
+
+-[bug] charge enemy and mode enemy still suck in idle when player hide in corner, might be to unify enemies logic for fix once for all
 
 ---
 

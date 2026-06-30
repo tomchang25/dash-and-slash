@@ -8,7 +8,7 @@ Create a stable player-stat data path so reward cards can modify numeric player 
 
 1. Player combat stats used by Minor cards are represented through a data-owned stat layer.
 2. Runtime stat changes apply to the active player through a clear stat owner rather than through reward-controller fields.
-3. The first supported stats include normal attack damage, dash attack damage, dash cooldown, and max health.
+3. The first supported stats include normal attack damage, normal attack cooldown, dash attack damage, dash cooldown, and max health.
 4. Stat changes are run-scoped for this phase and do not create permanent progression.
 5. Max-health changes define whether current health also changes when the maximum increases, because the health user experience should be deterministic.
 
@@ -40,16 +40,18 @@ Suggested runtime modifier shape:
 }
 ```
 
-Suggested owner API:
+Suggested owner name and API:
 
 ```gdscript
+class_name PlayerStatStore
+
 func apply_stat_modifier(stat_id: StringName, operation: StringName, value: float) -> void:
     # Validate stat id, update run modifier, then refresh active player values.
 ```
 
 Migration steps:
 
-1. Identify the player numeric fields that Minor cards need to affect in the first pass.
+1. Identify the player numeric fields that Minor cards need to affect in the first pass, including normal attack cadence.
 2. Add a run-scoped stat owner or stat state object that resolves base values plus modifiers.
 3. Route player numeric reads through the resolved stat values.
 4. Add an effect entry point for reward cards to apply named stat modifiers.
