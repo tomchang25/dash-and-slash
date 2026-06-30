@@ -155,9 +155,15 @@ func reset() -> void:
 func _on_reservation_lost(_entity: Object) -> void:
     if _entity != self:
         return
-    # if Debug.enabled:
-    #     print(name, " lost reservation at ", _grid_pos, " — higher-priority claim won")
-    clear_planned_path()
+
+    if _has_active_path_cell:
+        _planned_path.clear()
+        if not _grid.reserve_cells_with_active_steps(self, [_active_path_cell], _reservation_is_attack, [_active_path_cell]):
+            _has_active_path_cell = false
+            _grid.clear_reservation(self)
+        queue_redraw()
+    else:
+        clear_planned_path()
 
 
 func _on_guard_broken() -> void:
