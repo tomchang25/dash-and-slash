@@ -36,15 +36,15 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 
 One-line, no reasoning, no backing doc.
 
+- [infinite_mode] Replace the finite 5-wave boss run with an infinite wave loop that scales base enemy count every wave and enemy stats every 5 waves.
+- [dash] Add a Chain Dash major effect that auto-dashes toward nearby enemies after a successful dash hit.
+- [minor_effect] Data-drive player attack range so normal, dash, smash, and future weapon effects can scale hit geometry cleanly.
+
 ---
 
 ## Bug
 
-_(no known bugs)_
-
--[bug] charge enemy and mode enemy and puff enemy still suck in idle when player hide in corner, might be to unify enemies logic for fix once for all
-
--[bug] reserved grid keep occuipied by other enemies
+- [bugfix] ChargeEnemy, ModeEnemy, and PuffEnemy can idle-loop when the player hides in a corner; consolidate shared enemy fallback planning.
 
 ---
 
@@ -52,13 +52,88 @@ _(no known bugs)_
 
 Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
 
-### Charge Enemy Ratio Tweak + Enemy Spawn Ratio Data Drive Refactor
+### Infinite Chaos Wave Mode
 
-Later balance and data work after ChargeEnemy blocked-line behavior is stable.
+Replace the finite boss-run structure with infinite wave survival.
 
-- Consider lowering ChargeEnemy spawn share to 20% after the AI fallback fix has been tested in real waves.
-- Replace the hard-coded equal `ENEMY_POOL` selection with data-driven enemy spawn weights.
-- Allow spawn weights to vary by wave, stage, or run configuration instead of being fixed in the stage script.
+- Generate wave enemy counts from wave number instead of fixed `WAVE_DEFINITIONS`.
+- Increase base enemy count every wave.
+- Increase enemy stats (def/hp/damage only, not guard) every 5 waves.
+- Convert ModeEnemy from final boss into an elite spawned on 5-wave milestones, with no death-clears-run behavior.
+- Give Expand Land x10 tiles as a fixed 5-wave clear reward; Break Land capped at 2 tiles removed per wave.
+- Cap total concurrent alive enemies at `12 + floor(wave / 5) * 4`; excess spawns queue instead of an elite-specific population cap.
+- Target curve: a normal run should end around wave 20, wave 30 is the practical ceiling — calibrate per-wave/per-milestone growth constants against this.
+- End the run on player death rather than boss clear.
+
+### Major And Minor Run Build Effects
+
+Move reward effects toward persistent run build state instead of only immediate stat mutation.
+
+- Major effects are capped at 4 and change ability behavior.
+- Minor effects stack without a hard cap and mostly modify stats or small rules.
+- Dash type, Smash replacement, Chain Dash, execution, cooldown, range, and triggered effects should survive later ability swaps.
+- Existing direct stat rewards can remain as first-pass Minor effects.
+- Guard Shredder major: back dash hit instantly zeroes target guard and enters stagger, bypassing the max(half_guard, 32) baseline calc.
+- Execution major: dash hit on an already-staggered enemy instantly kills instead of applying the 2.0x stagger burst multiplier.
+
+- Chain Dash and Smash are mutually exclusive, so It will need an exclusive logic to handle it
+
+### Guard Damage, HP Bypass, And Stagger Burst Rework
+
+Baseline hit resolution values are finalized (GDD v0.4 §6); this replaces the earlier front/side/back numbers and moves the instant-break and instant-kill behaviors out of baseline entirely.
+
+- Normal attack and dash share one guard damage table: front 8, side max(quarter_guard, 16), back max(half_guard, 32).
+- Guard-active hits also bypass a fraction of base damage straight to HP by angle: front 0, side 0.1, back 0.25.
+- Once an enemy is staggered (guard already broken), hits deal HP damage at a multiplier: normal attack 1.0x, dash 2.0x.
+- Guard broken on hit plays a new broken SFX; guard-active hits play blocked SFX; staggered hits play damaged SFX scaled to the multiplier.
+- Enemy max_guard does not scale with the 5-wave milestone system — only def/hp/damage scale, so the quarter/half guard floors stay meaningful for the whole run.
+- Instant guard break on a back dash hit, and instant kill on a staggered dash hit, are no longer baseline — see the Guard Shredder and Execution major effects under Major And Minor Run Build Effects.
+
+### Enemy Sprite Readability Scaffold
+
+Replace pure prototype enemy bodies with low-cost readable state sprites before expanding enemy pattern count.
+
+- Use one four-direction sprite each for Idle, Move, Prepare Attack, and Attack.
+- Do not require full frame animation for the first pass.
+- Use offset, squash/stretch, rotation, flash, windup VFX, and attack VFX to sell motion and impact.
+- Apply the scaffold to SmallEnemy first so later pattern colors and telegraphs remain readable.
+- Keep enemy visual identity focused on state, facing, and attack intent before investing in polished art.
+
+### Small Enemy Pattern Director
+
+Make SmallEnemy the main spawn body and use color/pattern identity for most wave pressure.
+
+- Add 6-8 SmallEnemy attack patterns through `EnemyAttackData`.
+- Bind pattern identity to readable body color.
+- Keep SmallEnemy at roughly 60% or more of base spawns.
+- Use SmallEnemy pattern variety as the main content multiplier before adding many new enemy scenes.
+
+### Enemy Spawn Ratio Data Drive
+
+Replace uniform enemy scene selection with weighted spawn pools that can scale by wave and run pressure.
+
+- Replace hard-coded uniform support enemy selection with data-driven enemy spawn weights.
+- Allow spawn weights to vary by wave, milestone, stage, or run configuration.
+- Keep reward downside pressure as fixed future enemy additions or weighted pool modifiers instead of hidden randomness.
+- Consider lowering ChargeEnemy spawn share after the idle-corner fallback fix has been tested in real waves.
+
+### Terrain Chaos Rewards
+
+Keep terrain mutation random but readable enough for fast chaotic play.
+
+- Keep connected-land safety as the main terrain rule.
+- Keep Break Land and Move Land as random pressure effects; cap Break Land at 2 tiles removed per wave.
+- Add Expand Land as the fixed every-5-wave recovery valve, at 10 tiles per milestone.
+- Add Corrupt Land as a visible tick-damage zone; dash i-frames already prevent tick damage while dashing through it, so no extra dash-vs-corrupt rule is needed.
+- Reward downside copy is not fully consistent yet (Aggressive-tier offers read more clearly than the others) — accepted gap for now, not blocking this work.
+
+### Wave Reward Deferred Ideas
+
+Later reward work that should wait until Major/Minor run build state exists.
+
+- Manual terrain targeting with tile preview, validity highlight, confirmation, and cancellation.
+- Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
+- Advanced terrain shaping beyond random connected add and random safe connected remove.
 
 ### Weapon Class Attack Variants
 
@@ -68,26 +143,18 @@ Player sprite addon and player attack hitbox rework for weapon/class readability
 - Katana / Samurai: 45-degree slash, average damage and speed, dash damage stays direct.
 - Heavy axe / undecided class: 180-degree slash, high damage and slow speed, dash damage creates a landing circle area hitbox.
 
-### Wave Reward Deferred Ideas
-
-Later work that should not ride on the first wave reward loop PR.
-
-- Real Major class changes that swap class identity, action behavior, or weapon rules.
-- Manual terrain targeting with tile preview, validity highlight, confirmation, and cancellation.
-- Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
-- Advanced terrain shaping beyond random connected add and random safe connected remove.
-
 ### Wave Reward Effect Stats Table
 
 A player-facing HUD table that groups applied reward effects by tier and displays `definition.display_name` as a human-readable label per group. The overlay currently only shows effect descriptions inline during choice — the title field exists in `WaveRewardEffectDefinition` but has no UI consumer. Once the table is added, the overlay can drop the extra title line and keep its current concise per-effect description format.
 
-### Enemy Character Sprite Readability
+### Defensive Terrain And Tower Reward Cards
 
-Replace prototype enemy bodies with real character sprites and readable animation.
+Later terrain-control reward cards that add player-owned board pressure after the core chaos loop is stable.
 
-- Full version: each enemy gets four-direction movement sprites and four-direction attack sprites.
-- Simpler version: use left/right sprites with flipping, then tween squash and tilt to imitate movement and attack.
-- Needs a clear visual rule for enemies with contact attacks versus enemies without contact attacks.
+- Add Fortified Land as a reward card that blocks tile attacks from spawning on that cell.
+- Add Tower as a reward card that regularly attacks nearby tiles.
+- Add Archer Tower as a reward card that behaves like Tower but launches one-hit arrows.
+- Keep these behind core terrain chaos, Major/Minor build state, and basic enemy spawn weighting work.
 
 ### Player Weapon
 
