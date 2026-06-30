@@ -376,6 +376,43 @@ func plan_next_action() -> bool:
     return true
 
 
+## Plans ordinary movement to a reachable cell adjacent to the target.
+func plan_approach_action() -> bool:
+    clear_planned_path()
+    _reservation_is_attack = false
+
+    if _grid == null or not has_target():
+        return false
+
+    var start := _grid_pos
+    var target_cell := get_target_cell()
+
+    if not _grid.is_in_bounds(target_cell):
+        return false
+
+    if start == target_cell:
+        queue_redraw()
+        return true
+
+    var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
+    if fallback_goals.is_empty():
+        return false
+    if start in fallback_goals:
+        queue_redraw()
+        return true
+
+    var path := _find_path_to_cell(start, target_cell, fallback_goals, false)
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    if not _refresh_planned_reservations():
+        clear_planned_path()
+        return false
+    queue_redraw()
+    return true
+
+
 ## Clears pending grid movement, active path debug state, and path reservations.
 func clear_planned_path() -> void:
     if _grid != null:
@@ -648,6 +685,7 @@ func get_recovery_duration() -> float:
 ## Shared cell-origin planning for tile attacks. Iterates every possible origin cell and
 ## cardinal facing, computes attack cells via the given callable, and finds a path to any
 ## origin whose footprint contains the target cell.
+## TODO: Optimize by deriving candidate origins from the target cell instead of scanning the full grid.
 func plan_cell_attack_action(get_cells_for_origin: Callable) -> bool:
     clear_planned_path()
     _reservation_is_attack = true
@@ -760,6 +798,8 @@ func _can_path_through(
 
 
 func _can_plan_goal_cell(cell: Vector2i, is_attack: bool) -> bool:
+    if not _grid.is_walkable(cell):
+        return false
     if _grid.is_occupied(cell):
         return false
     if not _grid.is_reserved(cell):

@@ -10,6 +10,7 @@ const CHARGE_STREAK_INTERVAL := 0.045
 var _charge_cells: Array[Vector2i] = []
 var _current_target_index: int = 0
 var _streak_cooldown: float = 0.0
+var _return_to_idle := false
 
 
 func _init() -> void:
@@ -21,8 +22,10 @@ func _enter() -> void:
     _charge_cells = charge_enemy.get_stored_charge_cells().duplicate()
     _current_target_index = 0
     _streak_cooldown = 0.0
+    _return_to_idle = false
     if _charge_cells.is_empty():
-        change_state(EnemyStateId.IDLE)
+        push_warning("ChargeEnemy entered charge attack without stored charge cells.")
+        _return_to_idle = true
         return
     charge_enemy.begin_charge_attack()
     CombatFeedbackVFX.play_charge_start(charge_enemy.global_position, charge_enemy.get_facing(), charge_enemy)
@@ -32,12 +35,17 @@ func _enter() -> void:
 
 func _exit() -> void:
     var charge_enemy := enemy as ChargeEnemy
+    _return_to_idle = false
     _charge_cells.clear()
     charge_enemy.end_charge_attack()
     charge_enemy.clear_stored_charge_cells()
 
 
 func _physics_update(_delta: float) -> void:
+    if _return_to_idle:
+        change_state(EnemyStateId.IDLE)
+        return
+
     _streak_cooldown -= _delta
     if _current_target_index >= _charge_cells.size():
         return

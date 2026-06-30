@@ -30,7 +30,7 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-[wave_rewards] Main roguelite wave reward loop design with wave 5 boss and first-pass card boundaries — [ref plans/roguelite_wave_reward_loop.md]
+[wave_rewards-main] Main roguelite wave reward loop design with wave 5 boss and first-pass card boundaries — [ref plans/roguelite_wave_reward_loop.md]
 [wave_rewards] Add the wave reward choice controller with random three-card offers and immediate application — [ref plans/wave_reward_choice_controller.sketch.md]
 [wave_rewards] Reposition the player to a safe central land cell when each wave starts — [ref plans/wave_start_player_reposition.sketch.md]
 [wave_rewards] Replace the fixed wave sequence with data-driven waves and future enemy modifiers — [ref plans/data_driven_wave_controller.sketch.md]
@@ -44,7 +44,7 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 
 One-line, no reasoning, no backing doc.
 
-_(no chores)_
+[toast-manager]
 
 ---
 
@@ -90,3 +90,27 @@ Prototype a rounder player body with a weapon/facing marker that communicates ai
 - Add or adjust player prototype weapon/facing marker nodes so the marker points toward the current aim direction.
 - Keep the player body visually round enough that facing is read from the weapon/facing marker rather than the character silhouette.
 - Treat the marker as the future class representation instead of requiring a full player character sprite immediately.
+
+### Enemy Grid Attack Planning Optimization
+
+Reduce wasted enemy planning work and make blocked-line charge behavior degrade into normal pursuit.
+
+- Optimize `GridEnemy.plan_cell_attack_action()` by deriving candidate attack origins from the target cell instead of scanning every grid cell and facing.
+- Gate ChargeEnemy telegraph/attack entry on whether the stored charge line can actually travel through walkable cells.
+- When ChargeEnemy has no viable charge origin on the target row or column, fall back to ordinary approach movement toward the player.
+
+### ToastManager
+
+Restore or rebuild the template ToastManager so runtime warnings can surface in-game without hiding the underlying issue.
+
+- Add a `ToastManager.warn` path for recoverable gameplay anomalies such as ChargeEnemy entering charge attack without stored charge cells.
+- Keep engine/developer diagnostics visible through `push_warning` while also showing player-facing or debug-facing toast feedback.
+- Check why the template clone did not bring over ToastManager and align the replacement with current autoload and UI overlay conventions.
+
+### Charge Enemy Ratio Tweak + Enemy Spawn Ratio Data Drive Refactor
+
+Later balance and data work after ChargeEnemy blocked-line behavior is stable.
+
+- Consider lowering ChargeEnemy spawn share to 20% after the AI fallback fix has been tested in real waves.
+- Replace the hard-coded equal `ENEMY_POOL` selection with data-driven enemy spawn weights.
+- Allow spawn weights to vary by wave, stage, or run configuration instead of being fixed in the stage script.
