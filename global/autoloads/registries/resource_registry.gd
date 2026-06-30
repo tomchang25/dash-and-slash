@@ -19,8 +19,13 @@ func _id_of(_r: Resource) -> String:
 
 
 func _ready() -> void:
+    var path := _dir_path()
+    if path.is_empty() or not DirAccess.dir_exists_absolute(path):
+        ToastManager.show_dev_error("%s: invalid directory path: %s" % [name, path])
+        return
+
     _by_id = ResourceDirLoader.load_by_id(
-        _dir_path(),
+        path,
         func(r: Resource) -> String: return _id_of(r)
     )
 

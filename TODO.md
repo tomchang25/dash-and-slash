@@ -44,6 +44,8 @@ _(no known bugs)_
 
 -[bug] charge enemy and mode enemy and puff enemy still suck in idle when player hide in corner, might be to unify enemies logic for fix once for all
 
+-[bug] reserved grid keep occuipied by other enemies
+
 ---
 
 ## Draft
