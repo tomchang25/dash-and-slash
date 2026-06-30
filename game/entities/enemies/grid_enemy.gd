@@ -155,8 +155,8 @@ func reset() -> void:
 func _on_reservation_lost(_entity: Object) -> void:
     if _entity != self:
         return
-    if Debug.enabled:
-        print(name, " lost reservation at ", _grid_pos, " — higher-priority claim won")
+    # if Debug.enabled:
+    #     print(name, " lost reservation at ", _grid_pos, " — higher-priority claim won")
     clear_planned_path()
 
 

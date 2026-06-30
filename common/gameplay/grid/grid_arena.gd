@@ -12,6 +12,13 @@ signal reservation_lost(entity: Object)
 enum TelegraphPhase { NONE, WARNING, CHARGE, ACTIVE, SPAWNING }
 enum TerrainTile { SEA, LAND }
 
+const ORTHOGONAL_DIRECTIONS: Array[Vector2i] = [
+    Vector2i.RIGHT,
+    Vector2i.LEFT,
+    Vector2i.DOWN,
+    Vector2i.UP,
+]
+
 @export var grid_size := Vector2i(16, 16)
 @export var starting_land_size := Vector2i(8, 8)
 @export var tile_size: float = 128.0
@@ -104,6 +111,27 @@ func get_land_cells() -> Array[Vector2i]:
     return cells
 
 
+## Returns sea cells that can become LAND while staying attached to the current landmass.
+func get_add_connected_land_candidates() -> Array[Vector2i]:
+    var candidates: Array[Vector2i] = []
+    for land_cell in get_land_cells():
+        for direction: Vector2i in ORTHOGONAL_DIRECTIONS:
+            var candidate: Vector2i = land_cell + direction
+            if not is_in_bounds(candidate) or not is_sea(candidate) or candidate in candidates:
+                continue
+            candidates.append(candidate)
+    return candidates
+
+
+## Returns LAND cells that can be removed without invalidating actors or splitting land.
+func get_remove_safe_connected_land_candidates() -> Array[Vector2i]:
+    var candidates: Array[Vector2i] = []
+    for cell in get_land_cells():
+        if can_remove_connected_land(cell):
+            candidates.append(cell)
+    return candidates
+
+
 ## Returns in-bounds cells around a changed terrain cell that may need redraw.
 func get_cell_and_neighbors(cell: Vector2i) -> Array[Vector2i]:
     var cells: Array[Vector2i] = []
@@ -135,6 +163,40 @@ func set_sea(cell: Vector2i) -> bool:
     return true
 
 
+## Creates LAND at a random connected candidate cell.
+func add_random_connected_land(rng: RandomNumberGenerator = null) -> bool:
+    var candidates := get_add_connected_land_candidates()
+    if candidates.is_empty():
+        return false
+    var resolved_rng := _resolve_rng(rng)
+    return set_land(candidates[resolved_rng.randi_range(0, candidates.size() - 1)])
+
+
+## Adds one connected LAND cell and removes one old safe LAND cell.
+func move_random_safe_land(rng: RandomNumberGenerator = null) -> bool:
+    var add_candidates := get_add_connected_land_candidates()
+    var remove_candidates := get_remove_safe_connected_land_candidates()
+    if add_candidates.is_empty() or remove_candidates.is_empty():
+        return false
+    var resolved_rng := _resolve_rng(rng)
+    var added_cell: Vector2i = add_candidates[resolved_rng.randi_range(0, add_candidates.size() - 1)]
+    if not set_land(added_cell):
+        return false
+    remove_candidates.erase(added_cell)
+    if remove_candidates.is_empty():
+        return true
+    return set_sea(remove_candidates[resolved_rng.randi_range(0, remove_candidates.size() - 1)])
+
+
+## Removes LAND from a random safe cell while keeping the remaining land connected.
+func remove_random_safe_connected_land(rng: RandomNumberGenerator = null) -> bool:
+    var candidates := get_remove_safe_connected_land_candidates()
+    if candidates.is_empty():
+        return false
+    var resolved_rng := _resolve_rng(rng)
+    return set_sea(candidates[resolved_rng.randi_range(0, candidates.size() - 1)])
+
+
 ## Returns true when LAND can be safely removed without invalidating current actors.
 func can_remove_land(cell: Vector2i) -> bool:
     if not is_land(cell):
@@ -144,6 +206,11 @@ func can_remove_land(cell: Vector2i) -> bool:
     if _player_grid == cell:
         return false
     return true
+
+
+## Returns true when LAND can be removed and the remaining landmass stays connected.
+func can_remove_connected_land(cell: Vector2i) -> bool:
+    return can_remove_land(cell) and _would_land_remain_connected_without(cell)
 
 # == Coordinate Conversion ====================================================
 
@@ -407,6 +474,36 @@ func get_telegraphed_cells() -> Array[Vector2i]:
 
 func _terrain_index(cell: Vector2i) -> int:
     return cell.y * grid_size.x + cell.x
+
+
+func _would_land_remain_connected_without(removed_cell: Vector2i) -> bool:
+    var remaining_land := get_land_cells()
+    remaining_land.erase(removed_cell)
+    if remaining_land.size() <= 1:
+        return true
+
+    var visited: Dictionary = { }
+    var frontier: Array[Vector2i] = [remaining_land[0]]
+    visited[remaining_land[0]] = true
+
+    while not frontier.is_empty():
+        var current: Vector2i = frontier.pop_front()
+        for direction: Vector2i in ORTHOGONAL_DIRECTIONS:
+            var neighbor: Vector2i = current + direction
+            if neighbor == removed_cell or visited.has(neighbor) or not is_land(neighbor):
+                continue
+            visited[neighbor] = true
+            frontier.append(neighbor)
+
+    return visited.size() == remaining_land.size()
+
+
+func _resolve_rng(rng: RandomNumberGenerator = null) -> RandomNumberGenerator:
+    if rng != null:
+        return rng
+    var fallback := RandomNumberGenerator.new()
+    fallback.randomize()
+    return fallback
 
 
 func _resolve_highest_phase(sources: Dictionary) -> int:

@@ -55,6 +55,7 @@ var _dash_requested_dir := Vector2.ZERO
 var _dash_cooldown_remaining := 0.0
 var _grid: GridArena
 var _hurt_tween: Tween
+var _input_locked := false
 var _dash_invulnerable := false
 var _dash_invuln_end_msec := 0
 var _dash_invuln_blink_tween: Tween
@@ -75,10 +76,33 @@ func emit_health_snapshot() -> void:
 func get_dash_cooldown() -> float:
     return _dash_cooldown_remaining
 
+
+## Adds a run-local bonus to normal attack damage.
+func add_normal_attack_damage(amount: float) -> void:
+    if amount <= 0.0:
+        return
+    normal_attack_damage += amount
+
+
+## Adds max health through the owned Health component.
+func add_max_health(amount: float) -> void:
+    if health != null:
+        health.add_max_health(amount)
+
 # -- Public API (called BY states, not the other way around) --
 
 
+func set_input_locked(locked: bool) -> void:
+    _input_locked = locked
+    if locked:
+        _move_dir = Vector2.ZERO
+        _attack_requested = false
+        _dash_requested = false
+
+
 func get_move_input() -> Vector2:
+    if _input_locked:
+        return Vector2.ZERO
     return Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
 
@@ -419,7 +443,7 @@ func _physics_process(delta: float) -> void:
     if _dash_cooldown_remaining > 0.0:
         _dash_cooldown_remaining = max(_dash_cooldown_remaining - delta, 0.0)
 
-    _move_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+    _move_dir = get_move_input()
     if _move_dir != Vector2.ZERO:
         _last_move_dir = _move_dir
 
@@ -432,6 +456,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+    if _input_locked:
+        return
     if event.is_action_pressed("attack"):
         _attack_requested = true
     elif event.is_action_pressed("dash"):

@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://bq7n4p3yat6ra" path="res://common/gameplay/grid/grid_terrain_view.gd" id="4_grid_view"]
 [ext_resource type="Texture2D" uid="uid://svm2l7nywt4m" path="res://game/scenes/stages/Water.png" id="5_water"]
 [ext_resource type="PackedScene" path="res://game/shared/settings_button_overlay/settings_button_overlay.tscn" id="6_settings_button"]
+[ext_resource type="Script" uid="uid://c2yiaboqn4q6d" path="res://game/scenes/stages/rewards/wave_reward_overlay.gd" id="7_reward_overlay"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_water"]
 texture = ExtResource("5_water")
@@ -585,3 +586,101 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "Boss Guard:"
+
+[node name="WaveBannerOverlay" type="Control" parent="HUD" unique_id=2100000009]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Backdrop" type="ColorRect" parent="HUD/WaveBannerOverlay" unique_id=2100000010]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.35)
+
+[node name="CenterContainer" type="CenterContainer" parent="HUD/WaveBannerOverlay" unique_id=2100000011]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="WaveBannerLabel" type="Label" parent="HUD/WaveBannerOverlay/CenterContainer" unique_id=2100000012]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+text = "Wave 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="WaveRewardOverlay" type="Control" parent="HUD" unique_id=2100000000]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("7_reward_overlay")
+
+[node name="CenterContainer" type="CenterContainer" parent="HUD/WaveRewardOverlay" unique_id=2100000001]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="HUD/WaveRewardOverlay/CenterContainer" unique_id=2100000002]
+custom_minimum_size = Vector2(940, 360)
+layout_mode = 2
+
+[node name="RootVBox" type="VBoxContainer" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer" unique_id=2100000003]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=2100000004]
+layout_mode = 2
+theme_type_variation = &"Heading2Label"
+text = "Choose a Reward"
+horizontal_alignment = 1
+
+[node name="ChoiceHBox" type="HBoxContainer" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=2100000005]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ChoiceButton1" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox" unique_id=2100000006]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(290, 240)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Reward choice"
+
+[node name="ChoiceButton2" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox" unique_id=2100000007]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(290, 240)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Reward choice"
+
+[node name="ChoiceButton3" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox" unique_id=2100000008]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(290, 240)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Reward choice"
