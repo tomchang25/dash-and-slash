@@ -22,12 +22,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-- [enemy] Unify attack execution ownership, fallback attack-data defaults, charge movement, and state-id boilerplate across all enemy kinds — ref plans/enemy_kind_unification.md
-- [enemy] Unify enemy state-identity override boilerplate down to only genuine kind differences — ref plans/enemy_kind_unification_01_state_id_cleanup.sketch.md
-- [enemy] Unify ChargeEnemy and PuffEnemy attack-node lookups onto %UniqueName — ref plans/enemy_kind_unification_02_node_lookup_unification.sketch.md
-- [enemy] Replace ModeEnemyAttackController and hand-rolled hitbox configuration with shared tile/point attack executors — ref plans/enemy_kind_unification_03_attack_executors.implementation_spec.md
-- [enemy] Consolidate enemy attack-profile fallback defaults into one shared source — ref plans/enemy_kind_unification_04_default_profile_fallback.sketch.md
-- [enemy] Unify ChargeEnemy and ModeEnemy charge-mode traversal into one shared implementation — ref plans/enemy_kind_unification_05_charge_traversal.implementation_spec.md
+- [enemy] Unify ChargeEnemy and ModeEnemy charge-mode traversal into one shared implementation — final remaining piece of the enemy-kind unification flow — ref plans/enemy_kind_unification.md
 
 ---
 
