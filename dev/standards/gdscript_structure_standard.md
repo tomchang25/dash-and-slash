@@ -90,13 +90,13 @@ Variable groups at the top of the file use the single-line format.
 
 Use a consistent label from the table below.
 
-| Header | Contents |
-| --- | --- |
-| `# -- Constants --` | `const` and `preload` |
-| `# -- Exports --` | `@export` vars |
-| `# -- State --` | Runtime logic variables |
-| `# -- Timer / tween handles --` | `Timer`, `Tween` vars |
-| `# -- Node references --` | `@onready` node references bound to `.tscn` nodes via `%UniqueName` |
+| Header                          | Contents                                                            |
+| ------------------------------- | ------------------------------------------------------------------- |
+| `# -- Constants --`             | `const` and `preload`                                               |
+| `# -- Exports --`               | `@export` vars                                                      |
+| `# -- State --`                 | Runtime logic variables                                             |
+| `# -- Timer / tween handles --` | `Timer`, `Tween` vars                                               |
+| `# -- Node references --`       | `@onready` node references bound to `.tscn` nodes via `%UniqueName` |
 
 Only include groups that have at least one variable. Do not create custom group names unless no standard label fits.
 
@@ -218,7 +218,7 @@ A reusable component's `setup()` is its apply function, but it has a specific in
 ```gdscript
 # -- State --
 
-var _entity: ExampleEntityData = null
+var _entity: EnemyData = null
 
 # -- Node references --
 
@@ -236,7 +236,7 @@ func _ready() -> void:
 
 # == Common API ==
 
-func setup(entity: ExampleEntityData) -> void:
+func setup(entity: EnemyData) -> void:
     _entity = entity
 
     if is_node_ready():

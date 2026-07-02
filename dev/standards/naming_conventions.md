@@ -42,7 +42,7 @@ Examples:
 
 ```
 PlayerController
-ExampleEntityData
+EnemyData
 EntityRow
 GameRecord
 StatusHUD

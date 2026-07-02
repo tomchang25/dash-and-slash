@@ -64,21 +64,21 @@ common/           Reusable systems (not feature-specific)
   utils/          Random utilities
 data/             Designer resources
   definitions/    Resource class scripts (.gd)
-  yaml/           Human-authored YAML source data
-  tres/           Generated from yaml — do not hand-edit (gitignored)
+  yaml/           Human-authored SFX synth patches, rendered via dev/tools/render_sfx.py
+  tres/           Generated SFX playback resources — do not hand-edit (gitignored)
 dev/              Development tooling and documentation
   agent_rules/    Agent-specific instructions
   docs/           Architecture docs
   skills/         AI coding references
   standards/      Coding conventions
-  tools/          YAML pipeline scripts
+  tools/          Build/lint/test scripts and the SFX synthesis pipeline
   workflows/      Development process formats
 game/             Game feature scenes
   meta/           Main Menu and meta flow screens
   shared/         Shared UI, including settings overlay and settings button overlay
 global/           Autoloads and project-wide resources
   autoloads/      All autoload scripts
-  constants/      DataPaths
+  constants/      Project-wide constants
   theme/          Main theme resource
   utils/          RegistryAudit utility
 localization/     Localization files
@@ -87,7 +87,7 @@ test/             Unit tests and test runner
 
 ## Data Pipeline
 
-Entities are authored in `data/yaml/*.yaml`, converted to `.tres` via `dev/tools/yaml_to_tres.py`. Validate with `dev/tools/validate_yaml.py`. Reverse with `dev/tools/tres_to_yaml.py`. Never hand-edit `.tres` files under `data/tres/`.
+SFX are authored as YAML patches under `data/yaml/sfx/*.yaml` and rendered via `dev/tools/render_sfx.py` into WAV + `UiAudioEvent .tres` output. Never hand-edit the generated WAV or `.tres` files. Gameplay data (enemies, player stats) is hand-authored directly as `.tres` resources alongside its feature code — see `dev/docs/archived/enemy_data_backed_structure.md` and `data_driven_player_stats.sketch.md` for why generated data was rejected for that content.
 
 ## Conventions
 
@@ -96,7 +96,6 @@ Entities are authored in `data/yaml/*.yaml`, converted to `.tres` via `dev/tools
 - **Runtime ownership**: read `dev/standards/runtime_ownership.md` before introducing or renaming Controllers, Systems, Stores, Services, save providers, or other runtime state owners.
 - **Commits**: conventional commits format — read `dev/skills/conventional_commits.md` when writing commit messages. Do not hard-wrap prose.
 - **Change summaries**: read `dev/standards/change_summary_standard.md` before writing commit messages, PR descriptions, CHANGELOG entries, closeout output, review summaries, or other completed-work summaries.
-- **Registries**: extend `ResourceRegistry`; required API: `get_<singular>_by_id`, `get_all_<plural>`, `size`. See `dev/standards/registries.md`.
 - **Audio events**: use `AudioManager.play_event()` for gameplay, UI, and music playback; read `dev/skills/audio_event_usage.md` before changing audio playback, SFX resources, music, or `AudioManager` call sites.
 - **Save providers**: an object that serializes a slice of state must also own that state — no save adapter that only serializes another object's fields.
 - **State machines**: the `StateMachine` + `State` framework is behavior-delegation, not a state-label holder; read `dev/skills/state_machine_pattern.md` before changing entity states, FSM scene wiring, or transition logic.
