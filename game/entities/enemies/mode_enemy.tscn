@@ -7,7 +7,8 @@
 [ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="5_sm"]
 [ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="6_telegraph"]
 [ext_resource type="Script" uid="uid://b38x6ajqwstiu" path="res://common/gameplay/components/hitbox.gd" id="7_hitbox"]
-[ext_resource type="Script" path="res://game/entities/enemies/mode_enemy_attack_controller.gd" id="8_attack_controller"]
+[ext_resource type="Script" uid="uid://dccf5ed0kuq50" path="res://game/entities/enemies/enemy_attack_controller.gd" id="8_tile_executor"]
+[ext_resource type="Script" uid="uid://cho503ltqjhuq" path="res://game/entities/enemies/enemy_point_attack_executor.gd" id="23_point_executor"]
 [ext_resource type="Script" uid="uid://v830nt1qxe7u" path="res://game/entities/enemies/states/enemy_idle_state.gd" id="9_idle"]
 [ext_resource type="Script" uid="uid://bwg432ox13y5p" path="res://game/entities/enemies/states/enemy_face_once_state.gd" id="10_face"]
 [ext_resource type="Script" path="res://game/entities/enemies/states/enemy_telegraph_state.gd" id="11_telegraph_state"]
@@ -25,9 +26,6 @@
 
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(56, 56)
-
-[sub_resource type="RectangleShape2D" id="tile_attack_shape"]
-size = Vector2(64, 64)
 
 [sub_resource type="RectangleShape2D" id="contact_shape"]
 size = Vector2(56, 56)
@@ -76,17 +74,6 @@ script = ExtResource("3_hurtbox")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1118728356]
 shape = SubResource("hurt_shape")
 
-[node name="TileAttackHitbox" type="Area2D" parent="." unique_id=1301000001 node_paths=PackedStringArray("collision_shape")]
-unique_name_in_owner = true
-collision_layer = 0
-collision_mask = 1
-script = ExtResource("7_hitbox")
-damage = 12.0
-collision_shape = NodePath("CollisionShape2D")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="TileAttackHitbox" unique_id=1301000002]
-shape = SubResource("tile_attack_shape")
-
 [node name="ContactHitbox" type="Area2D" parent="." unique_id=1301000003 node_paths=PackedStringArray("collision_shape")]
 unique_name_in_owner = true
 collision_layer = 0
@@ -119,9 +106,13 @@ max_guard = 16
 unique_name_in_owner = true
 script = ExtResource("6_telegraph")
 
-[node name="AttackController" type="Node" parent="." unique_id=1301000007]
+[node name="TileAttackExecutor" type="Node" parent="." unique_id=1301000007]
 unique_name_in_owner = true
-script = ExtResource("8_attack_controller")
+script = ExtResource("8_tile_executor")
+
+[node name="PointAttackExecutor" type="Node" parent="." unique_id=1301000010]
+unique_name_in_owner = true
+script = ExtResource("23_point_executor")
 
 [node name="StateMachine" type="Node" parent="." unique_id=2020914960 node_paths=PackedStringArray("initial_state")]
 unique_name_in_owner = true

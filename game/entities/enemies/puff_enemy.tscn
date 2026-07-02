@@ -18,6 +18,7 @@
 [ext_resource type="Script" uid="uid://dcpiobfpvqls7" path="res://game/entities/enemies/states/puff_enemy_puff_state.gd" id="16_puff"]
 [ext_resource type="Resource" uid="uid://cipqwuymcgx88" path="res://game/entities/enemies/data/puff_enemy.tres" id="17_enemy_data"]
 [ext_resource type="Script" uid="uid://b3drtqt8g3mrs" path="res://game/entities/enemies/states/puff_enemy_charge_state.gd" id="18_puff_charge"]
+[ext_resource type="Script" uid="uid://cho503ltqjhuq" path="res://game/entities/enemies/enemy_point_attack_executor.gd" id="19_point_executor"]
 
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(30, 30)
@@ -70,6 +71,10 @@ collision_shape = NodePath("CollisionShape2D")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PuffHitbox" unique_id=1437237618]
 shape = SubResource("CircleShape2D_xvy1v")
+
+[node name="PointAttackExecutor" type="Node" parent="." unique_id=1437237619]
+unique_name_in_owner = true
+script = ExtResource("19_point_executor")
 
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
 unique_name_in_owner = true

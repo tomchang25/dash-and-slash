@@ -7,6 +7,9 @@ signal guard_changed(current: int, maximum: int)
 signal guard_stagger_started
 signal guard_stagger_ended
 
+enum Mode { TILE = 0, PUFF = 1, CHARGE = 2 }
+
+const MODE_COUNT := 3
 const MODE_CHANGE_DURATION := 3.0
 const MODE_PREVIEW_INTERVAL := 0.25
 const TELEGRAPH_DURATION := 0.8
@@ -24,16 +27,16 @@ const CHARGE_MODE_COLOR := Color(0.35, 0.6, 1.0, 1.0)
 @export var attack_sfx_event: SpatialAudioEvent
 
 # -- State --------------------------------------------------------------------
-var _mode: int = ModeEnemyAttackController.Mode.TILE
+var _mode: int = Mode.TILE
 var _mode_ready := false
 var _current_attack_data: EnemyAttackData
 var _charge_cells: Array[Vector2i] = []
 var _charge_index := 0
 
 # -- Node references ----------------------------------------------------------
-@onready var _attack_controller: ModeEnemyAttackController = %AttackController
+@onready var _tile_executor: EnemyAttackController = %TileAttackExecutor
+@onready var _point_executor: EnemyPointAttackExecutor = %PointAttackExecutor
 @onready var _telegraph: TileTelegraph = %TileTelegraph
-@onready var _tile_hitbox: Hitbox = %TileAttackHitbox
 @onready var _contact_hitbox: Hitbox = %ContactHitbox
 @onready var _puff_hitbox: Hitbox = %PuffHitbox
 
@@ -43,7 +46,7 @@ var _charge_index := 0
 func _ready() -> void:
     super()
     _allow_diagonal_movement = true
-    _configure_attack_controller()
+    _configure_executors()
     _disable_mode_hitboxes()
     _apply_current_mode_color()
 
@@ -127,9 +130,9 @@ func get_attack_duration() -> float:
     if _current_attack_data != null:
         return _current_attack_data.active_duration
     match _mode:
-        ModeEnemyAttackController.Mode.PUFF:
+        Mode.PUFF:
             return PUFF_ATTACK_DURATION
-        ModeEnemyAttackController.Mode.CHARGE:
+        Mode.CHARGE:
             return CHARGE_ATTACK_TIMEOUT
     return TILE_ATTACK_DURATION
 
@@ -139,12 +142,10 @@ func get_mode_preview_interval() -> float:
 
 
 func choose_random_mode() -> void:
-    _mode = randi() % ModeEnemyAttackController.MODE_COUNT
+    _mode = randi() % MODE_COUNT
     _mode_ready = true
     _current_attack_data = _select_attack_data_for_mode(_mode)
-    if _attack_controller != null:
-        _attack_controller.set_mode(_mode)
-        _attack_controller.set_attack_data(_current_attack_data)
+    _rewire_point_executor()
     _apply_current_mode_color()
 
 
@@ -157,81 +158,101 @@ func get_mode_color(mode: int) -> Color:
     if enemy_data != null and mode >= 0 and mode < enemy_data.mode_colors.size():
         return enemy_data.mode_colors[mode]
     match mode:
-        ModeEnemyAttackController.Mode.PUFF:
+        Mode.PUFF:
             return PUFF_MODE_COLOR
-        ModeEnemyAttackController.Mode.CHARGE:
+        Mode.CHARGE:
             return CHARGE_MODE_COLOR
     return TILE_MODE_COLOR
 
 
 func can_attack_current_mode() -> bool:
-    if _grid == null or _attack_controller == null or not has_target() or not _mode_ready:
+    if _grid == null or not has_target() or not _mode_ready:
         return false
     match _mode:
-        ModeEnemyAttackController.Mode.CHARGE:
+        Mode.CHARGE:
             return can_charge_target_from_cell(_grid_pos)
-        ModeEnemyAttackController.Mode.PUFF:
+        Mode.PUFF:
             return is_target_within_grid_range(_get_current_puff_range())
-        ModeEnemyAttackController.Mode.TILE:
+        Mode.TILE:
             var target_cell := get_target_cell()
             var dir_to_target := Vector2(target_cell - _grid_pos)
             if dir_to_target == Vector2.ZERO:
                 return false
-            return target_cell in _attack_controller.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target))
+            return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target), _tile_attack_data(), _grid)
     return false
 
 
 func plan_next_action() -> bool:
     match _mode:
-        ModeEnemyAttackController.Mode.CHARGE:
+        Mode.CHARGE:
             return plan_charge_origin_action()
-        ModeEnemyAttackController.Mode.TILE:
-            if _attack_controller == null:
-                return false
+        Mode.TILE:
             var get_cells_for_origin := func(origin_cell: Vector2i, facing: Vector2) -> Array[Vector2i]:
-                return _attack_controller.get_attack_cells(origin_cell, facing)
+                return EnemyAttackController.get_attack_cells(origin_cell, facing, _tile_attack_data(), _grid)
             var get_origins_for_target := func(target_cell: Vector2i) -> Array[Vector2i]:
-                return _attack_controller.get_attack_origin_cells(target_cell)
+                return EnemyAttackController.get_attack_origin_cells(target_cell, _tile_attack_data(), _grid)
             return plan_cell_attack_action(get_cells_for_origin, get_origins_for_target)
     return super()
 
 
 func prepare_attack() -> bool:
-    if _attack_controller == null:
-        return false
-    return _attack_controller.prepare(_grid_pos, _facing)
+    match _mode:
+        Mode.TILE:
+            if _tile_executor == null:
+                return false
+            return _tile_executor.prepare(_grid_pos, _facing, _tile_attack_data())
+        Mode.CHARGE, Mode.PUFF:
+            if _point_executor == null:
+                return false
+            return _point_executor.prepare(_grid_pos, _facing, _current_attack_data)
+    return false
 
 
 func show_attack_warning() -> void:
-    if _attack_controller != null:
-        _attack_controller.show_warning()
+    match _mode:
+        Mode.TILE:
+            if _tile_executor != null:
+                _tile_executor.show_warning()
+        Mode.CHARGE, Mode.PUFF:
+            if _point_executor != null:
+                _point_executor.show_warning()
 
 
 func show_attack_charge() -> void:
-    if _attack_controller != null:
-        _attack_controller.show_charge()
+    match _mode:
+        Mode.TILE:
+            if _tile_executor != null:
+                _tile_executor.show_charge()
+        Mode.CHARGE, Mode.PUFF:
+            if _point_executor != null:
+                _point_executor.show_charge()
 
 
 func begin_attack() -> bool:
     velocity = Vector2.ZERO
     _charge_cells.clear()
     _charge_index = 0
-    if _attack_controller == null:
+    if not _has_executor_for_mode():
         return false
     if attack_sfx_event != null:
         AudioManager.play_event(attack_sfx_event, global_position)
 
-    _attack_controller.begin_attack()
-    if _mode == ModeEnemyAttackController.Mode.CHARGE:
-        _charge_cells = _attack_controller.get_cells()
-        if not _charge_cells.is_empty():
-            _move_to_charge_cell(_charge_cells[0])
+    match _mode:
+        Mode.TILE:
+            _tile_executor.begin_attack()
+        Mode.CHARGE:
+            _point_executor.begin_attack()
+            _charge_cells = _point_executor.get_cells()
+            if not _charge_cells.is_empty():
+                _move_to_charge_cell(_charge_cells[0])
+        Mode.PUFF:
+            _point_executor.begin_attack()
 
     return true
 
 
 func update_attack_motion(_delta: float) -> bool:
-    if _mode != ModeEnemyAttackController.Mode.CHARGE:
+    if _mode != Mode.CHARGE:
         return false
     if _charge_index >= _charge_cells.size():
         return true
@@ -245,8 +266,8 @@ func update_attack_motion(_delta: float) -> bool:
     _grid_pos = target_cell
     global_position = target_world
     register_grid_occupant()
-    if _attack_controller != null:
-        _attack_controller.clear_cell(target_cell)
+    if _point_executor != null:
+        _point_executor.clear_cell(target_cell)
 
     _charge_index += 1
     if _charge_index >= _charge_cells.size():
@@ -261,22 +282,32 @@ func end_attack() -> void:
     velocity = Vector2.ZERO
     _charge_cells.clear()
     _charge_index = 0
-    if _attack_controller != null:
-        _attack_controller.end_attack()
+    match _mode:
+        Mode.TILE:
+            if _tile_executor != null:
+                _tile_executor.end_attack()
+        Mode.CHARGE, Mode.PUFF:
+            if _point_executor != null:
+                _point_executor.end_attack()
 
 
 func cancel_attack() -> void:
     velocity = Vector2.ZERO
     _charge_cells.clear()
     _charge_index = 0
-    if _attack_controller != null:
-        _attack_controller.cancel()
+    match _mode:
+        Mode.TILE:
+            if _tile_executor != null:
+                _tile_executor.cancel()
+        Mode.CHARGE, Mode.PUFF:
+            if _point_executor != null:
+                _point_executor.cancel()
 
 # == Setup helpers =============================================================
 
 
 func _after_setup_ready() -> void:
-    _configure_attack_controller()
+    _configure_executors()
 
 
 func _on_guard_broken_extra() -> void:
@@ -297,15 +328,38 @@ func _reset_extra() -> void:
     _apply_current_mode_color()
 
 
-func _configure_attack_controller() -> void:
-    if _attack_controller == null:
+func _configure_executors() -> void:
+    if _tile_executor != null:
+        _tile_executor.setup(_grid, _telegraph, self)
+    _rewire_point_executor()
+
+
+func _rewire_point_executor() -> void:
+    if _point_executor == null:
         return
-    _attack_controller.setup(_grid, _telegraph, _tile_hitbox, _contact_hitbox, _puff_hitbox)
+    var hitbox := _puff_hitbox if _mode == Mode.PUFF else _contact_hitbox
+    _point_executor.setup(_grid, _telegraph, hitbox, true)
+
+
+func _has_executor_for_mode() -> bool:
+    if _mode == Mode.TILE:
+        return _tile_executor != null
+    return _point_executor != null
+
+
+## Returns the attack data driving TILE-mode cell computation, falling back to the
+## WIDE_2X3 shape ModeEnemy always used before per-mode attack data existed.
+func _tile_attack_data() -> EnemyAttackData:
+    if _current_attack_data != null:
+        return _current_attack_data
+    var fallback := EnemyAttackData.new()
+    fallback.cell_shape = EnemyAttackData.CellShape.WIDE
+    fallback.width = 3
+    fallback.depth = 2
+    return fallback
 
 
 func _disable_mode_hitboxes() -> void:
-    if _tile_hitbox != null:
-        _tile_hitbox.set_enabled(false)
     if _contact_hitbox != null:
         _contact_hitbox.set_enabled(false)
     if _puff_hitbox != null:
@@ -347,9 +401,9 @@ func _get_attacks_for_kind(kind: int) -> Array[EnemyAttackData]:
 
 func _attack_kind_for_mode(mode: int) -> int:
     match mode:
-        ModeEnemyAttackController.Mode.CHARGE:
+        Mode.CHARGE:
             return EnemyAttackData.AttackKind.CHARGE
-        ModeEnemyAttackController.Mode.PUFF:
+        Mode.PUFF:
             return EnemyAttackData.AttackKind.PUFF
     return EnemyAttackData.AttackKind.TILE
 
@@ -364,14 +418,14 @@ func _create_fallback_attack_data(mode: int) -> EnemyAttackData:
     attack_data.charge_duration = CHARGE_DURATION
     attack_data.recovery_duration = RECOVERY_DURATION
     match mode:
-        ModeEnemyAttackController.Mode.CHARGE:
+        Mode.CHARGE:
             attack_data.attack_kind = EnemyAttackData.AttackKind.CHARGE
             attack_data.cell_shape = EnemyAttackData.CellShape.FULL_LINE
             attack_data.damage = 10.0
             attack_data.damage_interval = 0.45
             attack_data.active_duration = CHARGE_ATTACK_TIMEOUT
             attack_data.charge_speed = CHARGING_SPEED
-        ModeEnemyAttackController.Mode.PUFF:
+        Mode.PUFF:
             attack_data.attack_kind = EnemyAttackData.AttackKind.PUFF
             attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
             attack_data.damage = 14.0
