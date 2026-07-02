@@ -16,7 +16,6 @@ const TELEGRAPH_DURATION := 0.8
 const CHARGE_DURATION := 0.2
 const TILE_ATTACK_DURATION := 0.25
 const PUFF_ATTACK_DURATION := 1.0
-const CHARGE_ATTACK_TIMEOUT := 1.2
 const RECOVERY_DURATION := 0.8
 const CHARGING_SPEED := 480.0
 const TILE_MODE_COLOR := Color(0.9, 0.35, 0.25, 1.0)
@@ -30,8 +29,6 @@ const CHARGE_MODE_COLOR := Color(0.35, 0.6, 1.0, 1.0)
 var _mode: int = Mode.TILE
 var _mode_ready := false
 var _current_attack_data: EnemyAttackData
-var _charge_cells: Array[Vector2i] = []
-var _charge_index := 0
 
 # -- Node references ----------------------------------------------------------
 @onready var _tile_executor: EnemyAttackController = %TileAttackExecutor
@@ -126,14 +123,44 @@ func get_current_attack_data() -> EnemyAttackData:
     return _current_attack_data
 
 
+func get_attack_state_id() -> int:
+    if _mode == Mode.CHARGE:
+        return EnemyState.EnemyStateId.CHARGE_ATTACK
+    return super()
+
+
+func get_telegraph() -> TileTelegraph:
+    return _telegraph
+
+
+func get_stored_charge_cells() -> Array[Vector2i]:
+    return _point_executor.get_cells() if _point_executor != null else []
+
+
+func get_charge_speed() -> float:
+    return _current_attack_data.charge_speed if _current_attack_data != null else CHARGING_SPEED
+
+
+func begin_charge_attack() -> void:
+    stop_attack_windup_vfx()
+    if _point_executor != null:
+        _point_executor.set_hitbox_enabled(true)
+
+
+func end_charge_attack() -> void:
+    stop_attack_windup_vfx()
+    if _point_executor != null:
+        _point_executor.set_hitbox_enabled(false)
+
+
+## Returns the generic timed-attack duration for TILE/PUFF modes. CHARGE mode routes
+## through EnemyChargeAttackState, which has no timeout and never calls this.
 func get_attack_duration() -> float:
     if _current_attack_data != null:
         return _current_attack_data.active_duration
     match _mode:
         Mode.PUFF:
             return PUFF_ATTACK_DURATION
-        Mode.CHARGE:
-            return CHARGE_ATTACK_TIMEOUT
     return TILE_ATTACK_DURATION
 
 
@@ -230,8 +257,6 @@ func show_attack_charge() -> void:
 
 func begin_attack() -> bool:
     velocity = Vector2.ZERO
-    _charge_cells.clear()
-    _charge_index = 0
     if not _has_executor_for_mode():
         return false
     if attack_sfx_event != null:
@@ -240,48 +265,16 @@ func begin_attack() -> bool:
     match _mode:
         Mode.TILE:
             _tile_executor.begin_attack()
-        Mode.CHARGE:
-            _point_executor.begin_attack()
-            _charge_cells = _point_executor.get_cells()
-            if not _charge_cells.is_empty():
-                _move_to_charge_cell(_charge_cells[0])
         Mode.PUFF:
             _point_executor.begin_attack()
+        Mode.CHARGE:
+            ToastManager.show_dev_error("ModeEnemy.begin_attack() called in CHARGE mode; CHARGE routes through EnemyChargeAttackState instead.")
 
     return true
 
 
-func update_attack_motion(_delta: float) -> bool:
-    if _mode != Mode.CHARGE:
-        return false
-    if _charge_index >= _charge_cells.size():
-        return true
-
-    var target_cell := _charge_cells[_charge_index]
-    var target_world := _grid.cell_center(target_cell)
-    var arrival_threshold := tile_size() * 0.1
-    if global_position.distance_squared_to(target_world) >= arrival_threshold * arrival_threshold:
-        return false
-
-    _grid_pos = target_cell
-    global_position = target_world
-    register_grid_occupant()
-    if _point_executor != null:
-        _point_executor.clear_cell(target_cell)
-
-    _charge_index += 1
-    if _charge_index >= _charge_cells.size():
-        velocity = Vector2.ZERO
-        return true
-
-    _move_to_charge_cell(_charge_cells[_charge_index])
-    return false
-
-
 func end_attack() -> void:
     velocity = Vector2.ZERO
-    _charge_cells.clear()
-    _charge_index = 0
     match _mode:
         Mode.TILE:
             if _tile_executor != null:
@@ -293,8 +286,6 @@ func end_attack() -> void:
 
 func cancel_attack() -> void:
     velocity = Vector2.ZERO
-    _charge_cells.clear()
-    _charge_index = 0
     match _mode:
         Mode.TILE:
             if _tile_executor != null:
@@ -322,8 +313,6 @@ func _on_begin_death_extra() -> void:
 func _reset_extra() -> void:
     _mode_ready = false
     _current_attack_data = null
-    _charge_cells.clear()
-    _charge_index = 0
     cancel_attack()
     _apply_current_mode_color()
 
@@ -371,16 +360,6 @@ func _apply_current_mode_color() -> void:
         _body.color = get_mode_color(_mode)
 
 
-func _move_to_charge_cell(cell: Vector2i) -> void:
-    if _grid == null:
-        velocity = Vector2.ZERO
-        return
-    var target_world := _grid.cell_center(cell)
-    var direction := (target_world - global_position).normalized()
-    var charge_speed := _current_attack_data.charge_speed if _current_attack_data != null else CHARGING_SPEED
-    velocity = direction * charge_speed
-
-
 func _select_attack_data_for_mode(mode: int) -> EnemyAttackData:
     var kind := _attack_kind_for_mode(mode)
     var attacks := _get_attacks_for_kind(kind)
@@ -423,7 +402,6 @@ func _create_fallback_attack_data(mode: int) -> EnemyAttackData:
             attack_data.cell_shape = EnemyAttackData.CellShape.FULL_LINE
             attack_data.damage = 10.0
             attack_data.damage_interval = 0.45
-            attack_data.active_duration = CHARGE_ATTACK_TIMEOUT
             attack_data.charge_speed = CHARGING_SPEED
         Mode.PUFF:
             attack_data.attack_kind = EnemyAttackData.AttackKind.PUFF

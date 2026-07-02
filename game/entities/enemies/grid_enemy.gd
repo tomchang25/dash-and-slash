@@ -601,6 +601,41 @@ func end_attack() -> void:
     pass
 
 
+## Returns the enemy's charge-mode telegraph. Enemies without a charge attack
+## leave this null.
+func get_telegraph() -> TileTelegraph:
+    return null
+
+
+## Returns the pre-computed cell sequence for the enemy's active charge attack.
+## Enemies without a charge attack leave this empty.
+func get_stored_charge_cells() -> Array[Vector2i]:
+    return []
+
+
+## Clears the pre-computed charge cell sequence. Enemies without a charge
+## attack need not override this.
+func clear_stored_charge_cells() -> void:
+    pass
+
+
+## Returns the enemy's charge-mode traversal speed.
+func get_charge_speed() -> float:
+    return 0.0
+
+
+## Starts the active charge-dash phase (hitbox enable). Enemies without a
+## charge attack need not override this.
+func begin_charge_attack() -> void:
+    pass
+
+
+## Ends the active charge-dash phase (hitbox disable). Enemies without a
+## charge attack need not override this.
+func end_charge_attack() -> void:
+    pass
+
+
 ## Starts a reusable attack windup loop for telegraphed actions.
 func start_attack_windup_vfx(style: int = CombatFeedbackVFX.WindupStyle.TILE) -> void:
     stop_attack_windup_vfx()
