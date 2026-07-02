@@ -684,3 +684,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 text = "Reward choice"
+
+[node name="MilestoneNoteLabel" type="Label" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=2100000013]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = ""
+horizontal_alignment = 1

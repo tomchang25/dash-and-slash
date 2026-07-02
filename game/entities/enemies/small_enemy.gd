@@ -66,7 +66,7 @@ func begin_attack_telegraph() -> bool:
     var attack := get_attack_controller()
     if attack == null or _attack_data == null:
         return false
-    if not attack.prepare(get_grid_pos(), get_facing(), _attack_data):
+    if not attack.prepare(get_grid_pos(), get_facing(), _attack_data, get_damage_multiplier()):
         return false
     attack.show_warning()
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.TILE)

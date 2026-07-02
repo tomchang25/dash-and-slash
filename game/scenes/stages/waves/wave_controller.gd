@@ -5,37 +5,30 @@ extends RefCounted
 
 signal wave_gap_started(display_text: String)
 signal wave_gap_finished
-signal wave_started(display_text: String, is_boss_wave: bool)
-signal normal_wave_completed(wave_number: int)
-signal boss_spawned(boss: Node)
-signal boss_cleared
-signal run_completed
+signal wave_started(display_text: String, is_milestone_wave: bool)
+signal normal_wave_completed(wave_number: int, is_milestone_wave: bool)
+signal elite_spawned(elite: Node)
+signal elite_cleared
 
-const WAVE_DEFINITIONS := [
-    { "index": 1, "kind": "normal", "base_count": 5 },
-    { "index": 2, "kind": "normal", "base_count": 6 },
-    { "index": 3, "kind": "normal", "base_count": 7 },
-    { "index": 4, "kind": "normal", "base_count": 8 },
-    { "index": 5, "kind": "boss", "boss_id": "first_boss", "support_base_count": 8 },
-]
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
 const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
-const BossScene := preload("res://game/entities/enemies/mode_enemy.tscn")
+const EliteScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 
 const SUPPORT_ENEMY_SCENES := [SmallEnemyScene, PuffEnemyScene, ChargeEnemyScene]
 const WAVE_GAP := 2.0
 const SPAWN_TELEGRAPH_DURATION := 0.8
 
-var _current_wave_index := -1
+var _current_wave_number := 0
 var _future_enemy_count_modifier := 0
 var _grid: GridArena
 var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
 var _alive_enemies: Array[Node] = []
-var _pending_spawns: Array[Dictionary] = []
-var _boss_ref: Node = null
-var _boss_resolving := false
+var _spawn_queue: Array[Dictionary] = []
+var _current_batch: Array[Dictionary] = []
+var _elite_ref: Node = null
+var _run_over := false
 var _wave_gap_timer: Timer
 var _spawn_telegraph_timer: Timer
 
@@ -60,41 +53,30 @@ func start_next_wave() -> void:
             _begin_wave()
 
 
-## Returns the current wave definition, or an empty Dictionary before the first wave.
-func get_current_wave() -> Dictionary:
-    if _current_wave_index < 0 or _current_wave_index >= WAVE_DEFINITIONS.size():
-        return { }
-    return WAVE_DEFINITIONS[_current_wave_index]
-
-
-## Advances to the next wave. Returns false if there are no more waves.
+## Advances to the next wave number. Always advances unless the run has ended.
 func advance_wave() -> bool:
-    _current_wave_index += 1
-    return _current_wave_index < WAVE_DEFINITIONS.size()
+    if _run_over:
+        return false
+    _current_wave_number += 1
+    return true
 
 
-## Returns true when the current wave is a boss wave.
-func is_boss_wave() -> bool:
-    return get_current_wave().get("kind", "") == "boss"
+## Returns true when the current wave is a milestone elite wave.
+func is_milestone_wave() -> bool:
+    return WaveScaling.is_milestone_wave(_current_wave_number)
 
 
 ## Returns the number of support enemies to spawn for the current wave,
 ## including any future enemy count modifier.
 func get_support_spawn_count() -> int:
-    var wave := get_current_wave()
-    if wave.is_empty():
+    if _current_wave_number <= 0:
         return 0
-    var base := 0
-    if wave["kind"] == "boss":
-        base = int(wave.get("support_base_count", 0))
-    else:
-        base = int(wave.get("base_count", 0))
-    return base + _future_enemy_count_modifier
+    return WaveScaling.get_support_count(_current_wave_number) + _future_enemy_count_modifier
 
 
-## Returns 1 for boss waves, 0 otherwise.
-func get_boss_spawn_count() -> int:
-    return 1 if is_boss_wave() else 0
+## Returns 1 for milestone waves (elite spawn), 0 otherwise.
+func get_elite_spawn_count() -> int:
+    return 1 if is_milestone_wave() else 0
 
 
 ## Adds non-negative future enemy count pressure to subsequent waves.
@@ -102,106 +84,148 @@ func add_future_enemy_count(amount: int) -> void:
     _future_enemy_count_modifier += max(amount, 0)
 
 
-## Returns the 1-based wave number for display (1-5).
+## Returns the 1-based current wave number.
 func get_wave_number() -> int:
-    return _current_wave_index + 1
+    return _current_wave_number
 
 
 ## Returns the text shown for the current wave.
 func get_wave_display_text() -> String:
-    if is_boss_wave():
-        return "Final Wave: BOSS"
+    if is_milestone_wave():
+        return "Wave %d: ELITE" % get_wave_number()
     return "Wave %d" % get_wave_number()
+
+
+## Stops all further wave progression and spawning. Called on player death.
+func end_run() -> void:
+    _run_over = true
+    _clear_spawn_queue_telegraphs()
+    if _wave_gap_timer != null:
+        _wave_gap_timer.stop()
+    if _spawn_telegraph_timer != null:
+        _spawn_telegraph_timer.stop()
+
+
+## Returns true once end_run() has been called for the current run.
+func is_run_over() -> bool:
+    return _run_over
 
 
 ## Resets all state for a fresh run.
 func reset() -> void:
-    _current_wave_index = -1
+    _current_wave_number = 0
     _future_enemy_count_modifier = 0
     _alive_enemies.clear()
-    _pending_spawns.clear()
-    _boss_ref = null
-    _boss_resolving = false
+    _spawn_queue.clear()
+    _current_batch.clear()
+    _elite_ref = null
+    _run_over = false
 
 # == Wave Flow ==
 
 
 func _begin_wave() -> void:
-    wave_started.emit(get_wave_display_text(), is_boss_wave())
-    _prepare_pending_spawns()
-    _show_spawn_telegraphs()
+    if _run_over:
+        return
+    wave_started.emit(get_wave_display_text(), is_milestone_wave())
+    _prepare_spawn_queue()
+    _spawn_next_batch()
 
 
-func _prepare_pending_spawns() -> void:
-    _pending_spawns.clear()
-    var reserved_spawn_cells: Array[Vector2i] = []
+## Builds this wave's full spawn list (support + elite on milestone waves). Cells
+## are not chosen here; selection is deferred to _spawn_next_batch so spacing
+## reflects what's actually spawning at that moment, not a stale full-wave plan.
+func _prepare_spawn_queue() -> void:
+    _spawn_queue.clear()
 
     var support_count := get_support_spawn_count()
     for i in support_count:
         var picked: PackedScene = SUPPORT_ENEMY_SCENES[randi() % SUPPORT_ENEMY_SCENES.size()]
-        var cell := _spawn_planner.choose_enemy_spawn_cell(i, max(support_count, 1), reserved_spawn_cells)
+        _spawn_queue.append({ "scene": picked, "index": i, "support_count": support_count })
+
+    if is_milestone_wave():
+        _spawn_queue.append({ "scene": EliteScene, "index": 0, "support_count": 1 })
+
+
+## Pulls as many entries from _spawn_queue as current population headroom allows,
+## telegraphs only that batch, and starts the spawn timer. No-ops if the queue is
+## empty or there is no headroom.
+func _spawn_next_batch() -> void:
+    if _run_over or _spawn_queue.is_empty():
+        return
+
+    var headroom := WaveScaling.get_population_cap(get_wave_number()) - _alive_enemies.size()
+    if headroom <= 0:
+        return
+
+    var batch_size := min(headroom, _spawn_queue.size())
+    _current_batch = _spawn_queue.slice(0, batch_size)
+    _spawn_queue = _spawn_queue.slice(batch_size)
+
+    var reserved_spawn_cells: Array[Vector2i] = []
+    for entry in _current_batch:
+        var cell := _spawn_planner.choose_enemy_spawn_cell(entry["index"], entry["support_count"], reserved_spawn_cells)
         reserved_spawn_cells.append(cell)
-        _pending_spawns.append({ "scene": picked, "cell": cell })
+        entry["cell"] = cell
 
-    if is_boss_wave():
-        var boss_cell := _spawn_planner.choose_enemy_spawn_cell(0, 1, reserved_spawn_cells)
-        _pending_spawns.append({ "scene": BossScene, "cell": boss_cell })
-
-
-func _show_spawn_telegraphs() -> void:
     var telegraph_cells: Array[Vector2i] = []
-    for pending_spawn in _pending_spawns:
-        var cell: Vector2i = pending_spawn["cell"]
-        telegraph_cells.append(cell)
+    for entry in _current_batch:
+        telegraph_cells.append(entry["cell"])
     _grid.set_telegraph(self, telegraph_cells, GridArena.TelegraphPhase.SPAWNING)
     _spawn_telegraph_timer.start(SPAWN_TELEGRAPH_DURATION)
 
 
-func _spawn_pending_enemies() -> void:
+func _spawn_current_batch() -> void:
     var cells: Array[Vector2i] = []
-    for pending_spawn in _pending_spawns:
-        var cell: Vector2i = pending_spawn["cell"]
-        cells.append(cell)
+    for entry in _current_batch:
+        cells.append(entry["cell"])
     _grid.clear_telegraph(self, cells)
 
-    for pending_spawn in _pending_spawns:
-        var scene: PackedScene = pending_spawn["scene"]
-        var spawn_cell: Vector2i = pending_spawn["cell"]
-        var enemy := _spawner.spawn_enemy(scene, spawn_cell, Callable(self, "_on_enemy_died"))
+    for entry in _current_batch:
+        var scene: PackedScene = entry["scene"]
+        var spawn_cell: Vector2i = entry["cell"]
+        var enemy := _spawner.spawn_enemy(
+            scene,
+            spawn_cell,
+            Callable(self, "_on_enemy_died"),
+            Callable(self, "_apply_wave_scaling"),
+        )
         if enemy == null:
             continue
         _alive_enemies.append(enemy)
-        if scene == BossScene:
-            _boss_ref = enemy
-            boss_spawned.emit(enemy)
+        if scene == EliteScene:
+            _elite_ref = enemy
+            elite_spawned.emit(enemy)
 
-    _pending_spawns.clear()
+    _current_batch.clear()
+    # Pulls any queue headroom freed by deaths that happened during this
+    # batch's telegraph window (those deaths were deliberately not allowed to
+    # re-enter _spawn_next_batch while this batch was in flight; see
+    # _on_enemy_died).
+    _spawn_next_batch()
 
 
-func _clear_pending_spawn_telegraphs() -> void:
-    if _pending_spawns.is_empty():
+func _apply_wave_scaling(enemy: Node) -> void:
+    var grid_enemy := enemy as GridEnemy
+    if grid_enemy == null:
+        return
+    var wave_number := get_wave_number()
+    grid_enemy.apply_wave_scaling(
+        WaveScaling.get_hp_multiplier(wave_number),
+        WaveScaling.get_damage_multiplier(wave_number),
+        WaveScaling.get_defense(wave_number),
+    )
+
+
+func _clear_spawn_queue_telegraphs() -> void:
+    if _current_batch.is_empty():
         return
     var cells: Array[Vector2i] = []
-    for pending_spawn in _pending_spawns:
-        var cell: Vector2i = pending_spawn["cell"]
-        cells.append(cell)
+    for entry in _current_batch:
+        cells.append(entry["cell"])
     _grid.clear_telegraph(self, cells)
-    _pending_spawns.clear()
-
-
-func _resolve_boss_wave() -> void:
-    _boss_resolving = true
-    _clear_pending_spawn_telegraphs()
-
-    var remaining := _alive_enemies.duplicate()
-    for enemy in remaining:
-        var grid_enemy := enemy as GridEnemy
-        if grid_enemy != null:
-            grid_enemy.force_death()
-
-    _alive_enemies.clear()
-    _boss_resolving = false
-    run_completed.emit()
+    _current_batch.clear()
+    _spawn_queue.clear()
 
 # == Signal handlers ==
 
@@ -212,22 +236,33 @@ func _on_wave_gap_timeout() -> void:
 
 
 func _on_spawn_telegraph_timeout() -> void:
-    _spawn_pending_enemies()
+    _spawn_current_batch()
 
 
 func _on_enemy_died(enemy: Entity) -> void:
     _alive_enemies.erase(enemy)
     _grid.unregister_occupant(enemy)
 
-    if _boss_resolving:
+    if enemy == _elite_ref:
+        _elite_ref = null
+        elite_cleared.emit()
+
+    if _run_over:
         return
 
-    if _boss_ref != null and enemy == _boss_ref:
-        _boss_ref = null
-        boss_cleared.emit()
-        _resolve_boss_wave()
-    elif _alive_enemies.is_empty():
-        normal_wave_completed.emit(get_wave_number())
+    if not _spawn_queue.is_empty():
+        # A batch already telegraphing (_current_batch non-empty) must not be
+        # overwritten here: _spawn_next_batch() replaces _current_batch
+        # wholesale, so calling it again mid-telegraph would silently drop
+        # that batch's entries and orphan their telegraph tiles. Let the
+        # in-flight batch resolve first; _spawn_current_batch() re-attempts
+        # the queue once it does.
+        if _current_batch.is_empty():
+            _spawn_next_batch()
+        return
+
+    if _alive_enemies.is_empty() and _current_batch.is_empty():
+        normal_wave_completed.emit(get_wave_number(), is_milestone_wave())
 
 # == Timer Setup ==
 

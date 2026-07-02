@@ -227,11 +227,11 @@ func prepare_attack() -> bool:
         Mode.TILE:
             if _tile_executor == null:
                 return false
-            return _tile_executor.prepare(_grid_pos, _facing, _tile_attack_data())
+            return _tile_executor.prepare(_grid_pos, _facing, _tile_attack_data(), get_damage_multiplier())
         Mode.CHARGE, Mode.PUFF:
             if _point_executor == null:
                 return false
-            return _point_executor.prepare(_grid_pos, _facing, _current_attack_data)
+            return _point_executor.prepare(_grid_pos, _facing, _current_attack_data, get_damage_multiplier())
     return false
 
 

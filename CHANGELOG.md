@@ -16,6 +16,14 @@ Rules:
 
 ## [unreleased]
 
+### Infinite Wave Mode
+
+- 2026-07-03 — [waves] Wave progression no longer ends at a fixed boss wave; waves continue indefinitely, with a milestone elite enemy spawning every 5th wave in place of the old one-time final boss
+- 2026-07-03 — [waves] Concurrent enemy population is capped and the cap rises with milestone tier; once a wave's spawn count exceeds the cap the remaining enemies queue and spawn as population drains from kills
+- 2026-07-03 — [enemy] Spawned enemies scale hp, outgoing damage, and flat defense by milestone tier so later waves stay challenging without hand-authored per-wave stat data
+- 2026-07-03 — [rewards] Milestone waves automatically grant a fixed Expand Land bonus alongside the normal reward choice, called out in the reward overlay
+- 2026-07-03 — [waves] The run now ends on player death instead of on boss clear
+
 ### Enemy Kind Unification
 
 - 2026-07-02 — [enemy] Tile and point attacks across every enemy kind now run through two shared executors — one owning cell footprint, per-cell telegraph, and per-cell hitboxes; the other owning single-hitbox damage/interval/guard configuration and enablement — replacing the per-kind ModeEnemyAttackController and hand-rolled hitbox setup

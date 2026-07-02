@@ -46,6 +46,8 @@ var _active_path_cell: Vector2i
 var _has_active_path_cell: bool = false
 var _reservation_is_attack: bool = false
 var _attack_windup_vfx: Node2D
+var _damage_multiplier := 1.0
+var _defense := 0.0
 
 # -- Timer / tween handles ----------------------------------------------------
 var _cooldown_timer: Timer
@@ -219,6 +221,7 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
     var will_break_guard := _guard != null and not _guard.is_staggered() and _guard.current() > 0 and guard_damage >= _guard.current()
     var full_damage := _guard == null or _guard.is_staggered() or will_break_guard
     var hp_damage := amount if full_damage else amount * GUARDED_DAMAGE_MULTIPLIER
+    hp_damage = _apply_defense(hp_damage)
 
     var sfx_event: SpatialAudioEvent = null
     if full_damage:
@@ -276,6 +279,22 @@ func setup(grid: GridArena, target: Node2D) -> void:
         if not _grid.reservation_lost.is_connected(_on_reservation_lost):
             _grid.reservation_lost.connect(_on_reservation_lost)
         _after_setup_ready()
+
+
+## Applies per-wave milestone scaling to this enemy instance: bumps max_health in
+## place (Health is a per-instance node, safe to mutate), stores a damage
+## multiplier consumed when attacks stamp their hitbox damage, and stores a flat
+## defense value consumed by _apply_defense(). Guard never scales.
+func apply_wave_scaling(hp_multiplier: float, damage_multiplier: float, defense: float) -> void:
+    _damage_multiplier = max(damage_multiplier, 0.0)
+    _defense = max(defense, 0.0)
+    if health != null and hp_multiplier > 1.0:
+        health.add_max_health(health.max_health * (hp_multiplier - 1.0), true)
+
+
+## Returns this enemy's current outgoing-damage multiplier from wave scaling.
+func get_damage_multiplier() -> float:
+    return _damage_multiplier
 
 
 func has_target() -> bool:
@@ -1062,6 +1081,14 @@ func _resolve_guard_damage(angle: int, guard_damage_profile: int) -> int:
     if guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
         return DirectionResolver.dash_guard_damage(angle)
     return DirectionResolver.normal_guard_damage(angle)
+
+
+## Reduces incoming hp damage by this enemy's flat wave-scaling defense using
+## effective = amount * (amount / (amount + defense)). No-op at defense 0.
+func _apply_defense(amount: float) -> float:
+    if _defense <= 0.0:
+        return amount
+    return amount * (amount / (amount + _defense))
 
 
 func _get_blocked_hit_sfx(angle: int) -> SpatialAudioEvent:

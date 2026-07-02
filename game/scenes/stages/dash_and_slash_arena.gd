@@ -19,9 +19,11 @@ const WAVE_BANNER_FADE := 0.35
 
 var _wave_controller: WaveController
 var _wave_banner_tween: Tween
+var _reward_delay_tween: Tween
 var _reward_controller: WaveRewardChoiceController
 var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
+var _reward_rng: RandomNumberGenerator
 
 
 func _ready() -> void:
@@ -40,14 +42,13 @@ func _ready() -> void:
     _wave_controller.wave_gap_finished.connect(_on_wave_gap_finished)
     _wave_controller.wave_started.connect(_on_wave_started)
     _wave_controller.normal_wave_completed.connect(_on_normal_wave_complete)
-    _wave_controller.boss_spawned.connect(_on_boss_spawned)
-    _wave_controller.boss_cleared.connect(_on_boss_cleared)
-    _wave_controller.run_completed.connect(_on_run_completed)
+    _wave_controller.elite_spawned.connect(_on_elite_spawned)
+    _wave_controller.elite_cleared.connect(_on_elite_cleared)
 
-    var reward_rng := RandomNumberGenerator.new()
-    reward_rng.randomize()
-    var reward_generator := WaveRewardChoiceGenerator.new(reward_rng)
-    var reward_applier := WaveRewardApplier.new(_grid, _player, _add_future_enemy_bonus, reward_rng)
+    _reward_rng = RandomNumberGenerator.new()
+    _reward_rng.randomize()
+    var reward_generator := WaveRewardChoiceGenerator.new(_reward_rng)
+    var reward_applier := WaveRewardApplier.new(_grid, _player, _add_future_enemy_bonus, _reward_rng)
     _reward_controller = WaveRewardChoiceController.new(
         _reward_overlay,
         reward_generator,
@@ -58,6 +59,7 @@ func _ready() -> void:
     _reward_controller.choice_applied.connect(_on_reward_choice_applied)
 
     _player.health_changed.connect(_on_player_health_changed)
+    _player.died.connect(_on_player_died)
     _player.emit_health_snapshot()
 
     _boss_guard_label.visible = false
@@ -100,43 +102,57 @@ func _on_wave_gap_finished() -> void:
     _hide_wave_banner()
 
 
-func _on_wave_started(display_text: String, is_boss_wave: bool) -> void:
+func _on_wave_started(display_text: String, is_milestone_wave: bool) -> void:
     _wave_label.text = display_text
-    _boss_guard_label.visible = is_boss_wave
+    _boss_guard_label.visible = is_milestone_wave
     _wave_label.visible = false
 
 
-func _on_boss_spawned(enemy: Node) -> void:
-    var boss := enemy as ModeEnemy
-    if boss != null:
-        boss.guard_changed.connect(_on_boss_guard_changed)
-        boss.guard_stagger_started.connect(func() -> void: _boss_guard_label.text = "GUARD BROKEN - STAGGERED!")
-        boss.emit_guard_snapshot()
+func _on_elite_spawned(enemy: Node) -> void:
+    var elite := enemy as ModeEnemy
+    if elite != null:
+        elite.guard_changed.connect(_on_boss_guard_changed)
+        elite.guard_stagger_started.connect(func() -> void: _boss_guard_label.text = "GUARD BROKEN - STAGGERED!")
+        elite.emit_guard_snapshot()
 
 
-func _on_boss_cleared() -> void:
+func _on_elite_cleared() -> void:
     _boss_guard_label.visible = false
 
 
-func _on_run_completed() -> void:
-    _wave_label.modulate.a = 1.0
-    _wave_label.visible = true
-    _wave_label.text = "RUN COMPLETE!"
-
-
-func _on_normal_wave_complete(_wave_number: int) -> void:
+func _on_player_died(_entity: Player) -> void:
+    _wave_controller.end_run()
+    if _reward_delay_tween != null and _reward_delay_tween.is_valid():
+        _reward_delay_tween.kill()
     if _player.has_method("set_input_locked"):
         _player.set_input_locked(true)
+    _wave_label.modulate.a = 1.0
+    _wave_label.visible = true
+    _wave_label.text = "RUN OVER"
+
+
+func _on_normal_wave_complete(_wave_number: int, is_milestone_wave: bool) -> void:
+    if _player.has_method("set_input_locked"):
+        _player.set_input_locked(true)
+    if is_milestone_wave:
+        _grant_milestone_expand_land()
     _show_wave_banner("WAVE END")
-    var delay := create_tween()
-    delay.tween_interval(REWARD_OPEN_DELAY)
-    delay.tween_callback(_open_reward_choice)
+    _reward_delay_tween = create_tween()
+    _reward_delay_tween.tween_interval(REWARD_OPEN_DELAY)
+    _reward_delay_tween.tween_callback(_open_reward_choice.bind(is_milestone_wave))
 
 
-func _open_reward_choice() -> void:
+func _grant_milestone_expand_land() -> void:
+    for i in WaveScaling.EXPAND_LAND_AMOUNT:
+        _grid.add_random_connected_land(_reward_rng)
+
+
+func _open_reward_choice(is_milestone_wave: bool = false) -> void:
+    if _wave_controller.is_run_over():
+        return
     _move_player_to_safe_center_cell()
     var wave_number := _wave_controller.get_wave_number()
-    _reward_controller.open_reward_choice(wave_number, _reward_target_points(wave_number))
+    _reward_controller.open_reward_choice(wave_number, _reward_target_points(wave_number), is_milestone_wave)
 
 
 func _on_reward_choice_applied() -> void:

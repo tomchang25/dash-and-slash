@@ -131,7 +131,7 @@ func _configure_point_executor() -> void:
     if _point_executor == null:
         return
     _point_executor.setup(_grid, null, _puff_hitbox, false)
-    _point_executor.configure(get_current_attack_data())
+    _point_executor.configure(get_current_attack_data(), get_damage_multiplier())
 
 
 func _create_fallback_attack_data() -> EnemyAttackData:

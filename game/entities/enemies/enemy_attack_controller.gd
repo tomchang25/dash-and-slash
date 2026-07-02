@@ -60,8 +60,9 @@ static func get_attack_origin_cells(target_cell: Vector2i, attack_data: EnemyAtt
 
 
 ## Prepares the controller for an attack. Computes cells, configures the tile hitbox geometry,
-## and stores prepared state for subsequent telegraph/attack calls.
-func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData) -> bool:
+## and stores prepared state for subsequent telegraph/attack calls. damage_multiplier applies
+## per-wave enemy scaling on top of the resource's base damage.
+func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData, damage_multiplier: float = 1.0) -> bool:
     cancel()
     if _grid == null:
         return false
@@ -70,7 +71,7 @@ func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackDat
     if _attack_cells.is_empty():
         return false
 
-    _create_tile_hitboxes(attack_data.damage, attack_data.damage_interval)
+    _create_tile_hitboxes(attack_data.damage * damage_multiplier, attack_data.damage_interval)
     _prepared = true
     return true
 

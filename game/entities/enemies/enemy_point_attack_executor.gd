@@ -28,11 +28,12 @@ func setup(grid: GridArena, telegraph: TileTelegraph, hitbox: Hitbox, show_teleg
 
 
 ## Stamps damage, damage interval, and guard-damage profile from attack_data onto the
-## hitbox. Does not touch cells or telegraph state.
-func configure(attack_data: EnemyAttackData) -> bool:
+## hitbox. Does not touch cells or telegraph state. damage_multiplier applies
+## per-wave enemy scaling on top of the resource's base damage.
+func configure(attack_data: EnemyAttackData, damage_multiplier: float = 1.0) -> bool:
     if _hitbox == null or attack_data == null:
         return false
-    _hitbox.damage = attack_data.damage
+    _hitbox.damage = attack_data.damage * damage_multiplier
     _hitbox.damage_interval = attack_data.damage_interval
     _hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
     return true
@@ -41,9 +42,9 @@ func configure(attack_data: EnemyAttackData) -> bool:
 ## Configures the hitbox and, when telegraphing, computes the cell footprint used by
 ## show_warning/show_charge/show_active. Fails if configuration fails or, when
 ## telegraphing, the computed footprint is empty.
-func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData) -> bool:
+func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData, damage_multiplier: float = 1.0) -> bool:
     cancel()
-    if not configure(attack_data):
+    if not configure(attack_data, damage_multiplier):
         return false
 
     if _show_telegraph:

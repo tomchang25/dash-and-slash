@@ -12,6 +12,7 @@ var _choices: Array[WaveRewardChoice] = []
 # -- Node references --
 
 @onready var _choice_buttons: Array[Button] = [%ChoiceButton1, %ChoiceButton2, %ChoiceButton3]
+@onready var _milestone_note_label: Label = %MilestoneNoteLabel
 
 # == Lifecycle ==
 
@@ -25,7 +26,9 @@ func _ready() -> void:
 # == Common API ==
 
 
-func show_choices(choices: Array[WaveRewardChoice]) -> void:
+## Shows the rolled choices. is_milestone_wave adds a note that the fixed
+## Expand Land milestone bonus was already granted automatically.
+func show_choices(choices: Array[WaveRewardChoice], is_milestone_wave: bool = false) -> void:
     _choices = choices.duplicate()
     for i in _choice_buttons.size():
         var button := _choice_buttons[i]
@@ -35,6 +38,10 @@ func show_choices(choices: Array[WaveRewardChoice]) -> void:
         else:
             button.text = "No reward"
             button.disabled = true
+    if _milestone_note_label != null:
+        _milestone_note_label.visible = is_milestone_wave
+        if is_milestone_wave:
+            _milestone_note_label.text = "Milestone bonus granted: +%d land" % WaveScaling.EXPAND_LAND_AMOUNT
     visible = true
 
 

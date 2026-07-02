@@ -25,7 +25,10 @@ func setup(grid: GridArena, player: Player, parent: Node) -> void:
 
 
 ## Creates one enemy at the given grid cell and connects its death callback before it enters the tree.
-func spawn_enemy(picked: PackedScene, spawn_cell: Vector2i, died_callback: Callable) -> Node:
+## pre_ready_setup, if valid, is called with the enemy right before it enters the tree so
+## one-time setup (e.g. wave stat scaling) is visible during the enemy's own _ready(), matching
+## enemies whose attack executors stamp damage once at ready-time rather than per attack cycle.
+func spawn_enemy(picked: PackedScene, spawn_cell: Vector2i, died_callback: Callable, pre_ready_setup: Callable = Callable()) -> Node:
     var enemy := picked.instantiate() as Node2D
     if enemy == null:
         ToastManager.show_dev_error("EnemySpawner: enemy scene root must be Node2D")
@@ -42,5 +45,7 @@ func spawn_enemy(picked: PackedScene, spawn_cell: Vector2i, died_callback: Calla
         return null
 
     enemy.connect(&"died", died_callback)
+    if pre_ready_setup.is_valid():
+        pre_ready_setup.call(enemy)
     _parent.add_child(enemy)
     return enemy

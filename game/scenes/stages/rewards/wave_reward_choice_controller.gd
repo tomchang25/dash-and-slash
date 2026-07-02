@@ -33,14 +33,14 @@ func _init(
 # == Common API ==
 
 
-func open_reward_choice(wave_number: int, target_points: float) -> void:
+func open_reward_choice(wave_number: int, target_points: float, is_milestone_wave: bool = false) -> void:
     var context := {
         "grid": _grid,
         "player": _player,
     }
     _current_offer = _generator.roll_choices(wave_number, target_points, context)
     _was_paused = _overlay.get_tree().paused
-    _overlay.show_choices(_current_offer)
+    _overlay.show_choices(_current_offer, is_milestone_wave)
     _overlay.get_tree().paused = true
 
 # == Signal handlers ==

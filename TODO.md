@@ -36,9 +36,11 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 
 One-line, no reasoning, no backing doc.
 
-- [infinite_mode] Replace the finite 5-wave boss run with an infinite wave loop that scales base enemy count every wave and enemy stats every 5 waves.
+- [debug-panel] move instant dash to debug, force kill all enemy, add/remove/move tile when debug mode
 - [dash] Add a Chain Dash major effect that auto-dashes toward nearby enemies after a successful dash hit.
 - [minor_effect] Data-drive player attack range so normal, dash, smash, and future weapon effects can scale hit geometry cleanly.
+- [wave-balance] Playtest and retune WaveScaling's per-tier hp/damage/defense growth constants against the target curve (runs ending ~wave 20, wave 30 as practical ceiling).
+- [terrain-balance] Cap Break Land at 2 tiles removed per wave now that waves are infinite.
 
 ---
 
@@ -52,18 +54,13 @@ One-line, no reasoning, no backing doc.
 
 Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
 
-### Infinite Chaos Wave Mode
+### Player Death & Restart Panel
 
-Replace the finite boss-run structure with infinite wave survival.
+First version of a proper player-death screen, replacing the current bare "RUN OVER" text + input lock in `dash_and_slash_arena.gd::_on_player_died`.
 
-- Generate wave enemy counts from wave number instead of fixed `WAVE_DEFINITIONS`.
-- Increase base enemy count every wave.
-- Increase enemy stats (def/hp/damage only, not guard) every 5 waves.
-- Convert ModeEnemy from final boss into an elite spawned on 5-wave milestones, with no death-clears-run behavior.
-- Give Expand Land x10 tiles as a fixed 5-wave clear reward; Break Land capped at 2 tiles removed per wave.
-- Cap total concurrent alive enemies at `12 + floor(wave / 5) * 4`; excess spawns queue instead of an elite-specific population cap.
-- Target curve: a normal run should end around wave 20, wave 30 is the practical ceiling — calibrate per-wave/per-milestone growth constants against this.
-- End the run on player death rather than boss clear.
+- Show a death banner similar in weight to the wave-start banner, then offer a restart action (no mid-run continue).
+- Decide restart scope before implementing: full scene reload vs. `WaveController.reset()` plus manual re-wiring of the arena's other collaborators (spawner, reward controller, HUD labels). Reloading the scene is the simpler default unless there's a reason to preserve something across runs.
+- Fold in a fix that belongs to this same surface: `WaveController.end_run()` currently never despawns/force-kills `_alive_enemies` (the old finite-boss-run code force-killed everyone via `_resolve_boss_wave()`; that cleanup wasn't carried over to the infinite-wave `end_run()`). Surviving enemies keep pathing/attacking the input-locked player, and a milestone elite's guard-changed signal listeners in `dash_and_slash_arena.gd::_on_elite_spawned` are never disconnected, so the boss-guard label can stay stuck on screen. Building a real death panel over a battlefield that's still "live" makes this bug directly user-visible, so the cleanup pass (force-kill/despawn `_alive_enemies`, disconnect elite signal listeners, hide `_boss_guard_label`) should land together with the panel rather than as a separate patch.
 
 ### Major And Minor Run Build Effects
 
