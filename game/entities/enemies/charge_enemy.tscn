@@ -21,7 +21,7 @@
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
 [ext_resource type="Resource" path="res://game/entities/enemies/data/charge_enemy.tres" id="20_enemy_data"]
 
-[node name="Enemy" type="CharacterBody2D" unique_id=1436900450 node_paths=PackedStringArray("health")]
+[node name="Enemy" type="CharacterBody2D" unique_id=1436900450 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "hurtbox", "_body")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_enemy")
@@ -30,6 +30,11 @@ damaged_sfx_event = ExtResource("18_damaged_audio")
 blocked_sfx_event = ExtResource("19_blocked_audio")
 enemy_data = ExtResource("20_enemy_data")
 health = NodePath("Health")
+_state_machine = NodePath("StateMachine")
+_guard = NodePath("Guard")
+_status_bars = NodePath("StatusBars")
+hurtbox = NodePath("Hurtbox")
+_body = NodePath("Body")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=2079355181]
 unique_name_in_owner = true

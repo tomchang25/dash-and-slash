@@ -12,8 +12,8 @@ var _attack_data: EnemyAttackData
 var _charge_cells: Array[Vector2i] = []
 
 # -- Node references ----------------------------------------------------------
-@onready var _contact_hitbox: Hitbox = _find_child_node("ContactHitbox") as Hitbox
-@onready var _telegraph: TileTelegraph = _find_child_node("TileTelegraph") as TileTelegraph
+@onready var _contact_hitbox: Hitbox = %ContactHitbox
+@onready var _telegraph: TileTelegraph = %TileTelegraph
 
 # == Lifecycle ================================================================
 

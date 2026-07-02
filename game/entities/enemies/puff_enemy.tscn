@@ -17,7 +17,7 @@
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="15_blocked_audio"]
 [ext_resource type="Script" uid="uid://dcpiobfpvqls7" path="res://game/entities/enemies/states/puff_enemy_puff_state.gd" id="16_puff"]
 [ext_resource type="Resource" uid="uid://cipqwuymcgx88" path="res://game/entities/enemies/data/puff_enemy.tres" id="17_enemy_data"]
-[ext_resource type="Script" path="res://game/entities/enemies/states/puff_enemy_charge_state.gd" id="18_puff_charge"]
+[ext_resource type="Script" uid="uid://b3drtqt8g3mrs" path="res://game/entities/enemies/states/puff_enemy_charge_state.gd" id="18_puff_charge"]
 
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(30, 30)
@@ -25,7 +25,7 @@ size = Vector2(30, 30)
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvy1v"]
 radius = 150.0
 
-[node name="Enemy" type="CharacterBody2D" unique_id=1436900450 node_paths=PackedStringArray("health")]
+[node name="Enemy" type="CharacterBody2D" unique_id=1436900450 node_paths=PackedStringArray("_state_machine", "_guard", "_status_bars", "hurtbox", "_body", "health")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_enemy")
@@ -33,6 +33,11 @@ death_sfx_event = ExtResource("13_died_audio")
 damaged_sfx_event = ExtResource("14_damaged_audio")
 blocked_sfx_event = ExtResource("15_blocked_audio")
 enemy_data = ExtResource("17_enemy_data")
+_state_machine = NodePath("StateMachine")
+_guard = NodePath("Guard")
+_status_bars = NodePath("StatusBars")
+hurtbox = NodePath("Hurtbox")
+_body = NodePath("Body")
 health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=2079355181]

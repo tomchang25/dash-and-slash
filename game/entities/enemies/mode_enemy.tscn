@@ -35,7 +35,7 @@ size = Vector2(56, 56)
 [sub_resource type="RectangleShape2D" id="puff_shape"]
 size = Vector2(192, 192)
 
-[node name="ModeEnemy" type="CharacterBody2D" unique_id=308864669 node_paths=PackedStringArray("health")]
+[node name="ModeEnemy" type="CharacterBody2D" unique_id=308864669 node_paths=PackedStringArray("health", "_state_machine", "_guard", "hurtbox", "_body", "_facing_arrow")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_boss")
@@ -45,6 +45,11 @@ blocked_sfx_event = ExtResource("19_blocked_audio")
 attack_sfx_event = ExtResource("20_attack_audio")
 enemy_data = ExtResource("22_enemy_data")
 health = NodePath("Health")
+_state_machine = NodePath("StateMachine")
+_guard = NodePath("Guard")
+hurtbox = NodePath("Hurtbox")
+_body = NodePath("Body")
+_facing_arrow = NodePath("FacingArrow")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1387936035]
 unique_name_in_owner = true

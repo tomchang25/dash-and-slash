@@ -10,7 +10,7 @@ const PUFF_CHARGE_DURATION := 0.6
 var _attack_data: EnemyAttackData
 
 # -- Node references ----------------------------------------------------------
-@onready var _puff_hitbox: Hitbox = _find_child_node("PuffHitbox") as Hitbox
+@onready var _puff_hitbox: Hitbox = %PuffHitbox
 
 # == Lifecycle ================================================================
 

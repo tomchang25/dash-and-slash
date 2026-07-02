@@ -24,7 +24,7 @@
 [sub_resource type="RectangleShape2D" id="hurt_shape"]
 size = Vector2(90, 90)
 
-[node name="SmallEnemy" type="CharacterBody2D" unique_id=694366884 node_paths=PackedStringArray("health")]
+[node name="SmallEnemy" type="CharacterBody2D" unique_id=694366884 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "hurtbox", "_body", "_facing_arrow")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_enemy")
@@ -33,6 +33,12 @@ damaged_sfx_event = ExtResource("20_damaged_audio")
 blocked_sfx_event = ExtResource("21_blocked_audio")
 enemy_data = ExtResource("22_enemy_data")
 health = NodePath("Health")
+_state_machine = NodePath("StateMachine")
+_guard = NodePath("Guard")
+_status_bars = NodePath("StatusBars")
+hurtbox = NodePath("Hurtbox")
+_body = NodePath("Body")
+_facing_arrow = NodePath("FacingArrow")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1340798399]
 unique_name_in_owner = true
