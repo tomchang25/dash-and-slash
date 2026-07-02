@@ -363,13 +363,7 @@ func plan_next_action() -> bool:
         path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell], false)
 
     if path.is_empty():
-        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
-        if fallback_goals.is_empty():
-            return false
-        if start in fallback_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, target_cell, fallback_goals, false)
+        return plan_approach_action()
 
     if path.is_empty():
         return false
@@ -382,7 +376,7 @@ func plan_next_action() -> bool:
     return true
 
 
-## Plans ordinary movement to a reachable cell adjacent to the target.
+## Plans ordinary movement toward the target, preferring adjacent cells when reachable.
 func plan_approach_action() -> bool:
     clear_planned_path()
     _reservation_is_attack = false
@@ -400,15 +394,17 @@ func plan_approach_action() -> bool:
         queue_redraw()
         return true
 
-    var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
-    if fallback_goals.is_empty():
-        return false
-    if start in fallback_goals:
-        queue_redraw()
-        return true
-
-    var path := _find_path_to_cell(start, target_cell, fallback_goals, false)
+    var path := _find_path_to_best_reachable_cell(
+        start,
+        target_cell,
+        false,
+        func(cell: Vector2i) -> bool: return _is_approach_candidate(cell, target_cell),
+        func(cell: Vector2i, path_length: int) -> int: return _score_approach_candidate(cell, target_cell, path_length)
+    )
     if path.is_empty():
+        if _is_approach_candidate(start, target_cell):
+            queue_redraw()
+            return true
         return false
 
     _planned_path = path
@@ -673,13 +669,7 @@ func plan_charge_line_action() -> bool:
         path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell], false)
 
     if path.is_empty():
-        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
-        if fallback_goals.is_empty():
-            return false
-        if start in fallback_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, target_cell, fallback_goals, false)
+        return plan_approach_action()
 
     if path.is_empty():
         return false
@@ -807,6 +797,85 @@ func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Arr
     return path
 
 
+func _find_path_to_best_reachable_cell(
+        start: Vector2i,
+        blocked_cell: Vector2i,
+        is_attack: bool,
+        is_candidate: Callable,
+        score_candidate: Callable,
+) -> Array[Vector2i]:
+    var queue: Array[Vector2i] = [start]
+    var came_from: Dictionary = { }
+    var distances: Dictionary = { }
+    var queue_index := 0
+    var best_cell := NO_BLOCKED_CELL
+    var best_score := 999999
+    var best_path_length := 999999
+    var endpoint_goals: Array[Vector2i] = []
+    came_from[start] = start
+    distances[start] = 0
+
+    while queue_index < queue.size():
+        var current := queue[queue_index]
+        queue_index += 1
+
+        var path_length: int = distances[current]
+        if _can_end_ranked_path_at(current, start, is_attack) and is_candidate.call(current):
+            var score: int = score_candidate.call(current, path_length)
+            if _is_better_ranked_endpoint(score, path_length, current, best_score, best_path_length, best_cell):
+                best_cell = current
+                best_score = score
+                best_path_length = path_length
+
+        for direction: Vector2i in _get_movement_directions():
+            var next := current + direction
+            if came_from.has(next):
+                continue
+            if not _can_path_through(current, next, start, blocked_cell, endpoint_goals, is_attack):
+                continue
+            came_from[next] = current
+            distances[next] = path_length + 1
+            queue.append(next)
+
+    if best_cell == NO_BLOCKED_CELL or best_cell == start:
+        var empty_path: Array[Vector2i] = []
+        return empty_path
+
+    return _reconstruct_path(came_from, best_cell)
+
+
+func _reconstruct_path(came_from: Dictionary, goal: Vector2i) -> Array[Vector2i]:
+    var path: Array[Vector2i] = []
+    var path_cell := goal
+    while came_from[path_cell] != path_cell:
+        path.push_front(path_cell)
+        path_cell = came_from[path_cell]
+    return path
+
+
+func _can_end_ranked_path_at(cell: Vector2i, start: Vector2i, is_attack: bool) -> bool:
+    return cell == start or _can_plan_goal_cell(cell, is_attack)
+
+
+func _is_better_ranked_endpoint(
+        score: int,
+        path_length: int,
+        cell: Vector2i,
+        best_score: int,
+        best_path_length: int,
+        best_cell: Vector2i,
+) -> bool:
+    if best_cell == NO_BLOCKED_CELL:
+        return true
+    if score != best_score:
+        return score < best_score
+    if path_length != best_path_length:
+        return path_length < best_path_length
+    if cell.y != best_cell.y:
+        return cell.y < best_cell.y
+    return cell.x < best_cell.x
+
+
 func _can_path_through(
         current: Vector2i,
         next: Vector2i,
@@ -847,15 +916,14 @@ func _can_plan_goal_cell(cell: Vector2i, is_attack: bool) -> bool:
     return _can_claim_committed_path_cell(cell, is_attack)
 
 
-func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
-    var goal_cells: Array[Vector2i] = []
-    for direction: Vector2i in _get_movement_directions():
-        var neighbor := target_cell + direction
-        if not _grid.is_in_bounds(neighbor):
-            continue
-        if neighbor == start or _can_plan_goal_cell(neighbor, false):
-            goal_cells.append(neighbor)
-    return goal_cells
+func _is_approach_candidate(cell: Vector2i, target_cell: Vector2i) -> bool:
+    return cell != target_cell and _grid.is_walkable(cell)
+
+
+func _score_approach_candidate(cell: Vector2i, target_cell: Vector2i, path_length: int) -> int:
+    var distance := absi(cell.x - target_cell.x) + absi(cell.y - target_cell.y)
+    var adjacent_penalty := 0 if distance == 1 else 10000
+    return adjacent_penalty + distance * 100 + path_length
 
 
 func _collect_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:

@@ -44,7 +44,7 @@ One-line, no reasoning, no backing doc.
 
 ## Bug
 
-- [bugfix] ChargeEnemy, ModeEnemy, and PuffEnemy can idle-loop when the player hides in a corner; consolidate shared enemy fallback planning.
+One-line, no reasoning, no backing doc.
 
 ---
 

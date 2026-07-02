@@ -14,6 +14,22 @@ class PathEnemy:
         return _find_path_to_cell(_grid_pos, NO_BLOCKED_CELL, goal_cells, false)
 
 
+    func setup_approach_grid(grid: GridArena, start: Vector2i, target: Node2D) -> void:
+        _grid = grid
+        _grid_pos = start
+        _target = target
+        _grid.register_occupant(self, [start])
+        _grid.register_enemy_entity(self)
+
+
+    func plan_approach() -> bool:
+        return plan_approach_action()
+
+
+    func get_planned_path() -> Array[Vector2i]:
+        return _planned_path.duplicate()
+
+
 var _grid: GridArena
 
 
@@ -59,3 +75,71 @@ func test_path_rejects_occupied_first_step() -> void:
     var path := enemy.find_path_to([Vector2i(4, 0)])
 
     assert_true(path.is_empty())
+
+
+func test_approach_moves_closer_when_adjacent_cells_are_occupied() -> void:
+    _setup_square_grid(Vector2i(5, 5))
+    var target_cell := Vector2i(2, 2)
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(0, 0), _make_target(target_cell))
+    _occupy_cell(target_cell)
+    for direction: Vector2i in GridEnemy.CARDINAL_DIRECTIONS:
+        _occupy_cell(target_cell + direction)
+
+    assert_true(enemy.plan_approach())
+
+    var path := enemy.get_planned_path()
+    assert_false(path.is_empty())
+    assert_eq(path[path.size() - 1], Vector2i(1, 1))
+
+
+func test_approach_moves_closer_when_adjacent_cells_are_sea() -> void:
+    _setup_square_grid(Vector2i(7, 7))
+    var target_cell := Vector2i(4, 4)
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(0, 4), _make_target(target_cell))
+    _occupy_cell(target_cell)
+    for direction: Vector2i in GridEnemy.CARDINAL_DIRECTIONS:
+        assert_true(_grid.set_sea(target_cell + direction))
+
+    assert_true(enemy.plan_approach())
+
+    var path := enemy.get_planned_path()
+    assert_false(path.is_empty())
+    assert_eq(path[path.size() - 1], Vector2i(2, 4))
+
+
+func test_approach_moves_closer_without_stealing_active_step_reservations() -> void:
+    _setup_square_grid(Vector2i(5, 5))
+    var target_cell := Vector2i(2, 2)
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(0, 0), _make_target(target_cell))
+    _occupy_cell(target_cell)
+    for direction: Vector2i in GridEnemy.CARDINAL_DIRECTIONS:
+        var reserved_cell: Vector2i = target_cell + direction
+        var reserver: Node = autofree(Node.new())
+        assert_true(_grid.reserve_cells_with_active_steps(reserver, [reserved_cell], false, [reserved_cell]))
+
+    assert_true(enemy.plan_approach())
+
+    var path := enemy.get_planned_path()
+    assert_false(path.is_empty())
+    assert_eq(path[path.size() - 1], Vector2i(1, 1))
+
+
+func _setup_square_grid(size: Vector2i) -> void:
+    _grid = autofree(GridArena.new())
+    _grid.grid_size = size
+    _grid.starting_land_size = size
+    _grid.generate_grid()
+
+
+func _make_target(cell: Vector2i) -> Node2D:
+    var target: Node2D = autofree(Node2D.new())
+    target.global_position = _grid.cell_center(cell)
+    return target
+
+
+func _occupy_cell(cell: Vector2i) -> void:
+    var occupant: Node = autofree(Node.new())
+    _grid.register_occupant(occupant, [cell])
