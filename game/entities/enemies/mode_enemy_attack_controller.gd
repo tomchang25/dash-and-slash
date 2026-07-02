@@ -44,14 +44,6 @@ func get_mode() -> int:
     return _mode
 
 
-func randomize_tile_shape() -> void:
-    _tile_shape = randi() % TILE_SHAPE_COUNT
-
-
-func get_tile_shape() -> int:
-    return _tile_shape
-
-
 func set_attack_data(attack_data: EnemyAttackData) -> void:
     _attack_data = attack_data
 

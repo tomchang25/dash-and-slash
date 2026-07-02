@@ -24,5 +24,5 @@ func _boot_normal() -> void:
 func _boot_for_tests() -> void:
     # Autoloads have already initialized. Skip save loading and validation.
     if not SceneRouter.go_to_test_runner():
-        push_error("GameManager: test runner route failed; falling back to normal boot")
+        ToastManager.show_error("GameManager: test runner route failed; falling back to normal boot")
         _boot_normal()

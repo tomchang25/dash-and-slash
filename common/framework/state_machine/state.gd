@@ -15,7 +15,7 @@ var _locked := false
 
 func _ready() -> void:
     if state_id == -1:
-        push_error("State must have a state_id")
+        ToastManager.show_dev_error("State must have a state_id")
 
 
 func _enter() -> void:
@@ -63,7 +63,7 @@ func physics_update(delta: float) -> void:
 ## External systems must use StateMachine.request_transition() instead.
 func change_state(to: int) -> void:
     if _locked:
-        push_warning("State '%s' tried change_state(%s) while locked — called from _exit()? Ignoring." % [name, to])
+        ToastManager.show_dev_error("State '%s' tried change_state(%s) while locked — called from _exit()? Ignoring." % [name, to])
         return
     if to == state_id:
         return

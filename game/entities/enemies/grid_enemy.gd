@@ -155,9 +155,15 @@ func reset() -> void:
 func _on_reservation_lost(_entity: Object) -> void:
     if _entity != self:
         return
-    # if Debug.enabled:
-    #     print(name, " lost reservation at ", _grid_pos, " — higher-priority claim won")
-    clear_planned_path()
+
+    if _has_active_path_cell:
+        _planned_path.clear()
+        if not _grid.reserve_cells_with_active_steps(self, [_active_path_cell], _reservation_is_attack, [_active_path_cell]):
+            _has_active_path_cell = false
+            _grid.clear_reservation(self)
+        queue_redraw()
+    else:
+        clear_planned_path()
 
 
 func _on_guard_broken() -> void:
@@ -336,47 +342,10 @@ func set_facing(v: Vector2) -> void:
 
 
 func plan_next_action() -> bool:
-    clear_planned_path()
-    _reservation_is_attack = false
-
-    if _grid == null or not has_target():
-        return false
-
-    var start := _grid_pos
-    var target_cell := get_target_cell()
-
-    if not _grid.is_in_bounds(target_cell):
-        return false
-
-    if start == target_cell:
-        queue_redraw()
-        return true
-
-    var path: Array[Vector2i] = []
-    if _can_plan_goal_cell(target_cell, false):
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell], false)
-
-    if path.is_empty():
-        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
-        if fallback_goals.is_empty():
-            return false
-        if start in fallback_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, target_cell, fallback_goals, false)
-
-    if path.is_empty():
-        return false
-
-    _planned_path = path
-    if not _refresh_planned_reservations():
-        clear_planned_path()
-        return false
-    queue_redraw()
-    return true
+    return plan_approach_action()
 
 
-## Plans ordinary movement to a reachable cell adjacent to the target.
+## Plans ordinary movement toward the target, preferring adjacent cells when reachable.
 func plan_approach_action() -> bool:
     clear_planned_path()
     _reservation_is_attack = false
@@ -394,15 +363,17 @@ func plan_approach_action() -> bool:
         queue_redraw()
         return true
 
-    var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
-    if fallback_goals.is_empty():
-        return false
-    if start in fallback_goals:
-        queue_redraw()
-        return true
-
-    var path := _find_path_to_cell(start, target_cell, fallback_goals, false)
+    var path := _find_path_to_best_reachable_cell(
+        start,
+        target_cell,
+        false,
+        func(cell: Vector2i) -> bool: return _is_approach_candidate(cell, target_cell),
+        func(cell: Vector2i, path_length: int) -> int: return _score_approach_candidate(cell, target_cell, path_length)
+    )
     if path.is_empty():
+        if _is_approach_candidate(start, target_cell):
+            queue_redraw()
+            return true
         return false
 
     _planned_path = path
@@ -420,10 +391,6 @@ func clear_planned_path() -> void:
     _planned_path.clear()
     _has_active_path_cell = false
     queue_redraw()
-
-
-func has_planned_action() -> bool:
-    return not _planned_path.is_empty()
 
 
 func has_planned_path() -> bool:
@@ -483,14 +450,6 @@ func face_arrow() -> void:
 func register_grid_occupant() -> void:
     if _grid != null:
         _grid.register_occupant(self, [_grid_pos])
-
-
-## Returns true when the target shares this enemy's row or column.
-func is_target_cardinally_aligned() -> bool:
-    if _grid == null or not has_target():
-        return false
-    var target_cell := get_target_cell()
-    return _grid_pos.x == target_cell.x or _grid_pos.y == target_cell.y
 
 
 ## Returns true when the target is within Chebyshev grid range.
@@ -576,6 +535,25 @@ func get_current_attack_data() -> EnemyAttackData:
     return null
 
 
+func can_charge_target_from_cell(origin_cell: Vector2i) -> bool:
+    if _grid == null or not has_target():
+        return false
+    if not _grid.is_in_bounds(origin_cell) or not _grid.is_walkable(origin_cell):
+        return false
+
+    var attack_data := get_current_attack_data()
+    if attack_data == null or attack_data.attack_kind != EnemyAttackData.AttackKind.CHARGE:
+        return false
+
+    var target_cell := get_target_cell()
+    if origin_cell == target_cell:
+        return false
+
+    var facing := cardinal_snap(Vector2(target_cell - origin_cell))
+    var cells := EnemyAttackController.get_attack_cells(origin_cell, facing, attack_data, _grid)
+    return target_cell in cells
+
+
 func get_warning_duration() -> float:
     var attack := get_current_attack_data()
     return attack.warning_duration if attack != null else 0.6
@@ -639,13 +617,17 @@ func update_attack_motion(_delta: float) -> bool:
     return false
 
 
-## Plans a charge approach that prefers lining up with the target row or column.
-func plan_charge_line_action() -> bool:
+## Plans movement to a charge origin whose attack-data footprint can hit the target.
+func plan_charge_origin_action() -> bool:
     clear_planned_path()
     _reservation_is_attack = false
 
     if _grid == null or not has_target():
         return false
+
+    var attack_data := get_current_attack_data()
+    if attack_data == null or attack_data.attack_kind != EnemyAttackData.AttackKind.CHARGE:
+        return plan_approach_action()
 
     var start := _grid_pos
     var target_cell := get_target_cell()
@@ -655,33 +637,22 @@ func plan_charge_line_action() -> bool:
         queue_redraw()
         return true
 
-    var path: Array[Vector2i] = []
-    var line_goals := _collect_line_goal_cells(target_cell, start)
-    if not line_goals.is_empty():
-        if start in line_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals, false)
+    var charge_origins := _collect_charge_origin_cells(target_cell, start, attack_data)
+    if charge_origins.is_empty():
+        return plan_approach_action()
 
-    if path.is_empty() and _can_plan_goal_cell(target_cell, false):
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell], false)
+    if start in charge_origins:
+        queue_redraw()
+        return true
 
+    var path := _find_path_to_cell(start, target_cell, charge_origins, false)
     if path.is_empty():
-        var fallback_goals := _collect_adjacent_goal_cells(target_cell, start)
-        if fallback_goals.is_empty():
-            return false
-        if start in fallback_goals:
-            queue_redraw()
-            return true
-        path = _find_path_to_cell(start, target_cell, fallback_goals, false)
-
-    if path.is_empty():
-        return false
+        return plan_approach_action()
 
     _planned_path = path
     if not _refresh_planned_reservations():
         clear_planned_path()
-        return false
+        return plan_approach_action()
     queue_redraw()
     return true
 
@@ -750,6 +721,20 @@ func _collect_attack_origin_candidates(target_cell: Vector2i, get_origins_for_ta
     return _collect_all_grid_origin_cells()
 
 
+func _collect_charge_origin_cells(target_cell: Vector2i, start: Vector2i, attack_data: EnemyAttackData) -> Array[Vector2i]:
+    var origins: Array[Vector2i] = []
+    for origin_cell: Vector2i in EnemyAttackController.get_attack_origin_cells(target_cell, attack_data, _grid):
+        if origin_cell == target_cell:
+            continue
+        if origin_cell != start and not _can_plan_goal_cell(origin_cell, false):
+            continue
+        if not can_charge_target_from_cell(origin_cell):
+            continue
+        if origin_cell not in origins:
+            origins.append(origin_cell)
+    return origins
+
+
 func _collect_all_grid_origin_cells() -> Array[Vector2i]:
     var origins: Array[Vector2i] = []
     for x in range(_grid.grid_size.x):
@@ -801,6 +786,85 @@ func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Arr
     return path
 
 
+func _find_path_to_best_reachable_cell(
+        start: Vector2i,
+        blocked_cell: Vector2i,
+        is_attack: bool,
+        is_candidate: Callable,
+        score_candidate: Callable,
+) -> Array[Vector2i]:
+    var queue: Array[Vector2i] = [start]
+    var came_from: Dictionary = { }
+    var distances: Dictionary = { }
+    var queue_index := 0
+    var best_cell := NO_BLOCKED_CELL
+    var best_score := 999999
+    var best_path_length := 999999
+    var endpoint_goals: Array[Vector2i] = []
+    came_from[start] = start
+    distances[start] = 0
+
+    while queue_index < queue.size():
+        var current := queue[queue_index]
+        queue_index += 1
+
+        var path_length: int = distances[current]
+        if _can_end_ranked_path_at(current, start, is_attack) and is_candidate.call(current):
+            var score: int = score_candidate.call(current, path_length)
+            if _is_better_ranked_endpoint(score, path_length, current, best_score, best_path_length, best_cell):
+                best_cell = current
+                best_score = score
+                best_path_length = path_length
+
+        for direction: Vector2i in _get_movement_directions():
+            var next := current + direction
+            if came_from.has(next):
+                continue
+            if not _can_path_through(current, next, start, blocked_cell, endpoint_goals, is_attack):
+                continue
+            came_from[next] = current
+            distances[next] = path_length + 1
+            queue.append(next)
+
+    if best_cell == NO_BLOCKED_CELL or best_cell == start:
+        var empty_path: Array[Vector2i] = []
+        return empty_path
+
+    return _reconstruct_path(came_from, best_cell)
+
+
+func _reconstruct_path(came_from: Dictionary, goal: Vector2i) -> Array[Vector2i]:
+    var path: Array[Vector2i] = []
+    var path_cell := goal
+    while came_from[path_cell] != path_cell:
+        path.push_front(path_cell)
+        path_cell = came_from[path_cell]
+    return path
+
+
+func _can_end_ranked_path_at(cell: Vector2i, start: Vector2i, is_attack: bool) -> bool:
+    return cell == start or _can_plan_goal_cell(cell, is_attack)
+
+
+func _is_better_ranked_endpoint(
+        score: int,
+        path_length: int,
+        cell: Vector2i,
+        best_score: int,
+        best_path_length: int,
+        best_cell: Vector2i,
+) -> bool:
+    if best_cell == NO_BLOCKED_CELL:
+        return true
+    if score != best_score:
+        return score < best_score
+    if path_length != best_path_length:
+        return path_length < best_path_length
+    if cell.y != best_cell.y:
+        return cell.y < best_cell.y
+    return cell.x < best_cell.x
+
+
 func _can_path_through(
         current: Vector2i,
         next: Vector2i,
@@ -841,34 +905,29 @@ func _can_plan_goal_cell(cell: Vector2i, is_attack: bool) -> bool:
     return _can_claim_committed_path_cell(cell, is_attack)
 
 
-func _collect_adjacent_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
-    var goal_cells: Array[Vector2i] = []
-    for direction: Vector2i in _get_movement_directions():
-        var neighbor := target_cell + direction
-        if not _grid.is_in_bounds(neighbor):
-            continue
-        if neighbor == start or _can_plan_goal_cell(neighbor, false):
-            goal_cells.append(neighbor)
-    return goal_cells
+func _is_approach_candidate(cell: Vector2i, target_cell: Vector2i) -> bool:
+    return cell != target_cell and _grid.is_walkable(cell)
 
 
-func _collect_line_goal_cells(target_cell: Vector2i, start: Vector2i) -> Array[Vector2i]:
-    var goals: Array[Vector2i] = []
-    for x in range(_grid.grid_size.x):
-        var cell := Vector2i(x, target_cell.y)
-        if cell == target_cell:
-            continue
-        if cell == start or _can_plan_goal_cell(cell, false):
-            goals.append(cell)
-    for y in range(_grid.grid_size.y):
-        var cell := Vector2i(target_cell.x, y)
-        if cell == target_cell:
-            continue
-        if cell in goals:
-            continue
-        if cell == start or _can_plan_goal_cell(cell, false):
-            goals.append(cell)
-    return goals
+func _score_approach_candidate(cell: Vector2i, target_cell: Vector2i, path_length: int) -> int:
+    var distance := absi(cell.x - target_cell.x) + absi(cell.y - target_cell.y)
+    var chebyshev_distance := maxi(absi(cell.x - target_cell.x), absi(cell.y - target_cell.y))
+    var adjacent_penalty := 0 if distance == 1 else 100000
+    var sea_corner_penalty := _get_sea_corner_approach_penalty(cell, target_cell)
+    return adjacent_penalty + sea_corner_penalty + chebyshev_distance * 1000 + distance * 100 + path_length
+
+
+func _get_sea_corner_approach_penalty(cell: Vector2i, target_cell: Vector2i) -> int:
+    if cell.x == target_cell.x or cell.y == target_cell.y:
+        return 0
+
+    var x_step := signi(target_cell.x - cell.x)
+    var y_step := signi(target_cell.y - cell.y)
+    var horizontal_bridge := Vector2i(cell.x + x_step, cell.y)
+    var vertical_bridge := Vector2i(cell.x, cell.y + y_step)
+    if not _grid.is_walkable(horizontal_bridge) or not _grid.is_walkable(vertical_bridge):
+        return 10000
+    return 0
 
 
 func _refresh_planned_reservations() -> bool:

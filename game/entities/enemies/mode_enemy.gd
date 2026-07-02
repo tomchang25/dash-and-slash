@@ -162,10 +162,6 @@ func get_mode_preview_interval() -> float:
     return MODE_PREVIEW_INTERVAL
 
 
-func get_current_mode() -> int:
-    return _mode
-
-
 func choose_random_mode() -> void:
     _mode = randi() % ModeEnemyAttackController.MODE_COUNT
     _mode_ready = true
@@ -179,10 +175,6 @@ func choose_random_mode() -> void:
 func set_preview_mode(mode: int) -> void:
     if _body != null:
         _body.color = get_mode_color(mode)
-
-
-func apply_current_mode_color() -> void:
-    _apply_current_mode_color()
 
 
 func get_mode_color(mode: int) -> Color:
@@ -201,7 +193,7 @@ func can_attack_current_mode() -> bool:
         return false
     match _mode:
         ModeEnemyAttackController.Mode.CHARGE:
-            return is_target_cardinally_aligned()
+            return can_charge_target_from_cell(_grid_pos)
         ModeEnemyAttackController.Mode.PUFF:
             return is_target_within_grid_range(_get_current_puff_range())
         ModeEnemyAttackController.Mode.TILE:
@@ -216,7 +208,7 @@ func can_attack_current_mode() -> bool:
 func plan_next_action() -> bool:
     match _mode:
         ModeEnemyAttackController.Mode.CHARGE:
-            return plan_charge_line_action()
+            return plan_charge_origin_action()
         ModeEnemyAttackController.Mode.TILE:
             if _attack_controller == null:
                 return false

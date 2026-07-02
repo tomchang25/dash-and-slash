@@ -29,10 +29,10 @@ func validate() -> bool:
     var ok := true
     for key: Variant in routes.keys():
         if not (routes[key] is PackedScene):
-            push_error("SceneRegistry: route '%s' is not a PackedScene" % String(key))
+            ToastManager.show_dev_error("SceneRegistry: route '%s' is not a PackedScene" % String(key))
             ok = false
     for required_key: StringName in [default_route, main_menu_route, test_route]:
         if not has_route(required_key):
-            push_error("SceneRegistry: required route '%s' is missing" % String(required_key))
+            ToastManager.show_dev_error("SceneRegistry: required route '%s' is missing" % String(required_key))
             ok = false
     return ok

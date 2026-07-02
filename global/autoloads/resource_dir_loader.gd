@@ -12,7 +12,7 @@ static func load_by_id(dir_path: String, id_getter: Callable) -> Dictionary:
     var result: Dictionary = { }
     var dir := DirAccess.open(dir_path)
     if dir == null:
-        push_error("ResourceDirLoader: could not open " + dir_path)
+        ToastManager.show_dev_error("ResourceDirLoader: could not open " + dir_path)
         return result
 
     dir.list_dir_begin()

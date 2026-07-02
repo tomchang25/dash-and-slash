@@ -23,10 +23,12 @@ func _enter() -> void:
     _current_target_index = 0
     _streak_cooldown = 0.0
     _return_to_idle = false
+
     if _charge_cells.is_empty():
-        push_warning("ChargeEnemy entered charge attack without stored charge cells.")
+        ToastManager.show_warning("ChargeEnemy entered charge attack without stored charge cells.")
         _return_to_idle = true
         return
+
     charge_enemy.begin_charge_attack()
     CombatFeedbackVFX.play_charge_start(charge_enemy.global_position, charge_enemy.get_facing(), charge_enemy)
     _move_to_cell(_charge_cells[0], charge_enemy)

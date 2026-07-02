@@ -47,7 +47,7 @@ func _physics_update(delta: float) -> void:
 
     # Active step reservations should not be preempted; warn once and finish the step if it still happens.
     if not grid.is_reserved_by(_target_cell, enemy) and not _reservation_lost_warned:
-        push_warning("%s lost active step reservation for %s while repositioning." % [enemy.name, str(_target_cell)])
+        ToastManager.show_warning("%s lost active step reservation for %s while repositioning." % [enemy.name, str(_target_cell)])
         _reservation_lost_warned = true
 
     var target_world := grid.cell_center(_target_cell)
