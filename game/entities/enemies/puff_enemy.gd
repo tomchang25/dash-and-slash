@@ -10,7 +10,8 @@ const PUFF_CHARGE_DURATION := 0.6
 var _attack_data: EnemyAttackData
 
 # -- Node references ----------------------------------------------------------
-@onready var _puff_hitbox: Hitbox = _find_child_node("PuffHitbox") as Hitbox
+@onready var _puff_hitbox: Hitbox = %PuffHitbox
+@onready var _point_executor: EnemyPointAttackExecutor = %PointAttackExecutor
 
 # == Lifecycle ================================================================
 
@@ -18,7 +19,7 @@ var _attack_data: EnemyAttackData
 func _ready() -> void:
     super()
     _select_attack_data()
-    _configure_puff_hitbox()
+    _configure_point_executor()
     if _puff_hitbox != null:
         _puff_hitbox.set_enabled(false)
 
@@ -35,7 +36,6 @@ func is_target_in_puff_range() -> bool:
 
 ## Commits the enemy to the puff action and clears any planned movement.
 func begin_puff_action() -> bool:
-    _configure_puff_hitbox()
     return begin_committed_action()
 
 
@@ -43,7 +43,6 @@ func begin_puff_action() -> bool:
 func begin_puff_charge_action() -> bool:
     if not begin_committed_action():
         return false
-    _configure_puff_hitbox()
     face_target_position()
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.PUFF)
     return true
@@ -55,8 +54,8 @@ func end_puff_charge_action() -> void:
 
 
 func enable_puff_hitbox(enable: bool) -> void:
-    if _puff_hitbox != null:
-        _puff_hitbox.set_enabled(enable)
+    if _point_executor != null:
+        _point_executor.set_hitbox_enabled(enable)
 
 
 ## Returns the actual circular puff hitbox radius used by the scene.
@@ -92,26 +91,6 @@ func get_puff_recheck_interval() -> float:
     return _attack_data.recheck_interval if _attack_data != null else 1.0
 
 
-func get_idle_state_id() -> int:
-    return EnemyState.EnemyStateId.IDLE
-
-
-func get_reposition_state_id() -> int:
-    return EnemyState.EnemyStateId.REPOSITION
-
-
-func get_face_state_id() -> int:
-    return EnemyState.EnemyStateId.FACE_TARGET
-
-
-func get_staggered_state_id() -> int:
-    return EnemyState.EnemyStateId.STAGGERED
-
-
-func get_dead_state_id() -> int:
-    return EnemyState.EnemyStateId.DEAD
-
-
 func get_pre_plan_state_id() -> int:
     if is_target_in_puff_range():
         return EnemyState.EnemyStateId.PUFF_CHARGE
@@ -128,17 +107,15 @@ func get_arrival_override_state_id() -> int:
 
 func _after_setup_ready() -> void:
     _select_attack_data()
-    _configure_puff_hitbox()
+    _configure_point_executor()
 
 
 func _on_begin_death_extra() -> void:
-    if _puff_hitbox != null:
-        _puff_hitbox.set_enabled(false)
+    enable_puff_hitbox(false)
 
 
 func _reset_extra() -> void:
-    if _puff_hitbox != null:
-        _puff_hitbox.set_enabled(false)
+    enable_puff_hitbox(false)
 
 
 func _select_attack_data() -> void:
@@ -150,13 +127,11 @@ func _select_attack_data() -> void:
     _attack_data = _create_fallback_attack_data()
 
 
-func _configure_puff_hitbox() -> void:
-    if _puff_hitbox == null:
+func _configure_point_executor() -> void:
+    if _point_executor == null:
         return
-    var attack_data := get_current_attack_data()
-    _puff_hitbox.damage = attack_data.damage if attack_data != null else 12.0
-    _puff_hitbox.damage_interval = attack_data.damage_interval if attack_data != null else 0.35
-    _puff_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
+    _point_executor.setup(_grid, null, _puff_hitbox, false)
+    _point_executor.configure(get_current_attack_data())
 
 
 func _create_fallback_attack_data() -> EnemyAttackData:

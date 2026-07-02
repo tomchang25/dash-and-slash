@@ -16,6 +16,13 @@ Rules:
 
 ## [unreleased]
 
+### Enemy Kind Unification
+
+- 2026-07-02 — [enemy] Tile and point attacks across every enemy kind now run through two shared executors — one owning cell footprint, per-cell telegraph, and per-cell hitboxes; the other owning single-hitbox damage/interval/guard configuration and enablement — replacing the per-kind ModeEnemyAttackController and hand-rolled hitbox setup
+- 2026-07-02 — [enemy] Every enemy kind locates its attack-related child nodes (hitboxes, telegraph) through the same scene-wired unique-name references instead of mixed runtime lookups
+- 2026-07-02 — [enemy] Enemy kinds no longer restate state-identity getters that only echo the shared lifecycle default; a remaining override now reliably signals a genuine per-kind behavioral difference
+- 2026-07-02 — [enemy] ChargeEnemy and ModeEnemy's CHARGE mode now share one charge-traversal implementation, so arrival snapping, per-cell telegraph clearing, and mid-charge streak VFX look and feel identical regardless of which enemy kind performs the charge
+
 ### Remove Unused Entity YAML→Tres Pipeline
 
 - 2026-07-02 — [data_pipeline] Removed the generated entity YAML→tres pipeline, its registry base class, and the unused example scaffolding (never adopted by shipped enemy/player data and broken on a missing module); the `/godot-test` snapshot setup no longer depends on it; the SFX YAML→wav/tres synthesis pipeline is unchanged

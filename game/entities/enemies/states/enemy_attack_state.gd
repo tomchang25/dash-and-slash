@@ -1,6 +1,6 @@
 # enemy_attack_state.gd
 # Shared attack state that starts the attack through the enemy's API, ticks for
-# the attack duration, and updates attack motion each physics frame.
+# the attack duration, then transitions to recovery.
 class_name EnemyAttackState
 extends EnemyState
 
@@ -43,14 +43,11 @@ func _exit() -> void:
         _timer = null
 
 
-func _physics_update(delta: float) -> void:
+func _physics_update(_delta: float) -> void:
     if _attack_failed:
         change_state(EnemyStateId.IDLE)
         return
     if _return_to_idle:
-        change_state(enemy.get_recovery_state_id())
-        return
-    if enemy.update_attack_motion(delta):
         change_state(enemy.get_recovery_state_id())
 
 

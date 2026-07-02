@@ -23,7 +23,7 @@ func _physics_update(delta: float) -> void:
         return
 
     _elapsed += delta
-    var preview_index := int(floor(_elapsed / mode_enemy.get_mode_preview_interval())) % ModeEnemyAttackController.MODE_COUNT
+    var preview_index := int(floor(_elapsed / mode_enemy.get_mode_preview_interval())) % ModeEnemy.MODE_COUNT
     mode_enemy.set_preview_mode(preview_index)
 
     if _elapsed >= mode_enemy.MODE_CHANGE_DURATION:

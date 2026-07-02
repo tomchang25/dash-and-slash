@@ -46,34 +46,10 @@ func get_attack_controller() -> EnemyAttackController:
     return _attack_controller
 
 
-func get_idle_state_id() -> int:
-    return EnemyState.EnemyStateId.IDLE
-
-
-func get_reposition_state_id() -> int:
-    return EnemyState.EnemyStateId.REPOSITION
-
-
-func get_face_state_id() -> int:
-    return EnemyState.EnemyStateId.FACE_TARGET
-
-
-func get_recovery_state_id() -> int:
-    return EnemyState.EnemyStateId.RECOVERY
-
-
-func get_staggered_state_id() -> int:
-    return EnemyState.EnemyStateId.STAGGERED
-
-
 func get_pre_plan_state_id() -> int:
     if can_attack():
         return EnemyState.EnemyStateId.TELEGRAPH
     return -1
-
-
-func get_dead_state_id() -> int:
-    return EnemyState.EnemyStateId.DEAD
 
 
 func get_after_face_state_id() -> int:

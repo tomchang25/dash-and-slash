@@ -117,13 +117,6 @@ Replace uniform enemy scene selection with weighted spawn pools that can scale b
 - Keep reward downside pressure as fixed future enemy additions or weighted pool modifiers instead of hidden randomness.
 - Consider lowering ChargeEnemy spawn share after the idle-corner fallback fix has been tested in real waves.
 
-### Mode Enemy Attack Data Requirement
-
-Make `ModeEnemyAttackController` require `EnemyAttackData` for attack planning instead of keeping no-data fallback geometry.
-
-- Remove `_get_tile_attack_cells`, `_get_charge_cells`, and `_create_origin_candidate_attack_data` after controller setup guarantees attack data.
-- Keep fallback attack data creation in `ModeEnemy` as the source of compatibility defaults.
-
 ### Terrain Chaos Rewards
 
 Keep terrain mutation random but readable enough for fast chaotic play.

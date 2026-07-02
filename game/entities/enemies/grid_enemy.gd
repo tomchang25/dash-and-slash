@@ -53,17 +53,18 @@ var _stagger_tween: Tween
 var _hurt_tween: Tween
 
 # -- Node references ----------------------------------------------------------
-@onready var _state_machine: StateMachine = _find_state_machine()
-@onready var _guard: Guard = _find_guard()
-@onready var _status_bars: EnemyStatusBars = _find_status_bars()
-@onready var hurtbox: Hurtbox = _find_hurtbox()
-@onready var _body: Polygon2D = _find_body()
-@onready var _facing_arrow: Polygon2D = _find_facing_arrow()
+@export var _state_machine: StateMachine
+@export var _guard: Guard
+@export var _status_bars: EnemyStatusBars
+@export var hurtbox: Hurtbox
+@export var _body: Polygon2D
+@export var _facing_arrow: Polygon2D
 
 # == Lifecycle ================================================================
 
 
 func _ready() -> void:
+    _resolve_node_references()
     super()
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
@@ -600,6 +601,41 @@ func end_attack() -> void:
     pass
 
 
+## Returns the enemy's charge-mode telegraph. Enemies without a charge attack
+## leave this null.
+func get_telegraph() -> TileTelegraph:
+    return null
+
+
+## Returns the pre-computed cell sequence for the enemy's active charge attack.
+## Enemies without a charge attack leave this empty.
+func get_stored_charge_cells() -> Array[Vector2i]:
+    return []
+
+
+## Clears the pre-computed charge cell sequence. Enemies without a charge
+## attack need not override this.
+func clear_stored_charge_cells() -> void:
+    pass
+
+
+## Returns the enemy's charge-mode traversal speed.
+func get_charge_speed() -> float:
+    return 0.0
+
+
+## Starts the active charge-dash phase (hitbox enable). Enemies without a
+## charge attack need not override this.
+func begin_charge_attack() -> void:
+    pass
+
+
+## Ends the active charge-dash phase (hitbox disable). Enemies without a
+## charge attack need not override this.
+func end_charge_attack() -> void:
+    pass
+
+
 ## Starts a reusable attack windup loop for telegraphed actions.
 func start_attack_windup_vfx(style: int = CombatFeedbackVFX.WindupStyle.TILE) -> void:
     stop_attack_windup_vfx()
@@ -610,11 +646,6 @@ func start_attack_windup_vfx(style: int = CombatFeedbackVFX.WindupStyle.TILE) ->
 func stop_attack_windup_vfx() -> void:
     CombatFeedbackVFX.stop_loop(_attack_windup_vfx)
     _attack_windup_vfx = null
-
-
-## Updates per-frame attack motion. Returns true when motion is complete.
-func update_attack_motion(_delta: float) -> bool:
-    return false
 
 
 ## Plans movement to a charge origin whose attack-data footprint can hit the target.
@@ -1006,37 +1037,25 @@ func _on_fsm_state_changed(_from: State, to: State) -> void:
         _fsm_debug_label.text = to.name
 
 
-func _find_state_machine() -> StateMachine:
-    return _find_child_node("StateMachine") as StateMachine
+## Falls back to a by-name lookup for any node reference left unassigned in the
+## scene's @export slots, and warns so the scene can be rewired to set it directly.
+func _resolve_node_references() -> void:
+    _state_machine = _fallback_node(_state_machine, "StateMachine") as StateMachine
+    _guard = _fallback_node(_guard, "Guard") as Guard
+    _status_bars = _fallback_node(_status_bars, "StatusBars") as EnemyStatusBars
+    hurtbox = _fallback_node(hurtbox, "Hurtbox") as Hurtbox
+    _body = _fallback_node(_body, "Body") as Polygon2D
+    _facing_arrow = _fallback_node(_facing_arrow, "FacingArrow") as Polygon2D
 
 
-func _find_guard() -> Guard:
-    return _find_child_node("Guard") as Guard
-
-
-func _find_status_bars() -> EnemyStatusBars:
-    return _find_child_node("StatusBars") as EnemyStatusBars
-
-
-func _find_hurtbox() -> Hurtbox:
-    return _find_child_node("Hurtbox") as Hurtbox
-
-
-func _find_body() -> Polygon2D:
-    return _find_child_node("Body") as Polygon2D
-
-
-func _find_facing_arrow() -> Polygon2D:
-    return _find_child_node("FacingArrow") as Polygon2D
-
-
-func _find_child_node(node_name: StringName) -> Node:
-    # node-ref: allow - centralized fallback for shared enemy scenes with optional nodes
-    var direct := get_node_or_null(NodePath(node_name))
-    if direct != null:
-        return direct
-    # node-ref: allow - centralized fallback for shared enemy scenes with optional nodes
-    return find_child(str(node_name), false, false)
+func _fallback_node(assigned: Node, node_name: StringName) -> Node:
+    if assigned != null:
+        return assigned
+    # node-ref: allow - fallback for enemy scenes not yet wired to the matching @export slot
+    var found := find_child(str(node_name), false, false)
+    if found != null:
+        ToastManager.show_dev_error("%s: %s not wired to its @export slot; using name-based fallback." % [name, node_name])
+    return found
 
 
 func _resolve_guard_damage(angle: int, guard_damage_profile: int) -> int:

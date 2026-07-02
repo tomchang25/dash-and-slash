@@ -12,8 +12,9 @@ var _attack_data: EnemyAttackData
 var _charge_cells: Array[Vector2i] = []
 
 # -- Node references ----------------------------------------------------------
-@onready var _contact_hitbox: Hitbox = _find_child_node("ContactHitbox") as Hitbox
-@onready var _telegraph: TileTelegraph = _find_child_node("TileTelegraph") as TileTelegraph
+@onready var _contact_hitbox: Hitbox = %ContactHitbox
+@onready var _telegraph: TileTelegraph = %TileTelegraph
+@onready var _point_executor: EnemyPointAttackExecutor = %PointAttackExecutor
 
 # == Lifecycle ================================================================
 
@@ -21,7 +22,7 @@ var _charge_cells: Array[Vector2i] = []
 func _ready() -> void:
     super()
     _select_attack_data()
-    _configure_contact_hitbox()
+    _configure_point_executor()
     if _contact_hitbox != null:
         _contact_hitbox.set_enabled(false)
     if _telegraph != null:
@@ -61,30 +62,6 @@ func face_arrow() -> void:
     super()
     if _contact_hitbox != null:
         _contact_hitbox.rotation = _facing.angle() + PI / 2.0
-
-
-func get_idle_state_id() -> int:
-    return EnemyState.EnemyStateId.IDLE
-
-
-func get_reposition_state_id() -> int:
-    return EnemyState.EnemyStateId.REPOSITION
-
-
-func get_face_state_id() -> int:
-    return EnemyState.EnemyStateId.FACE_TARGET
-
-
-func get_recovery_state_id() -> int:
-    return EnemyState.EnemyStateId.RECOVERY
-
-
-func get_staggered_state_id() -> int:
-    return EnemyState.EnemyStateId.STAGGERED
-
-
-func get_dead_state_id() -> int:
-    return EnemyState.EnemyStateId.DEAD
 
 
 func get_pre_plan_state_id() -> int:
@@ -129,7 +106,6 @@ func begin_attack_telegraph() -> bool:
         return false
 
     face_target_position()
-    _configure_contact_hitbox()
     var cells := get_charge_cells()
     if cells.is_empty() or get_target_cell() not in cells:
         return false
@@ -149,21 +125,21 @@ func plan_next_action() -> bool:
 
 func begin_charge_attack() -> void:
     stop_attack_windup_vfx()
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(true)
+    if _point_executor != null:
+        _point_executor.set_hitbox_enabled(true)
 
 
 func end_charge_attack() -> void:
     stop_attack_windup_vfx()
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
+    if _point_executor != null:
+        _point_executor.set_hitbox_enabled(false)
 
 # == Setup helpers =============================================================
 
 
 func _after_setup_ready() -> void:
     _select_attack_data()
-    _configure_contact_hitbox()
+    _configure_point_executor()
     if _telegraph != null:
         _telegraph.setup(_grid)
 
@@ -177,8 +153,8 @@ func _on_guard_broken_extra() -> void:
 func _on_begin_death_extra() -> void:
     if _telegraph != null:
         _telegraph.clear()
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
+    if _point_executor != null:
+        _point_executor.set_hitbox_enabled(false)
 
 
 func _reset_extra() -> void:
@@ -195,13 +171,11 @@ func _select_attack_data() -> void:
     _attack_data = _create_fallback_attack_data()
 
 
-func _configure_contact_hitbox() -> void:
-    if _contact_hitbox == null:
+func _configure_point_executor() -> void:
+    if _point_executor == null:
         return
-    var attack_data := get_current_attack_data()
-    _contact_hitbox.damage = attack_data.damage if attack_data != null else 8.0
-    _contact_hitbox.damage_interval = attack_data.damage_interval if attack_data != null else 0.6
-    _contact_hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
+    _point_executor.setup(_grid, _telegraph, _contact_hitbox, true)
+    _point_executor.configure(get_current_attack_data())
 
 
 func _create_fallback_attack_data() -> EnemyAttackData:
