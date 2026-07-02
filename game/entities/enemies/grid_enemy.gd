@@ -342,38 +342,7 @@ func set_facing(v: Vector2) -> void:
 
 
 func plan_next_action() -> bool:
-    clear_planned_path()
-    _reservation_is_attack = false
-
-    if _grid == null or not has_target():
-        return false
-
-    var start := _grid_pos
-    var target_cell := get_target_cell()
-
-    if not _grid.is_in_bounds(target_cell):
-        return false
-
-    if start == target_cell:
-        queue_redraw()
-        return true
-
-    var path: Array[Vector2i] = []
-    if _can_plan_goal_cell(target_cell, false):
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell], false)
-
-    if path.is_empty():
-        return plan_approach_action()
-
-    if path.is_empty():
-        return false
-
-    _planned_path = path
-    if not _refresh_planned_reservations():
-        clear_planned_path()
-        return false
-    queue_redraw()
-    return true
+    return plan_approach_action()
 
 
 ## Plans ordinary movement toward the target, preferring adjacent cells when reachable.
@@ -665,14 +634,8 @@ func plan_charge_line_action() -> bool:
             return true
         path = _find_path_to_cell(start, NO_BLOCKED_CELL, line_goals, false)
 
-    if path.is_empty() and _can_plan_goal_cell(target_cell, false):
-        path = _find_path_to_cell(start, NO_BLOCKED_CELL, [target_cell], false)
-
     if path.is_empty():
         return plan_approach_action()
-
-    if path.is_empty():
-        return false
 
     _planned_path = path
     if not _refresh_planned_reservations():
