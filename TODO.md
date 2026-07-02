@@ -117,20 +117,12 @@ Replace uniform enemy scene selection with weighted spawn pools that can scale b
 - Keep reward downside pressure as fixed future enemy additions or weighted pool modifiers instead of hidden randomness.
 - Consider lowering ChargeEnemy spawn share after the idle-corner fallback fix has been tested in real waves.
 
-### Enemy Charge Planner Unification
+### Mode Enemy Attack Data Requirement
 
-Unify charge movement planning so ModeEnemy and ChargeEnemy share one attack-data-aware charge origin planner.
+Make `ModeEnemyAttackController` require `EnemyAttackData` for attack planning instead of keeping no-data fallback geometry.
 
-- Replace generic row/column line goals with charge-origin cells validated against the active attack data.
-- Keep fallback movement as approach-only movement, not charge readiness.
-- Remove `_collect_line_goal_cells()` only after `ModeEnemy` no longer depends on `plan_charge_line_action()`'s generic line-goal path.
-
-### Deprecated Small Enemy Attack Controller Cleanup
-
-Verify and remove the deprecated `SmallEnemyAttackController` script once scene, test, and tooling references are confirmed absent.
-
-- Confirm `small_enemy.tscn` and related enemy scenes use `EnemyAttackController` instead.
-- Delete the deprecated script and UID together if no external resource references remain.
+- Remove `_get_tile_attack_cells`, `_get_charge_cells`, and `_create_origin_candidate_attack_data` after controller setup guarantees attack data.
+- Keep fallback attack data creation in `ModeEnemy` as the source of compatibility defaults.
 
 ### Terrain Chaos Rewards
 

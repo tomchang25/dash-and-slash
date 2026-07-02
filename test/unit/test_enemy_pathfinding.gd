@@ -5,6 +5,9 @@ extends GutTest
 class PathEnemy:
     extends GridEnemy
 
+    var _test_attack_data: EnemyAttackData
+
+
     func setup_path_grid(grid: GridArena, start: Vector2i) -> void:
         _grid = grid
         _grid_pos = start
@@ -28,6 +31,18 @@ class PathEnemy:
 
     func get_planned_path() -> Array[Vector2i]:
         return _planned_path.duplicate()
+
+
+    func set_attack_data(attack_data: EnemyAttackData) -> void:
+        _test_attack_data = attack_data
+
+
+    func get_current_attack_data() -> EnemyAttackData:
+        return _test_attack_data
+
+
+    func plan_charge() -> bool:
+        return plan_charge_origin_action()
 
 
 var _grid: GridArena
@@ -127,6 +142,33 @@ func test_approach_moves_closer_without_stealing_active_step_reservations() -> v
     assert_eq(path[path.size() - 1], Vector2i(1, 1))
 
 
+func test_charge_planning_uses_attack_data_origin_range() -> void:
+    _setup_square_grid(Vector2i(6, 5))
+    var target_cell := Vector2i(4, 2)
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(0, 2), _make_target(target_cell))
+    enemy.set_attack_data(_make_charge_line_attack(2))
+
+    assert_false(enemy.can_charge_target_from_cell(enemy.get_grid_pos()))
+    assert_true(enemy.plan_charge())
+
+    var path := enemy.get_planned_path()
+    assert_false(path.is_empty())
+    assert_eq(path[path.size() - 1], Vector2i(2, 2))
+
+
+func test_charge_planning_returns_ready_when_already_at_valid_origin() -> void:
+    _setup_square_grid(Vector2i(6, 5))
+    var target_cell := Vector2i(4, 2)
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(2, 2), _make_target(target_cell))
+    enemy.set_attack_data(_make_charge_line_attack(2))
+
+    assert_true(enemy.can_charge_target_from_cell(enemy.get_grid_pos()))
+    assert_true(enemy.plan_charge())
+    assert_true(enemy.get_planned_path().is_empty())
+
+
 func _setup_square_grid(size: Vector2i) -> void:
     _grid = autofree(GridArena.new())
     _grid.grid_size = size
@@ -143,3 +185,11 @@ func _make_target(cell: Vector2i) -> Node2D:
 func _occupy_cell(cell: Vector2i) -> void:
     var occupant: Node = autofree(Node.new())
     _grid.register_occupant(occupant, [cell])
+
+
+func _make_charge_line_attack(line_length: int) -> EnemyAttackData:
+    var attack_data: EnemyAttackData = EnemyAttackData.new()
+    attack_data.attack_kind = EnemyAttackData.AttackKind.CHARGE
+    attack_data.cell_shape = EnemyAttackData.CellShape.LINE
+    attack_data.line_length = line_length
+    return attack_data
