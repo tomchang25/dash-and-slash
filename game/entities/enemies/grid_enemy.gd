@@ -648,11 +648,6 @@ func stop_attack_windup_vfx() -> void:
     _attack_windup_vfx = null
 
 
-## Updates per-frame attack motion. Returns true when motion is complete.
-func update_attack_motion(_delta: float) -> bool:
-    return false
-
-
 ## Plans movement to a charge origin whose attack-data footprint can hit the target.
 func plan_charge_origin_action() -> bool:
     clear_planned_path()

@@ -58,6 +58,30 @@ find_child("Health", false, false)
 
 For fixed child nodes owned by the same `.tscn`, use `%UniqueName` `@onready` references. For references across scene/component boundaries, expose a narrow public API, signal, or explicit exported dependency instead of having the parent reach into the child's internal node tree.
 
+**Base-class references to nodes that vary by concrete scene**: `%UniqueName` assumes the referencing script's own `.tscn` always has that unique name — true for a scene-specific script referencing its own static objects (`Node`, `CollisionShape2D`, a hitbox, a telegraph). It does not hold for a shared base-class script whose concrete scenes disagree on which optional child components exist (for example `GridEnemy` referencing `StatusBars` or `FacingArrow`, which some enemy kinds omit). For that case, declare the reference as `@export` so each concrete `.tscn` wires (or deliberately leaves null) the node paths that actually apply to it:
+
+```gdscript
+@export var _status_bars: EnemyStatusBars
+```
+
+A by-name fallback lookup for a scene that hasn't been wired yet is optional, not required — add it only when graceful degradation matters more than surfacing the miswiring immediately. When added, warn so the gap gets fixed instead of silently persisting:
+
+```gdscript
+func _resolve_node_references() -> void:
+    _status_bars = _fallback_node(_status_bars, "StatusBars") as EnemyStatusBars
+
+func _fallback_node(assigned: Node, node_name: StringName) -> Node:
+    if assigned != null:
+        return assigned
+    # node-ref: allow - fallback for scenes not yet wired to the matching @export slot
+    var found := find_child(str(node_name), false, false)
+    if found != null:
+        ToastManager.show_dev_error("%s: %s not wired to its @export slot; using name-based fallback." % [name, node_name])
+    return found
+```
+
+Rule of thumb: `%UniqueName` `@onready` for a script's own static, always-present scene objects; `@export` (with an optional name-based fallback) for base/shared-component scripts referencing nodes whose presence or wiring varies by concrete scene.
+
 Direct `get_node*` and `find_child` calls are allowed only for genuinely dynamic or test-only lookups. Mark the exception on the line directly above the call:
 
 ```gdscript

@@ -22,7 +22,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-- [enemy] Unify ChargeEnemy and ModeEnemy charge-mode traversal into one shared implementation — final remaining piece of the enemy-kind unification flow — ref plans/enemy_kind_unification.md
+Nothing currently in progress.
 
 ---
 
