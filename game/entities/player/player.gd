@@ -10,7 +10,7 @@ signal died(entity: Player)
 signal health_changed(current: float, maximum: float)
 signal dash_hit_landed
 
-const DefaultPlayerStats := preload("res://game/entities/player/player_stats.tres")
+const DefaultPlayerStats := preload("res://game/entities/player/data/player_stats.tres")
 
 const MOVE_SPEED := 440.0
 const DASH_SPEED := 1000.0
