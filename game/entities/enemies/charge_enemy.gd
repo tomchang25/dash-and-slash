@@ -63,30 +63,6 @@ func face_arrow() -> void:
         _contact_hitbox.rotation = _facing.angle() + PI / 2.0
 
 
-func get_idle_state_id() -> int:
-    return EnemyState.EnemyStateId.IDLE
-
-
-func get_reposition_state_id() -> int:
-    return EnemyState.EnemyStateId.REPOSITION
-
-
-func get_face_state_id() -> int:
-    return EnemyState.EnemyStateId.FACE_TARGET
-
-
-func get_recovery_state_id() -> int:
-    return EnemyState.EnemyStateId.RECOVERY
-
-
-func get_staggered_state_id() -> int:
-    return EnemyState.EnemyStateId.STAGGERED
-
-
-func get_dead_state_id() -> int:
-    return EnemyState.EnemyStateId.DEAD
-
-
 func get_pre_plan_state_id() -> int:
     if can_charge_target_from_cell(_grid_pos):
         return EnemyState.EnemyStateId.TELEGRAPH

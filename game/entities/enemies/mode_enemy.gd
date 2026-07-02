@@ -79,30 +79,6 @@ func emit_guard_snapshot() -> void:
         guard_changed.emit(_guard.current(), _guard.max_guard)
 
 
-func get_idle_state_id() -> int:
-    return EnemyState.EnemyStateId.IDLE
-
-
-func get_reposition_state_id() -> int:
-    return EnemyState.EnemyStateId.REPOSITION
-
-
-func get_face_state_id() -> int:
-    return EnemyState.EnemyStateId.FACE_TARGET
-
-
-func get_recovery_state_id() -> int:
-    return EnemyState.EnemyStateId.RECOVERY
-
-
-func get_staggered_state_id() -> int:
-    return EnemyState.EnemyStateId.STAGGERED
-
-
-func get_dead_state_id() -> int:
-    return EnemyState.EnemyStateId.DEAD
-
-
 func get_pre_plan_state_id() -> int:
     if not _mode_ready:
         return EnemyState.EnemyStateId.MODE_CHANGE
