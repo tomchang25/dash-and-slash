@@ -2,14 +2,12 @@
 godot_test_setup.py - Prepare a safe /tmp snapshot for Godot test runs.
 
 This helper is intentionally setup-only. It creates the sandbox-local project
-copy, copies the gitignored Godot binary directory, verifies PyYAML is available,
-and regenerates data/tres from the snapshot.
+copy and copies the gitignored Godot binary directory.
 """
 
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import os
 import shlex
 import shutil
@@ -75,25 +73,6 @@ def _copy_godot_bin(repo_root: Path, snapshot: Path) -> Path:
     return matches[0]
 
 
-def _require_yaml() -> None:
-    if importlib.util.find_spec("yaml") is None:
-        raise RuntimeError(
-            "PyYAML is not installed for this Python. In node:22-bookworm, install "
-            "it once with: apt-get update && apt-get install -y python3-yaml"
-        )
-
-
-def _generate_tres(snapshot: Path) -> None:
-    script = snapshot / "dev" / "tools" / "yaml_to_tres.py"
-    result = _run(
-        [sys.executable, str(script), "--godot-root", str(snapshot)],
-        cwd=snapshot,
-        stdout=sys.stderr,
-    )
-    if result.returncode != 0:
-        raise RuntimeError("YAML to TRES generation failed.")
-
-
 def _print_env(snapshot: Path, source: str, godot_bin: Path) -> None:
     values = {
         "DS": str(snapshot),
@@ -127,8 +106,6 @@ def main() -> int:
         _log(f"Snapshot: {snapshot}")
         source = _checkout_index(repo_root, snapshot)
         godot_bin = _copy_godot_bin(repo_root, snapshot)
-        _require_yaml()
-        _generate_tres(snapshot)
     except Exception as exc:
         print(f"godot-test setup failed: {exc}", file=sys.stderr)
         return 1

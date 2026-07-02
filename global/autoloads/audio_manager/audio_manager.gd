@@ -22,7 +22,7 @@ var _sfx_2d_pool: Array[AudioStreamPlayer2D] = []
 var _ui_pool: Array[AudioStreamPlayer] = []
 
 # key -> Array[tick_msec]
-var _rate_history: Dictionary = {}
+var _rate_history: Dictionary = { }
 
 
 func _ready() -> void:
@@ -49,7 +49,6 @@ func _ready() -> void:
         add_child(u)
         _ui_pool.append(u)
 
-
 # -------------------------
 # Bus helpers
 # -------------------------
@@ -61,7 +60,7 @@ func get_bus_name(bus_id: int) -> StringName:
 
 func _resolve_bus_name(event: AudioEvent, fallback_bus_id: int) -> StringName:
     if event.bus_id == AudioBus.Id.NONE:
-        push_error("AudioEvent: bus_id is NONE")
+        ToastManager.show_dev_error("AudioEvent: bus_id is NONE")
 
     if event.bus_id != AudioBus.Id.OTHER:
         return get_bus_name(event.bus_id)
@@ -70,7 +69,6 @@ func _resolve_bus_name(event: AudioEvent, fallback_bus_id: int) -> StringName:
         return event.bus_override
 
     return get_bus_name(fallback_bus_id)
-
 
 # -------------------------
 # Public API
@@ -121,21 +119,20 @@ func play_sfx_2d(stream: AudioStream, world_pos: Vector2, volume_db: float = 0.0
 
 
 func play_sfx_limited(
-    stream: AudioStream,
-    key: StringName,
-    world_pos: Vector2,
-    max_per_window: int = 4,
-    window_sec: float = 0.05,
-    volume_db: float = 0.0,
-    pitch: float = 1.0,
-    bus_override: StringName = &""
+        stream: AudioStream,
+        key: StringName,
+        world_pos: Vector2,
+        max_per_window: int = 4,
+        window_sec: float = 0.05,
+        volume_db: float = 0.0,
+        pitch: float = 1.0,
+        bus_override: StringName = &"",
 ) -> void:
     if stream == null:
         return
     if _is_rate_limited(key, max_per_window, window_sec):
         return
     play_sfx_2d(stream, world_pos, volume_db, pitch, bus_override)
-
 
 # -------------------------
 # Unified API: play_event
@@ -188,7 +185,6 @@ func play_event(event: AudioEvent, world_pos: Vector2 = Vector2.ZERO) -> void:
     # Fallback
     var fallback_bus := _resolve_bus_name(event, AudioBus.Id.SOUND)
     play_sfx_2d(stream, world_pos, event.volume_db, pitch, fallback_bus)
-
 
 # -------------------------
 # Internals

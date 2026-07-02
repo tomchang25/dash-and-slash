@@ -56,7 +56,7 @@ func save_settings() -> void:
     }
     var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
     if file == null:
-        push_error("SettingsStore: cannot write %s" % SETTINGS_PATH)
+        push_error("SettingsStore: cannot write %s" % SETTINGS_PATH) # push-error: boot
         return
     file.store_string(JSON.stringify(data, "\t"))
 
@@ -65,13 +65,14 @@ func save_settings() -> void:
 func load_settings() -> void:
     if not FileAccess.file_exists(SETTINGS_PATH):
         return
+
     var file := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
     if file == null:
-        push_error("SettingsStore: cannot read %s" % SETTINGS_PATH)
+        push_error("SettingsStore: cannot read %s" % SETTINGS_PATH) # push-error: boot
         return
     var parsed: Variant = JSON.parse_string(file.get_as_text())
     if parsed == null or not parsed is Dictionary:
-        push_error("SettingsStore: invalid settings data")
+        push_error("SettingsStore: invalid settings data") # push-error: boot
         return
     var data: Dictionary = parsed
     master_volume = float(data.get("master_volume", master_volume))
@@ -140,7 +141,8 @@ func _close_overlay() -> void:
 func _set_bus_volume(bus_name: String, linear: float) -> void:
     var idx := AudioServer.get_bus_index(bus_name)
     if idx == -1:
-        push_warning("SettingsStore: bus '%s' not found" % bus_name)
+        push_warning("SettingsStore: bus '%s' not found" % bus_name) # push-error: boot
         return
+
     AudioServer.set_bus_volume_db(idx, linear_to_db(clampf(linear, 0.0, 1.0)))
     AudioServer.set_bus_mute(idx, linear <= 0.0)

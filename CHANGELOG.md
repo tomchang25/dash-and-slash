@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Remove Unused Entity YAML→Tres Pipeline
+
+- 2026-07-02 — [data_pipeline] Removed the generated entity YAML→tres pipeline, its registry base class, and the unused example scaffolding (never adopted by shipped enemy/player data and broken on a missing module); the `/godot-test` snapshot setup no longer depends on it; the SFX YAML→wav/tres synthesis pipeline is unchanged
+
 ### Roguelite Wave Reward Loop
 
 - 2026-06-30 — [waves] Run progresses through four normal waves and a wave 5 boss; enemy counts are data-driven with base counts of 5–8 plus accumulated future enemy pressure modifiers from rewards

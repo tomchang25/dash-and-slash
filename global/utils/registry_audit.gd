@@ -7,6 +7,6 @@ extends RefCounted
 ## Validates project-level scene route wiring during boot.
 static func check_scene_registry(scene_registry: SceneRegistry) -> bool:
     if scene_registry == null:
-        push_error("RegistryAudit: SceneRouter.scenes is null")
+        ToastManager.show_dev_error("RegistryAudit: SceneRouter.scenes is null")
         return false
     return scene_registry.validate()

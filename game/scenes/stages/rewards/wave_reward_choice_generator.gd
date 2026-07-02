@@ -79,8 +79,9 @@ func _is_valid_choice(
             return effects.size() >= 2 and effects.size() <= 3 and _total_upside(effects) >= 1.0 and _total_downside(effects) >= 1.0
         WaveRewardEffectDefinition.Profile.AGGRESSIVE:
             return effects.size() >= 3 and effects.size() <= 4 and _total_upside(effects) >= 3.0 and _total_downside(effects) >= 3.0
-    push_warning("Unknown reward profile: %s" % profile)
-    return false
+        _:
+            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
+            return false
 
 
 func _fallback_choice(
@@ -313,8 +314,9 @@ func _is_definition_applicable(definition: WaveRewardEffectDefinition, context: 
             return context.get("player") is Player
         WaveRewardEffectDefinition.Kind.MAJOR_PLACEHOLDER:
             return true
-    push_warning("Unknown reward effect kind: %s" % definition.kind)
-    return false
+        _:
+            ToastManager.show_dev_error("Unknown reward effect kind: %s" % definition.kind)
+            return false
 
 # == Constraints ==
 
@@ -327,8 +329,9 @@ func _random_effect_count(profile: int) -> int:
             return _rng.randi_range(2, 3)
         WaveRewardEffectDefinition.Profile.AGGRESSIVE:
             return _rng.randi_range(3, 4)
-    push_warning("Unknown reward profile: %s" % profile)
-    return 1
+        _:
+            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
+            return 1
 
 
 func _max_effect_count(profile: int) -> int:
@@ -339,8 +342,9 @@ func _max_effect_count(profile: int) -> int:
             return 3
         WaveRewardEffectDefinition.Profile.AGGRESSIVE:
             return 4
-    push_warning("Unknown reward profile: %s" % profile)
-    return 1
+        _:
+            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
+            return 1
 
 
 func _max_stacks_for_profile(
@@ -354,8 +358,9 @@ func _max_stacks_for_profile(
             return min(definition.max_stacks, 2)
         WaveRewardEffectDefinition.Profile.AGGRESSIVE:
             return definition.max_stacks
-    push_warning("Unknown reward profile: %s" % profile)
-    return 1
+        _:
+            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
+            return 1
 
 
 func _expanded_single_effect_options(

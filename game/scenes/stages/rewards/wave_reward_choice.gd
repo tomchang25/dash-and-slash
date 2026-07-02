@@ -52,5 +52,6 @@ func _make_display_name() -> String:
             return "Balanced Offer"
         WaveRewardEffectDefinition.Profile.AGGRESSIVE:
             return "Bold Offer"
-    push_warning("Unknown reward profile: %s" % profile)
-    return "Reward Offer"
+        _:
+            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
+            return "Reward Offer"

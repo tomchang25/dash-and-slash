@@ -30,62 +30,68 @@ var _providers: Array = []
 ## autoload's _ready()). The provider must implement to_dict() -> Dictionary,
 ## from_dict(Dictionary), and validate() -> bool.
 func register_provider(provider: Object) -> void:
-	assert(provider.has_method("to_dict"), "register_provider: %s missing to_dict()" % provider)
-	assert(provider.has_method("from_dict"), "register_provider: %s missing from_dict()" % provider)
-	assert(provider.has_method("validate"), "register_provider: %s missing validate()" % provider)
-	_providers.append(provider)
+    if not provider.has_method("to_dict"):
+        ToastManager.show_dev_error("register_provider: %s missing to_dict()" % provider)
+        return
+    if not provider.has_method("from_dict"):
+        ToastManager.show_dev_error("register_provider: %s missing from_dict()" % provider)
+        return
+    if not provider.has_method("validate"):
+        ToastManager.show_dev_error("register_provider: %s missing validate()" % provider)
+        return
+    _providers.append(provider)
 
 
 ## Calls validate() on every provider, accumulating failures. Returns true only
 ## when every provider passed. Call after load() (see GameManager._ready()).
 func run_validation() -> bool:
-	var ok := true
-	for provider: Object in _providers:
-		if not provider.validate():
-			ok = false
-	return ok
+    var ok := true
+    for provider: Object in _providers:
+        if not provider.validate():
+            ok = false
+    return ok
 
 
 ## Serializes every provider into one sections dict and writes it to disk.
 func save() -> void:
-	var sections_out: Dictionary = {}
-	for provider: Object in _providers:
-		sections_out.merge(provider.to_dict())
-	var data := {
-		"schema_version": SCHEMA_VERSION,
-		"sections": sections_out,
-	}
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if file == null:
-		push_error("SaveManager: failed to open %s for writing" % SAVE_PATH)
-		return
-	file.store_string(JSON.stringify(data, "\t"))
+    var sections_out: Dictionary = { }
+    for provider: Object in _providers:
+        sections_out.merge(provider.to_dict())
+    var data := {
+        "schema_version": SCHEMA_VERSION,
+        "sections": sections_out,
+    }
+    var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+    if file == null:
+        ToastManager.show_error("SaveManager: failed to open %s for writing" % SAVE_PATH)
+        return
+    file.store_string(JSON.stringify(data, "\t"))
 
 
 ## Reads the save file, runs whole-file migration, and hands the full sections
 ## dict to each provider's from_dict() (each reads only the keys it owns).
 func load() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		push_error("SaveManager: failed to open %s for reading" % SAVE_PATH)
-		return
-	var text := file.get_as_text()
-	var parsed: Variant = JSON.parse_string(text)
-	if parsed == null or not parsed is Dictionary:
-		push_error("SaveManager: invalid save data in %s" % SAVE_PATH)
-		return
+    if not FileAccess.file_exists(SAVE_PATH):
+        return
+    var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+    if file == null:
+        ToastManager.show_error("SaveManager: failed to open %s for reading" % SAVE_PATH)
+        return
+    var text := file.get_as_text()
+    var parsed: Variant = JSON.parse_string(text)
+    if parsed == null or not parsed is Dictionary:
+        ToastManager.show_error("SaveManager: invalid save data in %s" % SAVE_PATH)
+        return
 
-	var save_dict: Dictionary = parsed
-	save_dict = _migrate_schema(save_dict)
-	if not (save_dict.has("sections") and save_dict["sections"] is Dictionary):
-		push_error("SaveManager: save missing 'sections' key in %s" % SAVE_PATH)
-		return
+    var save_dict: Dictionary = parsed
+    save_dict = _migrate_schema(save_dict)
+    if not (save_dict.has("sections") and save_dict["sections"] is Dictionary):
+        ToastManager.show_error("SaveManager: save missing 'sections' key in %s" % SAVE_PATH)
+        return
 
-	var sections_data: Dictionary = save_dict["sections"].duplicate(true)
-	for provider: Object in _providers:
-		provider.from_dict(sections_data)
+    var sections_data: Dictionary = save_dict["sections"].duplicate(true)
+    for provider: Object in _providers:
+        provider.from_dict(sections_data)
 
 
 ## Whole-file migration seam. The ONLY place that may move data between sections,
@@ -94,10 +100,10 @@ func load() -> void:
 ## field shapes within one section) belongs in that provider's from_dict(), not
 ## here. Add a step and bump SCHEMA_VERSION when the file shape changes.
 func _migrate_schema(save_dict: Dictionary) -> Dictionary:
-	var from_version: int = int(save_dict.get("schema_version", 1))
-	if from_version >= SCHEMA_VERSION:
-		return save_dict
-	# One step per version. Whole-file transforms only (relocate/rename sections):
-	# if from_version < 2:
-	#     save_dict = _v1_to_v2(save_dict)
-	return save_dict
+    var from_version: int = int(save_dict.get("schema_version", 1))
+    if from_version >= SCHEMA_VERSION:
+        return save_dict
+    # One step per version. Whole-file transforms only (relocate/rename sections):
+    # if from_version < 2:
+    #     save_dict = _v1_to_v2(save_dict)
+    return save_dict

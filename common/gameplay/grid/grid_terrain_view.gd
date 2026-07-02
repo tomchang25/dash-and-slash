@@ -212,7 +212,7 @@ func _telegraph_color(phase: int) -> Color:
         GridArena.TelegraphPhase.NONE:
             return Color.TRANSPARENT
         _:
-            push_warning("Unexpected telegraph phase: %d" % phase)
+            ToastManager.show_dev_error("Unexpected telegraph phase: %d" % phase)
             return Color.TRANSPARENT
 
 # == Geometry =================================================================

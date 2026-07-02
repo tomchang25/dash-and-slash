@@ -16,13 +16,13 @@ var _current_key: StringName = &""
 ## Navigates to a registered scene key and stores an optional one-shot payload for the arriving scene.
 func go_to(key: StringName, payload: Variant = null) -> bool:
     if scenes == null:
-        push_error("SceneRouter: missing SceneRegistry")
+        ToastManager.show_error("SceneRouter: missing SceneRegistry")
         navigation_failed.emit(key)
         return false
 
     var scene := scenes.get_scene(key)
     if scene == null:
-        push_error("SceneRouter: no scene registered for key '%s'" % String(key))
+        ToastManager.show_error("SceneRouter: no scene registered for key '%s'" % String(key))
         navigation_failed.emit(key)
         return false
 
@@ -36,8 +36,9 @@ func go_to(key: StringName, payload: Variant = null) -> bool:
 ## Navigates to the default gameplay route.
 func go_to_default(payload: Variant = null) -> bool:
     if scenes == null:
-        push_error("SceneRouter: missing SceneRegistry")
+        ToastManager.show_error("SceneRouter: missing SceneRegistry")
         return false
+
     return go_to(scenes.default_route, payload)
 
 
@@ -49,16 +50,18 @@ func go_to_arena(payload: Variant = null) -> bool:
 ## Navigates to the main menu route.
 func go_to_main_menu(payload: Variant = null) -> bool:
     if scenes == null:
-        push_error("SceneRouter: missing SceneRegistry")
+        ToastManager.show_error("SceneRouter: missing SceneRegistry")
         return false
+
     return go_to(scenes.main_menu_route, payload)
 
 
 ## Navigates to the unit-test runner route.
 func go_to_test_runner(payload: Variant = null) -> bool:
     if scenes == null:
-        push_error("SceneRouter: missing SceneRegistry")
+        ToastManager.show_error("SceneRouter: missing SceneRegistry")
         return false
+
     return go_to(scenes.test_route, payload)
 
 

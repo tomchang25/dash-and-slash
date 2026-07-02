@@ -81,7 +81,7 @@ func _sync_shield_icons() -> void:
     while _shield_icons.size() < shield_count:
         var icon := shield_scene.instantiate() as ShieldStatusIcon
         if icon == null:
-            push_error("EnemyStatusBars: shield_scene must instantiate ShieldStatusIcon")
+            ToastManager.show_dev_error("EnemyStatusBars: shield_scene must instantiate ShieldStatusIcon")
             return
         _shield_icons.append(icon)
         _shield_container.add_child(icon)

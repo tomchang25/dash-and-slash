@@ -1,13 +1,13 @@
 # Dash & Slash - SFX YAML Generation Standard
 
-Use this with `base.md` when generating SFX patch YAML files.
+Use this when generating SFX patch YAML files.
 
 ## Output Rules
 
 - Each sound is its own YAML file under `data/yaml/sfx/`.
 - One YAML = one playable sound (with optional variants).
 - The filename must match `sound_id` + `.yaml` (e.g. `click.yaml`).
-- Follow `base.md` output format rules: no fences, two-space indent, no YAML comments, snake_case IDs.
+- Output format: no fences, two-space indent, no YAML comments, snake_case IDs.
 
 ## Schema
 
@@ -154,28 +154,28 @@ Use these tables when authoring sounds from gameplay intent. Match the closest r
 
 Cross-scene UI furniture. One file each, reused everywhere; never author per-scene copies of these.
 
-| Intent                    | Waveform | Start Hz | End Hz | Envelope                                   | Notes                                                                                                                                                                                                               |
-| ------------------------- | -------- | -------- | ------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Click / button press      | square   | 1500     | 500    | A 0.001 / D 0.005 / S 0.0 / R 0.005 SL 0.0 | Very short spike, duty = 0.1                                                                                                                                                                                        |
-| Button hover              | sine     | 600      | 600    | A 0.001 / D 0.002 / S 0.0 / R 0.002 SL 0.0 | Very soft tick, quiet (-15 dB), 1 variant                                                                                                                                                                           |
-| Confirm / success         | sine     | 1200     | 800    | A 0.002 / D 0.04 / S 0.02 / R 0.02 SL 0.3  | Generic fallback for any confirm/continue/select/success action — reuse the id, do not author per-action copies                                                                                                     |
-| Cancel / dismiss          | square   | 400      | 200    | A 0.003 / D 0.02 / S 0.0 / R 0.02 SL 0.2   | Short downward blip, mirror of confirm. Generic fallback for any leave/cancel/dismiss/fail action — reuse the id                                                                                                    |
-| Setting toggle / checkbox | square   | 1000     | 1500   | A 0.001 / D 0.005 / S 0.0 / R 0.005 SL 0.0 | Quick toggle tick, duty = 0.5                                                                                                                                                                                       |
-| Error / blocked action    | saw      | 260      | 120    | A 0.004 / D 0.08 / S 0.0 / R 0.06 SL 0.3   | Descending buzz, short. Generic fallback for UI errors — reuse the id                                                                                                                                               |
+| Intent                    | Waveform | Start Hz | End Hz | Envelope                                   | Notes                                                                                                            |
+| ------------------------- | -------- | -------- | ------ | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Click / button press      | square   | 1500     | 500    | A 0.001 / D 0.005 / S 0.0 / R 0.005 SL 0.0 | Very short spike, duty = 0.1                                                                                     |
+| Button hover              | sine     | 600      | 600    | A 0.001 / D 0.002 / S 0.0 / R 0.002 SL 0.0 | Very soft tick, quiet (-15 dB), 1 variant                                                                        |
+| Confirm / success         | sine     | 1200     | 800    | A 0.002 / D 0.04 / S 0.02 / R 0.02 SL 0.3  | Generic fallback for any confirm/continue/select/success action — reuse the id, do not author per-action copies  |
+| Cancel / dismiss          | square   | 400      | 200    | A 0.003 / D 0.02 / S 0.0 / R 0.02 SL 0.2   | Short downward blip, mirror of confirm. Generic fallback for any leave/cancel/dismiss/fail action — reuse the id |
+| Setting toggle / checkbox | square   | 1000     | 1500   | A 0.001 / D 0.005 / S 0.0 / R 0.005 SL 0.0 | Quick toggle tick, duty = 0.5                                                                                    |
+| Error / blocked action    | saw      | 260      | 120    | A 0.004 / D 0.08 / S 0.0 / R 0.06 SL 0.3   | Descending buzz, short. Generic fallback for UI errors — reuse the id                                            |
 
 ### Combat & Movement
 
 SFX for ARPG gameplay moments — attacks, hits, movement, pickups.
 
-| Intent               | Waveform | Start Hz | End Hz | Envelope                                 | Notes                                                                                            |
-| -------------------- | -------- | -------- | ------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Light hit / impact   | noise    | —        | —      | A 0.001 / D 0.018 / S 0.0 / R 0.018 SL 0.2 | Noise burst with instant decay. Use for fast light impacts. Filter hp 250, lp 3200.              |
-| Heavy hit / impact   | noise    | —        | —      | A 0.002 / D 0.04 / S 0.0 / R 0.03 SL 0.3   | Longer noise burst for heavy attacks. Filter hp 100, lp 2000.                                    |
-| Dash / dodge          | noise    | —        | —      | A 0.004 / D 0.04 / S 0.02 / R 0.04 SL 0.35 | Whoosh with sustain punch (0.4). Filter hp 900, lp 5000. Slightly longer for movement feel.      |
-| Pickup / collect      | triangle | 900      | 1800   | A 0.001 / D 0.08 / S 0.02 / R 0.05 SL 0.35 | Rising chime with arpeggio ([0, 5, 12]) and sustain punch (0.3).                                 |
-| Sword swing / slash   | noise    | —        | —      | A 0.001 / D 0.03 / S 0.0 / R 0.02 SL 0.25  | Quick whoosh, hp 600, lp 4000. Use for weapon swings.                                            |
-| Player hurt           | saw      | 400      | 100    | A 0.003 / D 0.12 / S 0.0 / R 0.08 SL 0.35  | Descending harsh tone. Longer for damage feedback emphasis.                                      |
-| Death / defeat        | sine     | 600      | 80     | A 0.01 / D 0.3 / S 0.0 / R 0.3 SL 0.25    | Long descending tone. Low sustain, dramatic fade.                                                |
+| Intent              | Waveform | Start Hz | End Hz | Envelope                                   | Notes                                                                                       |
+| ------------------- | -------- | -------- | ------ | ------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Light hit / impact  | noise    | —        | —      | A 0.001 / D 0.018 / S 0.0 / R 0.018 SL 0.2 | Noise burst with instant decay. Use for fast light impacts. Filter hp 250, lp 3200.         |
+| Heavy hit / impact  | noise    | —        | —      | A 0.002 / D 0.04 / S 0.0 / R 0.03 SL 0.3   | Longer noise burst for heavy attacks. Filter hp 100, lp 2000.                               |
+| Dash / dodge        | noise    | —        | —      | A 0.004 / D 0.04 / S 0.02 / R 0.04 SL 0.35 | Whoosh with sustain punch (0.4). Filter hp 900, lp 5000. Slightly longer for movement feel. |
+| Pickup / collect    | triangle | 900      | 1800   | A 0.001 / D 0.08 / S 0.02 / R 0.05 SL 0.35 | Rising chime with arpeggio ([0, 5, 12]) and sustain punch (0.3).                            |
+| Sword swing / slash | noise    | —        | —      | A 0.001 / D 0.03 / S 0.0 / R 0.02 SL 0.25  | Quick whoosh, hp 600, lp 4000. Use for weapon swings.                                       |
+| Player hurt         | saw      | 400      | 100    | A 0.003 / D 0.12 / S 0.0 / R 0.08 SL 0.35  | Descending harsh tone. Longer for damage feedback emphasis.                                 |
+| Death / defeat      | sine     | 600      | 80     | A 0.01 / D 0.3 / S 0.0 / R 0.3 SL 0.25     | Long descending tone. Low sustain, dramatic fade.                                           |
 
 For `pitch` fields, use `slide_curve: 0.0` (linear) unless a specific curve shape is desired. Add `variant_count: 2` or `3` for sounds that play frequently (click, hit, confirm) to add audible variety.
 
