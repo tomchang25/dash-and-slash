@@ -11,6 +11,7 @@ The sandboxed Linux shell can return **phantom file corruption** for files in th
 - Right after the **user** runs git on the Windows side, even `.git/index` reads through the mount can be garbled (`fatal: unknown index entry format 0x…`). Object-DB reads (`git show HEAD:<file>`) stay reliable; index-based commands (`git show :<file>`, `checkout-index`, `status`) may fail transiently — report and retry later instead of attempting repairs.
 - Consequence for testing: normal implementation agents must not run engine/test commands against the mounted working tree. Dedicated test workflows are opt-in only.
 - Cross-OS `/tmp` bind mounts can break dedicated test snapshots too: mounting `E:/tmp` to container `/tmp` made `/tmp/ds.*` live on the Windows/Docker Desktop mount instead of a native Linux filesystem, which produced bogus `.import`, UID, or resource-cache failures. Commenting out `- 'E:/tmp:/tmp'` made the same import flow normal again.
+- The agent has **no interactive engine access and cannot capture screenshots**. It cannot launch the game, drive input, or visually observe runtime, telegraph, animation, timing, or hitbox behavior. The only agent-runnable check is the opt-in headless unit-test snapshot (`godot_tests.md`), which asserts logic — not on-screen behavior. Runtime and visual confirmation is the user's manual responsibility in the real Godot editor.
 
 ## Rules
 
@@ -20,3 +21,4 @@ The sandboxed Linux shell can return **phantom file corruption** for files in th
 - To check whether the mount is serving a truncated view of a file: compare `wc -c <file>` against `git cat-file -s :<file>`. Mount smaller than index ⇒ truncated view (the index is LF-normalized, so the working tree should never be smaller).
 - Any error found by a shell-side tool (linter, engine tools, python) must be cross-checked against the Windows side (Read/Grep file tools) before being reported as real.
 - Do not bind-mount a host Windows directory onto container `/tmp` for dedicated test snapshots.
+- Do not recommend agent-driven runtime, visual, or screenshot-based verification, and do not ask the user to "add an agent auto-verification / self-check loop" — the sandbox cannot run or observe the engine, so no such loop is possible. For behavior-sensitive changes, cover what unit tests _can_ assert (cell footprints, numeric equivalence, state transitions) via the opt-in snapshot, and explicitly hand the remaining runtime/visual confirmation to the user as a manual check rather than framing it as missing automation the agent should build.

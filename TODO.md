@@ -22,7 +22,12 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-Nothing currently in progress.
+- [enemy] Unify attack execution ownership, fallback attack-data defaults, charge movement, and state-id boilerplate across all enemy kinds — ref plans/enemy_kind_unification.md
+- [enemy] Unify enemy state-identity override boilerplate down to only genuine kind differences — ref plans/enemy_kind_unification_01_state_id_cleanup.sketch.md
+- [enemy] Unify ChargeEnemy and PuffEnemy attack-node lookups onto %UniqueName — ref plans/enemy_kind_unification_02_node_lookup_unification.sketch.md
+- [enemy] Replace ModeEnemyAttackController and hand-rolled hitbox configuration with shared tile/point attack executors — ref plans/enemy_kind_unification_03_attack_executors.implementation_spec.md
+- [enemy] Consolidate enemy attack-profile fallback defaults into one shared source — ref plans/enemy_kind_unification_04_default_profile_fallback.sketch.md
+- [enemy] Unify ChargeEnemy and ModeEnemy charge-mode traversal into one shared implementation — ref plans/enemy_kind_unification_05_charge_traversal.implementation_spec.md
 
 ---
 
@@ -116,13 +121,6 @@ Replace uniform enemy scene selection with weighted spawn pools that can scale b
 - Allow spawn weights to vary by wave, milestone, stage, or run configuration.
 - Keep reward downside pressure as fixed future enemy additions or weighted pool modifiers instead of hidden randomness.
 - Consider lowering ChargeEnemy spawn share after the idle-corner fallback fix has been tested in real waves.
-
-### Mode Enemy Attack Data Requirement
-
-Make `ModeEnemyAttackController` require `EnemyAttackData` for attack planning instead of keeping no-data fallback geometry.
-
-- Remove `_get_tile_attack_cells`, `_get_charge_cells`, and `_create_origin_candidate_attack_data` after controller setup guarantees attack data.
-- Keep fallback attack data creation in `ModeEnemy` as the source of compatibility defaults.
 
 ### Terrain Chaos Rewards
 
