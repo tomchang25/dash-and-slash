@@ -20,7 +20,7 @@ func _enter() -> void:
     player.enable_dash_hitbox()
     _dash_dir = player.consume_dash_direction()
     player.begin_dash_vfx(_dash_dir)
-    player.velocity = _dash_dir * player.DASH_SPEED
+    player.velocity = _dash_dir * player.get_dash_speed()
     _timer = Timer.new()
     _timer.one_shot = true
     _timer.timeout.connect(_on_timer_timeout)
@@ -30,7 +30,7 @@ func _enter() -> void:
 
 func _physics_update(delta: float) -> void:
     player.update_dash_vfx(delta)
-    player.velocity = _dash_dir * player.DASH_SPEED
+    player.velocity = _dash_dir * player.get_dash_speed()
 
 
 func _exit() -> void:

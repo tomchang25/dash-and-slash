@@ -19,9 +19,7 @@ const DASH_COOLDOWN := 2.0
 const MIN_DASH_COOLDOWN := 0.5
 const ATTACK_DURATION := 0.25
 const MIN_ATTACK_DURATION := 0.08
-const ATTACK_RANGE := 152.0
-const ATTACK_CAPSULE_RADIUS := 64.0
-const ATTACK_CAPSULE_HEIGHT := 208.0
+const MAX_DASH_RANGE_BONUS_PERCENT := 200.0
 const DASH_INVULN_EXTEND := 1.0
 const DASH_GHOST_INTERVAL := 0.04
 const DASH_GHOST_FADE_SEC := 0.32
@@ -140,12 +138,34 @@ func get_dash_attack_damage() -> float:
     return _run_stats.dash_attack_damage
 
 
+## Returns the current normal attack hit-geometry scale (1.0 = base reach and shape size).
+## Shared by any future melee-style weapon effect that needs the same offset/shape scaling.
+func get_normal_attack_range_scale() -> float:
+    _ensure_run_stats()
+    return 1.0 + _run_stats.normal_attack_range_bonus_percent / 100.0
+
+
+## Returns the current dash travel speed, scaled by the run-local dash range bonus.
+## DASH_DURATION stays fixed so i-frame timing and trail VFX pacing are unaffected.
+func get_dash_speed() -> float:
+    _ensure_run_stats()
+    return DASH_SPEED * (1.0 + _run_stats.dash_range_bonus_percent / 100.0)
+
+
 ## Adds a run-local bonus to normal attack damage.
 func add_normal_attack_damage(amount: float) -> void:
     if amount <= 0.0:
         return
     _ensure_run_stats()
     _run_stats.normal_attack_damage += amount
+
+
+## Adds a run-local percentage-point bonus to normal attack hit-geometry scale.
+func add_attack_range(amount: float) -> void:
+    if amount <= 0.0:
+        return
+    _ensure_run_stats()
+    _run_stats.normal_attack_range_bonus_percent += amount
 
 
 ## Reduces the run-local normal attack duration, clamped to the first-pass minimum.
@@ -171,6 +191,18 @@ func reduce_dash_cooldown(amount: float) -> void:
     _ensure_run_stats()
     _run_stats.dash_cooldown = max(_run_stats.dash_cooldown - amount, MIN_DASH_COOLDOWN)
     _dash_cooldown_remaining = min(_dash_cooldown_remaining, _run_stats.dash_cooldown)
+
+
+## Adds a run-local percentage-point bonus to dash travel distance, clamped against
+## MAX_DASH_RANGE_BONUS_PERCENT to keep dash speed from outrunning hit detection.
+func add_dash_range(amount: float) -> void:
+    if amount <= 0.0:
+        return
+    _ensure_run_stats()
+    _run_stats.dash_range_bonus_percent = min(
+        _run_stats.dash_range_bonus_percent + amount,
+        MAX_DASH_RANGE_BONUS_PERCENT,
+    )
 
 
 ## Adds max health through the owned Health component.
@@ -317,21 +349,33 @@ func end_dash_invulnerability() -> void:
 # == Combat helpers =============================================================
 
 
+## Uniformly scales a hit-geometry node (collision shape or paired VFX) so reach and
+## footprint grow together. Shared by normal attack today; future melee-style weapon
+## effects (e.g. Smash) reuse this instead of re-deriving hit-geometry scaling.
+func _apply_hit_geometry_scale(node: Node2D, p_scale: float) -> void:
+    node.scale = Vector2.ONE * p_scale
+
+
 func _position_attack_shape(aim_dir: Vector2) -> void:
-    _attack_hitbox.position = aim_dir * ATTACK_RANGE
+    var run_stats := get_run_stats()
+    var range_scale := get_normal_attack_range_scale()
+    _attack_hitbox.position = aim_dir * run_stats.attack_range * range_scale
     _attack_hitbox.rotation = aim_dir.angle() + PI / 2.0
+    _apply_hit_geometry_scale(_attack_hitbox, range_scale)
 
 
 func _play_attack_vfx(aim_dir: Vector2) -> void:
     var attack_duration := get_normal_attack_duration()
-    _attack_vfx.position = aim_dir * ATTACK_RANGE
+    var run_stats := get_run_stats()
+    var range_scale := get_normal_attack_range_scale()
+    _attack_vfx.position = aim_dir * run_stats.attack_range * range_scale
     _attack_vfx.rotation = aim_dir.angle() + PI / 2.0
     _attack_vfx.visible = true
     _attack_vfx.modulate = Color(1.0, 1.0, 1.0, 0.85)
-    _attack_vfx.scale = Vector2(0.75, 0.75)
+    _attack_vfx.scale = Vector2.ONE * (0.75 * range_scale)
 
     var tween := create_tween()
-    tween.tween_property(_attack_vfx, "scale", Vector2.ONE, 0.06)
+    tween.tween_property(_attack_vfx, "scale", Vector2.ONE * range_scale, 0.06)
     tween.parallel().tween_property(_attack_vfx, "modulate:a", 0.0, attack_duration)
 
 

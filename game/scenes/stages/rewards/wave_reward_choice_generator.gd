@@ -246,6 +246,38 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
             ],
         ),
         WaveRewardEffectDefinition.new(
+            "attack_range_up",
+            WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_RANGE,
+            WaveRewardEffectDefinition.Tier.MINOR,
+            "Longer Reach",
+            "+%d%% attack range",
+            -1,
+            10.0,
+            3,
+            1,
+            [
+                WaveRewardEffectDefinition.Profile.CONSERVATIVE,
+                WaveRewardEffectDefinition.Profile.BALANCED,
+                WaveRewardEffectDefinition.Profile.AGGRESSIVE,
+            ],
+        ),
+        WaveRewardEffectDefinition.new(
+            "dash_range_up",
+            WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_RANGE,
+            WaveRewardEffectDefinition.Tier.MINOR,
+            "Longer Dash",
+            "+%d%% dash range",
+            -1,
+            10.0,
+            3,
+            1,
+            [
+                WaveRewardEffectDefinition.Profile.CONSERVATIVE,
+                WaveRewardEffectDefinition.Profile.BALANCED,
+                WaveRewardEffectDefinition.Profile.AGGRESSIVE,
+            ],
+        ),
+        WaveRewardEffectDefinition.new(
             "max_health_up",
             WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH,
             WaveRewardEffectDefinition.Tier.MINOR,
@@ -311,6 +343,10 @@ func _is_definition_applicable(definition: WaveRewardEffectDefinition, context: 
         WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_DASH_COOLDOWN:
             return context.get("player") is Player
         WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH:
+            return context.get("player") is Player
+        WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_RANGE:
+            return context.get("player") is Player
+        WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_RANGE:
             return context.get("player") is Player
         WaveRewardEffectDefinition.Kind.MAJOR_PLACEHOLDER:
             return true

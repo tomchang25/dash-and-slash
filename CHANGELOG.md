@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Player Attack Range Scale
+
+- 2026-07-03 — [player] Normal attack reach and dash travel distance are now data-driven, run-mutable stats instead of hardcoded constants, each offered as its own Minor wave reward (Longer Reach, Longer Dash)
+
 ### Player Death & Restart Panel
 
 - 2026-07-03 — [player] Player death now shows a restart banner that reloads a fresh arena run, clears surviving enemies and elite HUD state on run end, and includes debug-only god-mode and instant-kill controls for testing the death flow

@@ -56,6 +56,12 @@ func _apply_effect(effect: WaveRewardEffect) -> void:
         WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH:
             if _player != null:
                 _player.add_max_health(effect.total_magnitude())
+        WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_RANGE:
+            if _player != null:
+                _player.add_attack_range(effect.total_magnitude())
+        WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_RANGE:
+            if _player != null:
+                _player.add_dash_range(effect.total_magnitude())
         WaveRewardEffectDefinition.Kind.MAJOR_PLACEHOLDER:
             pass
 

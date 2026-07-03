@@ -30,15 +30,12 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-
 ---
 
 ## Chore
 
 One-line, no reasoning, no backing doc.
 
-- [dash] Add a Chain Dash major effect that auto-dashes toward nearby enemies after a successful dash hit.
-- [minor_effect] Data-drive player attack range so normal, dash, smash, and future weapon effects can scale hit geometry cleanly.
 - [wave-balance] Playtest and retune WaveScaling's per-tier hp/damage/defense growth constants against the target curve (runs ending ~wave 20, wave 30 as practical ceiling).
 - [terrain-balance] Cap Break Land at 2 tiles removed per wave now that waves are infinite.
 
