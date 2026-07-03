@@ -96,7 +96,9 @@ func get_wave_display_text() -> String:
     return "Wave %d" % get_wave_number()
 
 
-## Stops all further wave progression and spawning. Called on player death.
+## Stops all further wave progression and spawning, and force-kills every enemy
+## still alive so nothing keeps pathing/attacking against the input-locked
+## player. Called on player death.
 func end_run() -> void:
     _run_over = true
     _clear_spawn_queue_telegraphs()
@@ -104,6 +106,7 @@ func end_run() -> void:
         _wave_gap_timer.stop()
     if _spawn_telegraph_timer != null:
         _spawn_telegraph_timer.stop()
+    _kill_all_alive_enemies()
 
 
 ## Returns true once end_run() has been called for the current run.
@@ -122,19 +125,23 @@ func reset() -> void:
     _run_over = false
 
 
-## Debug-only: instantly kills every currently alive enemy. Iterates a copy of
-## _alive_enemies because each kill synchronously fires _on_enemy_died, which
-## mutates the live array. Callers must guard with Debug.enabled (see
-## debug_standard.md).
+## Debug-only: instantly kills every currently alive enemy. Callers must guard
+## with Debug.enabled (see debug_standard.md).
 func force_kill_all_enemies() -> void:
+    _kill_all_alive_enemies()
+
+# == Wave Flow ==
+
+
+## Iterates a copy of _alive_enemies because each kill synchronously fires
+## _on_enemy_died, which mutates the live array.
+func _kill_all_alive_enemies() -> void:
     for enemy in _alive_enemies.duplicate():
         if enemy == null or not is_instance_valid(enemy):
             continue
         var killable := enemy as Enemy
         if killable != null and killable.health != null:
             killable.health.kill()
-
-# == Wave Flow ==
 
 
 func _begin_wave() -> void:

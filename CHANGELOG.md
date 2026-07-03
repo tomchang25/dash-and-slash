@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Player Death & Restart Panel
+
+- 2026-07-03 — [player] Player death now shows a restart banner that reloads a fresh arena run, clears surviving enemies and elite HUD state on run end, and includes debug-only god-mode and instant-kill controls for testing the death flow
+
 ### Infinite Wave Mode
 
 - 2026-07-03 — [waves] Wave progression no longer ends at a fixed boss wave; waves continue indefinitely, with a milestone elite enemy spawning every 5th wave in place of the old one-time final boss

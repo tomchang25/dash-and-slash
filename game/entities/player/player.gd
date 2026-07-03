@@ -101,6 +101,21 @@ func debug_force_dash_ready() -> void:
     _dash_cooldown_remaining = 0.0
 
 
+## Debug-only: cycles player god mode Off -> Undead -> No-Damage -> Off and
+## returns the new mode. Callers must guard with Debug.enabled (see debug_standard.md).
+func debug_cycle_god_mode() -> Health.GodMode:
+    if health == null:
+        return Health.GodMode.OFF
+    return health.cycle_god_mode()
+
+
+## Debug-only: instantly kills the player, subject to the current god mode
+## (no-op unless Off). Callers must guard with Debug.enabled (see debug_standard.md).
+func debug_instant_kill() -> void:
+    if health != null:
+        health.kill()
+
+
 ## Returns the resolved normal attack duration used as first-pass attack cadence.
 func get_normal_attack_duration() -> float:
     _ensure_run_stats()

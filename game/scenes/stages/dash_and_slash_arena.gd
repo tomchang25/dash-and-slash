@@ -15,6 +15,8 @@ const WAVE_BANNER_FADE := 0.35
 @onready var _boss_guard_label: Label = %BossGuardLabel
 @onready var _wave_banner_overlay: Control = %WaveBannerOverlay
 @onready var _wave_banner_label: Label = %WaveBannerLabel
+@onready var _death_banner_overlay: Control = %DeathBannerOverlay
+@onready var _restart_button: Button = %RestartButton
 @onready var _reward_overlay: WaveRewardOverlay = %WaveRewardOverlay
 @onready var _debug_panel: DebugPanel = %DebugPanel
 
@@ -25,11 +27,16 @@ var _reward_controller: WaveRewardChoiceController
 var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
 var _reward_rng: RandomNumberGenerator
+var _current_elite: ModeEnemy
+var _elite_stagger_callback: Callable
+var _god_mode_button: Button
 
 
 func _ready() -> void:
     if Engine.is_editor_hint():
         return
+
+    _restart_button.pressed.connect(_on_restart_pressed)
 
     if _player.has_method("setup"):
         _player.setup(_grid)
@@ -112,25 +119,34 @@ func _on_wave_started(display_text: String, is_milestone_wave: bool) -> void:
 
 func _on_elite_spawned(enemy: Node) -> void:
     var elite := enemy as ModeEnemy
-    if elite != null:
-        elite.guard_changed.connect(_on_boss_guard_changed)
-        elite.guard_stagger_started.connect(func() -> void: _boss_guard_label.text = "GUARD BROKEN - STAGGERED!")
-        elite.emit_guard_snapshot()
+    if elite == null:
+        return
+    _current_elite = elite
+    _elite_stagger_callback = func() -> void: _boss_guard_label.text = "GUARD BROKEN - STAGGERED!"
+    elite.guard_changed.connect(_on_boss_guard_changed)
+    elite.guard_stagger_started.connect(_elite_stagger_callback)
+    elite.emit_guard_snapshot()
 
 
 func _on_elite_cleared() -> void:
+    _disconnect_elite_signals()
     _boss_guard_label.visible = false
 
 
 func _on_player_died(_entity: Player) -> void:
     _wave_controller.end_run()
+    _disconnect_elite_signals()
+    _boss_guard_label.visible = false
     if _reward_delay_tween != null and _reward_delay_tween.is_valid():
         _reward_delay_tween.kill()
     if _player.has_method("set_input_locked"):
         _player.set_input_locked(true)
-    _wave_label.modulate.a = 1.0
-    _wave_label.visible = true
-    _wave_label.text = "RUN OVER"
+    _hide_wave_banner()
+    _death_banner_overlay.visible = true
+
+
+func _on_restart_pressed() -> void:
+    SceneRouter.go_to_arena()
 
 
 func _on_normal_wave_complete(_wave_number: int, is_milestone_wave: bool) -> void:
@@ -178,6 +194,17 @@ func _move_player_to_safe_center_cell() -> void:
     _grid.set_player_cell(_player.global_position)
 
 
+func _disconnect_elite_signals() -> void:
+    if _current_elite == null or not is_instance_valid(_current_elite):
+        _current_elite = null
+        return
+    if _current_elite.guard_changed.is_connected(_on_boss_guard_changed):
+        _current_elite.guard_changed.disconnect(_on_boss_guard_changed)
+    if _elite_stagger_callback.is_valid() and _current_elite.guard_stagger_started.is_connected(_elite_stagger_callback):
+        _current_elite.guard_stagger_started.disconnect(_elite_stagger_callback)
+    _current_elite = null
+
+
 func _show_wave_banner(text: String) -> void:
     if _wave_banner_tween != null and _wave_banner_tween.is_valid():
         _wave_banner_tween.kill()
@@ -205,6 +232,8 @@ func _wire_debug_panel() -> void:
     _debug_panel.add_action("Add Tile", _on_debug_add_tile)
     _debug_panel.add_action("Remove Tile", _on_debug_remove_tile)
     _debug_panel.add_action("Move Tile", _on_debug_move_tile)
+    _god_mode_button = _debug_panel.add_action("God Mode: Off", _on_debug_cycle_god_mode)
+    _debug_panel.add_action("Instant Kill", _on_debug_instant_kill)
 
 
 func _on_debug_instant_dash() -> void:
@@ -217,6 +246,19 @@ func _on_debug_kill_all_enemies() -> void:
     if not Debug.enabled:
         return
     _wave_controller.force_kill_all_enemies()
+
+
+func _on_debug_cycle_god_mode() -> void:
+    if not Debug.enabled:
+        return
+    var mode := _player.debug_cycle_god_mode()
+    _god_mode_button.text = "God Mode: %s" % _god_mode_label(mode)
+
+
+func _on_debug_instant_kill() -> void:
+    if not Debug.enabled:
+        return
+    _player.debug_instant_kill()
 
 
 func _on_debug_add_tile() -> void:
@@ -235,3 +277,15 @@ func _on_debug_move_tile() -> void:
     if not Debug.enabled:
         return
     _grid.move_random_safe_land()
+
+
+func _god_mode_label(mode: Health.GodMode) -> String:
+    match mode:
+        Health.GodMode.OFF:
+            return "Off"
+        Health.GodMode.UNDEAD:
+            return "Undead"
+        Health.GodMode.NO_DAMAGE:
+            return "No-Damage"
+    ToastManager.show_dev_error("Arena: unexpected god mode %s" % mode)
+    return "Off"
