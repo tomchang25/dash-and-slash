@@ -95,6 +95,12 @@ func get_dash_cooldown() -> float:
     return _dash_cooldown_remaining
 
 
+## Debug-only: clears the current dash cooldown so the next dash request fires
+## immediately. Callers must guard with Debug.enabled (see debug_standard.md).
+func debug_force_dash_ready() -> void:
+    _dash_cooldown_remaining = 0.0
+
+
 ## Returns the resolved normal attack duration used as first-pass attack cadence.
 func get_normal_attack_duration() -> float:
     _ensure_run_stats()

@@ -59,6 +59,17 @@ func take_damage(amount: float, source: Node = null) -> void:
         died.emit()
 
 
+## Debug-only: instantly kills regardless of invulnerability. No-op while
+## disabled or already dead. Callers must guard with Debug.enabled (see
+## debug_standard.md).
+func kill() -> void:
+    if not _enabled or _current <= 0.0:
+        return
+    _current = 0.0
+    health_changed.emit(_current, max_health)
+    died.emit()
+
+
 ## Heals up to max. No-op while disabled or dead.
 func heal(amount: float) -> void:
     if not _enabled or _current <= 0.0 or amount <= 0.0:

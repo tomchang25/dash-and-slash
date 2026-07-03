@@ -16,6 +16,7 @@ const WAVE_BANNER_FADE := 0.35
 @onready var _wave_banner_overlay: Control = %WaveBannerOverlay
 @onready var _wave_banner_label: Label = %WaveBannerLabel
 @onready var _reward_overlay: WaveRewardOverlay = %WaveRewardOverlay
+@onready var _debug_panel: DebugPanel = %DebugPanel
 
 var _wave_controller: WaveController
 var _wave_banner_tween: Tween
@@ -64,6 +65,7 @@ func _ready() -> void:
 
     _boss_guard_label.visible = false
 
+    _wire_debug_panel()
     _wave_controller.start_next_wave()
 
 
@@ -193,3 +195,43 @@ func _hide_wave_banner() -> void:
         _wave_banner_tween.kill()
     _wave_banner_overlay.visible = false
     _wave_banner_overlay.modulate.a = 1.0
+
+# -- Debug (see dev/standards/debug_standard.md §4a/§5) -----------------------
+
+
+func _wire_debug_panel() -> void:
+    _debug_panel.add_action("Instant Dash", _on_debug_instant_dash)
+    _debug_panel.add_action("Kill All Enemies", _on_debug_kill_all_enemies)
+    _debug_panel.add_action("Add Tile", _on_debug_add_tile)
+    _debug_panel.add_action("Remove Tile", _on_debug_remove_tile)
+    _debug_panel.add_action("Move Tile", _on_debug_move_tile)
+
+
+func _on_debug_instant_dash() -> void:
+    if not Debug.enabled:
+        return
+    _player.debug_force_dash_ready()
+
+
+func _on_debug_kill_all_enemies() -> void:
+    if not Debug.enabled:
+        return
+    _wave_controller.force_kill_all_enemies()
+
+
+func _on_debug_add_tile() -> void:
+    if not Debug.enabled:
+        return
+    _grid.add_random_connected_land()
+
+
+func _on_debug_remove_tile() -> void:
+    if not Debug.enabled:
+        return
+    _grid.remove_random_safe_connected_land()
+
+
+func _on_debug_move_tile() -> void:
+    if not Debug.enabled:
+        return
+    _grid.move_random_safe_land()

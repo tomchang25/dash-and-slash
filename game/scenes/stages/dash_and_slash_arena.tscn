@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://svm2l7nywt4m" path="res://game/scenes/stages/Water.png" id="5_water"]
 [ext_resource type="PackedScene" path="res://game/shared/settings_button_overlay/settings_button_overlay.tscn" id="6_settings_button"]
 [ext_resource type="Script" uid="uid://c2yiaboqn4q6d" path="res://game/scenes/stages/rewards/wave_reward_overlay.gd" id="7_reward_overlay"]
+[ext_resource type="PackedScene" path="res://game/shared/debug_panel/debug_panel.tscn" id="8_debug_panel"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_water"]
 texture = ExtResource("5_water")
@@ -692,3 +693,6 @@ layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = ""
 horizontal_alignment = 1
+
+[node name="DebugPanel" parent="HUD" instance=ExtResource("8_debug_panel")]
+unique_name_in_owner = true
