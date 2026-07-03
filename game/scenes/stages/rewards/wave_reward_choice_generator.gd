@@ -84,6 +84,7 @@ func _is_valid_choice(
             return false
 
 
+## TODO, need cleanup this mess logic
 func _fallback_choice(
         profile: int,
         target_points: float,
@@ -98,20 +99,33 @@ func _fallback_choice(
         var effects := [options[a]]
         best_distance = _capture_best_effects(effects, target_points, best_effects, best_distance)
         for b in range(a + 1, options.size()):
+            if _shares_effect_id(options[b], effects):
+                continue
             effects = [options[a], options[b]]
             best_distance = _capture_best_effects(effects, target_points, best_effects, best_distance)
             if max_count < 3:
                 continue
             for c in range(b + 1, options.size()):
+                if _shares_effect_id(options[c], effects):
+                    continue
                 effects = [options[a], options[b], options[c]]
                 best_distance = _capture_best_effects(effects, target_points, best_effects, best_distance)
                 if max_count < 4:
                     continue
                 for d in range(c + 1, options.size()):
+                    if _shares_effect_id(options[d], effects):
+                        continue
                     effects = [options[a], options[b], options[c], options[d]]
                     best_distance = _capture_best_effects(effects, target_points, best_effects, best_distance)
 
     return WaveRewardChoice.new(profile, target_points, best_effects)
+
+
+func _shares_effect_id(candidate: WaveRewardEffect, chosen: Array) -> bool:
+    for effect: WaveRewardEffect in chosen:
+        if effect.definition.effect_id == candidate.definition.effect_id:
+            return true
+    return false
 
 
 func _capture_best_effects(
