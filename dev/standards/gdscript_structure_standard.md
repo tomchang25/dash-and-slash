@@ -40,6 +40,7 @@ Rules:
 - `Reads` and `Writes` list managed state fields this script touches when that makes scene flow easier to review.
 - If the script reads nothing, omit the `Reads` line.
 - If the script writes nothing, omit the `Writes` line.
+- Comment and docstring text (the file header description above, and `##` GDDoc comments on functions) is an explicit exception to the global no-hard-wrap-prose rule in `dev/agent_rules/agent_startup.md`, because the project's GDScript formatter enforces a hard 180-character max-line-length. Wrap comment prose one sentence per line. If a single sentence would exceed 180 characters, break it at the nearest clause boundary (comma, semicolon, or parenthetical) — never mid-word — and prefer a break near 120 characters over letting the line run close to 180. Continuation lines repeat the `#` / `##` marker.
 
 ---
 
