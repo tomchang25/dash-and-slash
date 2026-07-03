@@ -242,9 +242,6 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
         health.take_damage(hp_damage, source)
 
     if health != null and not health.is_alive():
-        var dead_state_id := get_dead_state_id()
-        if _state_machine != null and dead_state_id >= 0:
-            _state_machine.request_transition(dead_state_id, true)
         return
 
     if _guard != null:
@@ -498,16 +495,13 @@ func begin_death() -> void:
         hurtbox.set_enabled(false)
 
 
-## Force-death entry point for boss wave resolution. Routes through the existing
-## death cleanup flow and emits the died signal so owning systems can react.
+## Force-death entry point for boss wave resolution. Zeroes hp through Health,
+## which fires the same Health.died path combat damage and debug instant-kill
+## use, so death effects run through _on_death_effects() exactly once
+## regardless of entry point.
 func force_death() -> void:
-    if health != null and not health.is_alive():
-        return
-    begin_death()
-    var dead_state_id := get_dead_state_id()
-    if _state_machine != null and dead_state_id >= 0:
-        _state_machine.request_transition(dead_state_id, true)
-    died.emit(self)
+    if health != null:
+        health.kill()
 
 
 func play_death_sfx() -> void:
@@ -1117,3 +1111,12 @@ func _on_begin_death_extra() -> void:
 
 func _reset_extra() -> void:
     pass
+
+
+## Enemy.gd override point, fired once from Health.died via _on_health_died().
+## Requests the dead-state transition; begin_death(), the death sfx, and the
+## death tween all live in EnemyDeadState._enter(), not here.
+func _on_death_effects() -> void:
+    var dead_state_id := get_dead_state_id()
+    if _state_machine != null and dead_state_id >= 0:
+        _state_machine.request_transition(dead_state_id, true)
