@@ -30,6 +30,8 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
+- [reward-rework] Reward effect rework: split Tile Op out of the card pool, fix same-option duplicate effects, and unify reward effects into self-contained effect objects with a run-scoped applied-effect store and Major cap/exclusivity scaffold — see `dev/docs/plans/reward_effect_rework.md`.
+
 ---
 
 ## Chore
@@ -37,7 +39,6 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 One-line, no reasoning, no backing doc.
 
 - [wave-balance] Playtest and retune WaveScaling's per-tier hp/damage/defense growth constants against the target curve (runs ending ~wave 20, wave 30 as practical ceiling).
-- [terrain-balance] Cap Break Land at 2 tiles removed per wave now that waves are infinite.
 
 ---
 
@@ -53,16 +54,12 @@ Preliminary concepts — bigger than a one-liner, but a single `###` sub-section
 
 ### Major And Minor Run Build Effects
 
-Move reward effects toward persistent run build state instead of only immediate stat mutation.
+Move reward effects toward persistent run build state instead of only immediate stat mutation. The store itself (applied effects projected into stats, Major effects capped at 4 with an exclusivity-group check, all as unified effect objects) is now specified in `dev/docs/plans/reward_effect_rework.md` — remaining here is only the part that plan explicitly excludes: real ability behavior.
 
-- Major effects are capped at 4 and change ability behavior.
-- Minor effects stack without a hard cap and mostly modify stats or small rules.
-- Dash type, Smash replacement, Chain Dash, execution, cooldown, range, and triggered effects should survive later ability swaps.
-- Existing direct stat rewards can remain as first-pass Minor effects.
+- Dash type, Smash replacement, Chain Dash, execution, cooldown, range, and triggered effects should survive later ability swaps — needs the ability_overrides/triggered_effects data shapes, which the reward-rework plan deliberately does not build.
 - Guard Shredder major: back dash hit instantly zeroes target guard and enters stagger, bypassing the max(half_guard, 32) baseline calc.
 - Execution major: dash hit on an already-staggered enemy instantly kills instead of applying the 2.0x stagger burst multiplier.
-
-- Chain Dash and Smash are mutually exclusive, so It will need an exclusive logic to handle it
+- Chain Dash and Smash are mutually exclusive by design (see the reward-rework plan's exclusivity-group mechanism) — once both exist as real Major effects, they need to be authored into the same exclusivity group.
 
 ### Guard Damage, HP Bypass, And Stagger Burst Rework
 
@@ -105,11 +102,9 @@ Replace uniform enemy scene selection with weighted spawn pools that can scale b
 
 ### Terrain Chaos Rewards
 
-Keep terrain mutation random but readable enough for fast chaotic play.
+Keep terrain mutation readable enough for fast chaotic play. Break Land and Move Land moving from random card-pool pressure to a fixed once-per-wave Tile Op is now specified in `dev/docs/plans/reward_effect_rework.md`.
 
 - Keep connected-land safety as the main terrain rule.
-- Keep Break Land and Move Land as random pressure effects; cap Break Land at 2 tiles removed per wave.
-- Add Expand Land as the fixed every-5-wave recovery valve, at 10 tiles per milestone.
 - Add Corrupt Land as a visible tick-damage zone; dash i-frames already prevent tick damage while dashing through it, so no extra dash-vs-corrupt rule is needed.
 - Reward downside copy is not fully consistent yet (Aggressive-tier offers read more clearly than the others) — accepted gap for now, not blocking this work.
 

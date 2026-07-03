@@ -1,0 +1,82 @@
+# Reward Effect Rework: Tile Op Split, Duplicate-Free Options, Unified Effect Objects
+
+## Goal
+
+Rework the wave reward system so terrain mutation happens on a predictable, fixed cadence outside the reward-choice UI instead of being one of several randomly-weighted card options, reward options can never present the same effect twice, and every reward effect becomes a self-contained object that owns its own offer-eligibility and application — replacing the current centralized enum-and-switch dispatch. This last change is prerequisite groundwork: applied effects live in a run-scoped store that player stats are projected from, so a future behavior-changing effect (for example, one that replaces the dash with a different ability) can reshape an ability without silently eating the contribution of a numeric effect applied earlier, and Major/Minor effects share one storage and dispatch shape instead of two parallel ones.
+
+## Requirements
+
+1. Terrain mutation (moving or removing land) happens automatically once per normal wave clear, independent of the reward-choice screen, picking between exactly two fixed shapes — this mirrors how a periodic land-expansion grant already happens outside the card system on milestone waves, and removes the current failure mode where several terrain cards stacking in one Aggressive pick could produce a much larger, unpredictable terrain swing than intended.
+2. The reward pool keeps its three existing risk-tier profiles. Terrain mutation is removed from the pickable pool entirely; the pool slot it used to fill is replaced with new pressure-style options that raise future enemy toughness (health, damage, and defense), sitting alongside the existing option that raises future enemy count, so each risk tier still offers a comparable menu of upside/downside trade-offs.
+3. A single reward option must never present the same effect twice (for example, two separate "+Attack Range" lines within one option) — a rare fallback path in the current roll logic can produce this today even though the primary path already prevents it. The same effect appearing once each in two different options offered side by side in the same choice screen is intentional and stays unaffected.
+4. Each reward effect becomes a self-contained unit that owns its own answer to "can I be offered given the current run state?" and its own "apply me," replacing the single shared effect-type enum that three separate switch statements currently branch on. Adding or changing an effect should touch one unit, not several parallel switches — the pool is meant to grow, and the current scatter makes every addition error-prone. Balance numbers stay authored in one central place, not scattered as constants across the effect units, so tuning stays in one spot.
+5. A player's applied reward effects are recorded in a run-scoped store, and effective stats are projected from that store — recomputed from the authored base plus every applied numeric effect's contribution — rather than each effect destructively adding a number into a running stat the moment it is picked. This changes storage and dispatch only: every numeric effect that exists today must produce the exact same final stats, in any pick order, including every existing clamp and floor.
+6. Behavior-changing effects (the tier of reward that changes how an ability works, not just its numbers) get a hard cap on how many can be active in one run at once, and a way to mark two such effects as mutually exclusive so a player can never hold both at the same time. This is a specialization within the same effect hierarchy and store as the numeric effects, not a parallel system. This pass is architecture only: no new behavior-changing effect ships in this work, only the capacity and conflict-checking a later one will need — proven now using the one placeholder behavior-changing effect that already exists.
+7. The project's design document is updated wherever this rework supersedes a rule it had already settled (the old terrain-card cadence, and the previously-open question of whether two specific future dash-altering effects should be allowed to coexist), then this plan is closed out the same way any other plan in this project is — recorded in the shipped-work history, its pointer removed from the open-work list, its phase files archived — so it stops being a second source of truth once its design is folded into the design document and the code.
+
+## Design
+
+### Phase overview
+
+| Phase | Focus                  | One-line description                                                                                                                                                                                                       |
+| ----- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Duplicate-effect fix   | Close the fallback-roll gap that can let one reward option show the same effect twice.                                                                                                                                     |
+| 2     | Tile Op split          | Move terrain mutation out of the reward pool into a fixed, automatic once-per-wave event.                                                                                                                                  |
+| 3     | Unified effect objects | Replace enum-and-switch dispatch with per-effect objects owning their own eligibility and application, applying into a run-scoped store player stats project from. Behavior-preserving for every effect that exists today. |
+| 4     | Enemy pressure effects | Add the enemy-toughness pressure effects as new effect objects on the Phase 3 architecture, backed by wave/run accumulators.                                                                                               |
+| 5     | Major effect scaffold  | Add the run-wide cap and mutual-exclusivity check for behavior-changing effects, as a specialization within the same hierarchy and store.                                                                                  |
+| 6     | GDD sync and closeout  | Update the design document to match shipped behavior, then run this project's standard closeout workflow.                                                                                                                  |
+
+Phase 1 (duplicate fix) and Phase 2 (tile op split) are independent of the architecture and land first, against the current code — they are clear net improvements that should not wait behind an architecture discussion. Phase 3 is the foundational migration: it moves the existing effects onto the new per-effect-object shape without changing any observable behavior, and must land before Phases 4 and 5 because both grow directly out of the new architecture — building them on the old switch dispatch first would mean implementing them twice. Phase 4 adds new effect objects; Phase 5 adds the behavior-changing specialization. Phase 6 runs last, once Phases 1 through 5 have all shipped.
+
+Phase 2 trims two members from the effect-type enum that Phase 3 later dissolves entirely; this small overlap is accepted because Phase 2 ships independently against the current code and the trimmed work is two switch arms.
+
+Each phase's implementation detail is recorded separately: Phases 1 and 6 as sketches (small, single-system or documentation-only, already fully settled), Phases 2 through 5 as implementation specs (each touches more than one system's ownership boundary and benefits from stated call-direction and ownership rules before an implementer starts).
+
+### Effect architecture
+
+Today a single effect-type enum names every effect, and three separate places branch on it: one decides whether an effect can be offered given the current run state, one decides what applying it does, and one filters the pool. Adding an effect means editing all of them plus the enum — the scatter that makes the pool rigid and every addition error-prone.
+
+The rework replaces that with one object per effect. Each effect object owns its own answer to "can I be offered right now, given the grid, player, and run state?" and its own "apply me." Rolling reads each effect's balance metadata — its point cost, its per-stack magnitude, which risk tiers it belongs to, its earliest wave — off the same object. The pool becomes a list of these objects; adding an effect is adding one object, touching no shared switch.
+
+Balance numbers stay authored in one central place — the objects are constructed there with their numbers — rather than hardcoded as constants scattered across the effect units, so tuning stays in one readable spot. The object carries behavior; the numbers are data fed into it. The existing prototype/instance split survives: the pool holds effect prototypes carrying metadata and behavior, and a rolled option holds those prototypes paired with a chosen stack count, so the roll's point-budget math is untouched.
+
+Applying a chosen option becomes one uniform step: ask each effect in the option to apply itself against a context that exposes the relevant owners — the terrain authority, the player-stat owner, the wave/run owner. The context is the one place ownership discipline concentrates: each effect only reaches the owner it legitimately mutates, so distributing the apply logic across effect objects does not distribute mutation authority across the whole codebase. This keeps the single-owner-per-state rule intact rather than handing every effect the whole world.
+
+Minor and Major effects share this one hierarchy and one store. They diverge only where they must: a minor effect contributes to the player's projected stats; a major effect additionally participates in a run-wide count cap and an exclusivity-group check, and — in later work outside this rework — will drive ability-behavior overrides. Storage and dispatch unify; only the per-tier query semantics differ.
+
+### Tile Op cadence and shape
+
+Every normal wave clear triggers exactly one terrain mutation, chosen randomly between two fixed shapes with equal probability: relocate two land tiles (net shape change, no land gained or lost), or remove one land tile outright. This replaces the two terrain reward cards that previously let the same shift happen zero, one, or several times per wave depending on what a player picked and how much they stacked. The periodic milestone land-expansion grant is untouched and continues to run alongside this, on milestone waves only. The 50/50 split is a first-pass balance choice, kept as an easily-adjustable constant.
+
+### Enemy pressure options
+
+Three new pressure effects join the existing future-enemy-count effect, each raising one dimension of future enemy toughness — health, damage, or defense — permanently for the remainder of the run once picked, the same way future-enemy-count pressure already persists. Like the enemy-count effect, these are pure downside trade-offs and are not offered in the lowest-risk tier. Their point cost relative to the enemy-count effect and their per-stack magnitude are first-pass balance numbers that must be calibrated with eyes open: assigning the same point cost to "one more enemy" and "+X% health across the whole wave" is very likely mis-tuned, because the point system's entire job is to make trades comparable.
+
+### Applied-effect store and stat projection
+
+Picking a reward no longer destructively adds a number into a running stat. The chosen effects are recorded in a run-scoped store, and the player's effective stats are a projection over that store: authored base plus every applied numeric effect's contribution, recomputed on read. This is the concrete reason the store exists rather than a plain running total — when a later behavior-changing effect reshapes an ability, the numeric effects applied earlier are still present in the store and still contribute, so nothing an earlier pick added can be silently eaten by a later one, because no pick ever mutated a shared number in place. Every existing clamp and floor (minimum attack cadence, minimum dash cooldown, maximum dash-range bonus) still applies at the projection's final combined value, so today's stats are identical.
+
+The store holds minor and major effects together, which is also what makes a later effect-summary display — grouping applied effects for the player to read — a straight read of the store rather than a second bookkeeping path.
+
+### Major effect capacity and exclusivity
+
+Behavior-changing effects share the same store, capped at four active at once for the whole run, with an opt-in "exclusivity group" an effect can carry — two behavior-changing effects sharing a group can never both be active. An effect with no group never conflicts with anything. The cap and conflict check are queried from the store by the roll's per-effect eligibility step, the same seam the terrain-availability check uses today, so a full or conflicting behavior-changing effect is filtered out of the offer before it is ever rolled. Because no real behavior-changing effect ships in this work, the mechanism is proven using the run's one existing placeholder behavior-changing effect and a pair of synthetic identifiers standing in for two future dash-altering effects that are meant to conflict.
+
+## Non-Goals
+
+1. No real behavior-changing effect (an auto-chaining dash, a heavy dash replacement, or similar) is implemented in this pass — only the capacity and conflict-checking architecture a later one will plug into. Ability-behavior overrides and event-triggered effect hooks are explicitly out of scope.
+2. No change to which numeric reward effects exist today, beyond adding the new enemy-toughness pressure options that replace terrain's former pool slot.
+3. No change to how many reward options are offered per wave clear, or when the choice screen appears relative to wave completion.
+4. No manual terrain targeting, preview, or player-directed placement — terrain mutation stays fully automatic, matching the existing pattern.
+5. No change to the periodic milestone land-expansion grant's own trigger condition or amount.
+6. No player-facing effect-summary display in this pass — the store is shaped so a later display can read it, but the display itself is separate work.
+
+## Acceptance Criteria
+
+1. Every normal wave clear mutates terrain exactly once, automatically, and neither terrain shape appears as a choosable reward option.
+2. No reward option ever displays the same effect on two of its own lines; the same effect appearing once on each of two different offered options at the same time is still allowed and unaffected.
+3. Migrating the existing effects onto the per-effect-object architecture changes no observable reward behavior — the same effects are offered under the same risk tiers and apply identically to before the migration.
+4. Applying any set of today's numeric reward effects, in any order, produces the same final player stats — including every existing clamp — as the current direct-addition approach, with the effects recorded in the store rather than folded into a running total.
+5. A behavior-changing effect can be shown to be rejected once its exclusivity group already has a member, or once the run-wide behavior-changing effect count is at its cap, demonstrable today via the placeholder effect and synthetic conflicting identifiers even though no real behavior-changing effect exists yet.
+6. The design document's terrain-cadence description and its previously-open dash-exclusivity question both match the shipped behavior, and once every phase ships no open-work pointer to this plan remains and no phase file sits outside the shipped-work archive.
