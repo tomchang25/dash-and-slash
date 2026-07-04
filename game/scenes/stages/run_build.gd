@@ -13,6 +13,9 @@ const CH_DASH_COOLDOWN := &"dash_cooldown"
 const CH_ATTACK_RANGE := &"attack_range"
 const CH_DASH_RANGE := &"dash_range"
 const CH_FUTURE_ENEMY_COUNT := &"future_enemy_count"
+const CH_ENEMY_HEALTH_PRESSURE := &"enemy_health_pressure"
+const CH_ENEMY_DAMAGE_PRESSURE := &"enemy_damage_pressure"
+const CH_ENEMY_DEFENSE_PRESSURE := &"enemy_defense_pressure"
 
 var _entries: Array[Dictionary] = []
 

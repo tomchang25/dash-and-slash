@@ -1,7 +1,7 @@
 # wave_controller.gd
 # Scene-local RefCounted that owns wave progression, spawn flow, and alive
-# enemies. Future enemy pressure is read from the injected run-scoped
-# RunBuild store rather than owned here.
+# enemies. Future enemy count and enemy-toughness pressure are both read from
+# the injected run-scoped RunBuild store rather than owned here.
 class_name WaveController
 extends RefCounted
 
@@ -87,6 +87,27 @@ func get_support_spawn_count() -> int:
 ## Returns 1 for milestone waves (elite spawn), 0 otherwise.
 func get_elite_spawn_count() -> int:
     return 1 if is_milestone_wave() else 0
+
+
+## Returns the hp multiplier for the current wave: WaveScaling's tier-formula
+## baseline plus any enemy-health pressure recorded in the run-build store.
+func get_hp_multiplier() -> float:
+    var pressure := max(0.0, _run_build.total(RunBuild.CH_ENEMY_HEALTH_PRESSURE))
+    return WaveScaling.get_hp_multiplier(get_wave_number()) + pressure
+
+
+## Returns the outgoing-damage multiplier for the current wave: WaveScaling's
+## tier-formula baseline plus any enemy-damage pressure recorded in the run-build store.
+func get_damage_multiplier() -> float:
+    var pressure := max(0.0, _run_build.total(RunBuild.CH_ENEMY_DAMAGE_PRESSURE))
+    return WaveScaling.get_damage_multiplier(get_wave_number()) + pressure
+
+
+## Returns the flat defense value for the current wave: WaveScaling's
+## tier-formula baseline plus any enemy-defense pressure recorded in the run-build store.
+func get_defense() -> float:
+    var pressure := max(0.0, _run_build.total(RunBuild.CH_ENEMY_DEFENSE_PRESSURE))
+    return WaveScaling.get_defense(get_wave_number()) + pressure
 
 
 ## Returns the 1-based current wave number.
@@ -235,11 +256,10 @@ func _apply_wave_scaling(enemy: Node) -> void:
     var grid_enemy := enemy as GridEnemy
     if grid_enemy == null:
         return
-    var wave_number := get_wave_number()
     grid_enemy.apply_wave_scaling(
-        WaveScaling.get_hp_multiplier(wave_number),
-        WaveScaling.get_damage_multiplier(wave_number),
-        WaveScaling.get_defense(wave_number),
+        get_hp_multiplier(),
+        get_damage_multiplier(),
+        get_defense(),
     )
 
 

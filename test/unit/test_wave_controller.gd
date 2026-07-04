@@ -201,6 +201,48 @@ func test_pressure_does_not_affect_elite_count() -> void:
         wc.advance_wave()
     assert_eq(wc.get_elite_spawn_count(), 1, "pressure does not add extra elites")
 
+# == Enemy-toughness pressure =====================================================
+
+
+func test_health_pressure_raises_hp_multiplier() -> void:
+    var wc := WaveController.new()
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+    run_build.record(RunBuild.CH_ENEMY_HEALTH_PRESSURE, 0.1)
+    wc.advance_wave()
+    assert_almost_eq(wc.get_hp_multiplier(), WaveScaling.get_hp_multiplier(1) + 0.1, 0.001)
+
+
+func test_damage_pressure_raises_damage_multiplier() -> void:
+    var wc := WaveController.new()
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+    run_build.record(RunBuild.CH_ENEMY_DAMAGE_PRESSURE, 0.1)
+    wc.advance_wave()
+    assert_almost_eq(wc.get_damage_multiplier(), WaveScaling.get_damage_multiplier(1) + 0.1, 0.001)
+
+
+func test_defense_pressure_raises_defense() -> void:
+    var wc := WaveController.new()
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+    run_build.record(RunBuild.CH_ENEMY_DEFENSE_PRESSURE, 3.0)
+    wc.advance_wave()
+    assert_almost_eq(wc.get_defense(), WaveScaling.get_defense(1) + 3.0, 0.001)
+
+
+func test_negative_toughness_pressure_is_clamped() -> void:
+    var wc := WaveController.new()
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+    run_build.record(RunBuild.CH_ENEMY_HEALTH_PRESSURE, -0.5)
+    run_build.record(RunBuild.CH_ENEMY_DAMAGE_PRESSURE, -0.5)
+    run_build.record(RunBuild.CH_ENEMY_DEFENSE_PRESSURE, -5.0)
+    wc.advance_wave()
+    assert_almost_eq(wc.get_hp_multiplier(), WaveScaling.get_hp_multiplier(1), 0.001, "negative health pressure is clamped to zero")
+    assert_almost_eq(wc.get_damage_multiplier(), WaveScaling.get_damage_multiplier(1), 0.001, "negative damage pressure is clamped to zero")
+    assert_almost_eq(wc.get_defense(), WaveScaling.get_defense(1), 0.001, "negative defense pressure is clamped to zero")
+
 # == Display text =================================================================
 
 
