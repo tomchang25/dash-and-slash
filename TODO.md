@@ -30,6 +30,9 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
+- [combat] Grey-box prototype validating player-clocked tick combat feel as the go/no-go gate for the full tick conversion — [ref plans/tick_combat_prototype.md]
+- [combat] Full conversion to player-clocked tick grid combat (input, enemies, speed stats, run loop), gated on the prototype verdict — [ref plans/tick_combat_rework.md]
+
 ---
 
 ## Chore
