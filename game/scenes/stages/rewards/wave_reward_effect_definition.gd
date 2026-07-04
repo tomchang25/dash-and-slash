@@ -1,19 +1,10 @@
 # wave_reward_effect_definition.gd
-# Runtime definition for one reward effect candidate used by wave reward rolling.
+# Abstract base for one reward effect candidate used by wave reward rolling.
+# Carries authored balance metadata; each concrete subclass owns its own
+# offer-eligibility and application.
+@abstract
 class_name WaveRewardEffectDefinition
 extends RefCounted
-
-enum Kind {
-    ADD_FUTURE_ENEMY,
-    ADD_PLAYER_NORMAL_ATTACK_DAMAGE,
-    REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN,
-    ADD_PLAYER_DASH_ATTACK_DAMAGE,
-    REDUCE_PLAYER_DASH_COOLDOWN,
-    ADD_PLAYER_MAX_HEALTH,
-    ADD_PLAYER_ATTACK_RANGE,
-    ADD_PLAYER_DASH_RANGE,
-    MAJOR_PLACEHOLDER,
-}
 
 enum Profile {
     CONSERVATIVE,
@@ -27,7 +18,6 @@ enum Tier {
 }
 
 var effect_id := ""
-var kind := Kind.ADD_FUTURE_ENEMY
 var tier := Tier.MINOR
 var display_name := ""
 var description_template := ""
@@ -42,7 +32,6 @@ var allowed_profiles: Array[int] = []
 
 func _init(
         init_effect_id: String,
-        init_kind: int,
         init_tier: int,
         init_display_name: String,
         init_description_template: String,
@@ -53,7 +42,6 @@ func _init(
         init_allowed_profiles: Array[int],
 ) -> void:
     effect_id = init_effect_id
-    kind = init_kind as Kind
     tier = init_tier as Tier
     display_name = init_display_name
     description_template = init_description_template
@@ -80,3 +68,18 @@ func is_minor() -> bool:
 
 func create_effect(stacks: int) -> WaveRewardEffect:
     return WaveRewardEffect.new(self, stacks)
+
+# == Effect Contract ==
+
+
+## Returns whether this effect can be offered given the current run context.
+## Defaults to true for effects with no context dependency (e.g. future-enemy
+## pressure, the major placeholder); override for effects that require a
+## specific owner to be present.
+func is_applicable(_context: WaveRewardContext) -> bool:
+    return true
+
+
+## Applies this effect's contribution for the given stack count against the
+## owners exposed by context. Every concrete subclass must implement this.
+@abstract func apply(context: WaveRewardContext, stacks: int) -> void

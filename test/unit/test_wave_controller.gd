@@ -138,10 +138,13 @@ func test_end_run_stops_advance_wave() -> void:
 
 func test_reset_clears_state() -> void:
     var wc := WaveController.new()
-    wc.add_future_enemy_count(5)
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+    run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 5)
     wc.advance_wave()
     wc.end_run()
     wc.reset()
+    run_build.clear()
     assert_eq(wc.get_wave_number(), 0, "wave number resets to 0")
     assert_true(wc.advance_wave(), "advance_wave should work again after reset")
     assert_eq(wc.get_support_spawn_count(), WaveScaling.get_support_count(1), "pressure should reset to 0")
@@ -151,20 +154,25 @@ func test_reset_clears_state() -> void:
 
 func test_support_count_matches_formula() -> void:
     var wc := WaveController.new()
+    wc.set_run_build(RunBuild.new())
     wc.advance_wave()
     assert_eq(wc.get_support_spawn_count(), WaveScaling.get_support_count(1))
 
 
 func test_future_pressure_adds_to_support_count() -> void:
     var wc := WaveController.new()
-    wc.add_future_enemy_count(3)
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+    run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 3)
     wc.advance_wave()
     assert_eq(wc.get_support_spawn_count(), WaveScaling.get_support_count(1) + 3)
 
 
 func test_negative_pressure_is_clamped() -> void:
     var wc := WaveController.new()
-    wc.add_future_enemy_count(-5)
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+    run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, -5)
     wc.advance_wave()
     assert_eq(wc.get_support_spawn_count(), WaveScaling.get_support_count(1), "negative pressure is clamped to zero")
 
@@ -186,7 +194,9 @@ func test_elite_spawn_count_off_milestone_wave() -> void:
 
 func test_pressure_does_not_affect_elite_count() -> void:
     var wc := WaveController.new()
-    wc.add_future_enemy_count(99)
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+    run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 99)
     for i in 5:
         wc.advance_wave()
     assert_eq(wc.get_elite_spawn_count(), 1, "pressure does not add extra elites")
@@ -226,6 +236,8 @@ func test_spawn_queue_drains_under_population_cap() -> void:
 
     var wc := TestWaveController.new()
     wc.setup(timer_parent, grid, fake_planner, fake_spawner)
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
 
     var completed_calls: Array = []
     wc.normal_wave_completed.connect(
@@ -235,7 +247,7 @@ func test_spawn_queue_drains_under_population_cap() -> void:
 
     # Wave 1 support count formula is 5; +10 pressure asks for 15 against a
     # population cap of 12, so 3 should queue instead of spawning immediately.
-    wc.add_future_enemy_count(10)
+    run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 10)
     wc.start_next_wave()
     wc.trigger_wave_gap_timeout()
     wc.trigger_spawn_telegraph_timeout()
@@ -288,6 +300,8 @@ func test_spawn_queue_survives_overlapping_deaths_during_telegraph() -> void:
 
     var wc := TestWaveController.new()
     wc.setup(timer_parent, grid, fake_planner, fake_spawner)
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
 
     var completed_calls: Array = []
     wc.normal_wave_completed.connect(
@@ -297,7 +311,7 @@ func test_spawn_queue_survives_overlapping_deaths_during_telegraph() -> void:
 
     # Wave 1 support count formula is 5; +10 pressure asks for 15 against a
     # population cap of 12, so 3 should queue instead of spawning immediately.
-    wc.add_future_enemy_count(10)
+    run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 10)
     wc.start_next_wave()
     wc.trigger_wave_gap_timeout()
     wc.trigger_spawn_telegraph_timeout()
@@ -355,6 +369,7 @@ func test_elite_cleared_signal_fires_without_ending_run() -> void:
 
     var wc := TestWaveController.new()
     wc.setup(timer_parent, grid, fake_planner, fake_spawner)
+    wc.set_run_build(RunBuild.new())
 
     # Boxed in an Array, not a plain int: GDScript lambdas capture outer locals by
     # value for primitives, so a plain int would only mutate the lambda's own copy.

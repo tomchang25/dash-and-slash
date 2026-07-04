@@ -1,62 +1,11 @@
 # wave_reward_applier.gd
-# Applies selected wave reward effects to their owning gameplay systems.
+# Applies selected wave reward effects by asking each to apply itself
+# against a shared context bundle.
 class_name WaveRewardApplier
 extends RefCounted
 
-var _grid: GridArena
-var _player: Player
-var _add_future_enemy_callback: Callable
-var _rng: RandomNumberGenerator
-
-# == Lifecycle ==
-
-
-func _init(
-        grid: GridArena,
-        player: Player,
-        add_future_enemy_callback: Callable,
-        rng: RandomNumberGenerator = null,
-) -> void:
-    _grid = grid
-    _player = player
-    _add_future_enemy_callback = add_future_enemy_callback
-    _rng = rng if rng != null else RandomNumberGenerator.new()
-    _rng.randomize()
-
 # == Common API ==
 
-
-func apply(choice: WaveRewardChoice) -> void:
+func apply(choice: WaveRewardChoice, context: WaveRewardContext) -> void:
     for effect in choice.effects:
-        _apply_effect(effect)
-
-# == Effects ==
-
-
-func _apply_effect(effect: WaveRewardEffect) -> void:
-    match effect.definition.kind:
-        WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY:
-            _add_future_enemy_callback.call(int(effect.total_magnitude()))
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE:
-            if _player != null:
-                _player.add_normal_attack_damage(effect.total_magnitude())
-        WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN:
-            if _player != null:
-                _player.reduce_normal_attack_cooldown(effect.total_magnitude())
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_ATTACK_DAMAGE:
-            if _player != null:
-                _player.add_dash_attack_damage(effect.total_magnitude())
-        WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_DASH_COOLDOWN:
-            if _player != null:
-                _player.reduce_dash_cooldown(effect.total_magnitude())
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH:
-            if _player != null:
-                _player.add_max_health(effect.total_magnitude())
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_RANGE:
-            if _player != null:
-                _player.add_attack_range(effect.total_magnitude())
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_RANGE:
-            if _player != null:
-                _player.add_dash_range(effect.total_magnitude())
-        WaveRewardEffectDefinition.Kind.MAJOR_PLACEHOLDER:
-            pass
+        effect.apply(context)

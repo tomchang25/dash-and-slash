@@ -19,7 +19,7 @@ func _init(rng: RandomNumberGenerator = null) -> void:
 # == Common API ==
 
 
-func roll_choices(wave_number: int, target_points: float, context: Dictionary) -> Array[WaveRewardChoice]:
+func roll_choices(wave_number: int, target_points: float, context: WaveRewardContext) -> Array[WaveRewardChoice]:
     return [
         _roll_choice(WaveRewardEffectDefinition.Profile.CONSERVATIVE, wave_number, target_points, context),
         _roll_choice(WaveRewardEffectDefinition.Profile.BALANCED, wave_number, target_points, context),
@@ -33,7 +33,7 @@ func _roll_choice(
         profile: int,
         wave_number: int,
         target_points: float,
-        context: Dictionary,
+        context: WaveRewardContext,
 ) -> WaveRewardChoice:
     var available := _available_definitions(profile, wave_number, context)
     for attempt in MAX_ROLL_ATTEMPTS:
@@ -148,9 +148,8 @@ func _capture_best_effects(
 
 func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
     return [
-        WaveRewardEffectDefinition.new(
+        FutureEnemyEffect.new(
             "future_enemy",
-            WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY,
             WaveRewardEffectDefinition.Tier.MINOR,
             "Raise Pressure",
             "+%d future enemy",
@@ -164,9 +163,8 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        WaveRewardEffectDefinition.new(
+        NormalAttackDamageEffect.new(
             "attack_up",
-            WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE,
             WaveRewardEffectDefinition.Tier.MINOR,
             "Sharpened Edge",
             "+%d normal attack damage",
@@ -180,9 +178,8 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        WaveRewardEffectDefinition.new(
+        NormalAttackCooldownEffect.new(
             "normal_attack_cooldown_down",
-            WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN,
             WaveRewardEffectDefinition.Tier.MINOR,
             "Quick Hands",
             "-%.2fs normal attack cooldown",
@@ -196,9 +193,8 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        WaveRewardEffectDefinition.new(
+        DashAttackDamageEffect.new(
             "dash_attack_up",
-            WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_ATTACK_DAMAGE,
             WaveRewardEffectDefinition.Tier.MINOR,
             "Impact Dash",
             "+%d dash attack damage",
@@ -212,9 +208,8 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        WaveRewardEffectDefinition.new(
+        DashCooldownEffect.new(
             "dash_cooldown_down",
-            WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_DASH_COOLDOWN,
             WaveRewardEffectDefinition.Tier.MINOR,
             "Light Footwork",
             "-%.2fs dash cooldown",
@@ -228,9 +223,8 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        WaveRewardEffectDefinition.new(
+        AttackRangeEffect.new(
             "attack_range_up",
-            WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_RANGE,
             WaveRewardEffectDefinition.Tier.MINOR,
             "Longer Reach",
             "+%d%% attack range",
@@ -244,9 +238,8 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        WaveRewardEffectDefinition.new(
+        DashRangeEffect.new(
             "dash_range_up",
-            WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_RANGE,
             WaveRewardEffectDefinition.Tier.MINOR,
             "Longer Dash",
             "+%d%% dash range",
@@ -260,9 +253,8 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        WaveRewardEffectDefinition.new(
+        MaxHealthEffect.new(
             "max_health_up",
-            WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH,
             WaveRewardEffectDefinition.Tier.MINOR,
             "Vital Spark",
             "+%d max health",
@@ -276,9 +268,8 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        WaveRewardEffectDefinition.new(
+        MajorPlaceholderEffect.new(
             "major_placeholder",
-            WaveRewardEffectDefinition.Kind.MAJOR_PLACEHOLDER,
             WaveRewardEffectDefinition.Tier.MAJOR,
             "Major Placeholder",
             "Major placeholder (%d)",
@@ -296,41 +287,16 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
 func _available_definitions(
         profile: int,
         wave_number: int,
-        context: Dictionary,
+        context: WaveRewardContext,
 ) -> Array[WaveRewardEffectDefinition]:
     var available: Array[WaveRewardEffectDefinition] = []
     for definition in _effect_definitions:
         if wave_number < definition.min_wave or not definition.allows_profile(profile):
             continue
-        if not _is_definition_applicable(definition, context):
+        if not definition.is_applicable(context):
             continue
         available.append(definition)
     return available
-
-
-func _is_definition_applicable(definition: WaveRewardEffectDefinition, context: Dictionary) -> bool:
-    match definition.kind:
-        WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY:
-            return true
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE:
-            return context.get("player") is Player
-        WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN:
-            return context.get("player") is Player
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_ATTACK_DAMAGE:
-            return context.get("player") is Player
-        WaveRewardEffectDefinition.Kind.REDUCE_PLAYER_DASH_COOLDOWN:
-            return context.get("player") is Player
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_MAX_HEALTH:
-            return context.get("player") is Player
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_ATTACK_RANGE:
-            return context.get("player") is Player
-        WaveRewardEffectDefinition.Kind.ADD_PLAYER_DASH_RANGE:
-            return context.get("player") is Player
-        WaveRewardEffectDefinition.Kind.MAJOR_PLACEHOLDER:
-            return true
-        _:
-            ToastManager.show_dev_error("Unknown reward effect kind: %s" % definition.kind)
-            return false
 
 # == Constraints ==
 

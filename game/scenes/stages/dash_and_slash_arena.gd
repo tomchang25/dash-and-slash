@@ -29,6 +29,7 @@ var _reward_controller: WaveRewardChoiceController
 var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
 var _reward_rng: RandomNumberGenerator
+var _run_build: RunBuild
 var _current_elite: ModeEnemy
 var _elite_stagger_callback: Callable
 var _god_mode_button: Button
@@ -41,14 +42,18 @@ func _ready() -> void:
 
     _restart_button.pressed.connect(_on_restart_pressed)
 
+    _run_build = RunBuild.new()
+
     if _player.has_method("setup"):
         _player.setup(_grid)
+    _player.set_run_build(_run_build)
     _player.setup_run_stats()
 
     _spawn_planner = EnemySpawnPlanner.new(_grid, _player)
     _spawner = EnemySpawner.new(_grid, _player, self)
     _wave_controller = WaveController.new()
     _wave_controller.setup(self, _grid, _spawn_planner, _spawner)
+    _wave_controller.set_run_build(_run_build)
     _wave_controller.wave_gap_started.connect(_on_wave_gap_started)
     _wave_controller.wave_gap_finished.connect(_on_wave_gap_finished)
     _wave_controller.wave_started.connect(_on_wave_started)
@@ -59,13 +64,13 @@ func _ready() -> void:
     _reward_rng = RandomNumberGenerator.new()
     _reward_rng.randomize()
     var reward_generator := WaveRewardChoiceGenerator.new(_reward_rng)
-    var reward_applier := WaveRewardApplier.new(_grid, _player, _add_future_enemy_bonus, _reward_rng)
+    var reward_applier := WaveRewardApplier.new()
+    var reward_context := WaveRewardContext.new(_grid, _player, _run_build)
     _reward_controller = WaveRewardChoiceController.new(
         _reward_overlay,
         reward_generator,
         reward_applier,
-        _grid,
-        _player,
+        reward_context,
     )
     _reward_controller.choice_applied.connect(_on_reward_choice_applied)
 
@@ -199,10 +204,6 @@ func _on_reward_choice_applied() -> void:
     if _player.has_method("set_input_locked"):
         _player.set_input_locked(false)
     _wave_controller.start_next_wave()
-
-
-func _add_future_enemy_bonus(amount: int) -> void:
-    _wave_controller.add_future_enemy_count(amount)
 
 
 func _reward_target_points(wave_number: int) -> float:
