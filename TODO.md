@@ -30,8 +30,6 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-- [reward-rework] Reward effect rework: split Tile Op out of the card pool, fix same-option duplicate effects, and unify reward effects into self-contained effect objects with a run-scoped applied-effect store and Major cap/exclusivity scaffold — see `dev/docs/plans/reward_effect_rework.md`.
-
 ---
 
 ## Chore
@@ -99,14 +97,6 @@ Replace uniform enemy scene selection with weighted spawn pools that can scale b
 - Allow spawn weights to vary by wave, milestone, stage, or run configuration.
 - Keep reward downside pressure as fixed future enemy additions or weighted pool modifiers instead of hidden randomness.
 - Consider lowering ChargeEnemy spawn share after the idle-corner fallback fix has been tested in real waves.
-
-### Terrain Chaos Rewards
-
-Keep terrain mutation readable enough for fast chaotic play. Break Land and Move Land moving from random card-pool pressure to a fixed once-per-wave Tile Op is now specified in `dev/docs/plans/reward_effect_rework.md`.
-
-- Keep connected-land safety as the main terrain rule.
-- Add Corrupt Land as a visible tick-damage zone; dash i-frames already prevent tick damage while dashing through it, so no extra dash-vs-corrupt rule is needed.
-- Reward downside copy is not fully consistent yet (Aggressive-tier offers read more clearly than the others) — accepted gap for now, not blocking this work.
 
 ### Wave Reward Deferred Ideas
 

@@ -16,6 +16,14 @@ Rules:
 
 ## [unreleased]
 
+### Reward Effect Rework
+
+- 2026-07-04 — [rewards] A reward option can no longer offer the same effect twice, closing a rare duplicate-effect gap in the fallback roll
+- 2026-07-04 — [rewards] Terrain mutation (relocating or removing land) is now a fixed, automatic event once per normal wave clear instead of a pickable reward card, so terrain no longer swings unpredictably from stacked picks
+- 2026-07-04 — [rewards] Reward effects are now self-contained objects with their own eligibility and apply logic, recording every numeric contribution into a run-scoped store that player stats and wave pressure project from, replacing the old shared enum-and-switch dispatch
+- 2026-07-04 — [rewards] Three new enemy-toughness pressure rewards (health, damage, defense) join the existing enemy-count pressure option, filling the pool slot terrain mutation used to occupy
+- 2026-07-04 — [rewards] Behavior-changing (Major) reward effects are now capped at four active per run and can be marked mutually exclusive, proven end-to-end via the existing placeholder Major effect ahead of any real one shipping
+
 ### Player Attack Range Scale
 
 - 2026-07-03 — [player] Normal attack reach and dash travel distance are now data-driven, run-mutable stats instead of hardcoded constants, each offered as its own Minor wave reward (Longer Reach, Longer Dash)
