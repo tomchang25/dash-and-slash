@@ -222,6 +222,22 @@ func add_dash_range(amount: float) -> void:
     _run_build.record(RunBuild.CH_DASH_RANGE, amount)
 
 
+## Returns whether the run-scoped store still has capacity for another Major effect.
+func has_major_capacity() -> bool:
+    return _run_build.has_major_capacity()
+
+
+## Returns whether a Major effect in the given exclusivity group is already
+## active this run. An empty group never conflicts.
+func has_major_conflict(exclusivity_group: String) -> bool:
+    return _run_build.has_major_conflict(exclusivity_group)
+
+
+## Returns how many Major effects are currently active on this player's run.
+func major_count() -> int:
+    return _run_build.major_count()
+
+
 ## Adds max health through the owned Health component. Health remains the
 ## runtime authority for max health, so this is not recorded in the run-build
 ## store — the delta pushed here is exactly the amount added, independent of

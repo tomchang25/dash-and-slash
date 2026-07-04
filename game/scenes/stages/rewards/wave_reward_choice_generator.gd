@@ -312,7 +312,6 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
         ),
         MajorPlaceholderEffect.new(
             "major_placeholder",
-            WaveRewardEffectDefinition.Tier.MAJOR,
             "Major Placeholder",
             "Major placeholder (%d)",
             -4,
@@ -322,6 +321,7 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
             [
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
+            "",
         ),
     ]
 

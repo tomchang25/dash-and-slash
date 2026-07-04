@@ -6,10 +6,11 @@ Add a run-wide capacity cap and a mutual-exclusivity check for behavior-changing
 
 ## Relational Context
 
-- Major effects are the same effect objects introduced in Phase 3, distinguished as a specialization: they carry an exclusivity-group identifier (empty means no group, never conflicts) and, when applied, register in the same run-scoped applied-effect store on `Player` that minor effects use — not a separate array. The store gains a Major-side query (is there capacity, is this group already occupied) alongside its existing minor-projection role.
+- Major effects are the same effect objects introduced in Phase 3, distinguished through a real `MajorEffect` intermediate base class: they carry an exclusivity-group identifier (empty means no group, never conflicts) and, when applied, register in the same run-scoped `RunBuild` store that minor numeric effects use — not a separate player-side array or parallel reward system.
+- `RunBuild` is the run-scoped store currently created by the arena and injected into `Player`, `WaveController`, and `WaveRewardContext`. It owns the Major records and rules. `Player` may expose thin passthroughs for Major capacity/conflict/count queries, but must not duplicate or separately own Major state.
 - The run-wide cap (four) and the empty-group convention come from the design document's already-settled Major/Minor rules — do not invent different values.
-- The roll's per-effect eligibility step (`is_applicable(context)` from Phase 3) is where a full or conflicting Major is filtered out before being offered — the same seam terrain effects use to check candidate availability. A Major effect's `is_applicable` reads the player's store through the context bundle: reject if the store is at the cap, or if the effect's exclusivity group already has a member. This is a pre-offer filter, not a post-pick rejection, and it generalizes to any future Major without further wiring — a real behavior-changing effect only needs to fill in its exclusivity group.
-- The placeholder Major effect's `apply` today does nothing (its old switch arm was a no-op). After this change it registers itself in the store, so the cap is enforced end-to-end even though the placeholder still changes no gameplay behavior beyond occupying one of the four slots.
+- The roll's per-effect eligibility step (`is_applicable(context)` from Phase 3) is where a full or conflicting Major is filtered out before being offered — the same seam terrain effects use to check candidate availability. `MajorEffect.is_applicable` reads the injected run store through the context/player boundary and rejects if the store is at the cap, or if the effect's non-empty exclusivity group already has a member. This is a pre-offer filter, not a post-pick rejection, and it generalizes to any future Major without further wiring — a real behavior-changing effect only needs to fill in its exclusivity group.
+- The placeholder Major effect's `apply` today does nothing (its old switch arm was a no-op). After this change it extends `MajorEffect` and registers itself in `RunBuild`, so the cap is enforced end-to-end even though the placeholder still changes no gameplay behavior beyond occupying one of the four slots.
 - Ability-behavior overrides (swapping what an ability does) and event-triggered effect hooks are explicitly out of scope. This phase builds only the capacity/conflict bookkeeping — the store's Major side records which behavior-changing effects are active and enforces the cap and exclusivity, nothing more.
 
 ## Scope
@@ -30,18 +31,20 @@ Add a run-wide capacity cap and a mutual-exclusivity check for behavior-changing
 
 ## Files to Change
 
-| File                                                                          | Change Size | Purpose                                                                                                                 |
-| ----------------------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Effect base / Major subclass under `game/scenes/stages/rewards/` (`effects/`) | Small       | Carry the exclusivity-group identifier; Major `is_applicable` consults the store; Major `apply` registers in the store. |
-| Run-build/store files under `game/entities/player/run_build/`                 | Small       | Major-side registration, capacity query, and exclusivity-group query alongside the Phase 3 minor projection.            |
-| `game/entities/player/player.gd`                                              | Small       | Thin passthroughs exposing the store's Major capacity/conflict query and count for the roll and for tests.              |
-| `game/scenes/stages/rewards/wave_reward_choice_generator.gd`                  | Small       | The placeholder Major definition gains its exclusivity group (empty for the placeholder itself).                        |
-| New test file under `test/unit/`                                              | Small       | Prove the cap and exclusivity-group rejection using synthetic identifiers.                                              |
+| File                                                             | Change Size | Purpose                                                                                                      |
+| ---------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------ |
+| `game/scenes/stages/rewards/effects/major_effect.gd`             | Small       | New Major intermediate base that carries exclusivity group, owns Major eligibility, and registers on apply.  |
+| `game/scenes/stages/rewards/effects/major_placeholder_effect.gd` | Small       | Extend `MajorEffect` so the existing placeholder occupies a Major slot without adding gameplay behavior.     |
+| `game/scenes/stages/run_build.gd`                                | Small       | Major-side registration, capacity query, count query, and exclusivity-group query alongside numeric entries. |
+| `game/entities/player/player.gd`                                 | Small       | Thin passthroughs to the injected `RunBuild` for Major capacity/conflict/count queries.                      |
+| `game/scenes/stages/rewards/wave_reward_choice_generator.gd`     | Small       | The placeholder Major definition gains its exclusivity group (empty for the placeholder itself).             |
+| New test file under `test/unit/`                                 | Small       | Prove cap, empty-group behavior, and exclusivity-group rejection using placeholder/synthetic identifiers.    |
 
 ## Implementation Notes
 
-- The pre-offer filter lives entirely in the Major specialization's `is_applicable`, keyed off being a Major effect, so it applies to every future Major with no further edits — only that effect's own exclusivity group needs filling in.
-- The store's Major-side registration returns success/failure rather than silently no-op'ing, so a rejected add is observable to callers and to the synthetic test, even though the pre-offer filter should mean a conflicting add is never actually attempted in normal play.
+- The pre-offer filter lives entirely in `MajorEffect.is_applicable`, not in the placeholder effect and not in `WaveRewardChoiceGenerator`, so it applies to every future Major with no generator edits.
+- `RunBuild` should store Major records as Major records (effect id plus exclusivity group or equivalent), not as fake numeric channels. Numeric `record()` / `total()` behavior must remain unchanged for minor stat and enemy-pressure projection.
+- The store's Major-side registration returns success/failure rather than silently no-op'ing, so a rejected add is observable to callers and to tests, even though the pre-offer filter should mean a conflicting add is never actually attempted in normal play.
 
 ## Edge Cases
 
