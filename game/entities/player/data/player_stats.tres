@@ -4,3 +4,4 @@
 
 [resource]
 script = ExtResource("1_stats")
+dash_attack_damage = 50.0
