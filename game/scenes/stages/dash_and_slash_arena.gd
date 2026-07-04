@@ -7,6 +7,8 @@ extends Node2D
 const REWARD_OPEN_DELAY := 2.0
 const WAVE_BANNER_FADE := 0.35
 
+const WAVE_TERRAIN_MUTATION_RELOCATE_CHANCE := 0.5
+
 @onready var _grid: GridArena = %GridArena
 @onready var _player: Player = %Player
 @onready var _hp_label: Label = %HpLabel
@@ -30,6 +32,7 @@ var _reward_rng: RandomNumberGenerator
 var _current_elite: ModeEnemy
 var _elite_stagger_callback: Callable
 var _god_mode_button: Button
+var _pending_wave_terrain_mutation_kind := WaveRewardChoiceController.TerrainMutationKind.REMOVE_LAND
 
 
 func _ready() -> void:
@@ -152,28 +155,47 @@ func _on_restart_pressed() -> void:
 func _on_normal_wave_complete(_wave_number: int, is_milestone_wave: bool) -> void:
     if _player.has_method("set_input_locked"):
         _player.set_input_locked(true)
-    if is_milestone_wave:
-        _grant_milestone_expand_land()
     _show_wave_banner("WAVE END")
     _reward_delay_tween = create_tween()
     _reward_delay_tween.tween_interval(REWARD_OPEN_DELAY)
     _reward_delay_tween.tween_callback(_open_reward_choice.bind(is_milestone_wave))
 
 
-func _grant_milestone_expand_land() -> void:
-    for i in WaveScaling.EXPAND_LAND_AMOUNT:
-        _grid.add_random_connected_land(_reward_rng)
+## Applies the terrain shift decided in _open_reward_choice(). Deferred until the reward
+## choice is applied so the mutation lands after, not before, the player picks a reward.
+func _apply_pending_wave_terrain_mutation() -> void:
+    match _pending_wave_terrain_mutation_kind:
+        WaveRewardChoiceController.TerrainMutationKind.ADD_LAND:
+            for i in WaveScaling.EXPAND_LAND_AMOUNT:
+                _grid.add_random_connected_land(_reward_rng)
+        WaveRewardChoiceController.TerrainMutationKind.MOVE_LAND:
+            for i in WaveScaling.WAVE_TERRAIN_MUTATION_RELOCATE_COUNT:
+                _grid.move_random_safe_land(_reward_rng)
+        WaveRewardChoiceController.TerrainMutationKind.REMOVE_LAND:
+            for i in WaveScaling.WAVE_TERRAIN_MUTATION_REMOVE_COUNT:
+                _grid.remove_random_safe_connected_land(_reward_rng)
 
 
 func _open_reward_choice(is_milestone_wave: bool = false) -> void:
     if _wave_controller.is_run_over():
         return
     _move_player_to_safe_center_cell()
+    if is_milestone_wave:
+        _pending_wave_terrain_mutation_kind = WaveRewardChoiceController.TerrainMutationKind.ADD_LAND
+    elif _reward_rng.randf() < WAVE_TERRAIN_MUTATION_RELOCATE_CHANCE:
+        _pending_wave_terrain_mutation_kind = WaveRewardChoiceController.TerrainMutationKind.MOVE_LAND
+    else:
+        _pending_wave_terrain_mutation_kind = WaveRewardChoiceController.TerrainMutationKind.REMOVE_LAND
     var wave_number := _wave_controller.get_wave_number()
-    _reward_controller.open_reward_choice(wave_number, _reward_target_points(wave_number), is_milestone_wave)
+    _reward_controller.open_reward_choice(
+        wave_number,
+        _reward_target_points(wave_number),
+        _pending_wave_terrain_mutation_kind,
+    )
 
 
 func _on_reward_choice_applied() -> void:
+    _apply_pending_wave_terrain_mutation()
     if _player.has_method("set_input_locked"):
         _player.set_input_locked(false)
     _wave_controller.start_next_wave()

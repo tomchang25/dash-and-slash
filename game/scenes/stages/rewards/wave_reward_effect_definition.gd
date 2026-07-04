@@ -4,8 +4,6 @@ class_name WaveRewardEffectDefinition
 extends RefCounted
 
 enum Kind {
-    MOVE_RANDOM_SAFE_LAND,
-    REMOVE_RANDOM_SAFE_LAND,
     ADD_FUTURE_ENEMY,
     ADD_PLAYER_NORMAL_ATTACK_DAMAGE,
     REDUCE_PLAYER_NORMAL_ATTACK_COOLDOWN,
@@ -29,7 +27,7 @@ enum Tier {
 }
 
 var effect_id := ""
-var kind := Kind.MOVE_RANDOM_SAFE_LAND
+var kind := Kind.ADD_FUTURE_ENEMY
 var tier := Tier.MINOR
 var display_name := ""
 var description_template := ""

@@ -35,10 +35,6 @@ func apply(choice: WaveRewardChoice) -> void:
 
 func _apply_effect(effect: WaveRewardEffect) -> void:
     match effect.definition.kind:
-        WaveRewardEffectDefinition.Kind.MOVE_RANDOM_SAFE_LAND:
-            _apply_move_land(effect)
-        WaveRewardEffectDefinition.Kind.REMOVE_RANDOM_SAFE_LAND:
-            _apply_remove_land(effect)
         WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY:
             _add_future_enemy_callback.call(int(effect.total_magnitude()))
         WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE:
@@ -64,17 +60,3 @@ func _apply_effect(effect: WaveRewardEffect) -> void:
                 _player.add_dash_range(effect.total_magnitude())
         WaveRewardEffectDefinition.Kind.MAJOR_PLACEHOLDER:
             pass
-
-
-func _apply_move_land(effect: WaveRewardEffect) -> void:
-    if _grid == null:
-        return
-    for i in int(effect.total_magnitude()):
-        _grid.move_random_safe_land(_rng)
-
-
-func _apply_remove_land(effect: WaveRewardEffect) -> void:
-    if _grid == null:
-        return
-    for i in int(effect.total_magnitude()):
-        _grid.remove_random_safe_connected_land(_rng)

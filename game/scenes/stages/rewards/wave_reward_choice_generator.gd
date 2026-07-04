@@ -149,37 +149,6 @@ func _capture_best_effects(
 func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
     return [
         WaveRewardEffectDefinition.new(
-            "move_land",
-            WaveRewardEffectDefinition.Kind.MOVE_RANDOM_SAFE_LAND,
-            WaveRewardEffectDefinition.Tier.MINOR,
-            "Move Land",
-            "Move %d land tile",
-            0.5,
-            1.0,
-            2,
-            1,
-            [
-                WaveRewardEffectDefinition.Profile.CONSERVATIVE,
-                WaveRewardEffectDefinition.Profile.BALANCED,
-                WaveRewardEffectDefinition.Profile.AGGRESSIVE,
-            ],
-        ),
-        WaveRewardEffectDefinition.new(
-            "remove_land",
-            WaveRewardEffectDefinition.Kind.REMOVE_RANDOM_SAFE_LAND,
-            WaveRewardEffectDefinition.Tier.MINOR,
-            "Break Land",
-            "-%d safe land",
-            1,
-            1.0,
-            2,
-            1,
-            [
-                WaveRewardEffectDefinition.Profile.BALANCED,
-                WaveRewardEffectDefinition.Profile.AGGRESSIVE,
-            ],
-        ),
-        WaveRewardEffectDefinition.new(
             "future_enemy",
             WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY,
             WaveRewardEffectDefinition.Tier.MINOR,
@@ -340,12 +309,7 @@ func _available_definitions(
 
 
 func _is_definition_applicable(definition: WaveRewardEffectDefinition, context: Dictionary) -> bool:
-    var grid := context.get("grid") as GridArena
     match definition.kind:
-        WaveRewardEffectDefinition.Kind.MOVE_RANDOM_SAFE_LAND:
-            return grid != null and not grid.get_add_connected_land_candidates().is_empty() and not grid.get_remove_safe_connected_land_candidates().is_empty()
-        WaveRewardEffectDefinition.Kind.REMOVE_RANDOM_SAFE_LAND:
-            return grid != null and not grid.get_remove_safe_connected_land_candidates().is_empty()
         WaveRewardEffectDefinition.Kind.ADD_FUTURE_ENEMY:
             return true
         WaveRewardEffectDefinition.Kind.ADD_PLAYER_NORMAL_ATTACK_DAMAGE:

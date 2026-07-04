@@ -5,6 +5,14 @@ extends RefCounted
 
 signal choice_applied
 
+## Which GridArena tile operation the pending automatic per-wave terrain mutation will apply.
+## ADD_LAND is used on milestone waves; MOVE_LAND/REMOVE_LAND are rolled 50/50 on normal waves.
+enum TerrainMutationKind {
+    ADD_LAND,
+    MOVE_LAND,
+    REMOVE_LAND,
+}
+
 var _overlay: WaveRewardOverlay
 var _generator: WaveRewardChoiceGenerator
 var _applier: WaveRewardApplier
@@ -33,14 +41,14 @@ func _init(
 # == Common API ==
 
 
-func open_reward_choice(wave_number: int, target_points: float, is_milestone_wave: bool = false) -> void:
+func open_reward_choice(wave_number: int, target_points: float, terrain_mutation_kind: int) -> void:
     var context := {
         "grid": _grid,
         "player": _player,
     }
     _current_offer = _generator.roll_choices(wave_number, target_points, context)
     _was_paused = _overlay.get_tree().paused
-    _overlay.show_choices(_current_offer, is_milestone_wave)
+    _overlay.show_choices(_current_offer, terrain_mutation_kind)
     _overlay.get_tree().paused = true
 
 # == Signal handlers ==
