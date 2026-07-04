@@ -24,6 +24,11 @@ func total_magnitude() -> float:
     return definition.magnitude * float(stacks)
 
 
+## Delegates application to the prototype definition.
+func apply(context: WaveRewardContext) -> void:
+    definition.apply(context, stacks)
+
+
 func description() -> String:
     var amount := total_magnitude()
     if is_equal_approx(amount, roundf(amount)):

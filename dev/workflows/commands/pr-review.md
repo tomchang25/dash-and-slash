@@ -9,10 +9,12 @@ Steps:
 3. Inspect the branch with read-only git: `git log --oneline <base>..HEAD`, `git diff <base>...HEAD --name-only`, and `git diff <base>...HEAD --stat` (assume base is `main` unless I say otherwise; never stage, commit, or push).
 4. Read the full current contents of every changed file that can be reviewed as text, then read the branch diff with `git diff <base>...HEAD -- <file>` to understand the exact PR changes.
 5. Search related codebase context for changed APIs, constants, data IDs, node paths, signals, resources, command workflows, and standards references.
-6. Report review findings and final verdict using `dev/workflows/review_standard.md` before drafting PR text.
+6. Report review findings and summary using `dev/workflows/review_standard.md` before drafting PR text.
 7. Write the PR title (conventional style, describing the PR as a whole) and description following `dev/skills/pr_convention.md`.
 8. Output the title and description in a single copy-pasteable block. Do not create files or open a PR.
 
 Reminders: follow `dev/standards/change_summary_standard.md`, don't paste the raw commit list as Changes, don't hard-wrap prose.
+
+Reporting language: follow `dev/workflows/review_standard.md` for the review report language split. Keep required verdict labels from `dev/workflows/review_standard.md` (`pass`, `needs changes`, `blocked`) and conventional PR title syntax in English.
 
 $ARGUMENTS

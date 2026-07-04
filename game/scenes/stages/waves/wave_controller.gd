@@ -1,5 +1,7 @@
 # wave_controller.gd
-# Scene-local RefCounted that owns wave progression, spawn flow, alive enemies, and future pressure modifier.
+# Scene-local RefCounted that owns wave progression, spawn flow, and alive
+# enemies. Future enemy count and enemy-toughness pressure are both read from
+# the injected run-scoped RunBuild store rather than owned here.
 class_name WaveController
 extends RefCounted
 
@@ -20,7 +22,7 @@ const WAVE_GAP := 2.0
 const SPAWN_TELEGRAPH_DURATION := 0.8
 
 var _current_wave_number := 0
-var _future_enemy_count_modifier := 0
+var _run_build: RunBuild
 var _grid: GridArena
 var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
@@ -41,6 +43,13 @@ func setup(timer_parent: Node, grid: GridArena, spawn_planner: EnemySpawnPlanner
     _spawn_planner = spawn_planner
     _spawner = spawner
     _ensure_timers(timer_parent)
+
+
+## Injects the run-scoped modifier store that future-enemy pressure is read
+## from. A required dependency wired by the arena, like the grid and spawner —
+## not lazily created.
+func set_run_build(run_build: RunBuild) -> void:
+    _run_build = run_build
 
 
 ## Advances to the next wave and starts its pre-wave gap.
@@ -67,11 +76,12 @@ func is_milestone_wave() -> bool:
 
 
 ## Returns the number of support enemies to spawn for the current wave,
-## including any future enemy count modifier.
+## including future enemy count pressure read from the run-build store.
 func get_support_spawn_count() -> int:
     if _current_wave_number <= 0:
         return 0
-    return WaveScaling.get_support_count(_current_wave_number) + _future_enemy_count_modifier
+    var pressure := int(max(0.0, _run_build.total(RunBuild.CH_FUTURE_ENEMY_COUNT)))
+    return WaveScaling.get_support_count(_current_wave_number) + pressure
 
 
 ## Returns 1 for milestone waves (elite spawn), 0 otherwise.
@@ -79,9 +89,25 @@ func get_elite_spawn_count() -> int:
     return 1 if is_milestone_wave() else 0
 
 
-## Adds non-negative future enemy count pressure to subsequent waves.
-func add_future_enemy_count(amount: int) -> void:
-    _future_enemy_count_modifier += max(amount, 0)
+## Returns the hp multiplier for the current wave: WaveScaling's tier-formula
+## baseline plus any enemy-health pressure recorded in the run-build store.
+func get_hp_multiplier() -> float:
+    var pressure := max(0.0, _run_build.total(RunBuild.CH_ENEMY_HEALTH_PRESSURE))
+    return WaveScaling.get_hp_multiplier(get_wave_number()) + pressure
+
+
+## Returns the outgoing-damage multiplier for the current wave: WaveScaling's
+## tier-formula baseline plus any enemy-damage pressure recorded in the run-build store.
+func get_damage_multiplier() -> float:
+    var pressure := max(0.0, _run_build.total(RunBuild.CH_ENEMY_DAMAGE_PRESSURE))
+    return WaveScaling.get_damage_multiplier(get_wave_number()) + pressure
+
+
+## Returns the flat defense value for the current wave: WaveScaling's
+## tier-formula baseline plus any enemy-defense pressure recorded in the run-build store.
+func get_defense() -> float:
+    var pressure := max(0.0, _run_build.total(RunBuild.CH_ENEMY_DEFENSE_PRESSURE))
+    return WaveScaling.get_defense(get_wave_number()) + pressure
 
 
 ## Returns the 1-based current wave number.
@@ -114,10 +140,11 @@ func is_run_over() -> bool:
     return _run_over
 
 
-## Resets all state for a fresh run.
+## Resets all state for a fresh run. Future-enemy pressure is not reset here —
+## it lives in the injected RunBuild store, which the arena replaces wholesale
+## for a fresh run.
 func reset() -> void:
     _current_wave_number = 0
-    _future_enemy_count_modifier = 0
     _alive_enemies.clear()
     _spawn_queue.clear()
     _current_batch.clear()
@@ -229,11 +256,10 @@ func _apply_wave_scaling(enemy: Node) -> void:
     var grid_enemy := enemy as GridEnemy
     if grid_enemy == null:
         return
-    var wave_number := get_wave_number()
     grid_enemy.apply_wave_scaling(
-        WaveScaling.get_hp_multiplier(wave_number),
-        WaveScaling.get_damage_multiplier(wave_number),
-        WaveScaling.get_defense(wave_number),
+        get_hp_multiplier(),
+        get_damage_multiplier(),
+        get_defense(),
     )
 
 

@@ -38,11 +38,22 @@ Use the search to answer:
 
 Report findings first, ordered by severity. Include file and line references when possible.
 
+Use English for every report section except `Summary`, unless the user explicitly asks for another language. Write `Summary` in Traditional Chinese.
+
 Use this verdict language:
 
 1. `pass` — no blocking or material issues found.
 2. `needs changes` — issues found that should be fixed before merge/commit.
 3. `blocked` — review could not be completed because required context, files, or commands are unavailable.
+
+Use this section order:
+
+1. `Findings`
+2. `Per-File Review Summary`
+3. `Stale/Redundant Check`
+4. `Robustness Check`
+5. `Standards, Lint, And Tests`
+6. `Summary`
 
 The report must include:
 
@@ -51,4 +62,7 @@ The report must include:
 3. A stale/redundant check result.
 4. A robustness check result.
 5. Standards, lint, or test checks that were run, plus any checks that were skipped and why.
-6. The final verdict.
+6. A final `Summary` section, written in Traditional Chinese, that briefly states the overall review reasoning, the reviewer's assessment of the update, any notable non-blocking risks or thoughts, or says there is nothing else worth calling out.
+7. The final verdict, included inside `Summary` as `Verdict: ` followed by one of the required verdict labels.
+
+Do not add a separate `Final Verdict` section; `Summary` is the final section and owns the verdict.

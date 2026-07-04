@@ -63,13 +63,24 @@ var _dash_body_punch_tween: Tween
 var _dash_camera_punch_tween: Tween
 var _dash_vfx_elapsed := 0.0
 var _run_stats: PlayerStatsData
+var _run_build: RunBuild
 
 
 func setup(grid: GridArena) -> void:
     _grid = grid
 
 
-## Creates the run-local mutable stat copy from the exported base stats.
+## Injects the run-scoped modifier store that buffed stats project from.
+## A required dependency wired by the arena before stat access, like the grid —
+## not lazily created, so a missing injection surfaces as a bug rather than a
+## silently divergent private store.
+func set_run_build(run_build: RunBuild) -> void:
+    _run_build = run_build
+
+
+## Creates the authored-base stat snapshot from the exported base stats.
+## This snapshot never mutates after creation — buffs are recorded in the
+## run-build store and projected on read instead.
 func setup_run_stats() -> void:
     if player_stats != null:
         _run_stats = player_stats.duplicate(true) as PlayerStatsData
@@ -78,7 +89,7 @@ func setup_run_stats() -> void:
     _sync_health_to_run_stats()
 
 
-## Returns the active run-local player stats.
+## Returns the authored-base player stats (not the buffed/projected values).
 func get_run_stats() -> PlayerStatsData:
     _ensure_run_stats()
     return _run_stats
@@ -114,103 +125,126 @@ func debug_instant_kill() -> void:
         health.kill()
 
 
-## Returns the resolved normal attack duration used as first-pass attack cadence.
+## Returns the resolved normal attack duration used as first-pass attack cadence,
+## projected from the authored base plus every applied cooldown-reduction effect,
+## clamped to the first-pass minimum at the combined value.
 func get_normal_attack_duration() -> float:
     _ensure_run_stats()
-    return _run_stats.normal_attack_cooldown
+    var projected := _run_stats.normal_attack_cooldown + _run_build.total(RunBuild.CH_NORMAL_ATTACK_COOLDOWN)
+    return max(projected, MIN_ATTACK_DURATION)
 
 
-## Returns the resolved dash cooldown duration.
+## Returns the resolved dash cooldown duration, projected from the authored base
+## plus every applied reduction effect, clamped to the minimum at the combined value.
 func get_dash_cooldown_duration() -> float:
     _ensure_run_stats()
-    return _run_stats.dash_cooldown
+    var projected := _run_stats.dash_cooldown + _run_build.total(RunBuild.CH_DASH_COOLDOWN)
+    return max(projected, MIN_DASH_COOLDOWN)
 
 
-## Returns the active run-local normal attack damage.
+## Returns the active normal attack damage, projected from the authored base
+## plus every applied bonus effect.
 func get_normal_attack_damage() -> float:
     _ensure_run_stats()
-    return _run_stats.normal_attack_damage
+    return _run_stats.normal_attack_damage + _run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE)
 
 
-## Returns the active run-local dash attack damage.
+## Returns the active dash attack damage, projected from the authored base
+## plus every applied bonus effect.
 func get_dash_attack_damage() -> float:
     _ensure_run_stats()
-    return _run_stats.dash_attack_damage
+    return _run_stats.dash_attack_damage + _run_build.total(RunBuild.CH_DASH_ATTACK_DAMAGE)
 
 
-## Returns the current normal attack hit-geometry scale (1.0 = base reach and shape size).
+## Returns the current normal attack hit-geometry scale (1.0 = base reach and shape size),
+## projected from the authored base plus every applied range-bonus effect.
 ## Shared by any future melee-style weapon effect that needs the same offset/shape scaling.
 func get_normal_attack_range_scale() -> float:
     _ensure_run_stats()
-    return 1.0 + _run_stats.normal_attack_range_bonus_percent / 100.0
+    var bonus_percent := _run_stats.normal_attack_range_bonus_percent + _run_build.total(RunBuild.CH_ATTACK_RANGE)
+    return 1.0 + bonus_percent / 100.0
 
 
-## Returns the current dash travel speed, scaled by the run-local dash range bonus.
-## DASH_DURATION stays fixed so i-frame timing and trail VFX pacing are unaffected.
+## Returns the current dash travel speed, scaled by the projected dash range bonus
+## (authored base plus every applied bonus effect, clamped to MAX_DASH_RANGE_BONUS_PERCENT
+## at the combined value). DASH_DURATION stays fixed so i-frame timing and trail VFX
+## pacing are unaffected.
 func get_dash_speed() -> float:
     _ensure_run_stats()
-    return DASH_SPEED * (1.0 + _run_stats.dash_range_bonus_percent / 100.0)
+    var bonus_percent := _run_stats.dash_range_bonus_percent + _run_build.total(RunBuild.CH_DASH_RANGE)
+    bonus_percent = min(bonus_percent, MAX_DASH_RANGE_BONUS_PERCENT)
+    return DASH_SPEED * (1.0 + bonus_percent / 100.0)
 
 
-## Adds a run-local bonus to normal attack damage.
+## Records a run-scoped bonus to normal attack damage.
 func add_normal_attack_damage(amount: float) -> void:
     if amount <= 0.0:
         return
-    _ensure_run_stats()
-    _run_stats.normal_attack_damage += amount
+    _run_build.record(RunBuild.CH_NORMAL_ATTACK_DAMAGE, amount)
 
 
-## Adds a run-local percentage-point bonus to normal attack hit-geometry scale.
+## Records a run-scoped percentage-point bonus to normal attack hit-geometry scale.
 func add_attack_range(amount: float) -> void:
     if amount <= 0.0:
         return
-    _ensure_run_stats()
-    _run_stats.normal_attack_range_bonus_percent += amount
+    _run_build.record(RunBuild.CH_ATTACK_RANGE, amount)
 
 
-## Reduces the run-local normal attack duration, clamped to the first-pass minimum.
+## Records a run-scoped reduction to normal attack duration.
 func reduce_normal_attack_cooldown(amount: float) -> void:
     if amount <= 0.0:
         return
-    _ensure_run_stats()
-    _run_stats.normal_attack_cooldown = max(_run_stats.normal_attack_cooldown - amount, MIN_ATTACK_DURATION)
+    _run_build.record(RunBuild.CH_NORMAL_ATTACK_COOLDOWN, -amount)
 
 
-## Adds a run-local bonus to dash attack damage.
+## Records a run-scoped bonus to dash attack damage.
 func add_dash_attack_damage(amount: float) -> void:
     if amount <= 0.0:
         return
-    _ensure_run_stats()
-    _run_stats.dash_attack_damage += amount
+    _run_build.record(RunBuild.CH_DASH_ATTACK_DAMAGE, amount)
 
 
-## Reduces the run-local dash cooldown and clamps any active cooldown to the new maximum.
+## Records a run-scoped reduction to dash cooldown and clamps any active
+## in-flight cooldown to the newly projected maximum.
 func reduce_dash_cooldown(amount: float) -> void:
     if amount <= 0.0:
         return
-    _ensure_run_stats()
-    _run_stats.dash_cooldown = max(_run_stats.dash_cooldown - amount, MIN_DASH_COOLDOWN)
-    _dash_cooldown_remaining = min(_dash_cooldown_remaining, _run_stats.dash_cooldown)
+    _run_build.record(RunBuild.CH_DASH_COOLDOWN, -amount)
+    _dash_cooldown_remaining = min(_dash_cooldown_remaining, get_dash_cooldown_duration())
 
 
-## Adds a run-local percentage-point bonus to dash travel distance, clamped against
-## MAX_DASH_RANGE_BONUS_PERCENT to keep dash speed from outrunning hit detection.
+## Records a run-scoped percentage-point bonus to dash travel distance; the
+## MAX_DASH_RANGE_BONUS_PERCENT cap is enforced at projection (get_dash_speed),
+## not at record time.
 func add_dash_range(amount: float) -> void:
     if amount <= 0.0:
         return
-    _ensure_run_stats()
-    _run_stats.dash_range_bonus_percent = min(
-        _run_stats.dash_range_bonus_percent + amount,
-        MAX_DASH_RANGE_BONUS_PERCENT,
-    )
+    _run_build.record(RunBuild.CH_DASH_RANGE, amount)
 
 
-## Adds max health through the owned Health component.
+## Returns whether the run-scoped store still has capacity for another Major effect.
+func has_major_capacity() -> bool:
+    return _run_build.has_major_capacity()
+
+
+## Returns whether a Major effect in the given exclusivity group is already
+## active this run. An empty group never conflicts.
+func has_major_conflict(exclusivity_group: String) -> bool:
+    return _run_build.has_major_conflict(exclusivity_group)
+
+
+## Returns how many Major effects are currently active on this player's run.
+func major_count() -> int:
+    return _run_build.major_count()
+
+
+## Adds max health through the owned Health component. Health remains the
+## runtime authority for max health, so this is not recorded in the run-build
+## store — the delta pushed here is exactly the amount added, independent of
+## any store total.
 func add_max_health(amount: float) -> void:
     if amount <= 0.0:
         return
-    _ensure_run_stats()
-    _run_stats.max_health += amount
     if health != null:
         health.add_max_health(amount)
 
