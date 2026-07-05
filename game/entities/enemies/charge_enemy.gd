@@ -4,8 +4,6 @@ class_name ChargeEnemy
 extends GridEnemy
 
 const CHARGING_SPEED := 480.0
-const WARNING_DURATION := 1.0
-const RECOVERY_DURATION := 3.0
 ## Baseline tick speed: the charger's threat is bursty and self-paces via align/turn/telegraph/recovery.
 const TICK_SPEED := 100
 
@@ -36,8 +34,8 @@ func _ready() -> void:
 func get_charge_cells_from_pos(from: Vector2i, facing: Vector2) -> Array[Vector2i]:
     var attack_data := get_current_attack_data()
     if attack_data != null:
-        return EnemyAttackController.get_attack_cells(from, facing, attack_data, _grid)
-    return EnemyAttackController.get_attack_cells(from, facing, _create_fallback_attack_data(), _grid)
+        return get_unblocked_charge_cells(from, facing, attack_data)
+    return get_unblocked_charge_cells(from, facing, _create_fallback_attack_data())
 
 
 func get_charge_cells() -> Array[Vector2i]:
@@ -66,18 +64,22 @@ func face_arrow() -> void:
         _contact_hitbox.rotation = _facing.angle() + PI / 2.0
 
 
-func get_pre_plan_state_id() -> int:
-    if _can_charge_now():
-        return EnemyState.EnemyStateId.TELEGRAPH
-    return -1
+## Commits the charge both before planning and on arrival, whenever the enemy is aligned and already
+## facing the charge direction so its line footprint covers the target.
+func should_commit_before_plan() -> bool:
+    return _can_charge_now()
+
+
+func should_commit_on_arrival() -> bool:
+    return _can_charge_now()
 
 
 func get_tick_speed() -> int:
     return TICK_SPEED
 
 
-## True only when the enemy is aligned with the target and already facing the charge direction, so the
-## line footprint for its current (capped) facing covers the target. The turn cap is the flank knob.
+## True only when the enemy is aligned with the target, already facing the charge direction, and no
+## other enemy blocks the line before the target. The turn cap is the flank knob.
 func _can_charge_now() -> bool:
     if _grid == null or not has_target() or _attack_data == null or _facing == Vector2.ZERO:
         return false
@@ -93,37 +95,20 @@ func get_committed_attack_cells() -> Array[Vector2i]:
 ## Adds the charge destination marker to the shared danger display.
 func get_danger() -> Dictionary:
     var danger := super()
-    if not danger.is_empty() and not _attack_tiles.is_empty():
-        danger["dest"] = _attack_tiles.back()
+    var tiles := get_attack_tiles()
+    if not danger.is_empty() and not tiles.is_empty():
+        danger["dest"] = tiles.back()
     return danger
-
-
-func get_recovery_duration() -> float:
-    return float(_attack_data.recovery_duration) if _attack_data != null else RECOVERY_DURATION
 
 
 func get_current_attack_data() -> EnemyAttackData:
     return _attack_data
 
 
-func get_charge_speed() -> float:
-    return _attack_data.charge_speed if _attack_data != null else CHARGING_SPEED
-
-
-func get_attack_state_id() -> int:
-    return EnemyState.EnemyStateId.CHARGE_ATTACK
-
-
 func show_attack_charge() -> void:
     var telegraph := get_telegraph()
     if telegraph != null:
         telegraph.show_charge(get_stored_charge_cells())
-
-
-func get_arrival_override_state_id() -> int:
-    if _can_charge_now():
-        return EnemyState.EnemyStateId.TELEGRAPH
-    return -1
 
 
 ## Clears movement planning and prepares the charge telegraph along the enemy's current (capped) facing.
@@ -149,9 +134,10 @@ func begin_attack_telegraph() -> bool:
 ## Tick detonation: damages the player if their cell is on the charge line, then dashes to the farthest
 ## open cell along it (stopping short of the player or a blocker), and enters recovery.
 func _tick_detonate() -> void:
-    _resolve_detonation_on_player(_attack_tiles)
+    var tiles := get_attack_tiles()
+    _resolve_detonation_on_player(tiles)
     var dest := _grid_pos
-    for line_cell: Vector2i in _attack_tiles:
+    for line_cell: Vector2i in tiles:
         if _tick_engine == null or not _tick_engine.is_cell_open_for_enemy(line_cell, self):
             break
         dest = line_cell
@@ -173,12 +159,7 @@ func plan_next_action() -> bool:
     return plan_charge_origin_action()
 
 
-func begin_charge_attack() -> void:
-    stop_attack_windup_vfx()
-    if _point_executor != null:
-        _point_executor.set_hitbox_enabled(true)
-
-
+## Defensive cleanup on guard break and reset: stops the windup and disables the charge contact hitbox.
 func end_charge_attack() -> void:
     stop_attack_windup_vfx()
     if _point_executor != null:

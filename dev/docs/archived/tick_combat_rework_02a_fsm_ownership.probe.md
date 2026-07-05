@@ -1,8 +1,8 @@
 **Enemy FSM ownership split**
 
-Status: Draft probe.
+Status: Archived probe.
 
-Decision: none yet.
+Decision: resolved into dev/docs/plans/tick_combat_rework_02c_enemy_ownership.md — the FSM is deliberately narrowed to an intent/decision layer; clocked statuses move to a per-enemy tick combat runtime.
 
 The enemy FSM problem is not tick clocking by itself. The friction is that behavior ownership became discontinuous during the tick conversion. `StateMachine` is still nominally the behavior-delegation layer, but many of the decisions that define enemy state now live in `TickEngine` and `GridEnemy`: detonation order, disabled status, recovery countdowns, telegraph freeze, and energy banking are all expressed outside the state scripts.
 

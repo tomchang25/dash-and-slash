@@ -9,9 +9,6 @@
 [ext_resource type="Script" uid="uid://v830nt1qxe7u" path="res://game/entities/enemies/states/enemy_idle_state.gd" id="9_idle_state"]
 [ext_resource type="Script" uid="uid://ck22jjn6ueb2b" path="res://game/entities/enemies/states/enemy_reposition_state.gd" id="10_reposition_state"]
 [ext_resource type="Script" uid="uid://bwg432ox13y5p" path="res://game/entities/enemies/states/enemy_face_once_state.gd" id="11_face_state"]
-[ext_resource type="Script" uid="uid://io1xclgbr12x" path="res://game/entities/enemies/states/enemy_telegraph_state.gd" id="12_telegraph_state"]
-[ext_resource type="Script" uid="uid://bb3phu2cojsne" path="res://game/entities/enemies/states/enemy_attack_state.gd" id="13_attack_state"]
-[ext_resource type="Script" uid="uid://dnge4qadd37k6" path="res://game/entities/enemies/states/enemy_recovery_state.gd" id="14_recovery_state"]
 [ext_resource type="Script" uid="uid://kso7t1372ljp" path="res://game/entities/enemies/states/enemy_staggered_state.gd" id="15_staggered_state"]
 [ext_resource type="Script" uid="uid://dccf5ed0kuq50" path="res://game/entities/enemies/enemy_attack_controller.gd" id="16_attack_controller"]
 [ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/components/enemy_status_bars.tscn" id="17_status_bars"]
@@ -95,15 +92,6 @@ script = ExtResource("10_reposition_state")
 
 [node name="FaceOnce" type="Node" parent="StateMachine" unique_id=1246309414]
 script = ExtResource("11_face_state")
-
-[node name="Telegraph" type="Node" parent="StateMachine" unique_id=1744860453]
-script = ExtResource("12_telegraph_state")
-
-[node name="Attack" type="Node" parent="StateMachine" unique_id=1843041215]
-script = ExtResource("13_attack_state")
-
-[node name="Recovery" type="Node" parent="StateMachine" unique_id=1137850405]
-script = ExtResource("14_recovery_state")
 
 [node name="Staggered" type="Node" parent="StateMachine" unique_id=1988416278]
 script = ExtResource("15_staggered_state")

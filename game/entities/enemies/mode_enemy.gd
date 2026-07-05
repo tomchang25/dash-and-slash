@@ -10,13 +10,6 @@ signal guard_stagger_ended
 enum Mode { TILE = 0, PUFF = 1, CHARGE = 2 }
 
 const MODE_COUNT := 3
-const MODE_CHANGE_DURATION := 3.0
-const MODE_PREVIEW_INTERVAL := 0.25
-const TELEGRAPH_DURATION := 0.8
-const CHARGE_DURATION := 0.2
-const TILE_ATTACK_DURATION := 0.25
-const PUFF_ATTACK_DURATION := 1.0
-const RECOVERY_DURATION := 0.8
 const CHARGING_SPEED := 480.0
 const TILE_MODE_COLOR := Color(0.9, 0.35, 0.25, 1.0)
 const PUFF_MODE_COLOR := Color(0.95, 0.8, 0.2, 1.0)
@@ -42,7 +35,6 @@ var _current_attack_data: EnemyAttackData
 
 func _ready() -> void:
     super()
-    _allow_diagonal_movement = true
     _configure_executors()
     _disable_mode_hitboxes()
     _apply_current_mode_color()
@@ -79,24 +71,24 @@ func emit_guard_snapshot() -> void:
         guard_changed.emit(_guard.current(), _guard.max_guard)
 
 
-func get_pre_plan_state_id() -> int:
+## Rolls a fresh mode before planning whenever the current one is spent; once a mode is ready it commits
+## its attack at any of the three decision points the mode's footprint can cover the target.
+func get_pre_decision_state_id() -> int:
     if not _mode_ready:
         return EnemyState.EnemyStateId.MODE_CHANGE
-    if can_attack_current_mode():
-        return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
 
-func get_arrival_override_state_id() -> int:
-    if can_attack_current_mode():
-        return EnemyState.EnemyStateId.TELEGRAPH
-    return -1
+func should_commit_before_plan() -> bool:
+    return can_attack_current_mode()
 
 
-func get_after_face_state_id() -> int:
-    if can_attack_current_mode():
-        return EnemyState.EnemyStateId.TELEGRAPH
-    return EnemyState.EnemyStateId.IDLE
+func should_commit_on_arrival() -> bool:
+    return can_attack_current_mode()
+
+
+func should_commit_after_face() -> bool:
+    return can_attack_current_mode()
 
 
 ## Commits the enemy to mode selection and clears any planned movement.
@@ -114,57 +106,12 @@ func begin_attack_telegraph() -> bool:
     return true
 
 
-func get_recovery_duration() -> float:
-    return float(_current_attack_data.recovery_duration) if _current_attack_data != null else RECOVERY_DURATION
-
-
 func get_current_attack_data() -> EnemyAttackData:
     return _current_attack_data
 
 
-func get_attack_state_id() -> int:
-    if _mode == Mode.CHARGE:
-        return EnemyState.EnemyStateId.CHARGE_ATTACK
-    return super()
-
-
 func get_telegraph() -> TileTelegraph:
     return _telegraph
-
-
-func get_stored_charge_cells() -> Array[Vector2i]:
-    return _point_executor.get_cells() if _point_executor != null else []
-
-
-func get_charge_speed() -> float:
-    return _current_attack_data.charge_speed if _current_attack_data != null else CHARGING_SPEED
-
-
-func begin_charge_attack() -> void:
-    stop_attack_windup_vfx()
-    if _point_executor != null:
-        _point_executor.set_hitbox_enabled(true)
-
-
-func end_charge_attack() -> void:
-    stop_attack_windup_vfx()
-    if _point_executor != null:
-        _point_executor.set_hitbox_enabled(false)
-
-
-## Returns the generic timed-attack duration for TILE/PUFF modes. CHARGE mode routes
-## through EnemyChargeAttackState, which has no timeout and never calls this.
-func get_attack_duration() -> float:
-    if _current_attack_data != null:
-        return _current_attack_data.active_duration
-    match _mode:
-        Mode.PUFF:
-            return PUFF_ATTACK_DURATION
-    return TILE_ATTACK_DURATION
-
-
-func get_mode_preview_interval() -> float:
-    return MODE_PREVIEW_INTERVAL
 
 
 func choose_random_mode() -> void:
@@ -199,7 +146,7 @@ func can_attack_current_mode() -> bool:
         Mode.CHARGE:
             if target_cell == _grid_pos or _facing == Vector2.ZERO or _current_attack_data == null:
                 return false
-            return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, _facing, _current_attack_data, _grid)
+            return target_cell in get_unblocked_charge_cells(_grid_pos, _facing, _current_attack_data)
         Mode.PUFF:
             return is_target_within_grid_range(_get_current_puff_range())
         Mode.TILE:
@@ -231,6 +178,8 @@ func prepare_attack() -> bool:
         Mode.CHARGE, Mode.PUFF:
             if _point_executor == null:
                 return false
+            if _mode == Mode.CHARGE:
+                return _point_executor.prepare_cells(get_unblocked_charge_cells(_grid_pos, _facing, _current_attack_data), _current_attack_data, get_damage_multiplier())
             return _point_executor.prepare(_grid_pos, _facing, _current_attack_data, get_damage_multiplier())
     return false
 
@@ -253,35 +202,6 @@ func show_attack_charge() -> void:
         Mode.CHARGE, Mode.PUFF:
             if _point_executor != null:
                 _point_executor.show_charge()
-
-
-func begin_attack() -> bool:
-    velocity = Vector2.ZERO
-    if not _has_executor_for_mode():
-        return false
-    if attack_sfx_event != null:
-        AudioManager.play_event(attack_sfx_event, global_position)
-
-    match _mode:
-        Mode.TILE:
-            _tile_executor.begin_attack()
-        Mode.PUFF:
-            _point_executor.begin_attack()
-        Mode.CHARGE:
-            ToastManager.show_dev_error("ModeEnemy.begin_attack() called in CHARGE mode; CHARGE routes through EnemyChargeAttackState instead.")
-
-    return true
-
-
-func end_attack() -> void:
-    velocity = Vector2.ZERO
-    match _mode:
-        Mode.TILE:
-            if _tile_executor != null:
-                _tile_executor.end_attack()
-        Mode.CHARGE, Mode.PUFF:
-            if _point_executor != null:
-                _point_executor.end_attack()
 
 
 func cancel_attack() -> void:
@@ -310,17 +230,18 @@ func get_committed_attack_cells() -> Array[Vector2i]:
 func _tick_detonate() -> void:
     if attack_sfx_event != null:
         AudioManager.play_event(attack_sfx_event, global_position)
+    var tiles := get_attack_tiles()
     if _mode == Mode.CHARGE:
-        _resolve_detonation_on_player(_attack_tiles)
+        _resolve_detonation_on_player(tiles)
         var dest := _grid_pos
-        for line_cell: Vector2i in _attack_tiles:
+        for line_cell: Vector2i in tiles:
             if _tick_engine == null or not _tick_engine.is_cell_open_for_enemy(line_cell, self):
                 break
             dest = line_cell
         if dest != _grid_pos:
             tick_snap_to_cell(dest)
     else:
-        _resolve_detonation_on_player(_attack_tiles)
+        _resolve_detonation_on_player(tiles)
     finish_attack_into_recovery()
 
 
@@ -364,12 +285,6 @@ func _rewire_point_executor() -> void:
         return
     var hitbox := _puff_hitbox if _mode == Mode.PUFF else _contact_hitbox
     _point_executor.setup(_grid, _telegraph, hitbox, true)
-
-
-func _has_executor_for_mode() -> bool:
-    if _mode == Mode.TILE:
-        return _tile_executor != null
-    return _point_executor != null
 
 
 ## Returns the attack data driving TILE-mode cell computation, falling back to the

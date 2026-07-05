@@ -1,8 +1,8 @@
 **GridEnemy ownership concentration**
 
-Status: Draft probe.
+Status: Archived probe.
 
-Decision: none yet.
+Decision: resolved into dev/docs/plans/tick_combat_rework_02c_enemy_ownership.md — the base keeps grid identity, occupancy/reservations, health/guard/death bridging, and the actor facade; tick combat state moves to a per-enemy runtime, and path planning plus hit resolution become stateless helpers.
 
 `GridEnemy` has become the central aggregation point for enemy runtime behavior. It is no longer only a shared grid enemy base class. In the tick conversion it accumulated grid occupancy, reservation interaction, path planning, tick actor scheduling hooks, telegraph and detonation state, player-hit prediction and resolution, guard/stagger bridging, feedback routing, and death cleanup.
 

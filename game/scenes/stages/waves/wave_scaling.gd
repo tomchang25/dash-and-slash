@@ -57,6 +57,6 @@ static func get_damage_multiplier(wave_number: int) -> float:
 
 
 ## Returns the flat defense value applied to spawned enemies for wave_number's tier.
-## Defense reduces incoming hp damage per GridEnemy._apply_defense(); guard never scales.
+## Defense reduces incoming hp damage per EnemyHitResolver.apply_defense(); guard never scales.
 static func get_defense(wave_number: int) -> float:
     return get_tier(wave_number) * DEFENSE_PER_TIER

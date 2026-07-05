@@ -19,7 +19,6 @@ var _attack_data: EnemyAttackData
 
 func _ready() -> void:
     super()
-    _allow_diagonal_movement = true
     _configure_attack_controller()
     _select_attack_data()
 
@@ -57,16 +56,14 @@ func get_attack_controller() -> EnemyAttackController:
     return _attack_controller
 
 
-func get_pre_plan_state_id() -> int:
-    if can_attack():
-        return EnemyState.EnemyStateId.TELEGRAPH
-    return -1
+## Commits before planning when already facing a footprint that covers the target, and after a capped
+## turn brings that footprint onto the target — the two decision points a tile attack can open from.
+func should_commit_before_plan() -> bool:
+    return can_attack()
 
 
-func get_after_face_state_id() -> int:
-    if can_attack():
-        return EnemyState.EnemyStateId.TELEGRAPH
-    return EnemyState.EnemyStateId.IDLE
+func should_commit_after_face() -> bool:
+    return can_attack()
 
 
 ## Clears movement planning and prepares the attack telegraph for the enemy's current (capped) facing.
@@ -88,22 +85,6 @@ func show_attack_charge() -> void:
     var attack := get_attack_controller()
     if attack != null:
         attack.show_charge()
-
-
-func begin_attack() -> bool:
-    var attack := get_attack_controller()
-    if attack == null:
-        return false
-    stop_attack_windup_vfx()
-    attack.begin_attack()
-    return true
-
-
-func end_attack() -> void:
-    stop_attack_windup_vfx()
-    var attack := get_attack_controller()
-    if attack != null:
-        attack.end_attack()
 
 
 func plan_next_action() -> bool:

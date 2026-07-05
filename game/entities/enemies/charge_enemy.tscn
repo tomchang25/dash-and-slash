@@ -13,9 +13,6 @@
 [ext_resource type="Script" uid="uid://barkfgyuqruhw" path="res://game/entities/enemies/states/enemy_dead_state.gd" id="11_dead"]
 [ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/components/enemy_status_bars.tscn" id="12_status_bars"]
 [ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="13_telegraph"]
-[ext_resource type="Script" path="res://game/entities/enemies/states/enemy_telegraph_state.gd" id="14_charge_telegraph"]
-[ext_resource type="Script" uid="uid://djp3xq2tgkt8y" path="res://game/entities/enemies/states/enemy_charge_attack_state.gd" id="15_charge_attack"]
-[ext_resource type="Script" uid="uid://dnge4qadd37k6" path="res://game/entities/enemies/states/enemy_recovery_state.gd" id="16_recovery"]
 [ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="17_died_audio"]
 [ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="18_damaged_audio"]
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
@@ -95,15 +92,6 @@ script = ExtResource("8_reposition")
 
 [node name="FaceOnce" type="Node" parent="StateMachine" unique_id=1246309414]
 script = ExtResource("9_face")
-
-[node name="ChargeTelegraph" type="Node" parent="StateMachine" unique_id=1234567891]
-script = ExtResource("14_charge_telegraph")
-
-[node name="ChargeAttack" type="Node" parent="StateMachine" unique_id=1234567892]
-script = ExtResource("15_charge_attack")
-
-[node name="Recovery" type="Node" parent="StateMachine" unique_id=1234567893]
-script = ExtResource("16_recovery")
 
 [node name="Staggered" type="Node" parent="StateMachine" unique_id=1988416278]
 script = ExtResource("10_staggered")

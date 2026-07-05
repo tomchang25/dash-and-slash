@@ -23,6 +23,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > All phases shipped → archive the plan file + delete this line.
 
 - [combat] Full conversion to player-clocked tick grid combat (input, enemies, speed stats, run loop); prototype gate passed 2026-07-05 — [ref plans/tick_combat_rework.md]
+- [combat] Tick enemy ownership rework: FSM narrowed to intent layer, per-enemy tick combat runtime, base-class extraction — [ref plans/tick_combat_rework_02c_enemy_ownership.md]
 
 ---
 

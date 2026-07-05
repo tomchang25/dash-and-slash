@@ -13,7 +13,6 @@ enum PuffPhase {
 }
 
 const PUFF_RANGE := 2
-const PUFF_CHARGE_DURATION := 0.6
 ## Playtest tuning: slower pursuit leaks distance so the player can escape the zone footprint.
 const TICK_SPEED := 75
 const PUFF_ACTIVE_COLOR := Color(1.0, 0.5, 0.5, 1.0)
@@ -52,25 +51,6 @@ func is_target_in_puff_range() -> bool:
     return is_target_within_grid_range(get_puff_range())
 
 
-## Commits the enemy to the puff action and clears any planned movement.
-func begin_puff_action() -> bool:
-    return begin_committed_action()
-
-
-## Starts the pre-puff charge tell without enabling the area hazard.
-func begin_puff_charge_action() -> bool:
-    if not begin_committed_action():
-        return false
-    face_target_position()
-    start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.PUFF)
-    return true
-
-
-## Stops the pre-puff charge tell before expansion or interruption cleanup.
-func end_puff_charge_action() -> void:
-    stop_attack_windup_vfx()
-
-
 func enable_puff_hitbox(enable: bool) -> void:
     if _point_executor != null:
         _point_executor.set_hitbox_enabled(enable)
@@ -88,8 +68,7 @@ func begin_puff_tick() -> bool:
     var cells := _compute_puff_cells()
     if cells.is_empty():
         return false
-    _attack_tiles = cells
-    _attack_ticks = get_warning_tick_count()
+    _tick_runtime.commit_attack(cells, get_warning_tick_count())
     _puff_phase = PuffPhase.WINDUP
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.PUFF)
     return true
@@ -98,16 +77,16 @@ func begin_puff_tick() -> bool:
 ## Overrides the base single-shot detonation with a multi-tick zone: count down the windup, then keep the
 ## zone active for its lifetime, damaging the player each tick their cell is inside before shrinking.
 func resolve_detonation() -> void:
-    if _attack_ticks <= 0:
+    if not _tick_runtime.has_pending_attack():
         return
-    _attack_ticks -= 1
+    var remaining := _tick_runtime.step_attack_countdown()
     if _puff_phase == PuffPhase.WINDUP:
-        if _attack_ticks <= 0:
+        if remaining <= 0:
             _activate_puff_zone()
         return
     if _puff_phase == PuffPhase.ACTIVE:
-        _resolve_detonation_on_player(_attack_tiles)
-        if _attack_ticks <= 0:
+        _resolve_detonation_on_player(get_attack_tiles())
+        if remaining <= 0:
             _end_puff_zone()
 
 
@@ -132,28 +111,18 @@ func get_puff_range() -> int:
     return _attack_data.radius if _attack_data != null else PUFF_RANGE
 
 
-func get_puff_charge_duration() -> float:
-    return float(_attack_data.warning_duration) if _attack_data != null else PUFF_CHARGE_DURATION
+## Commits the puff windup both before planning and on arrival, whenever the target is inside the zone
+## range. The puff commits its zone windup rather than a tile telegraph, so it overrides try_commit_attack.
+func should_commit_before_plan() -> bool:
+    return is_target_in_puff_range()
 
 
-func get_puff_minimum_duration() -> float:
-    return float(_attack_data.active_duration) if _attack_data != null else 3.0
+func should_commit_on_arrival() -> bool:
+    return is_target_in_puff_range()
 
 
-func get_puff_recheck_interval() -> float:
-    return float(_attack_data.recheck_interval) if _attack_data != null else 1.0
-
-
-func get_pre_plan_state_id() -> int:
-    if is_target_in_puff_range():
-        return EnemyState.EnemyStateId.PUFF_CHARGE
-    return -1
-
-
-func get_arrival_override_state_id() -> int:
-    if is_target_in_puff_range():
-        return EnemyState.EnemyStateId.PUFF_CHARGE
-    return -1
+func try_commit_attack() -> bool:
+    return begin_puff_tick()
 
 # == Tick puff zone ============================================================
 
@@ -172,23 +141,22 @@ func _puff_active_ticks() -> int:
 ## Windup finished: expand the body, damage the player once, and open the active window.
 func _activate_puff_zone() -> void:
     _puff_phase = PuffPhase.ACTIVE
-    _attack_ticks = maxi(_puff_active_ticks() - 1, 0)
+    _tick_runtime.set_attack_ticks(maxi(_puff_active_ticks() - 1, 0))
     stop_attack_windup_vfx()
     _play_puff_vfx(true)
-    _resolve_detonation_on_player(_attack_tiles)
-    if _attack_ticks <= 0:
+    _resolve_detonation_on_player(get_attack_tiles())
+    if _tick_runtime.attack_ticks() <= 0:
         _end_puff_zone()
 
 
 ## Active window finished: shrink the body, clear the zone, and open the recovery window before idle.
 func _end_puff_zone() -> void:
     _puff_phase = PuffPhase.NONE
-    _attack_tiles.clear()
-    _attack_ticks = -1
+    _tick_runtime.clear_attack()
     _play_puff_vfx(false)
-    _recovery_ticks = get_recovery_tick_count()
-    if _state_machine != null:
-        _state_machine.request_transition(get_idle_state_id(), true)
+    # The machine is already parked in idle (the deciding state returned there on commit); the runtime's
+    # freeze and this recovery window cover the whole windup/active span, so no transition is needed here.
+    _tick_runtime.begin_recovery(get_recovery_tick_count())
 
 
 func _play_puff_vfx(expand: bool) -> void:

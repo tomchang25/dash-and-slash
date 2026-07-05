@@ -56,6 +56,22 @@ func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackDat
     return true
 
 
+## Configures the hitbox and uses a caller-computed footprint for telegraph and commit data.
+## Used by charge kinds whose line must stop at enemy blockers before being displayed or resolved.
+func prepare_cells(cells: Array[Vector2i], attack_data: EnemyAttackData, damage_multiplier: float = 1.0) -> bool:
+    cancel()
+    if not configure(attack_data, damage_multiplier):
+        return false
+
+    if _show_telegraph:
+        _attack_cells = cells.duplicate()
+        if _attack_cells.is_empty():
+            return false
+
+    _prepared = true
+    return true
+
+
 func show_warning() -> void:
     if _prepared and _show_telegraph and _telegraph != null:
         _telegraph.show_warning(_attack_cells)

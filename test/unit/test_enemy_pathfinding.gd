@@ -14,7 +14,7 @@ class PathEnemy:
 
 
     func find_path_to(goal_cells: Array[Vector2i]) -> Array[Vector2i]:
-        return _find_path_to_cell(_grid_pos, NO_BLOCKED_CELL, goal_cells, false)
+        return EnemyPathPlanner.find_path_to_cell(_grid, self, _get_movement_directions(), _grid_pos, NO_BLOCKED_CELL, goal_cells, false)
 
 
     func setup_approach_grid(grid: GridArena, start: Vector2i, target: Node2D) -> void:
