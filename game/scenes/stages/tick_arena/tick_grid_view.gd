@@ -1,15 +1,15 @@
 # tick_grid_view.gd
-# Interim grey-box presentation for the tick arena (carried over from the prototype until real
-# presentation lands): land tiles, grid lines, enemy danger tiles with tick countdowns, player-side
-# previews in a distinct cyan palette, and deny/detonation/swing flashes.
+# Debug preview overlay for the tick arena. Terrain, water, grid lines, arena bounds, and the enemy
+# danger telegraph fills are drawn by the production GridTerrainView; this overlay only keeps the
+# prototype affordances that have no production equivalent yet: player-side previews in a distinct
+# cyan palette, per-attack tick countdowns and charge destinations, and deny/detonation/swing flashes.
 class_name TickGridView
 extends Node2D
 
 # -- Constants --
 
-const LAND_COLOR := Color(0.22, 0.24, 0.27)
-const GRID_LINE_COLOR := Color(0.36, 0.39, 0.43, 0.5)
-# Danger palette matches the production telegraph colors (GridTerrainView) so the read carries over.
+# Danger palette matches the production telegraph colors (GridTerrainView) so the countdown badges and
+# charge-destination markers read as the same enemy-danger phase the production fills paint underneath.
 const DANGER_WARNING_COLOR := Color(1.0, 0.4, 0.2, 0.25)
 const DANGER_CHARGE_COLOR := Color(1.0, 0.55, 0.0, 0.5)
 const DANGER_ACTIVE_COLOR := Color(0.95, 0.1, 0.0, 0.75)
@@ -47,8 +47,6 @@ func _ready() -> void:
     if grid == null:
         ToastManager.show_dev_error("TickGridView: grid export is not wired.")
         return
-    grid.terrain_generated.connect(queue_redraw)
-    grid.terrain_cells_changed.connect(func(_cells: Array[Vector2i]) -> void: queue_redraw())
     queue_redraw()
 
 
@@ -66,7 +64,6 @@ func _process(delta: float) -> void:
 func _draw() -> void:
     if grid == null:
         return
-    _draw_terrain()
     _draw_danger()
     _draw_preview()
     _draw_flashes()
@@ -117,26 +114,14 @@ func _add_flash(cells: Array[Vector2i], color: Color, outline_only: bool) -> voi
     queue_redraw()
 
 
-func _draw_terrain() -> void:
-    for land_cell: Vector2i in grid.get_land_cells():
-        draw_rect(_cell_rect(land_cell, 1.0), LAND_COLOR)
-    for x in range(grid.grid_size.x + 1):
-        var top := to_local(grid.cell_center(Vector2i(x, 0))) + Vector2(-grid.tile_size * 0.5, -grid.tile_size * 0.5)
-        draw_line(top, top + Vector2(0.0, grid.grid_size.y * grid.tile_size), GRID_LINE_COLOR, 1.0)
-    for y in range(grid.grid_size.y + 1):
-        var left := to_local(grid.cell_center(Vector2i(0, y))) + Vector2(-grid.tile_size * 0.5, -grid.tile_size * 0.5)
-        draw_line(left, left + Vector2(grid.grid_size.x * grid.tile_size, 0.0), GRID_LINE_COLOR, 1.0)
-
-
+## Draws the debug tick countdown over each telegraphed cell plus the charge-destination marker; the
+## danger fill itself is painted by the production GridTerrainView from GridArena telegraph state.
 func _draw_danger() -> void:
     var font := ThemeDB.fallback_font
     for danger in _danger:
         var ticks := int(danger["ticks"])
         var fill := DANGER_CHARGE_COLOR if ticks <= 1 else DANGER_WARNING_COLOR
         for danger_cell: Vector2i in danger["cells"]:
-            var rect := _cell_rect(danger_cell, 0.9)
-            draw_rect(rect, fill)
-            draw_rect(rect, fill.lightened(0.5), false, 2.0)
             var text_pos := to_local(grid.cell_center(danger_cell)) + Vector2(-grid.tile_size * 0.5, COUNTDOWN_FONT_SIZE * 0.35)
             draw_string(font, text_pos, str(ticks), HORIZONTAL_ALIGNMENT_CENTER, grid.tile_size, COUNTDOWN_FONT_SIZE, Color(1.0, 1.0, 1.0, 0.9))
         if danger.has("dest"):

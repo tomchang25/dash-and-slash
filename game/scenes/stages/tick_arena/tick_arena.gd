@@ -328,14 +328,20 @@ func _toggle_mobility_mode() -> void:
 # == View and HUD ==
 
 
-## Pushes the actors' pending attacks to the view; runs after every world advance (hits resolve in
-## stage 1 and are covered by the advance that follows every consumed verb).
+## Pushes the actors' pending attacks to the production telegraph layer, which GridTerrainView paints
+## in the enemy-danger palette, and to the debug overlay for the tick countdowns; runs after every
+## world advance (hits resolve in stage 1 and are covered by the advance that follows every consumed verb).
 func _refresh_danger() -> void:
+    _grid.clear_all_telegraphs()
     var danger: Array[Dictionary] = []
     for enemy in _engine.actors():
         var enemy_danger := enemy.get_danger()
-        if not enemy_danger.is_empty():
-            danger.append(enemy_danger)
+        if enemy_danger.is_empty():
+            continue
+        danger.append(enemy_danger)
+        var cells: Array[Vector2i] = enemy_danger["cells"]
+        var phase := GridArena.TelegraphPhase.CHARGE if int(enemy_danger["ticks"]) <= 1 else GridArena.TelegraphPhase.WARNING
+        _grid.set_telegraph(enemy, cells, phase)
     _view.set_danger(danger)
 
 

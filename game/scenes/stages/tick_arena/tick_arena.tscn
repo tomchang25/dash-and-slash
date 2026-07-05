@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_arena.gd" id="1_root"]
 [ext_resource type="Script" path="res://common/gameplay/grid/grid_arena.gd" id="2_grid"]
@@ -6,6 +6,9 @@
 [ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_engine.gd" id="4_engine"]
 [ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_input.gd" id="5_input"]
 [ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_player.gd" id="6_player"]
+[ext_resource type="Script" path="res://common/gameplay/grid/grid_terrain_view.gd" id="7_terrain"]
+[ext_resource type="TileSet" path="res://common/gameplay/grid/land_tileset.tres" id="8_land_ts"]
+[ext_resource type="TileSet" path="res://common/gameplay/grid/water_tileset.tres" id="9_water_ts"]
 
 [node name="TickArena" type="Node2D"]
 script = ExtResource("1_root")
@@ -16,7 +19,24 @@ script = ExtResource("2_grid")
 grid_size = Vector2i(12, 12)
 starting_land_size = Vector2i(10, 10)
 
-[node name="GridView" type="Node2D" parent="."]
+[node name="WaterBackground" type="TileMapLayer" parent="."]
+unique_name_in_owner = true
+z_index = -10
+tile_set = ExtResource("9_water_ts")
+
+[node name="Land" type="TileMapLayer" parent="."]
+unique_name_in_owner = true
+z_index = -9
+tile_set = ExtResource("8_land_ts")
+
+[node name="GridTerrainView" type="Node2D" parent="." node_paths=PackedStringArray("grid", "land_layer", "water_layer")]
+unique_name_in_owner = true
+script = ExtResource("7_terrain")
+grid = NodePath("../GridArena")
+land_layer = NodePath("../Land")
+water_layer = NodePath("../WaterBackground")
+
+[node name="GridView" type="Node2D" parent="." node_paths=PackedStringArray("grid")]
 unique_name_in_owner = true
 script = ExtResource("3_view")
 grid = NodePath("../GridArena")
