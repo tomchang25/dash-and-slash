@@ -15,6 +15,7 @@ Ship the windup grammar and the first three real Major effects — Smash (slot-r
 5. Execution (dash-triggered Major): a dash hit on an already-staggered target kills instantly, replacing the 2.0x stagger multiplier.
 6. Trigger seam: dash resolution queries the run build's triggered-effect hooks (on-dash-hit) so Shredder and Execution modify the shared hit resolver's result rather than forking the dash code path; the hooks are the same seam later Majors (Shockwave Dash, Chain Dash) will use.
 7. All three ship as pickable Major reward effects through the existing pool, respecting the run-wide cap of four.
+8. Major and windup feedback reuses existing combat/audio seams where possible, adding only distinct Shredder instant-break and Execution kill events where the design document calls for stronger separation.
 
 ## Design
 
@@ -26,7 +27,7 @@ Ship the windup grammar and the first three real Major effects — Smash (slot-r
 
 - `RunBuild` gains a `triggered_effects` channel; effect objects for the three Majors follow the existing per-effect-object pattern (own eligibility, own apply) and write `ability_overrides.mobility_payload = "smash"` or append trigger hooks.
 - Windup state lives on the player actor (armed flag + locked target), as in the prototype; the input layer's repeat pulses drive arm/release.
-- SFX per the design document: Shredder's instant break and Execution's kill get distinct feedback from the generic break/kill events (wire to existing audio event seams; final sounds are content work).
+- SFX/VFX per the design document: Shredder's instant break and Execution's kill get distinct feedback from the generic break/kill events (wire to existing audio and combat feedback seams; final sounds/assets are content work).
 
 ## Non-Goals
 
@@ -39,3 +40,4 @@ Ship the windup grammar and the first three real Major effects — Smash (slot-r
 1. Picking Smash swaps the mobility slot's payload for the rest of the run; the windup arm/release/cancel grammar matches the prototype's validated behavior, including no tick refund on cancel.
 2. With Guard Shredder held, a back dash hit breaks any guard instantly; with Execution held, a dash hit on a staggered target kills instantly — and the preview badges show both upgraded outcomes before the commit.
 3. Smash and a synthetic Chain Dash identifier are mutually exclusive through the existing group mechanism, and the four-Major cap still holds.
+4. Windup, Smash impact, Shredder break, and Execution kill are not silent mechanics: they emit the reused or distinct VFX/SFX called for by the resolver result.

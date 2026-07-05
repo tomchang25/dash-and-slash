@@ -14,6 +14,7 @@ Formalize the dash verb, the preview-is-truth targeting layer with resolved outc
 4. Player-side preview visuals use a palette strictly separated from the enemy telegraph palette (hard rule from the design document).
 5. The mobility slot reads its payload from the run build's ability-override channel at verb time; this phase ships the seam with dash as the only payload, proving the read path before phase 4 adds a second payload.
 6. The angle resolver quantizes to grid: attacker origin cell (for dash, the cell before entering the target's cell) relative to target facing; diagonal or ambiguous origins resolve to side.
+7. Dash commits drive the existing hit feedback and audio semantics through the shared resolver result — blocked, damaged, guard break, stagger burst, kill, and whiff should read like the legacy combat events even though no physics dash hitbox owns the truth.
 
 ## Design
 
@@ -25,6 +26,7 @@ Outcome badge tiers (from the prototype): tier 0 chip = angle label only, tier 1
 - Ability-override read: `RunBuild` gains an `ability_overrides` channel (e.g. `mobility_payload = "dash"`); the input layer asks the build, not a hardcoded enum. The reward-store architecture itself is untouched (rework plan non-goal).
 - Preview state flows controller → view as plain dictionaries, as in the prototype; the view stays a dumb renderer.
 - Target snapshots for prediction: cell, facing, guard current/max, staggered, hp — read-only copies so prediction can never mutate.
+- Commit results emit presentation events from the resolver result rather than from collision callbacks, so existing VFX/SFX helpers can be reused without letting physics hitboxes become the authority again.
 
 ## Non-Goals
 
@@ -37,3 +39,4 @@ Outcome badge tiers (from the prototype): tier 0 chip = angle label only, tier 1
 1. Every commit executes exactly what its preview displayed at press time, including clamped landings; preview and commit provably share one code path for hit math.
 2. Swapping the ability-override value swaps the slot's behavior with zero input-layer changes (demonstrable with a debug toggle ahead of phase 4's real Major).
 3. Outcome badges match the resolved results across angle, break, and kill cases.
+4. Dash hit, blocked, break, kill, and whiff feedback remains event-driven from the tick commit result and does not regress to silent grey-box hits.
