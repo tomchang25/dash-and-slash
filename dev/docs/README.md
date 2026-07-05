@@ -39,15 +39,15 @@ Documentation (this folder) describes **how the project works**. _Tracking_ — 
 
 A forward item has exactly one home, chosen by how much substance it carries. It moves home as it grows — it is never written in two places at once.
 
-| Maturity                                                                    | Home                                                                                                   | Form                                   |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------- |
-| One line, no reasoning                                                      | `TODO.md` → `Plan` / `Chore` / `Bug`                                                                   | a single line                          |
-| Bigger than a line, but one section says enough                             | `TODO.md` → `## Draft`                                                                                 | one `###` sub-section under `## Draft` |
-| Earned its own file (grew sub-structure / actionable / needs a stable link) | `dev/docs/plans/<x>.md` + a one-line pointer in `TODO.md` `## Plan`                                    | a standalone design/work file          |
-| Design locked                                                               | graduate the conclusion into `systems/`, archive the file                                              | present-tense paragraph in `systems/`  |
-| Shipped                                                                     | `CHANGELOG.md` entry; cut the phase from its plan file; delete the TODO line when the whole flow lands | append-only history                    |
+| Maturity                                                                    | Home                                                                                                                    | Form                                   |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| One line, no reasoning                                                      | `TODO.md` → `Plan` / `Chore` / `Bug`                                                                                    | a single line                          |
+| Bigger than a line, but one section says enough                             | `TODO.md` → `## Draft`                                                                                                  | one `###` sub-section under `## Draft` |
+| Earned its own file (grew sub-structure / actionable / needs a stable link) | `dev/docs/plans/<x>.md` + a one-line pointer in `TODO.md` `## Plan`, except probes that are deliberately non-actionable | a standalone design/work file          |
+| Design locked                                                               | graduate the conclusion into `systems/`, archive the file                                                               | present-tense paragraph in `systems/`  |
+| Shipped                                                                     | `CHANGELOG.md` entry; cut the phase from its plan file; delete the TODO line when the whole flow lands                  | append-only history                    |
 
-> **The one rule — now about sections, not files:** the actionable TODO tiers (`Plan`/`Chore`/`Bug`) are **one line each**. The instant an item needs a paragraph of _why_, a table, or a trade-off, it belongs in `## Draft` as its own section — never inline in a one-liner tier. When that section grows sub-structure, becomes actionable, or needs to be linked, it graduates to a `plans/` file.
+> **The one rule — now about sections, not files:** the actionable TODO tiers (`Plan`/`Chore`/`Bug`) are **one line each**. The instant an item needs a paragraph of _why_, a table, or a trade-off, it belongs in `## Draft` as its own section — never inline in a one-liner tier. When that section grows sub-structure, becomes actionable, or needs to be linked, it graduates to a `plans/` file. If the file exists only to hand off an early problem observation or unresolved architecture discussion, follow `dev/standards/probe_standard.md` and do not add a TODO pointer until it becomes actionable.
 
 There is no separate `draft/` folder and no separate draft file: the draft tier is the `## Draft` section of `TODO.md`. This keeps one forward surface to check, and keeps the actionable one-liners clean by corralling reasoning into a single labelled section.
 
@@ -119,6 +119,8 @@ Guiding test: **if renaming a function would make the doc wrong, that detail doe
 One file per standalone design/work item — the place an idea lands once it has outgrown a `TODO.md` `## Draft` section. It holds both still-exploratory designs and committed pre-plans; there is no `Status:` header — whether it's actively being built is expressed by where its pointer sits in `TODO.md` (`## Plan` = queued, `## Active` = building), and a stale plan is retired by moving its content back to `## Draft`.
 
 Name: `<scope>_<short_description>.md`. Contains goal (1–2 sentences), context/why now, high-level steps (or phases), and acceptance criteria. Keep it **forward-only**: as each phase ships, cut it out and record it in `CHANGELOG.md` — don't keep a checked-off phase ledger. When its design locks, graduate the conclusion to `systems/`. Archive the plan once it's shipped or superseded.
+
+Probes are the exception to the no-`Status:` rule in `plans/`. They use `Status: Draft probe.` and `Decision:` metadata, may be problem-only, and do not need a TODO pointer while they are discussion handoffs. Use `dev/standards/probe_standard.md` for this shape.
 
 ## Relationship to other dev/ folders
 

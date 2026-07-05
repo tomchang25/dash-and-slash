@@ -51,7 +51,7 @@ Reviews use `dev/workflows/review_standard.md`; command files define the review 
 
 ## Planning And Docs
 
-When asked to build a plan, implementation spec, or sketch, follow the matching workflow in `dev/workflows/` (`plan_standard.md`, `implementation_spec_standard.md`, `sketch_standard.md`), the plan lifecycle in `dev/docs/README.md`, and `dev/standards/` for any relevant domain standard. Plans and sketches go in `dev/docs/plans/` with a one-line pointer in `TODO.md`.
+When asked to build a plan, implementation spec, or sketch, follow the matching workflow in `dev/workflows/` (`plan_standard.md`, `implementation_spec_standard.md`, `sketch_standard.md`), the plan lifecycle in `dev/docs/README.md`, and `dev/standards/` for any relevant domain standard. Plans and sketches go in `dev/docs/plans/` with a one-line pointer in `TODO.md`. When asked to capture an early problem observation, design tension, codebase discussion handoff, or unresolved architectural thought without a chosen implementation direction, use `dev/standards/probe_standard.md`.
 
 ## Project Structure
 
@@ -96,6 +96,7 @@ SFX are authored as YAML patches under `data/yaml/sfx/*.yaml` and rendered via `
 - **Runtime ownership**: read `dev/standards/runtime_ownership.md` before introducing or renaming Controllers, Systems, Stores, Services, save providers, or other runtime state owners.
 - **Commits**: conventional commits format — read `dev/skills/conventional_commits.md` when writing commit messages. Do not hard-wrap prose.
 - **Change summaries**: read `dev/standards/change_summary_standard.md` before writing commit messages, PR descriptions, CHANGELOG entries, closeout output, review summaries, or other completed-work summaries.
+- **Probes**: read `dev/standards/probe_standard.md` before creating early problem notes, design tension notes, architecture discussion handoffs, or codebase review conclusions that are not implementation plans.
 - **Audio events**: use `AudioManager.play_event()` for gameplay, UI, and music playback; read `dev/skills/audio_event_usage.md` before changing audio playback, SFX resources, music, or `AudioManager` call sites.
 - **Save providers**: an object that serializes a slice of state must also own that state — no save adapter that only serializes another object's fields.
 - **State machines**: the `StateMachine` + `State` framework is behavior-delegation, not a state-label holder; read `dev/skills/state_machine_pattern.md` before changing entity states, FSM scene wiring, or transition logic.
