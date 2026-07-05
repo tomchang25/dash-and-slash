@@ -1,4 +1,4 @@
-[gd_resource type="TileSet" load_steps=3 format=4]
+[gd_resource type="TileSet" format=3 uid="uid://bamrv60h1jhhc"]
 
 [ext_resource type="Texture2D" uid="uid://svm2l7nywt4m" path="res://game/scenes/stages/Water.png" id="5_water"]
 

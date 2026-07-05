@@ -11,8 +11,10 @@ enum MobilityMode {
 
 # -- Constants --
 
-const MeleeEnemyScene := preload("res://game/scenes/stages/tick_arena/tick_melee_enemy.tscn")
-const ChargeEnemyScene := preload("res://game/scenes/stages/tick_arena/tick_charge_enemy.tscn")
+const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
+const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
+const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
+const ModeEnemyScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 
 const PLAYER_ATTACK_DAMAGE := 20.0
 const PLAYER_DASH_DAMAGE := 30.0
@@ -21,8 +23,10 @@ const DASH_RANGE := 5
 const DASH_COOLDOWN_TICKS := 4
 const SMASH_RANGE := 3
 const MESSAGE_SEC := 1.6
-const MELEE_SPAWN_COUNT := 2
+const SMALL_SPAWN_COUNT := 2
 const CHARGER_SPAWN_COUNT := 1
+const PUFF_SPAWN_COUNT := 1
+const MODE_SPAWN_COUNT := 1
 const SPAWN_MIN_PLAYER_DISTANCE := 4
 const BACKGROUND_COLOR := Color(0.09, 0.1, 0.12)
 
@@ -150,8 +154,8 @@ func _verb_dash() -> bool:
         _view.flash_deny(_player.cell + plan["dir"] * DASH_RANGE)
         return false
     var dir: Vector2i = plan["dir"]
-    for victim: TickEnemy in plan["victims"]:
-        _apply_player_hit(victim, victim.cell - dir, PLAYER_DASH_DAMAGE, true)
+    for victim: GridEnemy in plan["victims"]:
+        _apply_player_hit(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true)
     _view.flash_swing(plan["path"])
     _player.move_to(plan["landing"], true)
     _player.dash_cooldown = DASH_COOLDOWN_TICKS
@@ -179,7 +183,7 @@ func _verb_smash() -> bool:
             area.append(landing + Vector2i(ox, oy))
     _view.flash_swing(area)
     for enemy in _engine.actors():
-        if enemy.is_alive() and _chebyshev(enemy.cell - landing) <= 1:
+        if enemy.is_alive() and _chebyshev(enemy.get_grid_pos() - landing) <= 1:
             _apply_player_hit(enemy, landing, PLAYER_SMASH_DAMAGE, true)
     _player.move_to(landing, true)
     _player.disarm_smash()
@@ -198,7 +202,7 @@ func _cancel_smash_windup() -> void:
         _set_message("Windup cancelled.")
 
 
-func _apply_player_hit(enemy: TickEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> void:
+func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> void:
     var result := enemy.take_hit(origin_cell, damage, is_dash)
     if bool(result["killed"]):
         _set_message("Enemy destroyed!")
@@ -209,9 +213,9 @@ func _apply_player_hit(enemy: TickEnemy, origin_cell: Vector2i, damage: float, i
         _set_message("%s hit." % _angle_name(result["angle"]))
 
 
-func _remove_enemy(enemy: TickEnemy) -> void:
+## Stops scheduling a killed enemy. The enemy runs its own death-state tween and frees itself.
+func _remove_enemy(enemy: GridEnemy) -> void:
     _engine.unregister_actor(enemy)
-    enemy.queue_free()
     if _engine.actors().is_empty():
         _set_message("All enemies down — R to respawn.")
 
@@ -249,7 +253,7 @@ func _compute_dash_plan() -> Dictionary:
         return { "legal": false, "dir": dir, "path": probe_path }
 
     var travel := probe_path.slice(0, landing_index + 1)
-    var victims: Array[TickEnemy] = []
+    var victims: Array[GridEnemy] = []
     for travel_cell: Vector2i in travel:
         var enemy := _engine.enemy_at(travel_cell)
         if enemy != null:
@@ -277,15 +281,22 @@ func _chebyshev(delta: Vector2i) -> int:
 
 
 func _spawn_enemies() -> void:
-    for i in MELEE_SPAWN_COUNT:
-        _spawn_enemy(MeleeEnemyScene)
+    for i in SMALL_SPAWN_COUNT:
+        _spawn_enemy(SmallEnemyScene)
     for i in CHARGER_SPAWN_COUNT:
         _spawn_enemy(ChargeEnemyScene)
+    for i in PUFF_SPAWN_COUNT:
+        _spawn_enemy(PuffEnemyScene)
+    for i in MODE_SPAWN_COUNT:
+        _spawn_enemy(ModeEnemyScene)
 
 
+## Instantiates a production enemy kind and binds it to the tick engine as a scheduled actor.
 func _spawn_enemy(scene: PackedScene) -> void:
-    var enemy: TickEnemy = scene.instantiate()
-    enemy.setup(_engine, _grid, _pick_spawn_cell())
+    var enemy: GridEnemy = scene.instantiate()
+    enemy.global_position = _grid.cell_center(_pick_spawn_cell())
+    enemy.setup(_grid, _player)
+    enemy.bind_tick_engine(_engine)
     _enemy_container.add_child(enemy)
     _engine.register_actor(enemy)
 
@@ -310,6 +321,7 @@ func _pick_spawn_cell() -> Vector2i:
 
 func _reset_run(reason: String) -> void:
     for actor in _engine.actors():
+        _grid.unregister_occupant(actor)
         actor.queue_free()
     _engine.clear_actors()
     _player.reset(_grid.grid_size / 2)
@@ -353,7 +365,7 @@ func _update_preview() -> void:
     var preview := { "aim_cell": _player.cell + _aim_direction() }
     var aim_enemy := _engine.enemy_at(preview["aim_cell"])
     if aim_enemy != null:
-        outcomes[aim_enemy.cell] = _outcome_entry(aim_enemy, _player.cell, PLAYER_ATTACK_DAMAGE, false)
+        outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, _player.cell, PLAYER_ATTACK_DAMAGE, false)
 
     if _mobility_mode == MobilityMode.DASH:
         if _player.dash_cooldown <= 0:
@@ -364,8 +376,8 @@ func _update_preview() -> void:
                 preview["dash_landing"] = plan["landing"]
                 preview["ghost_cell"] = plan["landing"]
                 var dir: Vector2i = plan["dir"]
-                for victim: TickEnemy in plan["victims"]:
-                    outcomes[victim.cell] = _outcome_entry(victim, victim.cell - dir, PLAYER_DASH_DAMAGE, true)
+                for victim: GridEnemy in plan["victims"]:
+                    outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true)
     elif _player.is_smash_armed():
         preview["smash_armed_center"] = _player.smash_target
         preview["ghost_cell"] = _player.smash_target
@@ -384,7 +396,7 @@ func _update_preview() -> void:
 
 
 ## Predicts one hit for the preview and condenses it into a display entry: cell, label, and intensity tier.
-func _outcome_entry(enemy: TickEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> Dictionary:
+func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> Dictionary:
     var result := enemy.predict_hit(origin_cell, damage, is_dash)
     var label := ""
     var tier := 0
@@ -399,13 +411,13 @@ func _outcome_entry(enemy: TickEnemy, origin_cell: Vector2i, damage: float, is_d
         tier = 1
     else:
         label = _angle_name(result["angle"]).to_upper()
-    return { "cell": enemy.cell, "label": label, "tier": tier }
+    return { "cell": enemy.get_grid_pos(), "label": label, "tier": tier }
 
 
 func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
     for enemy in _engine.actors():
-        if enemy.is_alive() and _chebyshev(enemy.cell - center) <= 1:
-            outcomes[enemy.cell] = _outcome_entry(enemy, center, PLAYER_SMASH_DAMAGE, true)
+        if enemy.is_alive() and _chebyshev(enemy.get_grid_pos() - center) <= 1:
+            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, PLAYER_SMASH_DAMAGE, true)
 
 
 func _refresh_hud() -> void:
@@ -440,12 +452,14 @@ func _mobility_mode_name() -> String:
 
 func _angle_name(angle: int) -> String:
     match angle:
-        TickCombatRules.HitAngle.FRONT:
+        DirectionResolver.HitAngle.FRONT:
             return "Front"
-        TickCombatRules.HitAngle.SIDE:
+        DirectionResolver.HitAngle.SIDE:
             return "Side"
-        TickCombatRules.HitAngle.BACK:
+        DirectionResolver.HitAngle.BACK:
             return "BACK"
+        DirectionResolver.HitAngle.NONE:
+            return "Side"
         _:
             ToastManager.show_dev_error("TickArena: unexpected hit angle %d" % angle)
             return "?"

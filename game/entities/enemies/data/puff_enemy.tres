@@ -9,8 +9,9 @@ attack_id = "puff"
 attack_kind = 2
 cell_shape = 2
 damage = 12.0
-damage_interval = 0.35
-active_duration = 3.0
+warning_duration = 3
+active_duration = 2
+recovery_duration = 2
 radius = 2
 
 [resource]

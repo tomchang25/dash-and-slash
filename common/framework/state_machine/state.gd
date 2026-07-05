@@ -34,6 +34,12 @@ func _physics_update(_delta: float) -> void:
     pass
 
 
+## Tick-driven update hook. Called once per external tick advance instead of per frame,
+## for state machines whose owner is clocked by a discrete tick engine rather than frame time.
+func _advance_tick() -> void:
+    pass
+
+
 func enter() -> void:
     _locked = false
     if debug_enabled:
@@ -56,6 +62,14 @@ func physics_update(delta: float) -> void:
     if _locked:
         return
     _physics_update(delta)
+
+
+## Advances this state by exactly one external tick. Ignored while locked (mid-transition),
+## mirroring update()/physics_update().
+func advance_tick() -> void:
+    if _locked:
+        return
+    _advance_tick()
 
 
 ## Called by the state itself to move to the next state.

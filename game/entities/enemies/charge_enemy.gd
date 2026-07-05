@@ -6,6 +6,8 @@ extends GridEnemy
 const CHARGING_SPEED := 480.0
 const WARNING_DURATION := 1.0
 const RECOVERY_DURATION := 3.0
+## Baseline tick speed: the charger's threat is bursty and self-paces via align/turn/telegraph/recovery.
+const TICK_SPEED := 100
 
 # -- State --------------------------------------------------------------------
 var _attack_data: EnemyAttackData
@@ -65,13 +67,39 @@ func face_arrow() -> void:
 
 
 func get_pre_plan_state_id() -> int:
-    if can_charge_target_from_cell(_grid_pos):
+    if _can_charge_now():
         return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
 
+func get_tick_speed() -> int:
+    return TICK_SPEED
+
+
+## True only when the enemy is aligned with the target and already facing the charge direction, so the
+## line footprint for its current (capped) facing covers the target. The turn cap is the flank knob.
+func _can_charge_now() -> bool:
+    if _grid == null or not has_target() or _attack_data == null or _facing == Vector2.ZERO:
+        return false
+    var cells := get_charge_cells()
+    return not cells.is_empty() and get_target_cell() in cells
+
+
+## Tick footprint committed by begin_attack_telegraph(): the pre-computed charge line.
+func get_committed_attack_cells() -> Array[Vector2i]:
+    return get_stored_charge_cells()
+
+
+## Adds the charge destination marker to the shared danger display.
+func get_danger() -> Dictionary:
+    var danger := super()
+    if not danger.is_empty() and not _attack_tiles.is_empty():
+        danger["dest"] = _attack_tiles.back()
+    return danger
+
+
 func get_recovery_duration() -> float:
-    return _attack_data.recovery_duration if _attack_data != null else RECOVERY_DURATION
+    return float(_attack_data.recovery_duration) if _attack_data != null else RECOVERY_DURATION
 
 
 func get_current_attack_data() -> EnemyAttackData:
@@ -93,19 +121,18 @@ func show_attack_charge() -> void:
 
 
 func get_arrival_override_state_id() -> int:
-    if can_charge_target_from_cell(_grid_pos):
+    if _can_charge_now():
         return EnemyState.EnemyStateId.TELEGRAPH
     return -1
 
 
-## Clears movement planning and prepares the charge telegraph.
+## Clears movement planning and prepares the charge telegraph along the enemy's current (capped) facing.
 func begin_attack_telegraph() -> bool:
     if not begin_committed_action():
         return false
     if not has_target():
         return false
 
-    face_target_position()
     var cells := get_charge_cells()
     if cells.is_empty() or get_target_cell() not in cells:
         return false
@@ -117,6 +144,29 @@ func begin_attack_telegraph() -> bool:
 
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.CHARGE)
     return true
+
+
+## Tick detonation: damages the player if their cell is on the charge line, then dashes to the farthest
+## open cell along it (stopping short of the player or a blocker), and enters recovery.
+func _tick_detonate() -> void:
+    _resolve_detonation_on_player(_attack_tiles)
+    var dest := _grid_pos
+    for line_cell: Vector2i in _attack_tiles:
+        if _tick_engine == null or not _tick_engine.is_cell_open_for_enemy(line_cell, self):
+            break
+        dest = line_cell
+    if dest != _grid_pos:
+        CombatFeedbackVFX.play_charge_start(global_position, _facing, self)
+        tick_snap_to_cell(dest)
+    finish_attack_into_recovery()
+
+
+## Tick hook: clears the charge telegraph, windup, and stored line when the charge resolves or cancels.
+func _clear_attack_presentation() -> void:
+    if _telegraph != null:
+        _telegraph.clear()
+    stop_attack_windup_vfx()
+    clear_stored_charge_cells()
 
 
 func plan_next_action() -> bool:
@@ -184,8 +234,8 @@ func _create_fallback_attack_data() -> EnemyAttackData:
     attack_data.cell_shape = EnemyAttackData.CellShape.FULL_LINE
     attack_data.damage = 8.0
     attack_data.damage_interval = 0.6
-    attack_data.warning_duration = WARNING_DURATION
-    attack_data.charge_duration = 0.0
-    attack_data.recovery_duration = RECOVERY_DURATION
+    attack_data.warning_duration = 2
+    attack_data.charge_duration = 0
+    attack_data.recovery_duration = 2
     attack_data.charge_speed = CHARGING_SPEED
     return attack_data

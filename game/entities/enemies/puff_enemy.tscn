@@ -80,13 +80,14 @@ script = ExtResource("19_point_executor")
 unique_name_in_owner = true
 script = ExtResource("5_guard")
 max_guard = 16
-stagger_duration = 10.0
+stagger_ticks = 3
 
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
 unique_name_in_owner = true
 script = ExtResource("6_sm")
 initial_state = NodePath("Idle")
 tick_enabled = false
+frame_driven = false
 
 [node name="Idle" type="Node" parent="StateMachine" unique_id=200186374]
 script = ExtResource("7_idle")

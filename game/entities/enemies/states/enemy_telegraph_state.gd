@@ -1,10 +1,10 @@
 # enemy_telegraph_state.gd
-# Shared telegraph state that drives warning and charge phases via the enemy's
-# attack lifecycle API, then transitions to the attack state.
+# Shared telegraph state. On enter it commits the tick-clocked attack (locks the footprint tiles and
+# starts the player-action countdown); the engine then counts the telegraph down and detonates it,
+# freezing the enemy until impact. This state only steps when the commit failed, to bail back to idle.
 class_name EnemyTelegraphState
 extends EnemyState
 
-var _timer: Timer
 var _return_to_idle := false
 
 
@@ -13,45 +13,14 @@ func _init() -> void:
 
 
 func _enter() -> void:
-    _return_to_idle = false
-    if not enemy.begin_attack_telegraph():
-        _return_to_idle = true
-        return
-
-    _timer = Timer.new()
-    _timer.one_shot = true
-    _timer.timeout.connect(_on_warning_done)
-    # node-src: timer
-    add_child(_timer)
-    _timer.start(enemy.get_warning_duration())
+    _return_to_idle = not enemy.begin_tick_telegraph()
 
 
 func _exit() -> void:
     _return_to_idle = false
-    if _timer != null and is_instance_valid(_timer):
-        _timer.queue_free()
-        _timer = null
 
 
-func _physics_update(_delta: float) -> void:
+func _advance_tick() -> void:
+    # Reached only when the commit failed; a committed telegraph freezes act_tick until it detonates.
     if _return_to_idle:
         change_state(EnemyStateId.IDLE)
-
-
-func _on_warning_done() -> void:
-    if _timer != null and is_instance_valid(_timer):
-        _timer.queue_free()
-        _timer = null
-
-    enemy.show_attack_charge()
-
-    _timer = Timer.new()
-    _timer.one_shot = true
-    _timer.timeout.connect(_on_charge_done)
-    # node-src: timer
-    add_child(_timer)
-    _timer.start(enemy.get_charge_duration())
-
-
-func _on_charge_done() -> void:
-    change_state(enemy.get_attack_state_id())

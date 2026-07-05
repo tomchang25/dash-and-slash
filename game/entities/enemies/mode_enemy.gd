@@ -108,7 +108,6 @@ func begin_mode_change() -> bool:
 func begin_attack_telegraph() -> bool:
     if not begin_committed_action():
         return false
-    face_target_position()
     if not prepare_attack():
         return false
     show_attack_warning()
@@ -116,7 +115,7 @@ func begin_attack_telegraph() -> bool:
 
 
 func get_recovery_duration() -> float:
-    return _current_attack_data.recovery_duration if _current_attack_data != null else RECOVERY_DURATION
+    return float(_current_attack_data.recovery_duration) if _current_attack_data != null else RECOVERY_DURATION
 
 
 func get_current_attack_data() -> EnemyAttackData:
@@ -195,17 +194,18 @@ func get_mode_color(mode: int) -> Color:
 func can_attack_current_mode() -> bool:
     if _grid == null or not has_target() or not _mode_ready:
         return false
+    var target_cell := get_target_cell()
     match _mode:
         Mode.CHARGE:
-            return can_charge_target_from_cell(_grid_pos)
+            if target_cell == _grid_pos or _facing == Vector2.ZERO or _current_attack_data == null:
+                return false
+            return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, _facing, _current_attack_data, _grid)
         Mode.PUFF:
             return is_target_within_grid_range(_get_current_puff_range())
         Mode.TILE:
-            var target_cell := get_target_cell()
-            var dir_to_target := Vector2(target_cell - _grid_pos)
-            if dir_to_target == Vector2.ZERO:
+            if target_cell == _grid_pos or _facing == Vector2.ZERO:
                 return false
-            return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target), _tile_attack_data(), _grid)
+            return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, _facing, _tile_attack_data(), _grid)
     return false
 
 
@@ -293,6 +293,42 @@ func cancel_attack() -> void:
         Mode.CHARGE, Mode.PUFF:
             if _point_executor != null:
                 _point_executor.cancel()
+
+# == Tick clocking =============================================================
+
+
+## Tick footprint committed by begin_attack_telegraph(): the current mode's executor cells.
+func get_committed_attack_cells() -> Array[Vector2i]:
+    var empty: Array[Vector2i] = []
+    if _mode == Mode.TILE:
+        return _tile_executor.get_cells() if _tile_executor != null else empty
+    return _point_executor.get_cells() if _point_executor != null else empty
+
+
+## Tick detonation. CHARGE mode dashes along its line like the charger; TILE/PUFF resolve a single
+## cell-membership check. Every mode plays the attack cue and re-arms mode selection for the next cycle.
+func _tick_detonate() -> void:
+    if attack_sfx_event != null:
+        AudioManager.play_event(attack_sfx_event, global_position)
+    if _mode == Mode.CHARGE:
+        _resolve_detonation_on_player(_attack_tiles)
+        var dest := _grid_pos
+        for line_cell: Vector2i in _attack_tiles:
+            if _tick_engine == null or not _tick_engine.is_cell_open_for_enemy(line_cell, self):
+                break
+            dest = line_cell
+        if dest != _grid_pos:
+            tick_snap_to_cell(dest)
+    else:
+        _resolve_detonation_on_player(_attack_tiles)
+    finish_attack_into_recovery()
+
+
+## Tick hook: clears the current mode's telegraph and forces a fresh mode roll after the attack resolves.
+func _clear_attack_presentation() -> void:
+    cancel_attack()
+    stop_attack_windup_vfx()
+    _mode_ready = false
 
 # == Setup helpers =============================================================
 
@@ -393,9 +429,9 @@ func _get_current_puff_range() -> int:
 
 func _create_fallback_attack_data(mode: int) -> EnemyAttackData:
     var attack_data := EnemyAttackData.new()
-    attack_data.warning_duration = TELEGRAPH_DURATION
-    attack_data.charge_duration = CHARGE_DURATION
-    attack_data.recovery_duration = RECOVERY_DURATION
+    attack_data.warning_duration = 2
+    attack_data.charge_duration = 0
+    attack_data.recovery_duration = 1
     match mode:
         Mode.CHARGE:
             attack_data.attack_kind = EnemyAttackData.AttackKind.CHARGE
@@ -407,12 +443,12 @@ func _create_fallback_attack_data(mode: int) -> EnemyAttackData:
             attack_data.attack_kind = EnemyAttackData.AttackKind.PUFF
             attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
             attack_data.damage = 14.0
-            attack_data.active_duration = PUFF_ATTACK_DURATION
+            attack_data.active_duration = 2
             attack_data.radius = 1
         _:
             attack_data.attack_kind = EnemyAttackData.AttackKind.TILE
             attack_data.damage = 12.0
-            attack_data.active_duration = TILE_ATTACK_DURATION
+            attack_data.active_duration = 1
             var shape := randi() % 3
             if shape == 0:
                 attack_data.cell_shape = EnemyAttackData.CellShape.WIDE

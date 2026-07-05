@@ -14,7 +14,7 @@ const ENERGY_PER_ACTION := 100
 # -- State --
 
 var _tick_count := 0
-var _actors: Array[TickEnemy] = []
+var _actors: Array[GridEnemy] = []
 var _energy := { }
 var _player_dead := false
 
@@ -32,6 +32,9 @@ var _player_dead := false
 func advance_world() -> void:
     _tick_count += 1
 
+    # Publish the player's logical cell so enemy reservation priority (closer-to-player) stays correct.
+    _grid.set_player_cell(_grid.cell_center(_player.cell))
+
     for actor in _actors.duplicate():
         if actor.is_alive():
             actor.resolve_detonation()
@@ -44,7 +47,7 @@ func advance_world() -> void:
             # enemy can never surprise the player with saved-up movement.
             _energy[actor] = 0
             continue
-        _energy[actor] = int(_energy.get(actor, 0)) + actor.speed
+        _energy[actor] = int(_energy.get(actor, 0)) + actor.get_tick_speed()
         while int(_energy[actor]) >= ENERGY_PER_ACTION:
             _energy[actor] = int(_energy[actor]) - ENERGY_PER_ACTION
             actor.act_tick()
@@ -58,7 +61,7 @@ func advance_world() -> void:
 
 
 ## Registers an enemy actor into the energy scheduler.
-func register_actor(actor: TickEnemy) -> void:
+func register_actor(actor: GridEnemy) -> void:
     if actor in _actors:
         return
     _actors.append(actor)
@@ -66,7 +69,7 @@ func register_actor(actor: TickEnemy) -> void:
 
 
 ## Removes an actor from the scheduler (killed or despawned); the caller owns freeing the node.
-func unregister_actor(actor: TickEnemy) -> void:
+func unregister_actor(actor: GridEnemy) -> void:
     _actors.erase(actor)
     _energy.erase(actor)
 
@@ -78,13 +81,13 @@ func clear_actors() -> void:
 
 
 ## Zeroes an actor's banked action energy (used on guard break so no saved-up action survives a stagger).
-func clear_energy(actor: TickEnemy) -> void:
+func clear_energy(actor: GridEnemy) -> void:
     if _energy.has(actor):
         _energy[actor] = 0
 
 
 ## Returns a snapshot of the registered actors.
-func actors() -> Array[TickEnemy]:
+func actors() -> Array[GridEnemy]:
     return _actors.duplicate()
 
 
@@ -106,11 +109,11 @@ func damage_player(amount: float, _source: Node) -> void:
 
 
 ## Returns true when an enemy may stand on the cell: in-bounds land, not the player, not another living actor.
-func is_cell_open_for_enemy(target_cell: Vector2i, asking: TickEnemy) -> bool:
+func is_cell_open_for_enemy(target_cell: Vector2i, asking: GridEnemy) -> bool:
     if not _grid.is_land(target_cell) or target_cell == _player.cell:
         return false
     for actor in _actors:
-        if actor != asking and actor.is_alive() and actor.cell == target_cell:
+        if actor != asking and actor.is_alive() and actor.get_grid_pos() == target_cell:
             return false
     return true
 
@@ -121,9 +124,9 @@ func is_cell_open_for_player(target_cell: Vector2i) -> bool:
 
 
 ## Returns the living enemy occupying the cell, or null.
-func enemy_at(target_cell: Vector2i) -> TickEnemy:
+func enemy_at(target_cell: Vector2i) -> GridEnemy:
     for actor in _actors:
-        if actor.is_alive() and actor.cell == target_cell:
+        if actor.is_alive() and actor.get_grid_pos() == target_cell:
             return actor
     return null
 

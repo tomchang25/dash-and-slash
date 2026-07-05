@@ -1,44 +1,27 @@
 # enemy_idle_state.gd
-# Shared idle state that waits for cooldown/stagger, then plans or attacks.
+# Shared idle state. On each world tick it plans the next action and hands off to attack, reposition,
+# or face. Recovery and stagger gating happen in the engine's status pass, so idle only runs when the
+# enemy is enabled this tick.
 class_name EnemyIdleState
 extends EnemyState
-
-const PLAN_RETRY_DELAY := 0.5
-
-var _plan_retry_remaining := 0.0
-
 
 func _init() -> void:
     state_id = EnemyStateId.IDLE
 
 
-func _enter() -> void:
-    enemy.velocity = Vector2.ZERO
-
-
-func _physics_update(delta: float) -> void:
+func _advance_tick() -> void:
     if not enemy.has_target():
-        return
-    if enemy.cooldown_active() or enemy.is_staggered():
-        enemy.velocity = Vector2.ZERO
-        return
-    if _plan_retry_remaining > 0.0:
-        _plan_retry_remaining = maxf(_plan_retry_remaining - delta, 0.0)
-        enemy.velocity = Vector2.ZERO
         return
 
     var pre_plan_state_id := enemy.get_pre_plan_state_id()
     if pre_plan_state_id >= 0:
-        _plan_retry_remaining = 0.0
         change_state(pre_plan_state_id)
         return
 
     if not enemy.plan_next_action():
-        _plan_retry_remaining = PLAN_RETRY_DELAY
-        enemy.velocity = Vector2.ZERO
+        # Nothing reachable this tick; retry on the next player action.
         return
 
-    _plan_retry_remaining = 0.0
     if enemy.has_planned_path():
         change_state(enemy.get_reposition_state_id())
     else:

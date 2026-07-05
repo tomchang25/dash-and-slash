@@ -9,11 +9,7 @@ attack_id = "charge"
 attack_kind = 1
 cell_shape = 3
 damage = 8.0
-damage_interval = 0.6
-warning_duration = 1.0
-charge_duration = 0.0
-active_duration = 1.2
-recovery_duration = 3.0
+recovery_duration = 2
 
 [resource]
 script = ExtResource("1_data")

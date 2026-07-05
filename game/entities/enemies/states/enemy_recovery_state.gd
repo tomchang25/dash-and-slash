@@ -1,5 +1,6 @@
 # enemy_recovery_state.gd
-# Shared recovery state that starts cooldown and returns to idle.
+# Shared recovery state. The recovery window itself is a disabled status counted down in the engine's
+# status pass (advance_status), so this state only advances once recovery has ended, returning to idle.
 class_name EnemyRecoveryState
 extends EnemyState
 
@@ -7,25 +8,5 @@ func _init() -> void:
     state_id = EnemyStateId.RECOVERY
 
 
-var _timer: Timer
-
-
-func _enter() -> void:
-    enemy.velocity = Vector2.ZERO
-    _timer = Timer.new()
-    _timer.one_shot = true
-    _timer.timeout.connect(_on_recovery_done)
-    # node-src: timer
-    add_child(_timer)
-    _timer.start(enemy.get_recovery_duration())
-
-
-func _exit() -> void:
-    if _timer != null and is_instance_valid(_timer):
-        _timer.queue_free()
-        _timer = null
-
-
-func _on_recovery_done() -> void:
-    enemy.start_cooldown()
+func _advance_tick() -> void:
     change_state(enemy.get_idle_state_id())

@@ -1,5 +1,10 @@
 # grid_enemy.gd
 # Shared base for 1x1 grid enemies with target chasing, guard, stagger, and death handling.
+# When bound to a TickEngine (bind_tick_engine), the enemy is clocked by discrete world ticks:
+# the engine calls resolve_detonation() / advance_status() / act_tick() each world advance, movement
+# snaps one cell per action, telegraph and recovery windows count in ticks, enemy-to-player damage
+# resolves as a cell-membership check at detonation, and player-to-enemy damage arrives through
+# take_hit() / predict_hit() instead of physics hurtbox overlap.
 class_name GridEnemy
 extends Enemy
 
@@ -18,6 +23,12 @@ const EIGHT_DIRECTIONS := [
 ]
 const NO_BLOCKED_CELL := Vector2i(-1, -1)
 const GUARDED_DAMAGE_MULTIPLIER := 0.2
+## Energy-skeleton default: 100 = one action per world tick. Slower kinds skip beats; see get_tick_speed().
+const DEFAULT_TICK_SPEED := 100
+const DEFAULT_WARNING_TICKS := 2
+const DEFAULT_RECOVERY_TICKS := 1
+## Visual-only slide time for a one-cell tick snap; the logical cell moves instantly.
+const TICK_MOVE_TWEEN_SEC := 0.09
 const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
@@ -49,10 +60,21 @@ var _attack_windup_vfx: Node2D
 var _damage_multiplier := 1.0
 var _defense := 0.0
 
+# -- Tick state ---------------------------------------------------------------
+## Set by bind_tick_engine(); non-null means this enemy is clocked by the tick engine.
+var _tick_engine = null
+## The committed attack's locked tiles, checked against the player's cell at detonation.
+var _attack_tiles: Array[Vector2i] = []
+## Player-actions remaining until the committed attack detonates; -1 when no attack is pending.
+var _attack_ticks := -1
+## World ticks the enemy stays in its post-attack recovery window (disabled, like stagger).
+var _recovery_ticks := 0
+
 # -- Timer / tween handles ----------------------------------------------------
 var _cooldown_timer: Timer
 var _stagger_tween: Tween
 var _hurt_tween: Tween
+var _tick_move_tween: Tween
 
 # -- Node references ----------------------------------------------------------
 @export var _state_machine: StateMachine
@@ -99,6 +121,10 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+    # Tick-clocked enemies never move on physics frames; the engine drives position via snap-steps.
+    if _tick_engine != null:
+        return
+
     if not is_instance_valid(_target):
         velocity = Vector2.ZERO
         move_and_slide()
@@ -173,6 +199,12 @@ func _on_guard_broken() -> void:
     _staggered = true
     stop_attack_windup_vfx()
     clear_planned_path()
+    # A guard break clears any banked action energy and cancels the pending attack, so a
+    # just-recovered enemy can never surprise the player with saved-up movement or a stale telegraph.
+    if _tick_engine != null:
+        _tick_engine.clear_energy(self)
+        cancel_tick_attack()
+        _recovery_ticks = 0
     _on_guard_broken_extra()
     var staggered_state_id := get_staggered_state_id()
     if _state_machine != null and staggered_state_id >= 0:
@@ -216,36 +248,19 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
         return
 
     var src_pos := (source as Node2D).global_position
-    var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
-    var guard_damage := _resolve_guard_damage(angle, guard_damage_profile)
-    var will_break_guard := _guard != null and not _guard.is_staggered() and _guard.current() > 0 and guard_damage >= _guard.current()
-    var full_damage := _guard == null or _guard.is_staggered() or will_break_guard
-    var hp_damage := amount if full_damage else amount * GUARDED_DAMAGE_MULTIPLIER
-    hp_damage = _apply_defense(hp_damage)
-
-    var sfx_event: SpatialAudioEvent = null
-    if full_damage:
-        sfx_event = damaged_sfx_event
-    else:
-        sfx_event = _get_blocked_hit_sfx(angle)
-    if sfx_event != null:
-        AudioManager.play_event(sfx_event, global_position)
-
-    if will_break_guard:
-        CombatFeedbackVFX.play_guard_break(global_position, self)
-    elif full_damage:
-        CombatFeedbackVFX.play_full_damage(global_position, self)
-    else:
-        CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
-
-    if health != null:
-        health.take_damage(hp_damage, source)
-
-    if health != null and not health.is_alive():
+    var is_dash := guard_damage_profile == Hitbox.GuardDamageProfile.DASH
+    var outcome := _resolve_hit_outcome(src_pos, amount, is_dash)
+    if not is_alive():
         return
 
+    _apply_hit_feedback(outcome, src_pos)
+
+    if health != null:
+        health.take_damage(float(outcome["hp_damage"]), source)
+    if health != null and not health.is_alive():
+        return
     if _guard != null:
-        _guard.take_guard_damage(guard_damage)
+        _guard.take_guard_damage(int(outcome["guard_damage"]))
 
 
 func _on_stagger_started() -> void:
@@ -277,6 +292,211 @@ func setup(grid: GridArena, target: Node2D) -> void:
             _grid.reservation_lost.connect(_on_reservation_lost)
         _after_setup_ready()
 
+# == Tick actor contract =======================================================
+# Called by the TickEngine each world advance. The engine owns the resolution order
+# (detonations first, then status, then energy-funded actions); the enemy owns its
+# own behavior within those hooks.
+
+
+## Binds this enemy to the scene tick engine, switching it from physics/frame clocking to tick clocking.
+func bind_tick_engine(engine) -> void:
+    _tick_engine = engine
+
+
+func is_alive() -> bool:
+    return health != null and health.is_alive()
+
+
+## Per-kind energy-skeleton speed read by the engine; 100 = one action per world tick.
+## Slower kinds skip beats so pursuit leaks distance and flanking windows open. Overridden per kind.
+func get_tick_speed() -> int:
+    return DEFAULT_TICK_SPEED
+
+
+## Engine stage-2 hook: counts the committed telegraph down by one player action and detonates at zero.
+func resolve_detonation() -> void:
+    if _attack_ticks <= 0:
+        return
+    _attack_ticks -= 1
+    if _attack_ticks == 1:
+        # Last player action before impact: escalate the telegraph to the charge phase.
+        show_attack_charge()
+    if _attack_ticks > 0:
+        return
+    _tick_detonate()
+
+
+## Engine stage-3a hook: counts the stagger and recovery windows down in world ticks. Returns true while the
+## enemy is disabled this tick, so the engine neither funds an action nor lets it bank energy (no banked surprise).
+func advance_status() -> bool:
+    if _guard != null and _guard.is_staggered():
+        _guard.advance_stagger()
+        return true
+    if _recovery_ticks > 0:
+        _recovery_ticks -= 1
+        return true
+    return false
+
+
+## Engine stage-3b hook: spends one funded action. A committed telegraph freezes the enemy until it detonates.
+func act_tick() -> void:
+    if _attack_ticks > 0:
+        return
+    if _state_machine != null:
+        _state_machine.advance_tick()
+
+
+## Returns the current danger display data ({cells, ticks}), or an empty dictionary when no attack is pending.
+func get_danger() -> Dictionary:
+    if _attack_ticks <= 0 or _attack_tiles.is_empty():
+        return { }
+    return {
+        "cells": _attack_tiles.duplicate(),
+        "ticks": _attack_ticks,
+    }
+
+
+## Predicts one player hit without mutating state, sharing math with take_hit() so a preview
+## can never disagree with the resolved hit. Origin is the attacker's cell (player or dash origin).
+## Returns keys angle, staggered, guard_broken, killed, hp_damage, guard_damage.
+func predict_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
+    var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
+    return _resolve_hit_outcome(src_pos, base_damage, is_dash)
+
+
+## Applies one player hit from the given origin cell, reusing the established guard/health/feedback
+## seams (damaged/blocked SFX, guard-break/shield/full-damage VFX), and returns the same dictionary
+## as predict_hit(). A guard break clears banked energy via _on_guard_broken().
+func take_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
+    var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
+    var outcome := _resolve_hit_outcome(src_pos, base_damage, is_dash)
+    if not is_alive():
+        return outcome
+    _apply_hit_feedback(outcome, src_pos)
+    if health != null:
+        health.take_damage(float(outcome["hp_damage"]), self)
+    if health != null and not health.is_alive():
+        return outcome
+    if _guard != null and int(outcome["guard_damage"]) > 0:
+        _guard.take_guard_damage(int(outcome["guard_damage"]))
+    return outcome
+
+
+## Commits an attack telegraph clocked in ticks: locks the footprint tiles and starts the countdown.
+## Returns false when the kind could not prepare the attack.
+func begin_tick_telegraph() -> bool:
+    if not begin_attack_telegraph():
+        return false
+    var cells := get_committed_attack_cells()
+    if cells.is_empty():
+        return false
+    _attack_tiles = cells
+    _attack_ticks = get_warning_tick_count()
+    return true
+
+
+## Number of player actions the telegraph is displayed before detonation.
+func get_warning_tick_count() -> int:
+    var attack := get_current_attack_data()
+    return maxi(int(attack.warning_duration), 1) if attack != null else DEFAULT_WARNING_TICKS
+
+
+## Number of world ticks the enemy recovers (cannot act) after an attack resolves.
+func get_recovery_tick_count() -> int:
+    var attack := get_current_attack_data()
+    return maxi(int(attack.recovery_duration), 0) if attack != null else DEFAULT_RECOVERY_TICKS
+
+
+## Snaps the logical cell immediately and slides the visual there; the flank turn cap is applied
+## separately by tick_turn_toward_cell(). Registers the new occupancy and refreshes reservations.
+func tick_snap_to_cell(target_cell: Vector2i) -> void:
+    _grid_pos = target_cell
+    register_grid_occupant()
+    if _tick_move_tween != null and _tick_move_tween.is_valid():
+        _tick_move_tween.kill()
+    scale = Vector2(1.1, 0.9)
+    _tick_move_tween = create_tween()
+    _tick_move_tween.set_parallel(true)
+    _tick_move_tween.tween_property(self, "global_position", _grid.cell_center(target_cell), TICK_MOVE_TWEEN_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+    _tick_move_tween.tween_property(self, "scale", Vector2.ONE, TICK_MOVE_TWEEN_SEC * 1.5)
+
+
+## Turns capped toward the current target cell. Returns true once aligned (or when there is no target).
+func tick_face_toward_target() -> bool:
+    if not has_target():
+        return true
+    return tick_turn_toward_cell(get_target_cell())
+
+
+## Rotates facing at most 90 degrees toward the target's cardinal direction. Returns true once aligned.
+## The per-tick cap is the flank-depth knob: turning to face a flanker costs actions, opening back hits.
+func tick_turn_toward_cell(target_cell: Vector2i) -> bool:
+    var desired := cardinal_snap(Vector2(target_cell - _grid_pos))
+    if desired == Vector2.ZERO or _facing == desired:
+        return true
+    if _facing == -desired:
+        # A 180-degree reversal takes two actions: step 90 degrees this tick.
+        _facing = Vector2(-_facing.y, _facing.x)
+    else:
+        _facing = desired
+    face_arrow()
+    return _facing == desired
+
+
+## Consumes one reserved cell from the planned path as a tick snap-step. Returns true when a step was taken.
+func tick_step_along_path() -> bool:
+    if _grid == null or _planned_path.is_empty():
+        return false
+    var next := _planned_path[0]
+    if not _grid.is_reserved_by(next, self):
+        # Lost the reservation to a higher-priority claim before stepping; abandon the path this tick.
+        clear_planned_path()
+        return false
+    if _tick_engine != null and not _tick_engine.is_cell_open_for_enemy(next, self):
+        # The player (not a grid occupant) or another actor moved onto the reserved cell since planning.
+        clear_planned_path()
+        return false
+    _planned_path.remove_at(0)
+    _has_active_path_cell = false
+    _facing = Vector2(signi(next.x - _grid_pos.x), signi(next.y - _grid_pos.y))
+    face_arrow()
+    tick_snap_to_cell(next)
+    _refresh_planned_reservations()
+    queue_redraw()
+    return true
+
+
+## Clears a committed but undetonated attack: drops the locked tiles, the countdown, and its telegraph.
+func cancel_tick_attack() -> void:
+    _attack_tiles.clear()
+    _attack_ticks = -1
+    _clear_attack_presentation()
+
+
+## The footprint tiles just prepared by begin_attack_telegraph(), stored for detonation and danger display.
+## Kinds override to return their executor/telegraph cells; the base has no footprint.
+func get_committed_attack_cells() -> Array[Vector2i]:
+    var empty: Array[Vector2i] = []
+    return empty
+
+
+## Outgoing per-hit damage this enemy deals to the player at detonation, after wave-scaling.
+func get_attack_hit_damage() -> float:
+    var attack := get_current_attack_data()
+    var base := attack.damage if attack != null else 10.0
+    return base * _damage_multiplier
+
+
+## Ends a resolved attack and opens its recovery window (a disabled status counted in advance_status()).
+## Kinds reuse this from _tick_detonate().
+func finish_attack_into_recovery() -> void:
+    _attack_tiles.clear()
+    _attack_ticks = -1
+    _clear_attack_presentation()
+    _recovery_ticks = get_recovery_tick_count()
+    if _state_machine != null:
+        _state_machine.request_transition(get_recovery_state_id(), true)
+
 
 ## Applies per-wave milestone scaling to this enemy instance: bumps max_health in
 ## place (Health is a per-instance node, safe to mutate), stores a damage
@@ -302,10 +522,13 @@ func get_target() -> Node2D:
     return _target
 
 
-## Returns the target's current grid cell, or NO_BLOCKED_CELL when unavailable.
+## Returns the target's current grid cell, or NO_BLOCKED_CELL when unavailable. Tick-clocked enemies
+## read the engine's logical player cell so planning never lags the player's move tween by a frame.
 func get_target_cell() -> Vector2i:
     if _grid == null or not has_target():
         return NO_BLOCKED_CELL
+    if _tick_engine != null:
+        return _tick_engine.player_cell()
     return _grid.world_to_grid(_target.global_position)
 
 
@@ -486,6 +709,9 @@ func begin_death() -> void:
     velocity = Vector2.ZERO
     stop_attack_windup_vfx()
     clear_planned_path()
+    # Vacate the grid cell immediately so other actors and the player can enter during the death tween.
+    if _grid != null:
+        _grid.unregister_occupant(self)
     _on_begin_death_extra()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
@@ -570,17 +796,17 @@ func can_charge_target_from_cell(origin_cell: Vector2i) -> bool:
 
 func get_warning_duration() -> float:
     var attack := get_current_attack_data()
-    return attack.warning_duration if attack != null else 0.6
+    return float(attack.warning_duration) if attack != null else 0.6
 
 
 func get_charge_duration() -> float:
     var attack := get_current_attack_data()
-    return attack.charge_duration if attack != null else 0.2
+    return float(attack.charge_duration) if attack != null else 0.2
 
 
 func get_attack_duration() -> float:
     var attack := get_current_attack_data()
-    return attack.active_duration if attack != null else 0.2
+    return float(attack.active_duration) if attack != null else 0.2
 
 
 ## Performs shared setup when an enemy commits to a non-reposition action.
@@ -1069,6 +1295,79 @@ func _fallback_node(assigned: Node, node_name: StringName) -> Node:
     if found != null:
         ToastManager.show_dev_error("%s: %s not wired to its @export slot; using name-based fallback." % [name, node_name])
     return found
+
+# == Tick combat and detonation ================================================
+
+
+## Per-kind detonation when the telegraph countdown reaches zero. The base resolves a single
+## cell-membership check against the player and hands off to recovery. Charge/puff kinds override.
+func _tick_detonate() -> void:
+    _resolve_detonation_on_player(_attack_tiles)
+    finish_attack_into_recovery()
+
+
+## Damages the player when their cell is inside the given locked tiles, then notifies presentation.
+## This cell-membership check replaces enemy-side physics hitbox overlap for enemy-to-player damage.
+func _resolve_detonation_on_player(tiles: Array[Vector2i]) -> void:
+    if _tick_engine == null:
+        return
+    if _tick_engine.player_cell() in tiles:
+        _tick_engine.damage_player(get_attack_hit_damage(), self)
+    _tick_engine.notify_detonation(tiles)
+
+
+## Clears the kind's telegraph presentation for a resolved or cancelled attack. Kinds override.
+func _clear_attack_presentation() -> void:
+    pass
+
+
+## Pure hit resolution shared by predict_hit(), take_hit(), and the physics _on_hit_received() path,
+## so a preview, a tick commit, and a real-time overlap all agree on angle, guard, and lethality.
+func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -> Dictionary:
+    var outcome := {
+        "angle": DirectionResolver.HitAngle.NONE,
+        "staggered": false,
+        "guard_broken": false,
+        "killed": false,
+        "hp_damage": 0.0,
+        "guard_damage": 0,
+    }
+    if not is_alive():
+        return outcome
+
+    var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
+    var profile := Hitbox.GuardDamageProfile.DASH if is_dash else Hitbox.GuardDamageProfile.NORMAL
+    var guard_damage := _resolve_guard_damage(angle, profile)
+    var already_staggered := _guard != null and _guard.is_staggered()
+    var will_break_guard := _guard != null and not already_staggered and _guard.current() > 0 and guard_damage >= _guard.current()
+    var full_damage := _guard == null or already_staggered or will_break_guard
+    var hp_damage := base_damage if full_damage else base_damage * GUARDED_DAMAGE_MULTIPLIER
+    hp_damage = _apply_defense(hp_damage)
+
+    outcome["angle"] = angle
+    outcome["staggered"] = already_staggered
+    outcome["guard_broken"] = will_break_guard
+    outcome["hp_damage"] = hp_damage
+    outcome["guard_damage"] = guard_damage
+    var remaining := (health.current() - hp_damage) if health != null else 0.0
+    outcome["killed"] = remaining <= 0.0
+    return outcome
+
+
+## Plays the established damaged/blocked SFX and guard-break/shield/full-damage VFX for a resolved hit.
+func _apply_hit_feedback(outcome: Dictionary, src_pos: Vector2) -> void:
+    var angle := int(outcome["angle"])
+    var full_damage := _guard == null or bool(outcome["staggered"]) or bool(outcome["guard_broken"])
+    var sfx_event := damaged_sfx_event if full_damage else _get_blocked_hit_sfx(angle)
+    if sfx_event != null:
+        AudioManager.play_event(sfx_event, global_position)
+
+    if bool(outcome["guard_broken"]):
+        CombatFeedbackVFX.play_guard_break(global_position, self)
+    elif full_damage:
+        CombatFeedbackVFX.play_full_damage(global_position, self)
+    else:
+        CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
 
 
 func _resolve_guard_damage(angle: int, guard_damage_profile: int) -> int:

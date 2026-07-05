@@ -5,6 +5,7 @@
 
 [sub_resource type="Resource" id="atk_line"]
 script = ExtResource("2_ad")
+warning_duration = 1
 
 [sub_resource type="Resource" id="atk_wide"]
 script = ExtResource("2_ad")

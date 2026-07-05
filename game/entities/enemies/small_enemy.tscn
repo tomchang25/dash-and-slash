@@ -85,6 +85,7 @@ unique_name_in_owner = true
 script = ExtResource("7_sm")
 initial_state = NodePath("Idle")
 tick_enabled = false
+frame_driven = false
 
 [node name="Idle" type="Node" parent="StateMachine" unique_id=200186374]
 script = ExtResource("9_idle_state")

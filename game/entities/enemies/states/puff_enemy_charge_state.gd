@@ -1,8 +1,9 @@
 # puff_enemy_charge_state.gd
-# Puff windup state that gives the player a readable dodge window before expansion.
+# Puff windup state. On enter it commits the tick-clocked puff (locks the zone footprint and starts the
+# telegraph countdown). The engine then counts the windup down and runs the active zone; this state holds
+# the enemy frozen until the zone ends and only steps to bail back to idle when the commit failed.
 extends EnemyState
 
-var _timer: Timer
 var _return_to_idle := false
 
 
@@ -11,33 +12,13 @@ func _init() -> void:
 
 
 func _enter() -> void:
-    _return_to_idle = false
-    var puff_enemy := enemy as PuffEnemy
-    if not puff_enemy.begin_puff_charge_action():
-        _return_to_idle = true
-        return
-
-    _timer = Timer.new()
-    _timer.one_shot = true
-    _timer.timeout.connect(_on_charge_done)
-    # node-src: timer
-    add_child(_timer)
-    _timer.start(puff_enemy.get_puff_charge_duration())
+    _return_to_idle = not (enemy as PuffEnemy).begin_puff_tick()
 
 
 func _exit() -> void:
     _return_to_idle = false
-    var puff_enemy := enemy as PuffEnemy
-    puff_enemy.end_puff_charge_action()
-    if _timer != null and is_instance_valid(_timer):
-        _timer.queue_free()
-        _timer = null
 
 
-func _physics_update(_delta: float) -> void:
+func _advance_tick() -> void:
     if _return_to_idle:
         change_state(EnemyStateId.IDLE)
-
-
-func _on_charge_done() -> void:
-    change_state(EnemyStateId.PUFF)
