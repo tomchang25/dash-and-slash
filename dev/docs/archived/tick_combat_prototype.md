@@ -1,5 +1,7 @@
 # Tick Combat Grey-Box Prototype
 
+Verdict: GO (2026-07-05). Playtest confirmed the tick direction reads as a game rather than a test project; the remaining tuning items are parked in the v0.5 design document's deferred list and the conversion proceeds via the tick combat rework plan.
+
 ## Goal
 
 Validate, in an isolated grey-box scene, that player-clocked tick combat — every executed player input advances the world by exactly one tick — plays as a fluid action game while keeping this project's telegraph/flank/guard combat identity. The prototype is the go/no-go gate for the full conversion described in the tick combat rework plan: it must answer "is flanking a telegraphed charger fun" before any production system is touched.
@@ -12,13 +14,13 @@ Validate, in an isolated grey-box scene, that player-clocked tick combat — eve
 4. Two grey-box enemy kinds exercise the read-flank-punish loop: a slow melee that turns at most 90 degrees per tick and strikes one adjacent telegraphed tile, and a charger that telegraphs its full travel line and destination two ticks ahead. The charger is the kill-criteria enemy — baiting and flanking it exercises every prototype mechanic at once.
 5. Input feel meets action-game fluency: held movement repeats at roughly 7 inputs per second, one action buffers during animation, and no animation longer than about 100 ms ever blocks input.
 6. The mobility slot ships Dash (instant: straight line up to 5 tiles, cursor picks the landing cell clamped to the line, obstacles, and occupancy; every enemy passed is hit) and can be debug-toggled to Smash (windup: choose a cell within 3 tiles, one windup tick with the 3x3 area telegraphed, the next input releases, any other verb cancels without refunding the spent tick). The toggle exists to validate the slot grammar and the windup grammar, not to ship a real reward.
-7. Every commit executes exactly what its preview showed at press time — attack direction, dash path and landing, smash area — and player-side previews use a visual language clearly distinct from enemy danger tiles.
+7. Every commit executes exactly what its preview showed at press time — attack direction, dash path and landing, smash area — and player-side previews use a visual language clearly distinct from enemy danger tiles. Previews also show resolved outcomes — a landing ghost and per-victim angle/result badges (chip, break, kill) — computed by the same deterministic hit math that resolves the commit, because first playtesting showed geometry-only previews read as no preview at all.
 
 ## Design
 
 ### Time and speed
 
-All verbs cost one tick; there are no hidden cost multipliers. Slowness, where it exists, is expressed as explicit windup ticks (Smash carries one). Actor speed fields exist in the prototype's data as an energy skeleton, but every actor is locked to the baseline value so the gate isolates core feel from speed variables; speed variation is later work.
+All verbs cost one tick; there are no hidden cost multipliers. Slowness, where it exists, is expressed as explicit windup ticks (Smash carries one). Actor speed fields run on an energy skeleton; after first playtesting, the melee enemy runs at speed 75 (three actions per four world ticks) so flat running leaks pursuit distance instead of the chase locking on forever, while the charger and player stay at baseline 100 because the charger's threat is bursty and already pause-laden. Telegraph countdowns stay denominated in world ticks regardless of actor speed, so slower actors never make a displayed countdown lie. Reward-driven speed stats remain later work.
 
 ### Direction and damage
 
@@ -44,7 +46,7 @@ The prototype passes when baiting the charger, sidestepping, flanking, and landi
 
 1. No production integration: the existing arena, wave controller, reward system, saves, and scene routing stay untouched; the prototype scene is reachable through debug means only.
 2. No art or audio pass — grey shapes, and existing placeholder sounds at most; nothing visual is acceptance-relevant beyond legibility.
-3. No speed variation: no free-step meter, windup reduction, or cooldown stats — the speed fields exist in data but stay locked at baseline.
+3. No player speed stats: no free-step meter, windup reduction, or cooldown-reduction rewards — enemy speed uses the energy skeleton only as a fixed per-kind tuning value.
 4. No run loop: no waves, rewards, death flow, or terrain mutation; enemies respawn by debug key on a static land layout.
 5. No real Major/Minor effects and no reward-store wiring; the Smash toggle is a debug switch only.
 

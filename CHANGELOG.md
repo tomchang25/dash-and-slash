@@ -16,6 +16,11 @@ Rules:
 
 ## [unreleased]
 
+### Tick Combat Prototype
+
+- 2026-07-05 — [combat] Grey-box prototype validated the player-clocked tick combat direction with a go verdict: grid player with four one-tick verbs, three-stage tick resolution, telegraphed melee and charger enemies, a dash/smash mobility slot with windup grammar, and free mouse aiming that never advances time
+- 2026-07-05 — [combat] Playtest tuning folded in before the verdict: previews extended from geometry-only to resolved outcomes (landing ghost plus per-victim angle/result badges sharing the commit's hit math), and melee pursuit slowed to speed 75 on the energy skeleton so chases leak distance instead of locking on
+
 ### Reward Effect Rework
 
 - 2026-07-04 — [rewards] A reward option can no longer offer the same effect twice, closing a rare duplicate-effect gap in the fallback roll

@@ -20,6 +20,9 @@ func _init() -> void:
     max_hp = 90.0
     attack_damage = 15.0
     body_color = Color(0.85, 0.55, 0.3)
+    # Stays at baseline deliberately: the charger's threat is bursty and its behavior already carries
+    # pauses (align, turn, two-tick telegraph, two-tick recovery), so slowing it would kill the bait tempo.
+    speed = 100
 
 
 # == Overridden custom methods ==

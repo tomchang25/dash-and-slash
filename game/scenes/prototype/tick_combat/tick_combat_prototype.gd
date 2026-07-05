@@ -451,8 +451,15 @@ func _refresh_world_view() -> void:
 
 
 ## Recomputes the free aiming previews every frame; aiming never consumes a tick.
+## Previews carry resolved outcomes (landing ghost, per-victim angle/result badges) computed by the
+## same predict_hit math that resolves the commit, so the display can never lie.
 func _update_preview() -> void:
+    var outcomes := { }
     var preview := { "aim_cell": _player.cell + _aim_direction() }
+    var aim_enemy := _enemy_at(preview["aim_cell"])
+    if aim_enemy != null:
+        outcomes[aim_enemy.cell] = _outcome_entry(aim_enemy, _player.cell, PLAYER_ATTACK_DAMAGE, false)
+
     if _mobility_mode == MobilityMode.DASH:
         if _player.dash_cooldown <= 0:
             var plan := _compute_dash_plan()
@@ -460,13 +467,50 @@ func _update_preview() -> void:
             preview["dash_legal"] = plan["legal"]
             if bool(plan["legal"]):
                 preview["dash_landing"] = plan["landing"]
+                preview["ghost_cell"] = plan["landing"]
+                var dir: Vector2i = plan["dir"]
+                for victim: ProtoTickEnemy in plan["victims"]:
+                    outcomes[victim.cell] = _outcome_entry(victim, victim.cell - dir, PLAYER_DASH_DAMAGE, true)
     elif _player.is_smash_armed():
         preview["smash_armed_center"] = _player.smash_target
+        preview["ghost_cell"] = _player.smash_target
+        _collect_smash_outcomes(_player.smash_target, outcomes)
     else:
         var target := _clamped_smash_target()
         preview["smash_center"] = target
         preview["smash_legal"] = _is_cell_open_for_player(target)
+        if bool(preview["smash_legal"]):
+            preview["ghost_cell"] = target
+            _collect_smash_outcomes(target, outcomes)
+
+    if not outcomes.is_empty():
+        preview["outcomes"] = outcomes.values()
     _view.set_preview(preview)
+
+
+## Predicts one hit for the preview and condenses it into a display entry: cell, label, and intensity tier.
+func _outcome_entry(enemy: ProtoTickEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> Dictionary:
+    var result := enemy.predict_hit(origin_cell, damage, is_dash)
+    var label := ""
+    var tier := 0
+    if bool(result["killed"]):
+        label = "KILL"
+        tier = 2
+    elif bool(result["staggered"]):
+        label = "BURST"
+        tier = 1
+    elif bool(result["guard_broken"]):
+        label = "%s BREAK" % _angle_name(result["angle"]).to_upper()
+        tier = 1
+    else:
+        label = _angle_name(result["angle"]).to_upper()
+    return { "cell": enemy.cell, "label": label, "tier": tier }
+
+
+func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
+    for enemy in _enemies:
+        if enemy.is_alive() and _chebyshev(enemy.cell - center) <= 1:
+            outcomes[enemy.cell] = _outcome_entry(enemy, center, PLAYER_SMASH_DAMAGE, true)
 
 
 func _refresh_hud() -> void:

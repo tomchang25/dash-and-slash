@@ -88,11 +88,14 @@ func resolve_detonation() -> void:
     queue_redraw()
 
 
-## Applies one player hit from the given origin cell and returns a result dictionary
-## with keys angle, guard_broken, killed, and hp_damage.
-func take_hit(attacker_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
+## Predicts one player hit without mutating any state; the preview layer and take_hit() share this
+## math so the displayed outcome can never disagree with the resolved one.
+## Returns keys angle, staggered, guard_damage, guard_broken, killed, and hp_damage.
+func predict_hit(attacker_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
     var result := {
         "angle": ProtoCombatRules.HitAngle.SIDE,
+        "staggered": false,
+        "guard_damage": 0,
         "guard_broken": false,
         "killed": false,
         "hp_damage": 0.0,
@@ -102,19 +105,32 @@ func take_hit(attacker_cell: Vector2i, base_damage: float, is_dash: bool) -> Dic
 
     if _stagger_ticks > 0 or _guard <= 0:
         var multiplier := ProtoCombatRules.STAGGER_DASH_MULTIPLIER if is_dash else ProtoCombatRules.STAGGER_ATTACK_MULTIPLIER
+        result["staggered"] = true
         result["hp_damage"] = base_damage * multiplier
     else:
         var angle := ProtoCombatRules.resolve_angle(attacker_cell, cell, facing)
         result["angle"] = angle
-        _guard = maxi(_guard - ProtoCombatRules.guard_damage_for(angle, max_guard), 0)
+        result["guard_damage"] = ProtoCombatRules.guard_damage_for(angle, max_guard)
+        result["guard_broken"] = _guard - int(result["guard_damage"]) <= 0
         result["hp_damage"] = base_damage * ProtoCombatRules.hp_bypass_for(angle)
-        if _guard <= 0:
-            result["guard_broken"] = true
+
+    result["killed"] = _hp - float(result["hp_damage"]) <= 0.0
+    return result
+
+
+## Applies one player hit from the given origin cell and returns the same result dictionary as predict_hit().
+func take_hit(attacker_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
+    var result := predict_hit(attacker_cell, base_damage, is_dash)
+    if not is_alive():
+        return result
+
+    if not bool(result["staggered"]):
+        _guard = maxi(_guard - int(result["guard_damage"]), 0)
+        if bool(result["guard_broken"]):
             _stagger_ticks = STAGGER_TICKS
             _cancel_pending_attack()
 
-    _hp = maxf(_hp - result["hp_damage"], 0.0)
-    result["killed"] = _hp <= 0.0
+    _hp = maxf(_hp - float(result["hp_damage"]), 0.0)
     queue_redraw()
     return result
 

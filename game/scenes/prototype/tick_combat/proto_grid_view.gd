@@ -13,11 +13,19 @@ const DANGER_WARNING_COLOR := Color(1.0, 0.4, 0.2, 0.25)
 const DANGER_CHARGE_COLOR := Color(1.0, 0.55, 0.0, 0.5)
 const DANGER_ACTIVE_COLOR := Color(0.95, 0.1, 0.0, 0.75)
 # Player-side previews stay in a cyan family, strictly separated from the enemy danger palette.
-const PREVIEW_FILL_COLOR := Color(0.3, 0.9, 1.0, 0.22)
-const PREVIEW_OUTLINE_COLOR := Color(0.3, 0.9, 1.0, 0.9)
+const PREVIEW_FILL_COLOR := Color(0.3, 0.9, 1.0, 0.32)
+const PREVIEW_OUTLINE_COLOR := Color(0.3, 0.9, 1.0, 0.95)
 const PREVIEW_BLOCKED_COLOR := Color(0.55, 0.65, 0.75, 0.15)
 const SWING_FLASH_COLOR := Color(0.5, 0.95, 1.0, 0.55)
 const DENY_FLASH_COLOR := Color(1.0, 1.0, 1.0, 0.85)
+const GHOST_COLOR := Color(0.93, 0.96, 1.0, 0.4)
+const GHOST_RADIUS := 40.0
+const OUTCOME_LABEL_COLORS: Array[Color] = [
+    Color(0.55, 0.85, 0.95, 0.75),
+    Color(0.3, 0.95, 1.0, 1.0),
+    Color(1.0, 1.0, 1.0, 1.0),
+]
+const OUTCOME_FONT_SIZE := 30
 const FLASH_SEC := 0.2
 const COUNTDOWN_FONT_SIZE := 52
 
@@ -137,14 +145,14 @@ func _draw_danger() -> void:
 
 func _draw_preview() -> void:
     if _preview.has("aim_cell"):
-        draw_rect(_cell_rect(_preview["aim_cell"], 0.8), PREVIEW_OUTLINE_COLOR, false, 3.0)
+        draw_rect(_cell_rect(_preview["aim_cell"], 0.8), PREVIEW_OUTLINE_COLOR, false, 4.0)
 
     if _preview.has("dash_path"):
         var fill := PREVIEW_FILL_COLOR if bool(_preview.get("dash_legal", false)) else PREVIEW_BLOCKED_COLOR
         for path_cell: Vector2i in _preview["dash_path"]:
-            draw_rect(_cell_rect(path_cell, 0.62), fill)
+            draw_rect(_cell_rect(path_cell, 0.7), fill)
         if _preview.has("dash_landing"):
-            draw_rect(_cell_rect(_preview["dash_landing"], 0.72), PREVIEW_OUTLINE_COLOR, false, 4.0)
+            draw_rect(_cell_rect(_preview["dash_landing"], 0.72), PREVIEW_OUTLINE_COLOR, false, 5.0)
 
     if _preview.has("smash_center"):
         var fill := PREVIEW_FILL_COLOR if bool(_preview.get("smash_legal", false)) else PREVIEW_BLOCKED_COLOR
@@ -152,6 +160,12 @@ func _draw_preview() -> void:
 
     if _preview.has("smash_armed_center"):
         _draw_smash_area(_preview["smash_armed_center"], Color(PREVIEW_FILL_COLOR, 0.45), true)
+
+    if _preview.has("ghost_cell"):
+        _draw_ghost(_preview["ghost_cell"])
+
+    if _preview.has("outcomes"):
+        _draw_outcomes(_preview["outcomes"])
 
 
 func _draw_flashes() -> void:
@@ -163,6 +177,26 @@ func _draw_flashes() -> void:
                 draw_rect(_cell_rect(flash_cell, 0.85), color, false, 5.0)
             else:
                 draw_rect(_cell_rect(flash_cell, 0.85), color)
+
+
+## Draws a translucent copy of the player body at the committed landing cell.
+func _draw_ghost(target_cell: Vector2i) -> void:
+    var center := to_local(grid.cell_center(target_cell))
+    draw_circle(center, GHOST_RADIUS, GHOST_COLOR)
+    draw_arc(center, GHOST_RADIUS + 4.0, 0.0, TAU, 32, PREVIEW_OUTLINE_COLOR, 2.0)
+
+
+## Draws each predicted-hit badge: a bracket on the victim's cell plus an angle/result label above it.
+func _draw_outcomes(outcomes: Array) -> void:
+    var font := ThemeDB.fallback_font
+    for outcome: Dictionary in outcomes:
+        var target_cell: Vector2i = outcome["cell"]
+        var tier: int = clampi(outcome["tier"], 0, OUTCOME_LABEL_COLORS.size() - 1)
+        var color := OUTCOME_LABEL_COLORS[tier]
+        draw_rect(_cell_rect(target_cell, 0.86), color, false, 2.0 + float(tier) * 1.5)
+        var center := to_local(grid.cell_center(target_cell))
+        var text_pos := center + Vector2(-grid.tile_size, -grid.tile_size * 0.62)
+        draw_string(font, text_pos, String(outcome["label"]), HORIZONTAL_ALIGNMENT_CENTER, grid.tile_size * 2.0, OUTCOME_FONT_SIZE, color)
 
 
 func _draw_smash_area(center: Vector2i, fill: Color, armed: bool) -> void:

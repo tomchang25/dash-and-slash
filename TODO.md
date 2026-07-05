@@ -22,13 +22,13 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
+- [combat] Full conversion to player-clocked tick grid combat (input, enemies, speed stats, run loop); prototype gate passed 2026-07-05 — [ref plans/tick_combat_rework.md]
+
 ---
 
 ## Plan
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
-
-- [combat] Full conversion to player-clocked tick grid combat (input, enemies, speed stats, run loop), gated on the prototype verdict — [ref plans/tick_combat_rework.md]
 
 ---
 
