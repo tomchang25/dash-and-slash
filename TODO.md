@@ -51,14 +51,12 @@ One-line, no reasoning, no backing doc.
 
 Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
 
-### Major And Minor Run Build Effects
+### Future Major Effects
 
-Move reward effects toward persistent run build state instead of only immediate stat mutation. The store itself (applied effects projected into stats, Major effects capped at 4 with an exclusivity-group check, all as unified effect objects) is now specified in `dev/docs/plans/reward_effect_rework.md` — remaining here is only the part that plan explicitly excludes: real ability behavior.
+Later Major content that should wait until the tick-combat Major override and triggered-effect seams have shipped through the active tick rework plan.
 
-- Dash type, Smash replacement, Chain Dash, execution, cooldown, range, and triggered effects should survive later ability swaps — needs the ability_overrides/triggered_effects data shapes, which the reward-rework plan deliberately does not build.
-- Guard Shredder major: back dash hit instantly zeroes target guard and enters stagger, bypassing the max(half_guard, 32) baseline calc.
-- Execution major: dash hit on an already-staggered enemy instantly kills instead of applying the 2.0x stagger burst multiplier.
-- Chain Dash and Smash are mutually exclusive by design (see the reward-rework plan's exclusivity-group mechanism) — once both exist as real Major effects, they need to be authored into the same exclusivity group.
+- Chain Dash should share Smash's exclusivity group and use the same mobility-payload override seam once implemented.
+- Shockwave Dash and other dash-triggered Majors should reuse the on-dash-hit triggered-effect seam instead of forking dash resolution.
 
 ### Guard Damage, HP Bypass, And Stagger Burst Rework
 
