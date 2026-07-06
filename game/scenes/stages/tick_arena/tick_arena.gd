@@ -40,6 +40,8 @@ var _last_aim := Vector2i.RIGHT
 var _message := ""
 var _message_time := 0.0
 var _rng := RandomNumberGenerator.new()
+var _dash_payload_button: Button
+var _smash_payload_button: Button
 
 # -- Node references --
 
@@ -54,6 +56,7 @@ var _rng := RandomNumberGenerator.new()
 @onready var _smash_cancel_confirm_panel: Control = %SmashCancelConfirmPanel
 @onready var _smash_cancel_confirm_button: Button = %SmashCancelConfirmButton
 @onready var _smash_cancel_keep_button: Button = %SmashCancelKeepButton
+@onready var _debug_panel: DebugPanel = %DebugPanel
 
 # == Lifecycle ==
 
@@ -70,7 +73,8 @@ func _ready() -> void:
     RenderingServer.set_default_clear_color(BACKGROUND_COLOR)
     _player.setup(_grid, _grid.grid_size / 2)
     _spawn_enemies()
-    _controls_label.text = "WASD step · Hold Alt for Mobility Mode · LMB confirm · RMB cancel · Space wait · T debug payload · R reset"
+    _controls_label.text = "WASD step · Hold Alt for Mobility Mode · LMB confirm · RMB cancel · Space wait · R reset"
+    _wire_debug_panel()
     _refresh_danger()
     _refresh_hud()
 
@@ -81,14 +85,10 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-    # Debug-only arena shortcuts; production never routes here until cutover replaces them.
+    # Debug-only arena shortcut; production never routes here until cutover replaces it.
     if event is InputEventKey and event.pressed and not event.echo:
-        match event.physical_keycode:
-            KEY_T:
-                if not _smash_cancel_confirm_open:
-                    _toggle_mobility_mode()
-            KEY_R:
-                _reset_run("Run reset.")
+        if event.physical_keycode == KEY_R:
+            _reset_run("Run reset.")
 
 # == Signal handlers ==
 
@@ -478,21 +478,45 @@ func _reset_run(reason: String) -> void:
     _refresh_hud()
     _set_message(reason)
 
+# == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 
-## Cycles the debug-prototype mobility payload (Dash -> Smash -> debug stub -> Dash); writes through
-## the same RunBuild override real Major effects use. A proper debug surface for Major state at large
-## is Phase 04a's job — this keyboard accelerator only predates and outlives it as a fast local toggle.
-func _toggle_mobility_mode() -> void:
+
+## Registers the Major-effect debug controls. This is the extension point Phase 04b reuses to add
+## Guard Shredder and Execution debug toggles to the same panel without redesigning it.
+func _wire_debug_panel() -> void:
+    _dash_payload_button = _debug_panel.add_action("Dash Payload", _on_debug_set_dash_payload)
+    _smash_payload_button = _debug_panel.add_action("Smash Payload", _on_debug_set_smash_payload)
+    _refresh_debug_payload_buttons()
+
+
+func _on_debug_set_dash_payload() -> void:
+    if not Debug.enabled:
+        return
+    _set_debug_mobility_payload(RunBuild.PAYLOAD_DASH)
+
+
+func _on_debug_set_smash_payload() -> void:
+    if not Debug.enabled:
+        return
+    _set_debug_mobility_payload(RunBuild.PAYLOAD_SMASH)
+
+
+## Writes through the same RunBuild override real Major effects use, so debug behavior stays
+## representative of perk behavior instead of a parallel scene-only flag.
+func _set_debug_mobility_payload(payload: StringName) -> void:
     _cancel_smash_windup()
-    var payload := _run_build.get_mobility_payload()
-    if payload == RunBuild.PAYLOAD_DASH:
-        _run_build.set_mobility_payload_override(RunBuild.PAYLOAD_SMASH)
-    elif payload == RunBuild.PAYLOAD_SMASH:
-        _run_build.set_mobility_payload_override(RunBuild.PAYLOAD_DEBUG_STUB)
-    else:
-        _run_build.set_mobility_payload_override(RunBuild.PAYLOAD_DASH)
+    _run_build.set_mobility_payload_override(payload)
     _set_message("Mobility slot: %s" % _mobility_mode_name())
+    _refresh_debug_payload_buttons()
     _refresh_hud()
+
+
+## Marks whichever payload button matches the run build's current mobility payload as active, so the
+## panel stays the readable source of truth instead of the player needing to remember hidden state.
+func _refresh_debug_payload_buttons() -> void:
+    var payload := _run_build.get_mobility_payload()
+    _dash_payload_button.text = "Dash Payload%s" % (" (Active)" if payload == RunBuild.PAYLOAD_DASH else "")
+    _smash_payload_button.text = "Smash Payload%s" % (" (Active)" if payload == RunBuild.PAYLOAD_SMASH else "")
 
 # == View and HUD ==
 

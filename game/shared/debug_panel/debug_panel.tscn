@@ -20,6 +20,7 @@ corner_radius_bottom_left = 4
 
 [node name="DebugPanel" type="PanelContainer"]
 visible = false
+mouse_filter = 0
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0

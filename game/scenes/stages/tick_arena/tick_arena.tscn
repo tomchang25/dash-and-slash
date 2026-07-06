@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_arena.gd" id="1_root"]
 [ext_resource type="Script" path="res://common/gameplay/grid/grid_arena.gd" id="2_grid"]
@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://common/gameplay/grid/grid_terrain_view.gd" id="7_terrain"]
 [ext_resource type="TileSet" path="res://common/gameplay/grid/land_tileset.tres" id="8_land_ts"]
 [ext_resource type="TileSet" path="res://common/gameplay/grid/water_tileset.tres" id="9_water_ts"]
+[ext_resource type="PackedScene" path="res://game/shared/debug_panel/debug_panel.tscn" id="10_debug_panel"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -75,6 +76,7 @@ zoom = Vector2(0.65, 0.65)
 
 [node name="StatsLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
+mouse_filter = 2
 offset_left = 24.0
 offset_top = 16.0
 offset_right = 1200.0
@@ -83,6 +85,7 @@ theme_override_font_sizes/font_size = 28
 
 [node name="ControlsLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
+mouse_filter = 2
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
@@ -96,6 +99,7 @@ theme_override_font_sizes/font_size = 22
 [node name="SmashCancelConfirmPanel" type="PanelContainer" parent="HUD"]
 unique_name_in_owner = true
 visible = false
+mouse_filter = 0
 custom_minimum_size = Vector2(420, 0)
 anchors_preset = -1
 anchor_left = 0.5
@@ -139,3 +143,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 44)
 layout_mode = 2
 text = "Cancel Attack"
+
+[node name="DebugPanel" parent="HUD" instance=ExtResource("10_debug_panel")]
+unique_name_in_owner = true

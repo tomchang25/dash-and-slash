@@ -3,7 +3,9 @@
 # free, holding Alt enters Mobility Mode and releasing it returns to Attack Mode, left click confirms
 # the active mode, right click cancels), repeats held movement/wait/confirm at the flow cadence, and
 # emits verb_requested without knowing anything about legality or mode meaning — the scene root
-# validates, interprets, and executes.
+# validates, interprets, and executes. Mouse-button verbs are suppressed while the cursor hovers any
+# HUD Control (debug panel, confirm popup, etc.), since Input's raw button state ignores Godot's GUI
+# input consumption chain and would otherwise fire a game verb from the same click that pressed a button.
 class_name TickInput
 extends Node
 
@@ -34,13 +36,14 @@ func _process(delta: float) -> void:
     var alt_pressed := Input.is_physical_key_pressed(KEY_ALT)
     var rmb_pressed := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
     var space_pressed := Input.is_physical_key_pressed(KEY_SPACE)
+    var mouse_over_ui := get_viewport().gui_get_hovered_control() != null
 
-    var verb := _edge_verb(alt_pressed, rmb_pressed, space_pressed)
+    var verb := _edge_verb(alt_pressed, rmb_pressed, space_pressed, mouse_over_ui)
     if not verb.is_empty():
         verb_requested.emit(verb)
         _repeat_timer = HOLD_REPEAT_SEC
     else:
-        var held := _held_verb(space_pressed)
+        var held := _held_verb(space_pressed, mouse_over_ui)
         if held.is_empty():
             _repeat_timer = 0.0
         else:
@@ -56,26 +59,26 @@ func _process(delta: float) -> void:
 # == Verb polling ==
 
 
-func _edge_verb(alt_pressed: bool, rmb_pressed: bool, space_pressed: bool) -> Dictionary:
+func _edge_verb(alt_pressed: bool, rmb_pressed: bool, space_pressed: bool, mouse_over_ui: bool) -> Dictionary:
     if alt_pressed != _alt_was_pressed:
         return { "type": "mode_set", "mobility": alt_pressed }
-    if rmb_pressed and not _rmb_was_pressed:
+    if rmb_pressed and not _rmb_was_pressed and not mouse_over_ui:
         return { "type": "cancel" }
     for action: String in MOVE_ACTIONS:
         if Input.is_action_just_pressed(action):
             return { "type": "move", "dir": MOVE_ACTIONS[action] }
-    if Input.is_action_just_pressed("attack"):
+    if Input.is_action_just_pressed("attack") and not mouse_over_ui:
         return { "type": "confirm" }
     if space_pressed and not _space_was_pressed:
         return { "type": "wait" }
     return { }
 
 
-func _held_verb(space_pressed: bool) -> Dictionary:
+func _held_verb(space_pressed: bool, mouse_over_ui: bool) -> Dictionary:
     for action: String in MOVE_ACTIONS:
         if Input.is_action_pressed(action):
             return { "type": "move", "dir": MOVE_ACTIONS[action] }
-    if Input.is_action_pressed("attack"):
+    if Input.is_action_pressed("attack") and not mouse_over_ui:
         return { "type": "confirm", "repeat": true }
     if space_pressed:
         return { "type": "wait" }
