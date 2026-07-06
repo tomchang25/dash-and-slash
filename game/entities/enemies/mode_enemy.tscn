@@ -9,6 +9,7 @@
 [ext_resource type="Script" uid="uid://b38x6ajqwstiu" path="res://common/gameplay/components/hitbox.gd" id="7_hitbox"]
 [ext_resource type="Script" uid="uid://dccf5ed0kuq50" path="res://game/entities/enemies/enemy_attack_controller.gd" id="8_tile_executor"]
 [ext_resource type="Script" uid="uid://cho503ltqjhuq" path="res://game/entities/enemies/enemy_point_attack_executor.gd" id="23_point_executor"]
+[ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/components/enemy_status_bars.tscn" id="24_status_bars"]
 [ext_resource type="Script" uid="uid://v830nt1qxe7u" path="res://game/entities/enemies/states/enemy_idle_state.gd" id="9_idle"]
 [ext_resource type="Script" uid="uid://bwg432ox13y5p" path="res://game/entities/enemies/states/enemy_face_once_state.gd" id="10_face"]
 [ext_resource type="Script" uid="uid://kso7t1372ljp" path="res://game/entities/enemies/states/enemy_staggered_state.gd" id="14_staggered"]
@@ -30,7 +31,7 @@ size = Vector2(56, 56)
 [sub_resource type="RectangleShape2D" id="puff_shape"]
 size = Vector2(192, 192)
 
-[node name="ModeEnemy" type="CharacterBody2D" unique_id=308864669 node_paths=PackedStringArray("health", "_state_machine", "_guard", "hurtbox", "_body", "_facing_arrow")]
+[node name="ModeEnemy" type="CharacterBody2D" unique_id=308864669 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "hurtbox", "_body", "_facing_arrow")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("1_boss")
@@ -42,6 +43,7 @@ enemy_data = ExtResource("22_enemy_data")
 health = NodePath("Health")
 _state_machine = NodePath("StateMachine")
 _guard = NodePath("Guard")
+_status_bars = NodePath("StatusBars")
 hurtbox = NodePath("Hurtbox")
 _body = NodePath("Body")
 _facing_arrow = NodePath("FacingArrow")
@@ -54,13 +56,12 @@ polygon = PackedVector2Array(0, -30, -28, -10, -22, 30, 22, 30, 28, -10)
 [node name="FacingArrow" type="Polygon2D" parent="." unique_id=158003013]
 unique_name_in_owner = true
 color = Color(1, 0.8, 0.2, 0.7)
-polygon = PackedVector2Array(0, -42, -10, -22, 10, -22)
+polygon = PackedVector2Array(0, 42, -10, 22, 10, 22)
 
 [node name="Health" type="Node" parent="." unique_id=136558344]
 unique_name_in_owner = true
 script = ExtResource("2_health")
 max_health = 180.0
-invuln_seconds = 0.3
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=574371579]
 unique_name_in_owner = true
@@ -110,6 +111,10 @@ script = ExtResource("8_tile_executor")
 [node name="PointAttackExecutor" type="Node" parent="." unique_id=1301000010]
 unique_name_in_owner = true
 script = ExtResource("23_point_executor")
+
+[node name="StatusBars" parent="." unique_id=702434121 instance=ExtResource("24_status_bars")]
+unique_name_in_owner = true
+position = Vector2(0, -49)
 
 [node name="StateMachine" type="Node" parent="." unique_id=2020914960 node_paths=PackedStringArray("initial_state")]
 unique_name_in_owner = true
