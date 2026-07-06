@@ -1,4 +1,4 @@
-# Tick Combat Rework 07: Cutover And Closeout
+# Tick Combat Rework: Cutover And Closeout
 
 Skeleton sketch written ahead of the phase; revise against the codebase at phase start. The codebase wins every disagreement.
 
@@ -25,7 +25,7 @@ Make the tick arena the production arena: remove the real-time player path, rout
 - Routing: `SceneRouter` arena target swaps to `tick_arena.tscn`; main-menu flow untouched.
 - Deletion sweep: `game/entities/player/` free-movement controller and states, `dash_and_slash_arena.tscn/.gd`, `game/scenes/prototype/tick_combat/`; grep for dangling references (preloads, debug panel actions, tests) before each removal.
 - Collision-layer cleanup: player attack hitbox and enemy hit-volume layers removed from physics config where no live consumer remains.
-- Docs pass: GDD v0.5 header/§11.3 sync, TODO Draft rewrite, CHANGELOG entries per shipped phase, archive `tick_combat_rework.md` and all eight phase sketches/specs.
+- Docs pass: GDD v0.5 header/§11.3 sync, TODO Draft rewrite, CHANGELOG entries per shipped phase, archive `tick_combat_rework.md`, the numbered phase sketches/specs, and this cutover closeout sketch.
 - Weapon-class follow-up rewrite: any remaining real-time attack-speed language is translated into tick-world weapon data such as windup ticks, cooldown ticks, damage, shape, and guard profile; do not keep continuous attack-speed percentages or hidden variable player action costs as the planned direction.
 
 ## Non-Goals

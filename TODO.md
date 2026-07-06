@@ -113,10 +113,6 @@ Player sprite addon and player attack hitbox rework for weapon/class readability
 - Katana / Samurai: 45-degree slash, average damage and speed, dash damage stays direct.
 - Heavy axe / undecided class: 180-degree slash, high damage and slow speed, dash damage creates a landing circle area hitbox.
 
-### Wave Reward Effect Stats Table
-
-A player-facing HUD table that groups applied reward effects by tier and displays `definition.display_name` as a human-readable label per group. The overlay currently only shows effect descriptions inline during choice — the title field exists in `WaveRewardEffectDefinition` but has no UI consumer. Once the table is added, the overlay can drop the extra title line and keep its current concise per-effect description format.
-
 ### Defensive Terrain And Tower Reward Cards
 
 Later terrain-control reward cards that add player-owned board pressure after the core chaos loop is stable.
