@@ -48,7 +48,7 @@ Reusable debug panels may be `.tscn` components only when they are hidden by def
 
 Do not build a new debug block scene from scratch. Instance
 `res://game/shared/debug_panel/debug_panel.tscn` (`class_name DebugPanel`) —
-already wired into `dash_and_slash_arena.tscn` as `%DebugPanel`, hidden by
+already wired into `tick_arena.tscn` as `%DebugPanel`, hidden by
 default — and register actions from `_ready()`:
 
 ```gdscript
@@ -56,25 +56,25 @@ default — and register actions from `_ready()`:
 
 
 func _wire_debug_panel() -> void:
-    _debug_panel.add_action("Instant Dash", _on_debug_instant_dash)
-    _debug_panel.add_action("Kill All Enemies", _on_debug_kill_all_enemies)
+    _dash_payload_button = _debug_panel.add_action("Dash Payload", _on_debug_set_dash_payload)
+    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder)
 
 
-func _on_debug_instant_dash() -> void:
+func _on_debug_set_dash_payload() -> void:
     if not Debug.enabled:
         return
-    _player.debug_force_dash_ready()
+    _set_debug_mobility_payload(RunBuild.PAYLOAD_DASH)
 
 
-func _on_debug_kill_all_enemies() -> void:
+func _on_debug_toggle_guard_shredder() -> void:
     if not Debug.enabled:
         return
-    _wave_controller.force_kill_all_enemies()
+    _toggle_debug_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER, "Guard Shredder")
 ```
 
 `DebugPanel.add_action()` already wraps the callback with a `Debug.enabled`
 check, so the button can never fire while debug is off — the guard in the
 handler is the belt-and-suspenders copy required by `debug_standard.md` §4a,
 not the only line of defense. See `debug_standard.md` §5 for the full contract
-and `dash_and_slash_arena.gd`'s `_wire_debug_panel()` for the live example
-(Instant Dash, Kill All Enemies, Add/Remove/Move Tile).
+and `tick_arena.gd`'s `_wire_debug_panel()` for the live example
+(Dash Payload, Smash Payload, Guard Shredder, Execution).
