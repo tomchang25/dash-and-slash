@@ -55,7 +55,7 @@ Preliminary concepts — bigger than a one-liner, but a single `###` sub-section
 
 Later Major content that should wait until the tick-combat Major override and triggered-effect seams have shipped through the active tick rework plan.
 
-- Chain Dash should share `SmashMajorEffect.EXCLUSIVITY_GROUP` and use `RunBuild.set_mobility_payload_override()` the same way Smash does (see `game/scenes/stages/rewards/effects/smash_major_effect.gd`).
+- Chain Dash should share `SmashMajorEffect.EXCLUSIVITY_GROUP` and use `RunBuild.set_mobility_payload_override()` the same way Smash does (see `game/tick_arena/reward/effects/smash_major_effect.gd`).
 - Shockwave Dash and other mobility-slot-triggered Majors should reuse `RunBuild.set_mobility_trigger()` / `has_mobility_trigger()` (the seam Guard Shredder and Execution use, payload-agnostic across Dash and Smash) instead of forking either payload's resolution.
 
 ### Guard Damage, HP Bypass, And Stagger Burst Rework

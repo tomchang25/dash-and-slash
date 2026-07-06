@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Dash & Slash"
-run/main_scene="res://game/scenes/stages/tick_arena/tick_arena.tscn"
+run/main_scene="res://game/tick_arena/tick_arena.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
