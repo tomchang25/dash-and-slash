@@ -40,7 +40,6 @@ func _ready() -> void:
     _engine.attack_detonated.connect(_view.flash_detonation)
     _engine.player_died.connect(_run_controller.handle_player_died)
     _action_controller.state_changed.connect(_refresh_hud)
-    _action_controller.wave_cleared.connect(_run_controller.handle_wave_cleared)
     _run_controller.reward_applied.connect(_on_reward_applied)
     _run_controller.run_reset_finished.connect(_on_run_reset_finished)
 

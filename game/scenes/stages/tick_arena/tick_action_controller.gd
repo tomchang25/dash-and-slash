@@ -9,7 +9,6 @@ class_name TickActionController
 extends Node
 
 signal state_changed
-signal wave_cleared
 
 enum AimMode {
     ATTACK,
@@ -411,13 +410,13 @@ func _close_smash_cancel_confirm() -> void:
 
 
 ## Resolves one committed player hit and returns the resolver outcome so mobility strike loops can
-## collect it for the Mobility Free Action Major's refund check instead of losing it.
+## collect it for the Mobility Free Action Major's refund check instead of losing it. A kill needs
+## no explicit removal here: take_hit() synchronously fires the enemy's died signal, which the wave
+## controller (via the spawner's died_callback) already uses to drop it from alive-count tracking.
 func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
     var enemy_pos := enemy.global_position
     var result := enemy.take_hit(origin_cell, damage, is_dash, guard_shredder_trigger, execution_trigger)
     _play_major_trigger_feedback(result, enemy_pos)
-    if bool(result["killed"]):
-        _remove_enemy(enemy)
     _apply_player_result_message(result)
     return result
 
@@ -458,14 +457,6 @@ func _apply_player_result_message(result: Dictionary) -> void:
         set_message("%s hit." % _angle_name(result["angle"]))
     else:
         ToastManager.show_dev_error("TickActionController: unexpected feedback kind %s" % feedback_kind)
-
-
-## Stops scheduling a killed enemy and signals the run controller once the last one is gone. The
-## enemy runs its own death-state tween and frees itself.
-func _remove_enemy(enemy: GridEnemy) -> void:
-    engine.unregister_actor(enemy)
-    if engine.actors().is_empty():
-        wave_cleared.emit()
 
 # == Aiming and plans ==
 

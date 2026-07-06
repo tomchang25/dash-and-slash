@@ -1,5 +1,8 @@
 # enemy_spawn_planner.gd
-# Computes valid enemy spawn cells around the player for wave starts.
+# Computes valid enemy spawn cells around the player for wave starts and revalidates cells for
+# spawn-warning resolution. Reads the player's logical grid cell through an injected zero-argument
+# Callable instead of a concrete player type, so it works for any arena whose player cell is
+# queryable that way (the tick arena passes a callable reading TickPlayer.cell).
 class_name EnemySpawnPlanner
 extends RefCounted
 
@@ -12,26 +15,26 @@ const ENEMY_SPAWN_RANDOM_SCORE_WEIGHT := 0.3
 const NO_CELL := Vector2i(-1, -1)
 
 var _grid: GridArena
-var _player: Player
+var _player_cell_provider: Callable
 
 # == Lifecycle ==
 
 
-func _init(grid: GridArena = null, player: Player = null) -> void:
+func _init(grid: GridArena = null, player_cell_provider: Callable = Callable()) -> void:
     _grid = grid
-    _player = player
+    _player_cell_provider = player_cell_provider
 
 # == Common API ==
 
 
-func setup(grid: GridArena, player: Player) -> void:
+func setup(grid: GridArena, player_cell_provider: Callable) -> void:
     _grid = grid
-    _player = player
+    _player_cell_provider = player_cell_provider
 
 
 ## Picks a spawn cell from available LAND cells, spreading each wave from inner to outer bands.
 func choose_enemy_spawn_cell(index: int, spawn_count: int, reserved_spawn_cells: Array[Vector2i]) -> Vector2i:
-    var player_cell := _grid.world_to_grid(_player.global_position)
+    var player_cell := _player_cell()
     var candidates := _get_available_enemy_spawn_cells(player_cell, reserved_spawn_cells)
     if not candidates.is_empty():
         var target_radius := _enemy_spawn_target_radius(index, spawn_count, player_cell, candidates)
@@ -43,6 +46,25 @@ func choose_enemy_spawn_cell(index: int, spawn_count: int, reserved_spawn_cells:
 
     var walkable_cell := _choose_any_walkable_spawn_cell(player_cell, reserved_spawn_cells)
     return walkable_cell if walkable_cell != NO_CELL else player_cell
+
+
+## Returns true when a warning-resolved cell is still a legal spawn target. Unlike
+## choose_enemy_spawn_cell(), this never falls back to an occupied cell, so a true result can be
+## trusted to mean "safe to spawn here" rather than "least-bad choice."
+func is_spawn_cell_still_valid(cell: Vector2i, reserved_spawn_cells: Array[Vector2i]) -> bool:
+    return _is_enemy_spawn_cell_available(cell, _player_cell(), reserved_spawn_cells)
+
+
+## Finds a genuinely valid replacement cell for a warning-resolution entry whose reserved cell
+## failed revalidation. Unlike choose_enemy_spawn_cell(), this never falls back to an occupied
+## cell, so it returns NO_CELL when no valid cell exists instead of masking that as a placement.
+func find_valid_spawn_replacement(index: int, spawn_count: int, reserved_spawn_cells: Array[Vector2i]) -> Vector2i:
+    var player_cell := _player_cell()
+    var candidates := _get_available_enemy_spawn_cells(player_cell, reserved_spawn_cells)
+    if candidates.is_empty():
+        return NO_CELL
+    var target_radius := _enemy_spawn_target_radius(index, spawn_count, player_cell, candidates)
+    return _pick_enemy_spawn_candidate(candidates, player_cell, reserved_spawn_cells, target_radius)
 
 # == Candidate Collection ==
 
@@ -154,3 +176,11 @@ func _nearest_reserved_spawn_distance(cell: Vector2i, reserved_spawn_cells: Arra
 
 func _cell_distance(a: Vector2i, b: Vector2i) -> float:
     return Vector2(a - b).length()
+
+# == Player Cell ==
+
+
+func _player_cell() -> Vector2i:
+    if not _player_cell_provider.is_valid():
+        return Vector2i.ZERO
+    return _player_cell_provider.call()

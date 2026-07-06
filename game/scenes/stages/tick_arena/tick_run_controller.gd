@@ -1,8 +1,8 @@
 # tick_run_controller.gd
-# Transitional owner of the Phase 4c fixed-enemy bridge: fixed enemy composition and spawning,
-# wave-clear banner timing, the reward choice open/apply flow, and the reset hook seam. Deliberately
-# thin — it does not convert to the real wave controller, terrain cadence, or death/restart flow
-# until Phase 6d/6e replace these seams.
+# Owns tick-arena run flow: starts and advances waves through WaveController, the wave-clear
+# banner timing, the reward choice open/apply flow, and the reset hook seam. Wave/spawn logistics
+# (support count, population cap, spawn warnings, milestone elites, stat scaling) belong to
+# WaveController and its EnemySpawnPlanner/EnemySpawner collaborators, not here.
 class_name TickRunController
 extends Node
 
@@ -11,16 +11,6 @@ signal run_reset_finished
 
 # -- Constants --
 
-const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
-const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
-const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
-const ModeEnemyScene := preload("res://game/entities/enemies/mode_enemy.tscn")
-
-const SMALL_SPAWN_COUNT := 2
-const CHARGER_SPAWN_COUNT := 1
-const PUFF_SPAWN_COUNT := 1
-const MODE_SPAWN_COUNT := 1
-const SPAWN_MIN_PLAYER_DISTANCE := 4
 const REWARD_OPEN_DELAY := 2.0
 const WAVE_BANNER_FADE := 0.35
 
@@ -38,7 +28,9 @@ const WAVE_BANNER_FADE := 0.35
 # -- State --
 
 var _run_build: RunBuild
-var _wave_number := 1
+var _wave_controller: WaveController
+var _spawn_planner: EnemySpawnPlanner
+var _spawner: EnemySpawner
 var _reward_controller: WaveRewardChoiceController
 var _rng := RandomNumberGenerator.new()
 
@@ -49,37 +41,37 @@ var _wave_banner_tween: Tween
 # == Signal handlers ==
 
 
-## Starts the next enemy set with the current simple spawn composition once a reward is applied
-## Phase 6 replaces this with the calibrated wave controller, planner, and spawner.
+## Starts the next wave once a reward is applied.
 func _on_reward_choice_applied() -> void:
     action_controller.set_input_locked(false)
-    _wave_number += 1
-    _spawn_enemies()
-    action_controller.set_message("Reward applied — wave %d begins." % _wave_number)
+    _wave_controller.start_next_wave()
+    action_controller.set_message("Reward applied — wave %d begins." % _wave_controller.get_wave_number())
     reward_applied.emit()
+
+
+## Locks player input and shows the "WAVE END" banner once the wave controller reports every
+## queued and alive enemy is gone; the reward choice only opens once the banner has fully faded out.
+func _on_normal_wave_completed(_wave_number: int, _is_milestone_wave: bool) -> void:
+    action_controller.set_input_locked(true)
+    _show_wave_banner("WAVE END")
 
 # == Common API ==
 
 
-## Stores the run build the reward flow applies effects onto, seeds the spawn/reward RNG, and wires
-## the reward choice flow; the tick arena root owns and constructs the shared RunBuild instance.
+## Stores the run build the reward flow and wave controller apply effects onto/read pressure from,
+## seeds the spawn/reward RNG, and wires the reward choice and wave flow; the tick arena root owns
+## and constructs the shared RunBuild instance.
 func setup(run_build: RunBuild) -> void:
     _run_build = run_build
     _rng.randomize()
     _wire_reward_flow()
+    _wire_wave_controller()
 
 
-## Spawns the first wave's fixed enemy set. Called once the arena root has finished setting up the
-## player, since spawn placement depends on the player's starting cell.
+## Starts the first wave. Called once the arena root has finished setting up the player, since
+## spawn placement depends on the player's starting cell.
 func start_first_wave() -> void:
-    _spawn_enemies()
-
-
-## Locks player input and shows the "WAVE END" banner, matching the legacy arena's wave-complete
-## beat; the reward choice only opens once the banner has fully faded out.
-func handle_wave_cleared() -> void:
-    action_controller.set_input_locked(true)
-    _show_wave_banner("WAVE END")
+    _wave_controller.start_next_wave()
 
 
 func handle_player_died() -> void:
@@ -99,50 +91,24 @@ func reset_run(reason: String) -> void:
     engine.clear_actors()
     player.reset(grid.grid_size / 2, _run_build.total(RunBuild.CH_MAX_HEALTH))
     action_controller.reset_for_new_run()
-    _spawn_enemies()
+    _wave_controller.reset()
+    _wave_controller.start_next_wave()
     action_controller.set_message(reason)
     run_reset_finished.emit()
 
-# == Spawning ==
+# == Wave Controller ==
 
 
-func _spawn_enemies() -> void:
-    for i in SMALL_SPAWN_COUNT:
-        _spawn_enemy(SmallEnemyScene)
-    for i in CHARGER_SPAWN_COUNT:
-        _spawn_enemy(ChargeEnemyScene)
-    for i in PUFF_SPAWN_COUNT:
-        _spawn_enemy(PuffEnemyScene)
-    for i in MODE_SPAWN_COUNT:
-        _spawn_enemy(ModeEnemyScene)
-
-
-## Instantiates a production enemy kind and binds it to the tick engine as a scheduled actor.
-func _spawn_enemy(scene: PackedScene) -> void:
-    var enemy: GridEnemy = scene.instantiate()
-    enemy.global_position = grid.cell_center(_pick_spawn_cell())
-    enemy.setup(grid, player)
-    enemy.bind_tick_engine(engine)
-    enemy_container.add_child(enemy)
-    engine.register_actor(enemy)
-
-
-func _pick_spawn_cell() -> Vector2i:
-    var candidates: Array[Vector2i] = []
-    var fallback: Array[Vector2i] = []
-    for land_cell: Vector2i in grid.get_land_cells():
-        if land_cell == player.cell or engine.enemy_at(land_cell) != null:
-            continue
-        fallback.append(land_cell)
-        var delta := land_cell - player.cell
-        if absi(delta.x) + absi(delta.y) >= SPAWN_MIN_PLAYER_DISTANCE:
-            candidates.append(land_cell)
-    if candidates.is_empty():
-        candidates = fallback
-    if candidates.is_empty():
-        ToastManager.show_dev_error("TickRunController: no free land cell to spawn an enemy.")
-        return player.cell
-    return candidates[_rng.randi_range(0, candidates.size() - 1)]
+## Wires the wave controller and its spawn collaborators against this arena's grid, engine, and
+## enemy container. The spawn planner reads the player's logical cell through a callable instead
+## of a concrete player type, per EnemySpawnPlanner's arena-agnostic contract.
+func _wire_wave_controller() -> void:
+    _spawn_planner = EnemySpawnPlanner.new(grid, func() -> Vector2i: return player.cell)
+    _spawner = EnemySpawner.new(grid, player, enemy_container, engine)
+    _wave_controller = WaveController.new()
+    _wave_controller.setup(grid, _spawn_planner, _spawner, engine)
+    _wave_controller.set_run_build(_run_build)
+    _wave_controller.normal_wave_completed.connect(_on_normal_wave_completed)
 
 # == Rewards ==
 
@@ -169,9 +135,10 @@ func _wire_reward_flow() -> void:
 ## mutation, so the terrain_mutation_kind argument only satisfies the shared controller's signature
 ## the tick arena's overlay omits the terrain-mutation note label, so no note is ever shown for it.
 func _open_reward_choice() -> void:
+    var wave_number := _wave_controller.get_wave_number()
     _reward_controller.open_reward_choice(
-        _wave_number,
-        _reward_target_points(_wave_number),
+        wave_number,
+        _reward_target_points(wave_number),
         WaveRewardChoiceController.TerrainMutationKind.REMOVE_LAND,
     )
 
