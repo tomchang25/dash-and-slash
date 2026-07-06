@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_arena.gd" id="1_root"]
 [ext_resource type="Script" path="res://common/gameplay/grid/grid_arena.gd" id="2_grid"]
@@ -9,6 +9,18 @@
 [ext_resource type="Script" path="res://common/gameplay/grid/grid_terrain_view.gd" id="7_terrain"]
 [ext_resource type="TileSet" path="res://common/gameplay/grid/land_tileset.tres" id="8_land_ts"]
 [ext_resource type="TileSet" path="res://common/gameplay/grid/water_tileset.tres" id="9_water_ts"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
+bg_color = Color(0.12, 0.12, 0.15, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.32, 0.32, 0.42, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [node name="TickArena" type="Node2D"]
 script = ExtResource("1_root")
@@ -80,3 +92,50 @@ offset_right = 1500.0
 offset_bottom = -14.0
 grow_vertical = 0
 theme_override_font_sizes/font_size = 22
+
+[node name="SmashCancelConfirmPanel" type="PanelContainer" parent="HUD"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(420, 0)
+anchors_preset = -1
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_top = 0.14
+anchor_bottom = 0.14
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_smash_cancel_confirm")
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/SmashCancelConfirmPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="RootVBox" type="VBoxContainer" parent="HUD/SmashCancelConfirmPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="SmashCancelConfirmLabel" type="Label" parent="HUD/SmashCancelConfirmPanel/MarginContainer/RootVBox"]
+layout_mode = 2
+text = "Cancel the armed Smash? The windup tick will be lost."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="SmashCancelButtonRow" type="HBoxContainer" parent="HUD/SmashCancelConfirmPanel/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="SmashCancelKeepButton" type="Button" parent="HUD/SmashCancelConfirmPanel/MarginContainer/RootVBox/SmashCancelButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 44)
+layout_mode = 2
+text = "Do Nothing"
+
+[node name="SmashCancelConfirmButton" type="Button" parent="HUD/SmashCancelConfirmPanel/MarginContainer/RootVBox/SmashCancelButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 44)
+layout_mode = 2
+text = "Cancel Attack"

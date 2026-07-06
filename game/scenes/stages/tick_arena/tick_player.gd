@@ -12,11 +12,17 @@ const LEAP_TWEEN_SEC := 0.12
 const BODY_RADIUS := 40.0
 const DAMAGE_FLASH_SEC := 0.18
 
+# -- Exports --
+
+@export var smash_windup_sfx_event: SpatialAudioEvent
+@export var smash_impact_sfx_event: SpatialAudioEvent
+
 # -- State --
 
 var cell := Vector2i.ZERO
 var hp := MAX_HP
 var dash_cooldown := 0
+var smash_cooldown := 0
 var smash_target := Vector2i.ZERO
 
 var _smash_armed := false
@@ -73,6 +79,7 @@ func take_damage(amount: float) -> bool:
 func reset(start_cell: Vector2i) -> void:
     hp = MAX_HP
     dash_cooldown = 0
+    smash_cooldown = 0
     disarm_smash()
     cell = start_cell
     if _move_tween != null:
@@ -85,6 +92,7 @@ func reset(start_cell: Vector2i) -> void:
 ## Counts tick-based cooldowns down by one world tick.
 func tick_cooldowns() -> void:
     dash_cooldown = maxi(dash_cooldown - 1, 0)
+    smash_cooldown = maxi(smash_cooldown - 1, 0)
 
 
 ## Arms the smash windup on a locked landing cell.

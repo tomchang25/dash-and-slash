@@ -15,6 +15,7 @@ var sfx_volume: float = 1.0
 var music_volume: float = 1.0
 var fullscreen: bool = false
 var dash_direction_mode: String = DASH_DIRECTION_MODE_MOUSE
+var confirm_smash_cancel: bool = true
 var debug_mode: bool = false:
     set(value):
         if debug_mode == value:
@@ -53,6 +54,7 @@ func save_settings() -> void:
         "fullscreen": fullscreen,
         "dash_direction_mode": dash_direction_mode,
         "debug_mode": debug_mode,
+        "confirm_smash_cancel": confirm_smash_cancel,
     }
     var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
     if file == null:
@@ -81,6 +83,7 @@ func load_settings() -> void:
     fullscreen = bool(data.get("fullscreen", fullscreen))
     set_dash_direction_mode(str(data.get("dash_direction_mode", dash_direction_mode)))
     debug_mode = bool(data.get("debug_mode", debug_mode))
+    confirm_smash_cancel = bool(data.get("confirm_smash_cancel", confirm_smash_cancel))
 
 
 ## Sets the persisted dash direction preference, falling back to mouse aim for unknown values.

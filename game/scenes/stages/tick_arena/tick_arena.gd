@@ -4,9 +4,9 @@
 # spawning, previews with resolved outcomes, HUD, and prototype-parity debug shortcuts.
 extends Node2D
 
-enum PreviewMode {
-    NEUTRAL,
-    MOBILITY_AIM,
+enum AimMode {
+    ATTACK,
+    MOBILITY,
 }
 
 # -- Constants --
@@ -18,8 +18,11 @@ const ModeEnemyScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 
 const PLAYER_ATTACK_DAMAGE := 20.0
 const PLAYER_DASH_DAMAGE := 30.0
+const PLAYER_SMASH_DAMAGE := 30.0
 const DASH_RANGE := 5
 const DASH_COOLDOWN_TICKS := 4
+const SMASH_RANGE := 3
+const SMASH_COOLDOWN_TICKS := 6
 const MESSAGE_SEC := 1.6
 const SMALL_SPAWN_COUNT := 2
 const CHARGER_SPAWN_COUNT := 1
@@ -30,8 +33,8 @@ const BACKGROUND_COLOR := Color(0.09, 0.1, 0.12)
 
 # -- State --
 
-var _preview_mode := PreviewMode.NEUTRAL
-var _suppress_next_mobility_release := false
+var _aim_mode := AimMode.ATTACK
+var _smash_cancel_confirm_open := false
 var _run_build := RunBuild.new()
 var _last_aim := Vector2i.RIGHT
 var _message := ""
@@ -48,6 +51,9 @@ var _rng := RandomNumberGenerator.new()
 @onready var _enemy_container: Node2D = %Enemies
 @onready var _stats_label: Label = %StatsLabel
 @onready var _controls_label: Label = %ControlsLabel
+@onready var _smash_cancel_confirm_panel: Control = %SmashCancelConfirmPanel
+@onready var _smash_cancel_confirm_button: Button = %SmashCancelConfirmButton
+@onready var _smash_cancel_keep_button: Button = %SmashCancelKeepButton
 
 # == Lifecycle ==
 
@@ -57,12 +63,14 @@ func _ready() -> void:
     _engine.world_advanced.connect(_on_world_advanced)
     _engine.attack_detonated.connect(_on_attack_detonated)
     _engine.player_died.connect(_on_player_died)
+    _smash_cancel_confirm_button.pressed.connect(_on_smash_cancel_confirm_pressed)
+    _smash_cancel_keep_button.pressed.connect(_on_smash_cancel_keep_pressed)
 
     _rng.randomize()
     RenderingServer.set_default_clear_color(BACKGROUND_COLOR)
     _player.setup(_grid, _grid.grid_size / 2)
     _spawn_enemies()
-    _controls_label.text = "WASD step · LMB attack · hold RMB aim mobility/release commit · Esc cancel · Space wait · T debug payload · R reset"
+    _controls_label.text = "WASD step · Hold Alt for Mobility Mode · LMB confirm · RMB cancel · Space wait · T debug payload · R reset"
     _refresh_danger()
     _refresh_hud()
 
@@ -77,26 +85,31 @@ func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventKey and event.pressed and not event.echo:
         match event.physical_keycode:
             KEY_T:
-                _toggle_mobility_mode()
+                if not _smash_cancel_confirm_open:
+                    _toggle_mobility_mode()
             KEY_R:
                 _reset_run("Run reset.")
 
 # == Signal handlers ==
 
 
+## While the Smash cancel-confirm popup is open, every arena verb is blocked — only the popup's own
+## buttons (Do Nothing / Cancel Attack) can resolve it, so a stray click or key press can never sneak
+## past it and act on the game underneath.
 func _on_verb_requested(verb: Dictionary) -> void:
+    if _smash_cancel_confirm_open:
+        return
     var consumed := false
     match String(verb.get("type", "")):
         "move":
             consumed = _verb_move(verb["dir"])
-        "attack":
-            consumed = _verb_attack()
-        "mobility_press":
-            _begin_mobility_aim()
-        "mobility_release":
-            consumed = _release_mobility_aim()
-        "mobility_cancel":
-            _cancel_mobility_aim(true)
+        "confirm":
+            if not (bool(verb.get("repeat", false)) and not _confirm_is_attack()):
+                consumed = _verb_confirm()
+        "mode_set":
+            _set_aim_mode(bool(verb.get("mobility", false)))
+        "cancel":
+            _verb_cancel()
         "wait":
             consumed = _verb_wait()
         _:
@@ -117,17 +130,44 @@ func _on_attack_detonated(cells: Array[Vector2i]) -> void:
 func _on_player_died() -> void:
     _reset_run("You died — run reset.")
 
+
+func _on_smash_cancel_confirm_pressed() -> void:
+    _player.disarm_smash()
+    _close_smash_cancel_confirm()
+    _set_message("Smash windup cancelled.")
+
+
+func _on_smash_cancel_keep_pressed() -> void:
+    _close_smash_cancel_confirm()
+
 # == Player verbs (tick resolution stage 1) ==
 
 
+## Movement requires confirmation to cancel an armed Smash windup, same as an explicit right-click
+## cancel; the move itself is withheld this tick while the confirmation popup is pending.
 func _verb_move(dir: Vector2i) -> bool:
-    _cancel_smash_windup()
+    if not _try_cancel_smash_windup():
+        return false
     var target := _player.cell + dir
     if not _engine.is_cell_open_for_player(target):
         _view.flash_deny(target)
         return false
     _player.move_to(target)
     return true
+
+
+## Dispatches the command-style left-click confirm to the active aim mode's handler. An armed Smash
+## always claims the confirm, regardless of Alt state, so it can be released without first re-entering
+## Mobility Mode.
+func _verb_confirm() -> bool:
+    if _confirm_is_attack():
+        return _verb_attack()
+    return _verb_mobility()
+
+
+## Whether the next confirm resolves to a normal attack: only when in Attack Mode with no Smash armed.
+func _confirm_is_attack() -> bool:
+    return _aim_mode == AimMode.ATTACK and not _player.is_smash_armed()
 
 
 ## Swings at the mouse-aimed adjacent cell; a whiff still consumes the tick, only illegal inputs are free.
@@ -147,6 +187,8 @@ func _verb_mobility() -> bool:
     var payload := _run_build.get_mobility_payload()
     if payload == RunBuild.PAYLOAD_DASH:
         return _verb_dash()
+    if payload == RunBuild.PAYLOAD_SMASH:
+        return _verb_smash()
     if payload == RunBuild.PAYLOAD_DEBUG_STUB:
         return _verb_debug_stub_mobility()
     ToastManager.show_dev_error("TickArena: unknown mobility payload %s" % payload)
@@ -174,6 +216,45 @@ func _verb_dash() -> bool:
     return true
 
 
+## First confirm arms the windup on a locked landing cell (costs one tick, enemies act one beat)
+## the next confirm releases the leap and 3x3 hit regardless of where the mouse is now aimed.
+func _verb_smash() -> bool:
+    if not _player.is_smash_armed():
+        if _player.smash_cooldown > 0:
+            _set_message("Smash on cooldown (%d)." % _player.smash_cooldown)
+            return false
+        var target := _clamped_smash_target()
+        if not _engine.is_cell_open_for_player(target):
+            _view.flash_deny(target)
+            return false
+        _player.arm_smash(target)
+        _close_smash_cancel_confirm()
+        SmashFeedbackVFX.play_windup(_player.global_position, self)
+        AudioManager.play_event(_player.smash_windup_sfx_event, _player.global_position)
+        _set_message("Smash windup...")
+        return true
+
+    var landing := _player.smash_target
+    if not _engine.is_cell_open_for_player(landing):
+        _view.flash_deny(landing)
+        return false
+    _view.flash_swing(_smash_area(landing))
+    var hit_any := false
+    for enemy: GridEnemy in _engine.actors():
+        if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
+            hit_any = true
+            _apply_player_hit(enemy, landing, PLAYER_SMASH_DAMAGE, true)
+    if not hit_any:
+        _apply_player_result_message(TickHitResolver.empty_outcome())
+    SmashFeedbackVFX.play_impact(_grid.cell_center(landing), self)
+    AudioManager.play_event(_player.smash_impact_sfx_event, _grid.cell_center(landing))
+    _player.move_to(landing, true)
+    _player.disarm_smash()
+    _player.smash_cooldown = SMASH_COOLDOWN_TICKS
+    _close_smash_cancel_confirm()
+    return true
+
+
 func _verb_debug_stub_mobility() -> bool:
     var target := _player.cell + _aim_direction()
     if not _engine.is_cell_open_for_player(target):
@@ -190,49 +271,53 @@ func _verb_wait() -> bool:
     return true
 
 
-func _begin_mobility_aim() -> void:
-    if not _can_aim_mobility_payload():
-        return
-    _preview_mode = PreviewMode.MOBILITY_AIM
-    _suppress_next_mobility_release = false
+## Holding Alt selects Mobility Mode; releasing it returns to Attack Mode. Switching never consumes a
+## tick or disturbs an armed Smash windup, since only an executed verb (move/attack/wait) or an
+## explicit cancel does that.
+func _set_aim_mode(mobility: bool) -> void:
+    _aim_mode = AimMode.MOBILITY if mobility else AimMode.ATTACK
 
 
-func _release_mobility_aim() -> bool:
-    if _suppress_next_mobility_release:
-        _suppress_next_mobility_release = false
-        return false
-    if _preview_mode != PreviewMode.MOBILITY_AIM:
-        return false
-    _preview_mode = PreviewMode.NEUTRAL
-    return _verb_mobility()
+## Right click requests cancellation of the armed Smash windup, the same confirmation gate movement uses.
+func _verb_cancel() -> void:
+    _try_cancel_smash_windup()
 
 
-func _cancel_mobility_aim(suppress_release: bool) -> void:
-    if _preview_mode != PreviewMode.MOBILITY_AIM:
-        return
-    _preview_mode = PreviewMode.NEUTRAL
-    _suppress_next_mobility_release = suppress_release
-    _set_message("Mobility cancelled.")
-
-
-func _can_aim_mobility_payload() -> bool:
-    var payload := _run_build.get_mobility_payload()
-    if payload == RunBuild.PAYLOAD_DASH:
-        if _player.dash_cooldown > 0:
-            _set_message("Dash on cooldown (%d)." % _player.dash_cooldown)
-            return false
-        return true
-    if payload == RunBuild.PAYLOAD_DEBUG_STUB:
-        return true
-    ToastManager.show_dev_error("TickArena: unknown mobility payload %s" % payload)
-    return false
-
-
-## Cancels an armed smash when another verb executes; the windup tick already spent is not refunded.
+## Cancels an armed smash unconditionally when Attack or Wait executes, or when the debug payload
+## toggle switches away from Smash; the windup tick already spent is not refunded. These verbs are not
+## gated behind the confirm-cancel popup — only right-click and movement are.
 func _cancel_smash_windup() -> void:
     if _player.is_smash_armed():
         _player.disarm_smash()
+        _close_smash_cancel_confirm()
         _set_message("Windup cancelled.")
+
+
+## Requests cancellation of the armed Smash windup, gated behind the confirm-cancel setting. Returns
+## true when the caller's action may proceed this tick (nothing was armed, or the setting is disabled
+## and the windup was cancelled immediately); returns false when a confirm popup is now pending — or
+## already pending from an earlier request — and the caller's action must not proceed this tick.
+func _try_cancel_smash_windup() -> bool:
+    if not _player.is_smash_armed():
+        return true
+    if _smash_cancel_confirm_open:
+        return false
+    if not SettingsStore.confirm_smash_cancel:
+        _player.disarm_smash()
+        _set_message("Smash windup cancelled.")
+        return true
+    _open_smash_cancel_confirm()
+    return false
+
+
+func _open_smash_cancel_confirm() -> void:
+    _smash_cancel_confirm_open = true
+    _smash_cancel_confirm_panel.visible = true
+
+
+func _close_smash_cancel_confirm() -> void:
+    _smash_cancel_confirm_open = false
+    _smash_cancel_confirm_panel.visible = false
 
 
 func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> void:
@@ -317,6 +402,27 @@ func _compute_dash_plan() -> Dictionary:
         "victims": victims,
     }
 
+
+## Clamps the mouse-aimed cell to the Smash range box independently per axis.
+func _clamped_smash_target() -> Vector2i:
+    var delta := _mouse_cell() - _player.cell
+    delta.x = clampi(delta.x, -SMASH_RANGE, SMASH_RANGE)
+    delta.y = clampi(delta.y, -SMASH_RANGE, SMASH_RANGE)
+    return _player.cell + delta
+
+
+## Returns the 3x3 block of cells centered on the given landing cell.
+func _smash_area(center: Vector2i) -> Array[Vector2i]:
+    var area: Array[Vector2i] = []
+    for ox in range(-1, 2):
+        for oy in range(-1, 2):
+            area.append(center + Vector2i(ox, oy))
+    return area
+
+
+func _chebyshev(delta: Vector2i) -> int:
+    return maxi(absi(delta.x), absi(delta.y))
+
 # == Spawning ==
 
 
@@ -365,16 +471,23 @@ func _reset_run(reason: String) -> void:
         actor.queue_free()
     _engine.clear_actors()
     _player.reset(_grid.grid_size / 2)
+    _aim_mode = AimMode.ATTACK
+    _close_smash_cancel_confirm()
     _spawn_enemies()
     _refresh_danger()
     _refresh_hud()
     _set_message(reason)
 
 
+## Cycles the debug-prototype mobility payload (Dash -> Smash -> debug stub -> Dash); writes through
+## the same RunBuild override real Major effects use. A proper debug surface for Major state at large
+## is Phase 04a's job — this keyboard accelerator only predates and outlives it as a fast local toggle.
 func _toggle_mobility_mode() -> void:
     _cancel_smash_windup()
-    _cancel_mobility_aim(false)
-    if _run_build.get_mobility_payload() == RunBuild.PAYLOAD_DASH:
+    var payload := _run_build.get_mobility_payload()
+    if payload == RunBuild.PAYLOAD_DASH:
+        _run_build.set_mobility_payload_override(RunBuild.PAYLOAD_SMASH)
+    elif payload == RunBuild.PAYLOAD_SMASH:
         _run_build.set_mobility_payload_override(RunBuild.PAYLOAD_DEBUG_STUB)
     else:
         _run_build.set_mobility_payload_override(RunBuild.PAYLOAD_DASH)
@@ -408,7 +521,9 @@ func _update_preview() -> void:
     var outcomes := { }
     var preview := { }
 
-    if _preview_mode == PreviewMode.MOBILITY_AIM:
+    if _player.is_smash_armed():
+        _apply_locked_smash_preview(preview, outcomes)
+    elif _aim_mode == AimMode.MOBILITY:
         _apply_mobility_preview(preview, outcomes)
     else:
         preview["aim_cell"] = _player.cell + _aim_direction()
@@ -421,6 +536,8 @@ func _update_preview() -> void:
     _view.set_preview(preview)
 
 
+## Only reached while no Smash is armed, since an armed windup's preview is locked in by
+## _update_preview() before this is ever called.
 func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
     var payload := _run_build.get_mobility_payload()
     if payload == RunBuild.PAYLOAD_DASH:
@@ -433,6 +550,14 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
             var dir: Vector2i = plan["dir"]
             for victim: GridEnemy in plan["victims"]:
                 outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true)
+        return
+    if payload == RunBuild.PAYLOAD_SMASH:
+        var target := _clamped_smash_target()
+        preview["smash_center"] = target
+        preview["smash_legal"] = _engine.is_cell_open_for_player(target)
+        if bool(preview["smash_legal"]):
+            preview["ghost_cell"] = target
+            _collect_smash_outcomes(target, outcomes)
         return
     if payload == RunBuild.PAYLOAD_DEBUG_STUB:
         var target := _player.cell + _aim_direction()
@@ -464,11 +589,28 @@ func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_d
     return { "cell": enemy.get_grid_pos(), "label": label, "tier": tier }
 
 
+## Collects predicted outcomes for every living enemy in the 3x3 block centered on the given cell.
+func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
+    for enemy: GridEnemy in _engine.actors():
+        if _chebyshev(enemy.get_grid_pos() - center) <= 1:
+            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, PLAYER_SMASH_DAMAGE, true)
+
+
+## Shows the locked Smash landing and its outcomes regardless of the current aim mode, since an armed
+## windup is a standing commitment the player can glance at even while briefly back in Attack Mode.
+func _apply_locked_smash_preview(preview: Dictionary, outcomes: Dictionary) -> void:
+    preview["smash_armed_center"] = _player.smash_target
+    preview["ghost_cell"] = _player.smash_target
+    _collect_smash_outcomes(_player.smash_target, outcomes)
+
+
 func _refresh_hud() -> void:
-    _stats_label.text = "HP %d/%d    Dash CD %d    Mobility: %s    Tick %d\n%s" % [
+    _stats_label.text = "HP %d/%d    Dash CD %d    Smash CD %d    Mode: %s    Mobility: %s    Tick %d\n%s" % [
         int(_player.hp),
         int(TickPlayer.MAX_HP),
         _player.dash_cooldown,
+        _player.smash_cooldown,
+        _aim_mode_name(),
         _mobility_mode_name(),
         _engine.tick_count(),
         _message,
@@ -494,9 +636,15 @@ func _mobility_mode_name() -> String:
     var payload := _run_build.get_mobility_payload()
     if payload == RunBuild.PAYLOAD_DASH:
         return "DASH"
+    if payload == RunBuild.PAYLOAD_SMASH:
+        return "SMASH"
     if payload == RunBuild.PAYLOAD_DEBUG_STUB:
         return "DEBUG STUB"
     return "UNKNOWN"
+
+
+func _aim_mode_name() -> String:
+    return "ATTACK" if _aim_mode == AimMode.ATTACK else "MOBILITY"
 
 
 func _angle_name(angle: int) -> String:

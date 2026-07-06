@@ -166,6 +166,19 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 
+[node name="ConfirmSmashCancelRow" type="HBoxContainer" parent="CenterControl/Panel/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ConfirmSmashCancelLabel" type="Label" parent="CenterControl/Panel/MarginContainer/RootVBox/ConfirmSmashCancelRow"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Confirm Smash Cancel"
+
+[node name="ConfirmSmashCancelCheck" type="CheckBox" parent="CenterControl/Panel/MarginContainer/RootVBox/ConfirmSmashCancelRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="DebugRow" type="HBoxContainer" parent="CenterControl/Panel/MarginContainer/RootVBox"]
 layout_mode = 2
 theme_override_constants/separation = 12

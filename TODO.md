@@ -55,7 +55,7 @@ Preliminary concepts — bigger than a one-liner, but a single `###` sub-section
 
 Later Major content that should wait until the tick-combat Major override and triggered-effect seams have shipped through the active tick rework plan.
 
-- Chain Dash should share Smash's exclusivity group and use the same mobility-payload override seam once implemented.
+- Chain Dash should share `SmashMajorEffect.EXCLUSIVITY_GROUP` and use `RunBuild.set_mobility_payload_override()` the same way Smash does (see `game/scenes/stages/rewards/effects/smash_major_effect.gd`).
 - Shockwave Dash and other dash-triggered Majors should reuse the on-dash-hit triggered-effect seam instead of forking dash resolution.
 
 ### Guard Damage, HP Bypass, And Stagger Burst Rework

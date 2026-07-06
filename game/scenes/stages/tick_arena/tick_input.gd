@@ -1,7 +1,9 @@
 # tick_input.gd
-# Verb input layer for the tick arena: polls the two-channel grammar every frame (mouse aims for free,
-# keys commit verbs), repeats held movement/attack/wait at the flow cadence, and emits verb_requested
-# without knowing anything about legality — the scene root validates and executes.
+# Verb input layer for the tick arena: polls the command-style grammar every frame (mouse aims for
+# free, holding Alt enters Mobility Mode and releasing it returns to Attack Mode, left click confirms
+# the active mode, right click cancels), repeats held movement/wait/confirm at the flow cadence, and
+# emits verb_requested without knowing anything about legality or mode meaning — the scene root
+# validates, interprets, and executes.
 class_name TickInput
 extends Node
 
@@ -21,19 +23,19 @@ const MOVE_ACTIONS := {
 # -- State --
 
 var _repeat_timer := 0.0
+var _alt_was_pressed := false
 var _rmb_was_pressed := false
 var _space_was_pressed := false
-var _escape_was_pressed := false
 
 # == Lifecycle ==
 
 
 func _process(delta: float) -> void:
+    var alt_pressed := Input.is_physical_key_pressed(KEY_ALT)
     var rmb_pressed := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
     var space_pressed := Input.is_physical_key_pressed(KEY_SPACE)
-    var escape_pressed := Input.is_physical_key_pressed(KEY_ESCAPE)
 
-    var verb := _edge_verb(rmb_pressed, space_pressed, escape_pressed)
+    var verb := _edge_verb(alt_pressed, rmb_pressed, space_pressed)
     if not verb.is_empty():
         verb_requested.emit(verb)
         _repeat_timer = HOLD_REPEAT_SEC
@@ -47,25 +49,23 @@ func _process(delta: float) -> void:
                 verb_requested.emit(held)
                 _repeat_timer = HOLD_REPEAT_SEC
 
+    _alt_was_pressed = alt_pressed
     _rmb_was_pressed = rmb_pressed
     _space_was_pressed = space_pressed
-    _escape_was_pressed = escape_pressed
 
 # == Verb polling ==
 
 
-func _edge_verb(rmb_pressed: bool, space_pressed: bool, escape_pressed: bool) -> Dictionary:
-    if escape_pressed and not _escape_was_pressed:
-        return { "type": "mobility_cancel" }
-    if not rmb_pressed and _rmb_was_pressed:
-        return { "type": "mobility_release" }
+func _edge_verb(alt_pressed: bool, rmb_pressed: bool, space_pressed: bool) -> Dictionary:
+    if alt_pressed != _alt_was_pressed:
+        return { "type": "mode_set", "mobility": alt_pressed }
+    if rmb_pressed and not _rmb_was_pressed:
+        return { "type": "cancel" }
     for action: String in MOVE_ACTIONS:
         if Input.is_action_just_pressed(action):
             return { "type": "move", "dir": MOVE_ACTIONS[action] }
     if Input.is_action_just_pressed("attack"):
-        return { "type": "attack" }
-    if rmb_pressed and not _rmb_was_pressed:
-        return { "type": "mobility_press" }
+        return { "type": "confirm" }
     if space_pressed and not _space_was_pressed:
         return { "type": "wait" }
     return { }
@@ -76,7 +76,7 @@ func _held_verb(space_pressed: bool) -> Dictionary:
         if Input.is_action_pressed(action):
             return { "type": "move", "dir": MOVE_ACTIONS[action] }
     if Input.is_action_pressed("attack"):
-        return { "type": "attack" }
+        return { "type": "confirm", "repeat": true }
     if space_pressed:
         return { "type": "wait" }
     return { }
