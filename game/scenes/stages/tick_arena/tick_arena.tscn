@@ -93,7 +93,7 @@ engine = NodePath("../TickEngine")
 player = NodePath("../Player")
 action_controller = NodePath("../TickActionController")
 
-[node name="TickRunController" type="Node" parent="." node_paths=PackedStringArray("grid", "engine", "player", "enemy_container", "action_controller", "reward_overlay", "wave_banner_overlay", "wave_banner_label")]
+[node name="TickRunController" type="Node" parent="." node_paths=PackedStringArray("grid", "engine", "player", "enemy_container", "action_controller", "reward_overlay", "wave_banner_overlay", "wave_banner_label", "death_overlay", "restart_button")]
 unique_name_in_owner = true
 script = ExtResource("14_run_controller")
 grid = NodePath("../GridArena")
@@ -104,6 +104,8 @@ action_controller = NodePath("../TickActionController")
 reward_overlay = NodePath("../HUD/WaveRewardOverlay")
 wave_banner_overlay = NodePath("../HUD/WaveBannerOverlay")
 wave_banner_label = NodePath("../HUD/WaveBannerOverlay/CenterContainer/WaveBannerLabel")
+death_overlay = NodePath("../HUD/DeathOverlay")
+restart_button = NodePath("../HUD/DeathOverlay/CenterContainer/PanelContainer/RootVBox/RestartButton")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 zoom = Vector2(0.65, 0.65)
@@ -280,3 +282,52 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 text = "Reward choice"
+
+[node name="DeathOverlay" type="Control" parent="HUD"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Backdrop" type="ColorRect" parent="HUD/DeathOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.55)
+
+[node name="CenterContainer" type="CenterContainer" parent="HUD/DeathOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="HUD/DeathOverlay/CenterContainer"]
+custom_minimum_size = Vector2(420, 220)
+layout_mode = 2
+
+[node name="RootVBox" type="VBoxContainer" parent="HUD/DeathOverlay/CenterContainer/PanelContainer"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="DeathLabel" type="Label" parent="HUD/DeathOverlay/CenterContainer/PanelContainer/RootVBox"]
+layout_mode = 2
+theme_type_variation = &"Heading2Label"
+text = "You Died"
+horizontal_alignment = 1
+
+[node name="RestartButton" type="Button" parent="HUD/DeathOverlay/CenterContainer/PanelContainer/RootVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Restart"

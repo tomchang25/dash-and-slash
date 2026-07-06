@@ -105,6 +105,10 @@ Later reward work that should wait until Major/Minor run build state exists.
 - Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
 - Advanced terrain shaping beyond random connected add and random safe connected remove.
 
+### 增加額外障礙物 Grid 替代
+
+凍結每輪隨機增減或搬動地形；太隨機或太碎的地形有可能導致死局或卡手，不適合目前偏半益智型的 tick combat。後續地圖壓力改研究在穩定 10x10 基底上增加額外障礙物 grid，取代每輪碎地形的 run cadence。
+
 ### Weapon Class Attack Variants
 
 Player sprite addon and player attack hitbox rework for weapon/class readability.

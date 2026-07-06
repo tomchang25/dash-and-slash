@@ -12,7 +12,10 @@ var _choices: Array[WaveRewardChoice] = []
 # -- Node references --
 
 @onready var _choice_buttons: Array[Button] = [%ChoiceButton1, %ChoiceButton2, %ChoiceButton3]
-@onready var _terrain_mutation_note_label: Label = %TerrainMutationNoteLabel
+## Absent in the tick arena's overlay instance by design (Phase 6e freezes terrain mutation), so this
+## looks the node up tolerantly instead of the strict %-shorthand, which would log a missing-node
+## error every time this overlay enters the tree there.
+@onready var _terrain_mutation_note_label: Label = get_node_or_null(^"%TerrainMutationNoteLabel")
 
 # == Lifecycle ==
 

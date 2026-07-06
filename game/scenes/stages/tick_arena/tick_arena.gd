@@ -42,6 +42,7 @@ func _ready() -> void:
     _action_controller.state_changed.connect(_refresh_hud)
     _run_controller.reward_applied.connect(_on_reward_applied)
     _run_controller.run_reset_finished.connect(_on_run_reset_finished)
+    _run_controller.restart_requested.connect(_on_restart_requested)
 
     RenderingServer.set_default_clear_color(BACKGROUND_COLOR)
     _player.setup(_grid, _grid.grid_size / 2)
@@ -59,9 +60,16 @@ func _unhandled_input(event: InputEvent) -> void:
     # Debug-only arena shortcut; production never routes here until cutover replaces it.
     if event is InputEventKey and event.pressed and not event.echo:
         if event.physical_keycode == KEY_R:
-            _run_controller.reset_run("Run reset.")
+            _restart_run("Run reset.")
 
 # == Signal handlers ==
+
+
+## The death overlay's restart button asks for a fresh run instead of resetting itself, since the
+## arena root is the RunBuild's sole constructor/owner (see run_build.gd); this rebuilds it here so
+## a restarted run never inherits the previous run's accumulated reward/pressure state.
+func _on_restart_requested() -> void:
+    _restart_run("Run reset.")
 
 
 func _on_world_advanced(_tick_count: int) -> void:
@@ -77,9 +85,24 @@ func _on_reward_applied() -> void:
     _refresh_danger()
 
 
+## A fresh run starts with default mobility payload/triggers, so the debug panel's button
+## highlighting must catch up alongside the danger telegraphs and HUD.
 func _on_run_reset_finished() -> void:
+    _refresh_debug_payload_buttons()
+    _refresh_debug_trigger_buttons()
     _refresh_danger()
     _refresh_hud()
+
+# == Restart ==
+
+
+## Builds a fresh RunBuild for the new run and rewires every scene-scoped reader onto it before
+## asking the run controller to reset, so no controller can act on the previous run's stale reference.
+func _restart_run(reason: String) -> void:
+    _run_build = RunBuild.new()
+    _action_controller.setup(_run_build)
+    _preview_controller.setup(_run_build)
+    _run_controller.reset_run(reason, _run_build)
 
 # == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 

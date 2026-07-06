@@ -1,13 +1,16 @@
 # tick_run_controller.gd
 # Owns tick-arena run flow: starts and advances waves through WaveController, the wave-clear
-# banner timing, the reward choice open/apply flow, and the reset hook seam. Wave/spawn logistics
-# (support count, population cap, spawn warnings, milestone elites, stat scaling) belong to
-# WaveController and its EnemySpawnPlanner/EnemySpawner collaborators, not here.
+# banner timing, the reward choice open/apply flow, the death overlay/restart flow, and the reset
+# hook seam. Wave/spawn logistics (support count, population cap, spawn warnings, milestone elites,
+# stat scaling) belong to WaveController and its EnemySpawnPlanner/EnemySpawner collaborators, not
+# here. Restart always runs against a fresh RunBuild the arena root constructs and hands in through
+# reset_run(); this controller never clears the old store in place.
 class_name TickRunController
 extends Node
 
 signal reward_applied
 signal run_reset_finished
+signal restart_requested
 
 # -- Constants --
 
@@ -24,6 +27,8 @@ const WAVE_BANNER_FADE := 0.35
 @export var reward_overlay: WaveRewardOverlay
 @export var wave_banner_overlay: Control
 @export var wave_banner_label: Label
+@export var death_overlay: Control
+@export var restart_button: Button
 
 # -- State --
 
@@ -32,11 +37,18 @@ var _wave_controller: WaveController
 var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
 var _reward_controller: WaveRewardChoiceController
+var _reward_context: WaveRewardContext
 var _rng := RandomNumberGenerator.new()
 
 # -- Timer / tween handles --
 
 var _wave_banner_tween: Tween
+
+# == Lifecycle ==
+
+
+func _ready() -> void:
+    restart_button.pressed.connect(_on_restart_button_pressed)
 
 # == Signal handlers ==
 
@@ -54,6 +66,12 @@ func _on_reward_choice_applied() -> void:
 func _on_normal_wave_completed(_wave_number: int, _is_milestone_wave: bool) -> void:
     action_controller.set_input_locked(true)
     _show_wave_banner("WAVE END")
+
+
+## The death overlay's only recovery path; the arena root owns building the fresh RunBuild a restart
+## requires, so this just asks for one instead of resetting itself.
+func _on_restart_button_pressed() -> void:
+    restart_requested.emit()
 
 # == Common API ==
 
@@ -74,27 +92,52 @@ func start_first_wave() -> void:
     _wave_controller.start_next_wave()
 
 
+## TickEngine emits player death only after the killing tick fully resolves; this shows the death
+## overlay instead of resetting immediately, so the player can see what killed them before restarting.
+## Combat input stays locked and the wave controller force-kills/stops spawning so nothing keeps
+## acting behind the overlay; restart is the only recovery path from here.
 func handle_player_died() -> void:
-    reset_run("You died — run reset.")
+    _cancel_pending_wave_flow()
+    action_controller.set_input_locked(true)
+    _wave_controller.end_run()
+    death_overlay.visible = true
 
 
-## Cancels any pending wave-end banner/reward-open callback before resetting, so a manual reset
-## during the banner countdown can never open a stale reward choice after the run has already reset.
-func reset_run(reason: String) -> void:
-    if _wave_banner_tween != null and _wave_banner_tween.is_valid():
-        _wave_banner_tween.kill()
-    wave_banner_overlay.visible = false
+## Cancels any pending wave-end banner/reward-open callback before resetting, so a restart during the
+## banner countdown or an open reward choice can never let that stale flow reopen or reapply after the
+## run has already reset. fresh_run_build replaces the run's reward/pressure state wholesale — the
+## caller (the arena root) constructs it and rewires its own readers; this only points the wave
+## controller and reward context at the new store instead of clearing the old one in place.
+func reset_run(reason: String, fresh_run_build: RunBuild) -> void:
+    _cancel_pending_wave_flow()
+    death_overlay.visible = false
     action_controller.set_input_locked(false)
     for actor in engine.actors():
         grid.unregister_occupant(actor)
         actor.queue_free()
     engine.clear_actors()
-    player.reset(grid.grid_size / 2, _run_build.total(RunBuild.CH_MAX_HEALTH))
+    _run_build = fresh_run_build
+    _reward_context.run_build = fresh_run_build
+    _wave_controller.set_run_build(fresh_run_build)
+    player.reset(grid.grid_size / 2, fresh_run_build.total(RunBuild.CH_MAX_HEALTH))
     action_controller.reset_for_new_run()
     _wave_controller.reset()
     _wave_controller.start_next_wave()
     action_controller.set_message(reason)
     run_reset_finished.emit()
+
+# == Death / Restart ==
+
+
+## Kills any in-flight wave-end banner tween and hides the wave banner and reward overlays, unpausing
+## the tree if the reward choice happened to be open — the shared cleanup death and restart both need
+## so neither can leave a stale banner/reward callback able to fire into the run that replaces it.
+func _cancel_pending_wave_flow() -> void:
+    if _wave_banner_tween != null and _wave_banner_tween.is_valid():
+        _wave_banner_tween.kill()
+    wave_banner_overlay.visible = false
+    reward_overlay.hide_choices()
+    get_tree().paused = false
 
 # == Wave Controller ==
 
@@ -121,12 +164,12 @@ func _wire_wave_controller() -> void:
 func _wire_reward_flow() -> void:
     var reward_generator := WaveRewardChoiceGenerator.new(_rng)
     var reward_applier := WaveRewardApplier.new()
-    var reward_context := WaveRewardContext.new(grid, null, _run_build)
+    _reward_context = WaveRewardContext.new(grid, null, _run_build)
     _reward_controller = WaveRewardChoiceController.new(
         reward_overlay,
         reward_generator,
         reward_applier,
-        reward_context,
+        _reward_context,
     )
     _reward_controller.choice_applied.connect(_on_reward_choice_applied)
 

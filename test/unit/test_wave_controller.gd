@@ -60,6 +60,10 @@ class TestWaveController:
     func queue_count() -> int:
         return _spawn_queue.size()
 
+
+    func pending_batch_count() -> int:
+        return _pending_batch.size()
+
 # == WaveScaling formulas ========================================================
 
 
@@ -188,6 +192,21 @@ func test_end_run_stops_advance_wave() -> void:
     assert_false(wc.advance_wave(), "advance_wave should stop once the run has ended")
 
 
+## Regression for the Phase 6e death flow: TickRunController.handle_player_died() now calls
+## end_run() on every death instead of leaving it unused, so is_run_over() must flip on end_run()
+## and clear again on reset() for the next run.
+func test_end_run_marks_run_over_and_reset_clears_it() -> void:
+    var wc := WaveController.new()
+    wc.advance_wave()
+    assert_false(wc.is_run_over(), "a run is not over before end_run()")
+
+    wc.end_run()
+    assert_true(wc.is_run_over(), "end_run() should mark the run as over")
+
+    wc.reset()
+    assert_false(wc.is_run_over(), "reset() should clear the run-over flag for the next run")
+
+
 func test_reset_clears_state() -> void:
     var wc := WaveController.new()
     var run_build := RunBuild.new()
@@ -200,6 +219,22 @@ func test_reset_clears_state() -> void:
     assert_eq(wc.get_wave_number(), 0, "wave number resets to 0")
     assert_true(wc.advance_wave(), "advance_wave should work again after reset")
     assert_eq(wc.get_support_spawn_count(), WaveScaling.get_support_count(1), "pressure should reset to 0")
+
+
+## Regression for the Phase 6e restart flow: a restart hands WaveController a brand-new RunBuild
+## instance (the arena root constructs it fresh) instead of clearing the old one in place, so any
+## pressure recorded on the stale store must have zero effect the moment the swap happens.
+func test_set_run_build_swaps_to_a_new_instance_not_just_clearing_the_old_one() -> void:
+    var wc := WaveController.new()
+    var stale_run_build := RunBuild.new()
+    wc.set_run_build(stale_run_build)
+    stale_run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 5)
+    wc.advance_wave()
+    assert_eq(wc.get_support_spawn_count(), WaveScaling.get_support_count(1) + 5, "the stale run build's pressure should apply before the swap")
+
+    var fresh_run_build := RunBuild.new()
+    wc.set_run_build(fresh_run_build)
+    assert_eq(wc.get_support_spawn_count(), WaveScaling.get_support_count(1), "swapping to a fresh RunBuild must drop the previous run's pressure entirely")
 
 # == Support / elite spawn counts =================================================
 
@@ -541,6 +576,47 @@ func test_elite_cleared_signal_fires_without_ending_run() -> void:
 
     assert_eq(completed_calls.size(), 1, "wave should complete normally once support and elite are all dead")
     assert_true(completed_calls[0][1], "wave 5 completion should report as a milestone wave")
+
+    for enemy in fake_spawner.spawned:
+        if is_instance_valid(enemy):
+            enemy.free()
+
+
+## Regression for the Phase 6e death flow: TickRunController.handle_player_died() calls end_run()
+## while a spawn-warning batch and queued overflow are both in flight, so end_run() must drop both —
+## a stale queued/warning entry must never spawn once the run is over and the death overlay is up.
+func test_end_run_clears_pending_spawn_queue_and_warning_batch() -> void:
+    var grid: GridArena = autofree(GridArena.new())
+    grid.grid_size = Vector2i(4, 4)
+    grid.starting_land_size = Vector2i(4, 4)
+    grid.generate_grid()
+
+    var fake_planner := FakeSpawnPlanner.new()
+    var fake_spawner := FakeSpawner.new()
+    var engine: TickEngine = autofree(TickEngine.new())
+
+    var wc := TestWaveController.new()
+    wc.setup(grid, fake_planner, fake_spawner, engine)
+    var run_build := RunBuild.new()
+    wc.set_run_build(run_build)
+
+    # Wave 1 support count formula is 3; +7 pressure asks for 10 against a population cap of 3, so
+    # 3 telegraph as the pending warning batch and 7 sit queued behind the cap.
+    run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 7)
+    wc.start_next_wave()
+
+    assert_eq(wc.pending_batch_count(), 3, "the first batch should be telegraphing before its countdown resolves")
+    assert_eq(wc.queue_count(), 7, "the overflow should be queued, not force-spawned")
+
+    wc.end_run()
+
+    assert_eq(wc.pending_batch_count(), 0, "end_run should drop the in-flight warning batch")
+    assert_eq(wc.queue_count(), 0, "end_run should drop the remaining spawn queue")
+
+    # No further enemies should spawn even if the world keeps advancing after the run is over.
+    wc.trigger_world_advanced()
+    wc.trigger_world_advanced()
+    assert_eq(fake_spawner.spawned.size(), 0, "nothing queued or warning should spawn once the run has ended")
 
     for enemy in fake_spawner.spawned:
         if is_instance_valid(enemy):

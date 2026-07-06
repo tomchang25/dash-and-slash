@@ -38,3 +38,18 @@ func test_message_starts_empty_and_set_message_updates_it() -> void:
     controller.set_message("Whiff.")
 
     assert_eq(controller.current_message(), "Whiff.")
+
+
+## Regression for the death-overlay/wave-banner input lock (Phase 6e): a locked controller must
+## ignore every verb, including a mode_set that touches no exported node, so combat input can never
+## sneak through while the death overlay or wave-clear banner is on screen.
+func test_input_locked_blocks_verb_dispatch() -> void:
+    var controller: TickActionController = autofree(TickActionController.new())
+
+    controller.set_input_locked(true)
+    controller.handle_verb({ "type": "mode_set", "mobility": true })
+    assert_eq(controller.aim_mode_name(), "ATTACK", "a locked controller must ignore even a mode_set verb")
+
+    controller.set_input_locked(false)
+    controller.handle_verb({ "type": "mode_set", "mobility": true })
+    assert_eq(controller.aim_mode_name(), "MOBILITY", "unlocking should let verbs dispatch again")
