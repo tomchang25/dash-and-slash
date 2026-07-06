@@ -74,3 +74,11 @@ static func dominant_direction(delta: Vector2i) -> Vector2i:
 ## Cooldown reduction stacks, floored at 1 tick so the mobility slot is never truly free through this Minor.
 static func mobility_cooldown_ticks(base_ticks: int, reduction_stacks: int) -> int:
     return maxi(base_ticks - reduction_stacks, 1)
+
+
+## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility
+## Range percent bonus, capped at the given max bonus percent and floored at 1 cell so a reward can
+## never collapse the mobility slot's reach to nothing.
+static func mobility_range_cells(base_range: int, bonus_percent: float, max_bonus_percent: float) -> int:
+    var capped_percent := minf(bonus_percent, max_bonus_percent)
+    return maxi(int(round(float(base_range) * (1.0 + capped_percent / 100.0))), 1)

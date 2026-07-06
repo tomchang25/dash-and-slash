@@ -97,7 +97,7 @@ func reset_run(reason: String) -> void:
         grid.unregister_occupant(actor)
         actor.queue_free()
     engine.clear_actors()
-    player.reset(grid.grid_size / 2)
+    player.reset(grid.grid_size / 2, _run_build.total(RunBuild.CH_MAX_HEALTH))
     action_controller.reset_for_new_run()
     _spawn_enemies()
     action_controller.set_message(reason)
@@ -149,8 +149,9 @@ func _pick_spawn_cell() -> Vector2i:
 
 ## Wires the shared reward generator/applier/context/controller and overlay flow (Phase 04c bridge)
 ## against this arena's own RunBuild, so a won Major writes through the same store tick verbs read.
-## The context's player field stays null: the existing player-stat Minor effects require a real-time
-## Player and are filtered out by their own is_applicable() check, while Majors only touch RunBuild.
+## The context's player field stays null: Majors and every tick-compatible Minor read and write
+## RunBuild directly, while Attack Range is the sole remaining legacy player-stat effect and is
+## filtered out of this pool by its own is_applicable() check.
 func _wire_reward_flow() -> void:
     var reward_generator := WaveRewardChoiceGenerator.new(_rng)
     var reward_applier := WaveRewardApplier.new()

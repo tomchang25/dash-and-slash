@@ -121,7 +121,7 @@ func test_reward_applier_routes_concrete_player_buff() -> void:
     applier.apply(choice, context)
 
     assert_eq(player.get_dash_attack_damage(), 100.0)
-    assert_eq(run_build.total(RunBuild.CH_DASH_ATTACK_DAMAGE), 20.0)
+    assert_eq(run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE), 20.0)
 
 
 func test_reward_applier_routes_attack_range_buff() -> void:

@@ -88,9 +88,17 @@ func take_damage(amount: float) -> bool:
     return hp <= 0.0
 
 
-## Restores spawn defaults and snaps back to the given cell.
-func reset(start_cell: Vector2i) -> void:
-    hp = MAX_HP
+## Returns the effective max hp: the base value plus every recorded Max Health reward bonus, floored
+## at the base so a reduction effect could never collapse survivability below it. Callers project this
+## from the run's RunBuild total themselves, since TickPlayer holds no RunBuild reference of its own.
+func max_hp(bonus_total: float) -> float:
+    return MAX_HP + maxf(bonus_total, 0.0)
+
+
+## Restores spawn defaults and snaps back to the given cell, healing to the max hp projected from the
+## given Max Health reward bonus total so a run's earned max health survives a death/reset.
+func reset(start_cell: Vector2i, max_health_bonus := 0.0) -> void:
+    hp = max_hp(max_health_bonus)
     dash_cooldown = 0
     smash_cooldown = 0
     speed_meter = 0

@@ -25,6 +25,7 @@ const DASH_RANGE := 5
 const DASH_COOLDOWN_TICKS := 4
 const SMASH_RANGE := 3
 const SMASH_COOLDOWN_TICKS := 6
+const MAX_MOBILITY_RANGE_BONUS_PERCENT := 200.0
 const MESSAGE_SEC := 1.6
 
 # -- Exports --
@@ -205,7 +206,7 @@ func _verb_attack() -> Dictionary:
     var free_action := _spend_speed_if_full()
     var enemy := engine.enemy_at(target)
     if enemy != null:
-        _apply_player_hit(enemy, player.cell, PLAYER_ATTACK_DAMAGE, false)
+        _apply_player_hit(enemy, player.cell, _normal_attack_damage(), false)
     _fill_speed_meter()
     if free_action:
         _append_message_suffix("Speed spent — free attack!")
@@ -230,14 +231,14 @@ func _verb_dash() -> Dictionary:
         return _verb_illegal()
     var plan := _compute_dash_plan()
     if not bool(plan["legal"]):
-        view.flash_deny(player.cell + plan["dir"] * DASH_RANGE)
+        view.flash_deny(player.cell + plan["dir"] * _mobility_range_cells(DASH_RANGE))
         return _verb_illegal()
     var dir: Vector2i = plan["dir"]
     var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     var outcomes: Array[Dictionary] = []
     for victim: GridEnemy in plan["victims"]:
-        outcomes.append(_apply_player_hit(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true, guard_shredder, execution))
+        outcomes.append(_apply_player_hit(victim, victim.get_grid_pos() - dir, _mobility_attack_damage(PLAYER_DASH_DAMAGE), true, guard_shredder, execution))
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     view.flash_swing(plan["path"])
@@ -278,7 +279,7 @@ func _verb_smash() -> Dictionary:
     var outcomes: Array[Dictionary] = []
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
-            outcomes.append(_apply_player_hit(enemy, landing, PLAYER_SMASH_DAMAGE, true, guard_shredder, execution))
+            outcomes.append(_apply_player_hit(enemy, landing, _mobility_attack_damage(PLAYER_SMASH_DAMAGE), true, guard_shredder, execution))
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
@@ -338,6 +339,23 @@ func _fill_speed_meter() -> void:
 ## Projects a mobility-slot payload's base cooldown through the run's Mobility Cooldown reduction, floored at 1 tick.
 func _mobility_cooldown_ticks(base_ticks: int) -> int:
     return TickCombatRules.mobility_cooldown_ticks(base_ticks, int(_run_build.total(RunBuild.CH_MOBILITY_COOLDOWN)))
+
+
+## Projects normal attack's base damage through the run's Normal Attack Damage bonus total.
+func _normal_attack_damage() -> float:
+    return PLAYER_ATTACK_DAMAGE + _run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE)
+
+
+## Projects a mobility-slot payload's base damage (Dash or Smash) through the run's Mobility Attack
+## Damage bonus total.
+func _mobility_attack_damage(base_damage: float) -> float:
+    return base_damage + _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE)
+
+
+## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility
+## Range percent bonus.
+func _mobility_range_cells(base_range: int) -> int:
+    return TickCombatRules.mobility_range_cells(base_range, _run_build.total(RunBuild.CH_MOBILITY_RANGE), MAX_MOBILITY_RANGE_BONUS_PERCENT)
 
 
 ## Whether a mobility-slot strike's collected hit outcomes refund this action's world advancement:
@@ -470,7 +488,7 @@ func _compute_dash_plan() -> Dictionary:
     var dir := TickCombatRules.dominant_direction(delta)
     if dir == Vector2i.ZERO:
         dir = _last_aim
-    var wanted := clampi(absi(delta.x * dir.x + delta.y * dir.y), 1, DASH_RANGE)
+    var wanted := clampi(absi(delta.x * dir.x + delta.y * dir.y), 1, _mobility_range_cells(DASH_RANGE))
 
     var preview_path: Array[Vector2i] = []
     var travel_path: Array[Vector2i] = []
@@ -503,9 +521,10 @@ func _compute_dash_plan() -> Dictionary:
 
 ## Clamps the mouse-aimed cell to the Smash range box independently per axis.
 func _clamped_smash_target() -> Vector2i:
+    var smash_range := _mobility_range_cells(SMASH_RANGE)
     var delta := _mouse_cell() - player.cell
-    delta.x = clampi(delta.x, -SMASH_RANGE, SMASH_RANGE)
-    delta.y = clampi(delta.y, -SMASH_RANGE, SMASH_RANGE)
+    delta.x = clampi(delta.x, -smash_range, smash_range)
+    delta.y = clampi(delta.y, -smash_range, smash_range)
     return player.cell + delta
 
 

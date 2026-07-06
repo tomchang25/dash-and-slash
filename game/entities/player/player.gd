@@ -153,7 +153,7 @@ func get_normal_attack_damage() -> float:
 ## plus every applied bonus effect.
 func get_dash_attack_damage() -> float:
     _ensure_run_stats()
-    return _run_stats.dash_attack_damage + _run_build.total(RunBuild.CH_DASH_ATTACK_DAMAGE)
+    return _run_stats.dash_attack_damage + _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE)
 
 
 ## Returns the current normal attack hit-geometry scale (1.0 = base reach and shape size),
@@ -171,7 +171,7 @@ func get_normal_attack_range_scale() -> float:
 ## pacing are unaffected.
 func get_dash_speed() -> float:
     _ensure_run_stats()
-    var bonus_percent := _run_stats.dash_range_bonus_percent + _run_build.total(RunBuild.CH_DASH_RANGE)
+    var bonus_percent := _run_stats.dash_range_bonus_percent + _run_build.total(RunBuild.CH_MOBILITY_RANGE)
     bonus_percent = min(bonus_percent, MAX_DASH_RANGE_BONUS_PERCENT)
     return DASH_SPEED * (1.0 + bonus_percent / 100.0)
 
@@ -201,7 +201,7 @@ func reduce_normal_attack_cooldown(amount: float) -> void:
 func add_dash_attack_damage(amount: float) -> void:
     if amount <= 0.0:
         return
-    _run_build.record(RunBuild.CH_DASH_ATTACK_DAMAGE, amount)
+    _run_build.record(RunBuild.CH_MOBILITY_ATTACK_DAMAGE, amount)
 
 
 ## Records a run-scoped reduction to dash cooldown and clamps any active
@@ -219,7 +219,7 @@ func reduce_dash_cooldown(amount: float) -> void:
 func add_dash_range(amount: float) -> void:
     if amount <= 0.0:
         return
-    _run_build.record(RunBuild.CH_DASH_RANGE, amount)
+    _run_build.record(RunBuild.CH_MOBILITY_RANGE, amount)
 
 
 ## Returns whether the run-scoped store still has capacity for another Major effect.

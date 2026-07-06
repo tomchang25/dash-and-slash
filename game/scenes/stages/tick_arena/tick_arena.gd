@@ -179,7 +179,7 @@ func _refresh_danger() -> void:
 func _refresh_hud() -> void:
     _stats_label.text = "HP %d/%d    Dash CD %d    Smash CD %d    Mode: %s    Mobility: %s    Tick %d\nSpeed Energy %d/%d (+%d/action) %s\n%s" % [
         int(_player.hp),
-        int(TickPlayer.MAX_HP),
+        int(_player.max_hp(_run_build.total(RunBuild.CH_MAX_HEALTH))),
         _player.dash_cooldown,
         _player.smash_cooldown,
         _action_controller.aim_mode_name(),

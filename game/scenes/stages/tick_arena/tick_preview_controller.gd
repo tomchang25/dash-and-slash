@@ -16,6 +16,7 @@ const PLAYER_DASH_DAMAGE := 30.0
 const PLAYER_SMASH_DAMAGE := 30.0
 const DASH_RANGE := 5
 const SMASH_RANGE := 3
+const MAX_MOBILITY_RANGE_BONUS_PERCENT := 200.0
 
 # -- Exports --
 
@@ -61,7 +62,7 @@ func _update_preview() -> void:
         preview["aim_cell"] = player.cell + _aim_direction()
         var aim_enemy := engine.enemy_at(preview["aim_cell"])
         if aim_enemy != null:
-            outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, player.cell, PLAYER_ATTACK_DAMAGE, false)
+            outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, player.cell, _normal_attack_damage(), false)
 
     if not outcomes.is_empty():
         preview["outcomes"] = outcomes.values()
@@ -83,7 +84,7 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
             var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
             var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
             for victim: GridEnemy in plan["victims"]:
-                outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true, guard_shredder, execution)
+                outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, _mobility_attack_damage(PLAYER_DASH_DAMAGE), true, guard_shredder, execution)
         return
     if payload == RunBuild.PAYLOAD_SMASH:
         var target := _clamped_smash_target()
@@ -134,7 +135,7 @@ func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - center) <= 1:
-            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, PLAYER_SMASH_DAMAGE, true, guard_shredder, execution)
+            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, _mobility_attack_damage(PLAYER_SMASH_DAMAGE), true, guard_shredder, execution)
 
 
 ## Shows the locked Smash landing and its outcomes regardless of the current aim mode, since an armed
@@ -165,7 +166,7 @@ func _compute_dash_plan() -> Dictionary:
     var dir := TickCombatRules.dominant_direction(delta)
     if dir == Vector2i.ZERO:
         dir = action_controller.get_last_aim()
-    var wanted := clampi(absi(delta.x * dir.x + delta.y * dir.y), 1, DASH_RANGE)
+    var wanted := clampi(absi(delta.x * dir.x + delta.y * dir.y), 1, _mobility_range_cells(DASH_RANGE))
 
     var preview_path: Array[Vector2i] = []
     var travel_path: Array[Vector2i] = []
@@ -198,14 +199,32 @@ func _compute_dash_plan() -> Dictionary:
 
 ## Clamps the mouse-aimed cell to the Smash range box independently per axis.
 func _clamped_smash_target() -> Vector2i:
+    var smash_range := _mobility_range_cells(SMASH_RANGE)
     var delta := _mouse_cell() - player.cell
-    delta.x = clampi(delta.x, -SMASH_RANGE, SMASH_RANGE)
-    delta.y = clampi(delta.y, -SMASH_RANGE, SMASH_RANGE)
+    delta.x = clampi(delta.x, -smash_range, smash_range)
+    delta.y = clampi(delta.y, -smash_range, smash_range)
     return player.cell + delta
 
 
 func _chebyshev(delta: Vector2i) -> int:
     return maxi(absi(delta.x), absi(delta.y))
+
+
+## Projects normal attack's base damage through the run's Normal Attack Damage bonus total.
+func _normal_attack_damage() -> float:
+    return PLAYER_ATTACK_DAMAGE + _run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE)
+
+
+## Projects a mobility-slot payload's base damage (Dash or Smash) through the run's Mobility Attack
+## Damage bonus total.
+func _mobility_attack_damage(base_damage: float) -> float:
+    return base_damage + _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE)
+
+
+## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility
+## Range percent bonus.
+func _mobility_range_cells(base_range: int) -> int:
+    return TickCombatRules.mobility_range_cells(base_range, _run_build.total(RunBuild.CH_MOBILITY_RANGE), MAX_MOBILITY_RANGE_BONUS_PERCENT)
 
 
 func _angle_name(angle: int) -> String:

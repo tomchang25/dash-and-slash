@@ -13,10 +13,11 @@ extends RefCounted
 
 const CH_NORMAL_ATTACK_DAMAGE := &"normal_attack_damage"
 const CH_NORMAL_ATTACK_COOLDOWN := &"normal_attack_cooldown"
-const CH_DASH_ATTACK_DAMAGE := &"dash_attack_damage"
+const CH_MOBILITY_ATTACK_DAMAGE := &"mobility_attack_damage"
 const CH_DASH_COOLDOWN := &"dash_cooldown"
 const CH_ATTACK_RANGE := &"attack_range"
-const CH_DASH_RANGE := &"dash_range"
+const CH_MOBILITY_RANGE := &"mobility_range"
+const CH_MAX_HEALTH := &"max_health"
 const CH_FUTURE_ENEMY_COUNT := &"future_enemy_count"
 const CH_ENEMY_HEALTH_PRESSURE := &"enemy_health_pressure"
 const CH_ENEMY_DAMAGE_PRESSURE := &"enemy_damage_pressure"
