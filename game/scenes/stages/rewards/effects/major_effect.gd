@@ -39,10 +39,16 @@ func _init(
 # == Effect Contract ==
 
 
-## Rejects offering this Major when the run-scoped store is at the cap, or
-## when its non-empty exclusivity group already has a registered member.
+## Rejects offering this Major when it is already owned, when the run-scoped store is at the cap,
+## or when its non-empty exclusivity group already has a registered member. The already-owned check
+## matters most for Majors with an empty exclusivity group (Guard Shredder, Execution): they never
+## conflict with each other, so without this check the same effect could be offered and picked again.
 func is_applicable(context: WaveRewardContext) -> bool:
-    return context.run_build != null and context.run_build.can_add_major(exclusivity_group)
+    return (
+        context.run_build != null
+        and not context.run_build.has_major(effect_id)
+        and context.run_build.can_add_major(exclusivity_group)
+    )
 
 
 ## Registers this Major in the run-scoped store. A rejected registration here

@@ -18,6 +18,22 @@ func test_execution_apply_registers_major_and_activates_trigger() -> void:
     assert_eq(run_build.get_mobility_payload(), RunBuild.PAYLOAD_DASH)
 
 
+func test_execution_cannot_be_offered_or_added_again_once_owned() -> void:
+    var run_build := RunBuild.new()
+    var context := WaveRewardContext.new(null, null, run_build)
+    var first := _make_execution()
+    var second := _make_execution()
+
+    first.apply(context, 1)
+
+    assert_false(
+        second.is_applicable(context),
+        "an empty exclusivity group must not let the same effect id be offered again",
+    )
+    assert_false(run_build.add_major(second.effect_id, second.exclusivity_group))
+    assert_eq(run_build.major_count(), 1)
+
+
 func test_execution_still_respects_the_four_major_cap() -> void:
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, null, run_build)

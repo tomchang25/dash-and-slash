@@ -77,21 +77,33 @@ func set_mobility_payload_override(payload: StringName) -> void:
     _mobility_payload_override = payload
 
 
-## Registers a Major effect if the store has capacity and no exclusivity-group
-## conflict; returns false without registering otherwise. This stays
-## authoritative rather than trusting the caller's own pre-offer check, so a
+## Registers a Major effect if the store has capacity, the same effect id is not already
+## registered, and there is no exclusivity-group conflict; returns false without registering
+## otherwise. This stays authoritative rather than trusting the caller's own pre-offer check, so a
 ## rejected add is observable instead of silently no-op'ing.
 func add_major(effect_id: String, exclusivity_group: String) -> bool:
-    if not can_add_major(exclusivity_group):
+    if has_major(effect_id) or not can_add_major(exclusivity_group):
         return false
     _major_entries.append({ "effect_id": effect_id, "exclusivity_group": exclusivity_group })
     return true
 
 
 ## Returns whether another Major could be registered right now: the cap has
-## room and, if the group is non-empty, no existing member shares it.
+## room and, if the group is non-empty, no existing member shares it. Does not check for an
+## already-registered effect id of its own; callers that must reject re-offering the same effect
+## (such as MajorEffect.is_applicable()) pair this with has_major().
 func can_add_major(exclusivity_group: String) -> bool:
     return has_major_capacity() and not has_major_conflict(exclusivity_group)
+
+
+## Returns whether the given Major effect id is already registered in this run. A Major with an
+## empty exclusivity group (Guard Shredder, Execution) has no group conflict to fall back on, so
+## this is the only guard against the same effect being offered or applied a second time.
+func has_major(effect_id: String) -> bool:
+    for entry in _major_entries:
+        if entry["effect_id"] == effect_id:
+            return true
+    return false
 
 
 ## Returns whether the run-wide Major cap still has room for another entry.

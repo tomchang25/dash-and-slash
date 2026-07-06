@@ -33,6 +33,22 @@ func test_major_cap_rejects_beyond_four() -> void:
     assert_eq(run_build.major_count(), RunBuild.MAJOR_CAP)
 
 
+func test_same_effect_id_cannot_be_offered_or_added_twice() -> void:
+    var run_build := RunBuild.new()
+    var context := WaveRewardContext.new(null, null, run_build)
+    var first := _make_major("major_dup", "")
+    var second := _make_major("major_dup", "")
+
+    first.apply(context, 1)
+
+    assert_false(
+        second.is_applicable(context),
+        "the same effect id must not be offerable again even with an empty exclusivity group",
+    )
+    assert_false(run_build.add_major(second.effect_id, second.exclusivity_group))
+    assert_eq(run_build.major_count(), 1)
+
+
 func test_empty_exclusivity_group_never_conflicts() -> void:
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, null, run_build)

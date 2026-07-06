@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_arena.gd" id="1_root"]
 [ext_resource type="Script" path="res://common/gameplay/grid/grid_arena.gd" id="2_grid"]
@@ -10,6 +10,7 @@
 [ext_resource type="TileSet" path="res://common/gameplay/grid/land_tileset.tres" id="8_land_ts"]
 [ext_resource type="TileSet" path="res://common/gameplay/grid/water_tileset.tres" id="9_water_ts"]
 [ext_resource type="PackedScene" path="res://game/shared/debug_panel/debug_panel.tscn" id="10_debug_panel"]
+[ext_resource type="Script" uid="uid://c2yiaboqn4q6d" path="res://game/scenes/stages/rewards/wave_reward_overlay.gd" id="11_reward_overlay"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -146,3 +147,101 @@ text = "Cancel Attack"
 
 [node name="DebugPanel" parent="HUD" instance=ExtResource("10_debug_panel")]
 unique_name_in_owner = true
+
+[node name="WaveBannerOverlay" type="Control" parent="HUD"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Backdrop" type="ColorRect" parent="HUD/WaveBannerOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.35)
+
+[node name="CenterContainer" type="CenterContainer" parent="HUD/WaveBannerOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="WaveBannerLabel" type="Label" parent="HUD/WaveBannerOverlay/CenterContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+text = "Wave End"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="WaveRewardOverlay" type="Control" parent="HUD"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("11_reward_overlay")
+
+[node name="CenterContainer" type="CenterContainer" parent="HUD/WaveRewardOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="HUD/WaveRewardOverlay/CenterContainer"]
+custom_minimum_size = Vector2(940, 360)
+layout_mode = 2
+
+[node name="RootVBox" type="VBoxContainer" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox"]
+layout_mode = 2
+theme_type_variation = &"Heading2Label"
+text = "Choose a Reward"
+horizontal_alignment = 1
+
+[node name="ChoiceHBox" type="HBoxContainer" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ChoiceButton1" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(290, 240)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Reward choice"
+
+[node name="ChoiceButton2" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(290, 240)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Reward choice"
+
+[node name="ChoiceButton3" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(290, 240)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Reward choice"

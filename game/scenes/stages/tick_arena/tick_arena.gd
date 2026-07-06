@@ -30,12 +30,17 @@ const PUFF_SPAWN_COUNT := 1
 const MODE_SPAWN_COUNT := 1
 const SPAWN_MIN_PLAYER_DISTANCE := 4
 const BACKGROUND_COLOR := Color(0.09, 0.1, 0.12)
+const REWARD_OPEN_DELAY := 2.0
+const WAVE_BANNER_FADE := 0.35
 
 # -- State --
 
 var _aim_mode := AimMode.ATTACK
 var _smash_cancel_confirm_open := false
+var _input_locked := false
 var _run_build := RunBuild.new()
+var _wave_number := 1
+var _reward_controller: WaveRewardChoiceController
 var _last_aim := Vector2i.RIGHT
 var _message := ""
 var _message_time := 0.0
@@ -44,6 +49,10 @@ var _dash_payload_button: Button
 var _smash_payload_button: Button
 var _guard_shredder_button: Button
 var _execution_button: Button
+
+# -- Timer / tween handles --
+
+var _wave_banner_tween: Tween
 
 # -- Node references --
 
@@ -59,6 +68,9 @@ var _execution_button: Button
 @onready var _smash_cancel_confirm_button: Button = %SmashCancelConfirmButton
 @onready var _smash_cancel_keep_button: Button = %SmashCancelKeepButton
 @onready var _debug_panel: DebugPanel = %DebugPanel
+@onready var _reward_overlay: WaveRewardOverlay = %WaveRewardOverlay
+@onready var _wave_banner_overlay: Control = %WaveBannerOverlay
+@onready var _wave_banner_label: Label = %WaveBannerLabel
 
 # == Lifecycle ==
 
@@ -77,6 +89,7 @@ func _ready() -> void:
     _spawn_enemies()
     _controls_label.text = "WASD step · Hold Alt for Mobility Mode · LMB confirm · RMB cancel · Space wait · R reset"
     _wire_debug_panel()
+    _wire_reward_flow()
     _refresh_danger()
     _refresh_hud()
 
@@ -99,7 +112,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## buttons (Do Nothing / Cancel Attack) can resolve it, so a stray click or key press can never sneak
 ## past it and act on the game underneath.
 func _on_verb_requested(verb: Dictionary) -> void:
-    if _smash_cancel_confirm_open:
+    if _input_locked or _smash_cancel_confirm_open:
         return
     var consumed := false
     match String(verb.get("type", "")):
@@ -141,6 +154,18 @@ func _on_smash_cancel_confirm_pressed() -> void:
 
 func _on_smash_cancel_keep_pressed() -> void:
     _close_smash_cancel_confirm()
+
+
+## Starts the next enemy set with the current simple spawn composition once a reward is applied
+## Phase 6 replaces this with the calibrated wave controller, planner, and spawner.
+func _on_reward_choice_applied() -> void:
+    _input_locked = false
+    _wave_number += 1
+    _spawn_enemies()
+    _refresh_debug_payload_buttons()
+    _refresh_debug_trigger_buttons()
+    _refresh_danger()
+    _set_message("Reward applied — wave %d begins." % _wave_number)
 
 # == Player verbs (tick resolution stage 1) ==
 
@@ -377,7 +402,7 @@ func _apply_player_result_message(result: Dictionary) -> void:
 func _remove_enemy(enemy: GridEnemy) -> void:
     _engine.unregister_actor(enemy)
     if _engine.actors().is_empty():
-        _set_message("All enemies down — R to respawn.")
+        _handle_wave_cleared()
 
 # == Aiming and plans ==
 
@@ -493,7 +518,13 @@ func _pick_spawn_cell() -> Vector2i:
     return candidates[_rng.randi_range(0, candidates.size() - 1)]
 
 
+## Cancels any pending wave-end banner/reward-open callback before resetting, so a manual reset
+## during the banner countdown can never open a stale reward choice after the run has already reset.
 func _reset_run(reason: String) -> void:
+    if _wave_banner_tween != null and _wave_banner_tween.is_valid():
+        _wave_banner_tween.kill()
+    _wave_banner_overlay.visible = false
+    _input_locked = false
     for actor in _engine.actors():
         _grid.unregister_occupant(actor)
         actor.queue_free()
@@ -505,6 +536,67 @@ func _reset_run(reason: String) -> void:
     _refresh_danger()
     _refresh_hud()
     _set_message(reason)
+
+# == Rewards ==
+
+
+## Wires the shared reward generator/applier/context/controller and overlay flow (Phase 04c bridge)
+## against this arena's own RunBuild, so a won Major writes through the same store tick verbs read.
+## The context's player field stays null: the existing player-stat Minor effects require a real-time
+## Player and are filtered out by their own is_applicable() check, while Majors only touch RunBuild.
+func _wire_reward_flow() -> void:
+    var reward_generator := WaveRewardChoiceGenerator.new(_rng)
+    var reward_applier := WaveRewardApplier.new()
+    var reward_context := WaveRewardContext.new(_grid, null, _run_build)
+    _reward_controller = WaveRewardChoiceController.new(
+        _reward_overlay,
+        reward_generator,
+        reward_applier,
+        reward_context,
+    )
+    _reward_controller.choice_applied.connect(_on_reward_choice_applied)
+
+
+## Opens the reward choice for the wave that was just cleared. This bridge applies no terrain
+## mutation, so the terrain_mutation_kind argument only satisfies the shared controller's signature
+## the tick arena's overlay omits the terrain-mutation note label, so no note is ever shown for it.
+func _open_reward_choice() -> void:
+    _reward_controller.open_reward_choice(
+        _wave_number,
+        _reward_target_points(_wave_number),
+        WaveRewardChoiceController.TerrainMutationKind.REMOVE_LAND,
+    )
+
+
+func _reward_target_points(wave_number: int) -> float:
+    return float(max(wave_number - 1, 0))
+
+
+## Locks player input and shows the "WAVE END" banner, matching the legacy arena's wave-complete
+## beat; the reward choice only opens once the banner has fully faded out.
+func _handle_wave_cleared() -> void:
+    _input_locked = true
+    _show_wave_banner("WAVE END")
+
+
+## Fades the banner in, holds, and fades it out over REWARD_OPEN_DELAY, then opens the reward
+## choice; mirrors the legacy arena's wave-end banner and reward-open delay as a single tween chain.
+func _show_wave_banner(text: String) -> void:
+    if _wave_banner_tween != null and _wave_banner_tween.is_valid():
+        _wave_banner_tween.kill()
+    _wave_banner_label.text = text
+    _wave_banner_overlay.modulate.a = 0.0
+    _wave_banner_overlay.visible = true
+    _wave_banner_tween = create_tween()
+    _wave_banner_tween.tween_property(_wave_banner_overlay, "modulate:a", 1.0, WAVE_BANNER_FADE)
+    _wave_banner_tween.tween_interval(max(REWARD_OPEN_DELAY - WAVE_BANNER_FADE * 2.0, 0.0))
+    _wave_banner_tween.tween_property(_wave_banner_overlay, "modulate:a", 0.0, WAVE_BANNER_FADE)
+    _wave_banner_tween.tween_callback(_hide_wave_banner_and_open_reward)
+
+
+func _hide_wave_banner_and_open_reward() -> void:
+    _wave_banner_overlay.visible = false
+    _open_reward_choice()
 
 # == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 
