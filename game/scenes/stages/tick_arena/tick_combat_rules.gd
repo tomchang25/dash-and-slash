@@ -68,3 +68,9 @@ static func dominant_direction(delta: Vector2i) -> Vector2i:
     if absi(delta.x) > absi(delta.y):
         return Vector2i(signi(delta.x), 0)
     return Vector2i(0, signi(delta.y))
+
+
+## Projects a mobility-slot payload's base cooldown (Dash or Smash) through the run's Mobility
+## Cooldown reduction stacks, floored at 1 tick so the mobility slot is never truly free through this Minor.
+static func mobility_cooldown_ticks(base_ticks: int, reduction_stacks: int) -> int:
+    return maxi(base_ticks - reduction_stacks, 1)

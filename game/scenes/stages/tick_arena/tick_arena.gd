@@ -111,26 +111,33 @@ func _unhandled_input(event: InputEvent) -> void:
 ## While the Smash cancel-confirm popup is open, every arena verb is blocked — only the popup's own
 ## buttons (Do Nothing / Cancel Attack) can resolve it, so a stray click or key press can never sneak
 ## past it and act on the game underneath.
+## Verbs return an action result (`{ "consumed": bool, "advances_world": bool }`) instead of a bare
+## bool: a consumed verb only advances the world when it was not a Speed-meter or Mobility Free
+## Action Major free action, and illegal inputs stay consumed false per the shared verb-result contract.
 func _on_verb_requested(verb: Dictionary) -> void:
     if _input_locked or _smash_cancel_confirm_open:
         return
-    var consumed := false
+    var result := _verb_illegal()
     match String(verb.get("type", "")):
         "move":
-            consumed = _verb_move(verb["dir"])
+            result = _verb_move(verb["dir"])
         "confirm":
             if not (bool(verb.get("repeat", false)) and not _confirm_is_attack()):
-                consumed = _verb_confirm()
+                result = _verb_confirm()
         "mode_set":
             _set_aim_mode(bool(verb.get("mobility", false)))
         "cancel":
             _verb_cancel()
         "wait":
-            consumed = _verb_wait()
+            result = _verb_wait()
         _:
             ToastManager.show_dev_error("TickArena: unknown verb %s" % str(verb))
-    if consumed:
+    if bool(result.get("advances_world", false)):
         _engine.advance_world()
+    elif bool(result.get("consumed", false)):
+        # A free action (Speed spend or Mobility Free Action refund) still changed HUD-visible state
+        # (the meter, a cooldown) even though the world did not advance, so the HUD must refresh here too.
+        _refresh_hud()
 
 
 func _on_world_advanced(_tick_count: int) -> void:
@@ -171,22 +178,27 @@ func _on_reward_choice_applied() -> void:
 
 
 ## Movement requires confirmation to cancel an armed Smash windup, same as an explicit right-click
-## cancel; the move itself is withheld this tick while the confirmation popup is pending.
-func _verb_move(dir: Vector2i) -> bool:
+## cancel; the move itself is withheld this tick while the confirmation popup is pending. Move is one
+## of the two Speed-eligible actions: a full meter spends here and lets this step skip world advancement.
+func _verb_move(dir: Vector2i) -> Dictionary:
     if not _try_cancel_smash_windup():
-        return false
+        return _verb_illegal()
     var target := _player.cell + dir
     if not _engine.is_cell_open_for_player(target):
         _view.flash_deny(target)
-        return false
+        return _verb_illegal()
+    var free_action := _spend_speed_if_full()
     _player.move_to(target)
-    return true
+    _fill_speed_meter()
+    if free_action:
+        _append_message_suffix("Speed spent — free move!")
+    return _verb_result(not free_action)
 
 
 ## Dispatches the command-style left-click confirm to the active aim mode's handler. An armed Smash
 ## always claims the confirm, regardless of Alt state, so it can be released without first re-entering
 ## Mobility Mode.
-func _verb_confirm() -> bool:
+func _verb_confirm() -> Dictionary:
     if _confirm_is_attack():
         return _verb_attack()
     return _verb_mobility()
@@ -197,20 +209,25 @@ func _confirm_is_attack() -> bool:
     return _aim_mode == AimMode.ATTACK and not _player.is_smash_armed()
 
 
-## Swings at the mouse-aimed adjacent cell; a whiff still consumes the tick, only illegal inputs are free.
-func _verb_attack() -> bool:
+## Swings at the mouse-aimed adjacent cell; a whiff still consumes the tick, only illegal inputs are
+## free. Normal attack is the second Speed-eligible action, accounted for the same way as move.
+func _verb_attack() -> Dictionary:
     _cancel_smash_windup()
     var aim := _aim_direction()
     _last_aim = aim
     var target := _player.cell + aim
     _view.flash_swing([target])
+    var free_action := _spend_speed_if_full()
     var enemy := _engine.enemy_at(target)
     if enemy != null:
         _apply_player_hit(enemy, _player.cell, PLAYER_ATTACK_DAMAGE, false)
-    return true
+    _fill_speed_meter()
+    if free_action:
+        _append_message_suffix("Speed spent — free attack!")
+    return _verb_result(not free_action)
 
 
-func _verb_mobility() -> bool:
+func _verb_mobility() -> Dictionary:
     var payload := _run_build.get_mobility_payload()
     if payload == RunBuild.PAYLOAD_DASH:
         return _verb_dash()
@@ -219,87 +236,136 @@ func _verb_mobility() -> bool:
     if payload == RunBuild.PAYLOAD_DEBUG_STUB:
         return _verb_debug_stub_mobility()
     ToastManager.show_dev_error("TickArena: unknown mobility payload %s" % payload)
-    return false
+    return _verb_illegal()
 
 
-func _verb_dash() -> bool:
+func _verb_dash() -> Dictionary:
     if _player.dash_cooldown > 0:
         _set_message("Dash on cooldown (%d)." % _player.dash_cooldown)
-        return false
+        return _verb_illegal()
     var plan := _compute_dash_plan()
     if not bool(plan["legal"]):
         _view.flash_deny(_player.cell + plan["dir"] * DASH_RANGE)
-        return false
+        return _verb_illegal()
     var dir: Vector2i = plan["dir"]
     var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
-    var hit_any := false
+    var outcomes: Array[Dictionary] = []
     for victim: GridEnemy in plan["victims"]:
-        hit_any = true
-        _apply_player_hit(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true, guard_shredder, execution)
-    if not hit_any:
+        outcomes.append(_apply_player_hit(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true, guard_shredder, execution))
+    if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     _view.flash_swing(plan["path"])
     _player.move_to(plan["landing"], true)
-    _player.dash_cooldown = DASH_COOLDOWN_TICKS
-    return true
+    _player.dash_cooldown = _mobility_cooldown_ticks(DASH_COOLDOWN_TICKS)
+    var refunds := _mobility_action_refunds(outcomes)
+    if refunds:
+        _append_message_suffix("Mobility refunded — free!")
+    return _verb_result(not refunds)
 
 
 ## First confirm arms the windup on a locked landing cell (costs one tick, enemies act one beat)
-## the next confirm releases the leap and 3x3 hit regardless of where the mouse is now aimed.
-func _verb_smash() -> bool:
+## the next confirm releases the leap and 3x3 hit regardless of where the mouse is now aimed. Arming
+## has no attack outcome and can never refund; only the release can.
+func _verb_smash() -> Dictionary:
     if not _player.is_smash_armed():
         if _player.smash_cooldown > 0:
             _set_message("Smash on cooldown (%d)." % _player.smash_cooldown)
-            return false
+            return _verb_illegal()
         var target := _clamped_smash_target()
         if not _engine.is_cell_open_for_player(target):
             _view.flash_deny(target)
-            return false
+            return _verb_illegal()
         _player.arm_smash(target)
         _close_smash_cancel_confirm()
         SmashFeedbackVFX.play_windup(_player.global_position, self)
         AudioManager.play_event(_player.smash_windup_sfx_event, _player.global_position)
         _set_message("Smash windup...")
-        return true
+        return _verb_result(true)
 
     var landing := _player.smash_target
     if not _engine.is_cell_open_for_player(landing):
         _view.flash_deny(landing)
-        return false
+        return _verb_illegal()
     _view.flash_swing(_smash_area(landing))
     var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
-    var hit_any := false
+    var outcomes: Array[Dictionary] = []
     for enemy: GridEnemy in _engine.actors():
         if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
-            hit_any = true
-            _apply_player_hit(enemy, landing, PLAYER_SMASH_DAMAGE, true, guard_shredder, execution)
-    if not hit_any:
+            outcomes.append(_apply_player_hit(enemy, landing, PLAYER_SMASH_DAMAGE, true, guard_shredder, execution))
+    if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     SmashFeedbackVFX.play_impact(_grid.cell_center(landing), self)
     AudioManager.play_event(_player.smash_impact_sfx_event, _grid.cell_center(landing))
     _player.move_to(landing, true)
     _player.disarm_smash()
-    _player.smash_cooldown = SMASH_COOLDOWN_TICKS
+    _player.smash_cooldown = _mobility_cooldown_ticks(SMASH_COOLDOWN_TICKS)
     _close_smash_cancel_confirm()
-    return true
+    var refunds := _mobility_action_refunds(outcomes)
+    if refunds:
+        _append_message_suffix("Mobility refunded — free!")
+    return _verb_result(not refunds)
 
 
-func _verb_debug_stub_mobility() -> bool:
+func _verb_debug_stub_mobility() -> Dictionary:
     var target := _player.cell + _aim_direction()
     if not _engine.is_cell_open_for_player(target):
         _view.flash_deny(target)
-        return false
+        return _verb_illegal()
     _view.flash_swing([target])
     _player.move_to(target, true)
     _set_message("Debug mobility payload fired.")
-    return true
+    return _verb_result(true)
 
 
-func _verb_wait() -> bool:
+func _verb_wait() -> Dictionary:
     _cancel_smash_windup()
-    return true
+    return _verb_result(true)
+
+
+## Shared verb-result shape for a consumed verb: consumed is always true, advances_world is false only
+## for a Speed-meter free move/attack or a Mobility Free Action Major refund.
+func _verb_result(advances_world: bool) -> Dictionary:
+    return { "consumed": true, "advances_world": advances_world }
+
+
+## Shared verb-result shape for an illegal input: consumes nothing and never advances the world.
+func _verb_illegal() -> Dictionary:
+    return { "consumed": false, "advances_world": false }
+
+
+## Spends a full Speed charge for the eligible move/attack now resolving, returning whether it was
+## free. Spend happens before the action resolves so the underlying whiff/hit/move logic runs unchanged.
+func _spend_speed_if_full() -> bool:
+    var was_full := _player.is_speed_meter_full()
+    if was_full:
+        _player.spend_speed_meter()
+    return was_full
+
+
+## Fills the Speed meter after an eligible move/attack resolves, including a free one, from the run's
+## current Speed stack total.
+func _fill_speed_meter() -> void:
+    _player.fill_speed_meter(_run_build.total(RunBuild.CH_SPEED))
+
+
+## Projects a mobility-slot payload's base cooldown through the run's Mobility Cooldown reduction, floored at 1 tick.
+func _mobility_cooldown_ticks(base_ticks: int) -> int:
+    return TickCombatRules.mobility_cooldown_ticks(base_ticks, int(_run_build.total(RunBuild.CH_MOBILITY_COOLDOWN)))
+
+
+## Whether a mobility-slot strike's collected hit outcomes refund this action's world advancement:
+## the Mobility Free Action Major must be active, and at least one outcome must be a kill, guard
+## break, or back-angle hit. A strike with several qualifying victims still refunds at most once.
+func _mobility_action_refunds(outcomes: Array[Dictionary]) -> bool:
+    return _run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION) and TickHitResolver.any_qualifies_for_mobility_free_action(outcomes)
+
+
+## Appends a short suffix to the current HUD message instead of replacing it, so a Speed spend or
+## Mobility Free Action refund note stays visible alongside whatever hit/whiff message the action already set.
+func _append_message_suffix(suffix: String) -> void:
+    _set_message("%s (%s)" % [_message, suffix] if _message != "" else suffix)
 
 
 ## Holding Alt selects Mobility Mode; releasing it returns to Attack Mode. Switching never consumes a
@@ -351,13 +417,16 @@ func _close_smash_cancel_confirm() -> void:
     _smash_cancel_confirm_panel.visible = false
 
 
-func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> void:
+## Resolves one committed player hit and returns the resolver outcome so mobility strike loops can
+## collect it for the Mobility Free Action Major's refund check instead of losing it.
+func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
     var enemy_pos := enemy.global_position
     var result := enemy.take_hit(origin_cell, damage, is_dash, guard_shredder_trigger, execution_trigger)
     _play_major_trigger_feedback(result, enemy_pos)
     if bool(result["killed"]):
         _remove_enemy(enemy)
     _apply_player_result_message(result)
+    return result
 
 
 ## Layers distinct temporary VFX/SFX for a mobility-slot-triggered Major's upgraded result on top of the
@@ -792,7 +861,7 @@ func _apply_locked_smash_preview(preview: Dictionary, outcomes: Dictionary) -> v
 
 
 func _refresh_hud() -> void:
-    _stats_label.text = "HP %d/%d    Dash CD %d    Smash CD %d    Mode: %s    Mobility: %s    Tick %d\n%s" % [
+    _stats_label.text = "HP %d/%d    Dash CD %d    Smash CD %d    Mode: %s    Mobility: %s    Tick %d\nSpeed Energy %d/%d (+%d/action) %s\n%s" % [
         int(_player.hp),
         int(TickPlayer.MAX_HP),
         _player.dash_cooldown,
@@ -800,6 +869,10 @@ func _refresh_hud() -> void:
         _aim_mode_name(),
         _mobility_mode_name(),
         _engine.tick_count(),
+        _player.speed_meter,
+        TickPlayer.SPEED_METER_MAX,
+        _player.speed_meter_fill_for(_run_build.total(RunBuild.CH_SPEED)),
+        "— NEXT MOVE/ATTACK FREE" if _player.is_speed_meter_full() else "",
         _message,
     ]
 

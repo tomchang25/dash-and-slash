@@ -3,10 +3,11 @@
 # signed-entry list per channel and projects each channel's total on read, plus
 # a separate Major-effect record list enforcing the run-wide Major cap and
 # per-group exclusivity, and a mobility-slot-triggered-effect flag set (Guard
-# Shredder, Execution) that the active mobility strike's resolution queries
-# directly, regardless of whether the slot payload is Dash or Smash. Consumers
-# (Player, WaveController) own their own base values and clamps; this store
-# owns no base values and applies no clamps of its own.
+# Shredder, Execution, Mobility Free Action) that the active mobility strike's
+# resolution queries directly, regardless of whether the slot payload is Dash
+# or Smash. Consumers (Player, TickPlayer, TickArena, WaveController) own their
+# own base values and clamps; this store owns no base values and applies no
+# clamps of its own.
 class_name RunBuild
 extends RefCounted
 
@@ -20,6 +21,8 @@ const CH_FUTURE_ENEMY_COUNT := &"future_enemy_count"
 const CH_ENEMY_HEALTH_PRESSURE := &"enemy_health_pressure"
 const CH_ENEMY_DAMAGE_PRESSURE := &"enemy_damage_pressure"
 const CH_ENEMY_DEFENSE_PRESSURE := &"enemy_defense_pressure"
+const CH_SPEED := &"speed"
+const CH_MOBILITY_COOLDOWN := &"mobility_cooldown"
 
 const PAYLOAD_DASH := &"dash"
 const PAYLOAD_SMASH := &"smash"
@@ -27,6 +30,7 @@ const PAYLOAD_DEBUG_STUB := &"debug_stub"
 
 const TRIGGER_GUARD_SHREDDER := &"guard_shredder"
 const TRIGGER_EXECUTION := &"execution"
+const TRIGGER_MOBILITY_FREE_ACTION := &"mobility_free_action"
 
 const MAJOR_CAP := 4
 
@@ -127,9 +131,10 @@ func major_count() -> int:
     return _major_entries.size()
 
 
-## Returns whether the given mobility-slot-triggered Major effect (Guard Shredder, Execution) is
-## currently active. The active mobility strike's resolution reads this directly instead of forking
-## per-effect code paths per payload, so the same trigger fires whether the slot payload is Dash or Smash.
+## Returns whether the given mobility-slot-triggered Major effect (Guard Shredder, Execution,
+## Mobility Free Action) is currently active. The active mobility strike's resolution reads this
+## directly instead of forking per-effect code paths per payload, so the same trigger fires whether
+## the slot payload is Dash or Smash.
 func has_mobility_trigger(trigger_id: StringName) -> bool:
     return bool(_mobility_triggers.get(trigger_id, false))
 
@@ -138,7 +143,7 @@ func has_mobility_trigger(trigger_id: StringName) -> bool:
 ## this from their own apply(); debug controls write through the same call so debug behavior stays
 ## representative of perk behavior instead of a parallel scene-only flag.
 func set_mobility_trigger(trigger_id: StringName, active: bool) -> void:
-    if trigger_id != TRIGGER_GUARD_SHREDDER and trigger_id != TRIGGER_EXECUTION:
+    if trigger_id != TRIGGER_GUARD_SHREDDER and trigger_id != TRIGGER_EXECUTION and trigger_id != TRIGGER_MOBILITY_FREE_ACTION:
         ToastManager.show_dev_error("RunBuild: unknown mobility trigger %s" % trigger_id)
         return
     _mobility_triggers[trigger_id] = active

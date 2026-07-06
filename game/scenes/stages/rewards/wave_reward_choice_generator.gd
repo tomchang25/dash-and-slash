@@ -178,14 +178,14 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        NormalAttackCooldownEffect.new(
-            "normal_attack_cooldown_down",
+        SpeedEffect.new(
+            "speed_up",
             WaveRewardEffectDefinition.Tier.MINOR,
-            "Quick Hands",
-            "-%.2fs normal attack cooldown",
+            "Fleet Step",
+            "+%d Speed",
             -1,
-            0.04,
-            3,
+            1.0,
+            5,
             1,
             [
                 WaveRewardEffectDefinition.Profile.CONSERVATIVE,
@@ -208,13 +208,13 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
                 WaveRewardEffectDefinition.Profile.AGGRESSIVE,
             ],
         ),
-        DashCooldownEffect.new(
-            "dash_cooldown_down",
+        MobilityCooldownEffect.new(
+            "mobility_cooldown_down",
             WaveRewardEffectDefinition.Tier.MINOR,
             "Light Footwork",
-            "-%.2fs dash cooldown",
+            "-%d mobility cooldown (ticks)",
             -1,
-            0.15,
+            1.0,
             3,
             1,
             [
@@ -340,6 +340,19 @@ func _make_default_effect_definitions() -> Array[WaveRewardEffectDefinition]:
             "execution",
             "Execution",
             "Dash hits on staggered targets kill instantly (%d)",
+            -4,
+            1.0,
+            1,
+            2,
+            [
+                WaveRewardEffectDefinition.Profile.AGGRESSIVE,
+            ],
+            "",
+        ),
+        MobilityFreeActionMajorEffect.new(
+            "mobility_free_action",
+            "Flowing Strike",
+            "Kill, guard-break, or back-angle mobility strikes skip world time (%d)",
             -4,
             1.0,
             1,

@@ -1,6 +1,6 @@
 # tick_player.gd
-# Tick-arena player actor: grid cell, hp, tick-based dash cooldown, smash windup state, and grey-box
-# drawing. The player has no combat facing — mouse aim is a free verb parameter.
+# Tick-arena player actor: grid cell, hp, tick-based dash cooldown, smash windup state, the shared
+# Speed meter, and grey-box drawing. The player has no combat facing — mouse aim is a free verb parameter.
 class_name TickPlayer
 extends Node2D
 
@@ -11,6 +11,16 @@ const MOVE_TWEEN_SEC := 0.09
 const LEAP_TWEEN_SEC := 0.12
 const BODY_RADIUS := 40.0
 const DAMAGE_FLASH_SEC := 0.18
+
+## Full meter: the next eligible move or normal attack skips world advancement and spends the charge.
+const SPEED_METER_MAX := 100
+## Meter gained by one eligible action before Speed stacks, so baseline play earns one free action every four eligible actions.
+const SPEED_BASE_FILL := 25
+## Meter gained per Speed stack for one eligible action.
+const SPEED_FILL_PER_STACK := 10
+## Overall per-action fill ceiling (baseline plus stack bonus), so no stack count can more than
+## triple the baseline gain in a single action.
+const SPEED_FILL_CAP := 75
 
 # -- Exports --
 
@@ -26,6 +36,7 @@ var hp := MAX_HP
 var dash_cooldown := 0
 var smash_cooldown := 0
 var smash_target := Vector2i.ZERO
+var speed_meter := 0
 
 var _smash_armed := false
 var _grid: GridArena = null
@@ -82,6 +93,7 @@ func reset(start_cell: Vector2i) -> void:
     hp = MAX_HP
     dash_cooldown = 0
     smash_cooldown = 0
+    speed_meter = 0
     disarm_smash()
     cell = start_cell
     if _move_tween != null:
@@ -95,6 +107,29 @@ func reset(start_cell: Vector2i) -> void:
 func tick_cooldowns() -> void:
     dash_cooldown = maxi(dash_cooldown - 1, 0)
     smash_cooldown = maxi(smash_cooldown - 1, 0)
+
+
+## Whether the Speed meter is full: the next eligible move or normal attack skips world advancement.
+func is_speed_meter_full() -> bool:
+    return speed_meter >= SPEED_METER_MAX
+
+
+## Spends the full Speed charge for the eligible action now resolving as a free action.
+func spend_speed_meter() -> void:
+    speed_meter = 0
+
+
+## Fills the Speed meter after an eligible move or normal attack resolves, including a free one, from
+## the run's current Speed stack total. Gain is capped per action so stacking Speed cannot skip more
+## than every other eligible action.
+func fill_speed_meter(speed_stacks: float) -> void:
+    var gain := speed_meter_fill_for(speed_stacks)
+    speed_meter = mini(speed_meter + gain, SPEED_METER_MAX)
+
+
+## Returns the meter energy gained by one eligible move or normal attack at the given Speed stack total.
+func speed_meter_fill_for(speed_stacks: float) -> int:
+    return mini(SPEED_BASE_FILL + int(speed_stacks) * SPEED_FILL_PER_STACK, SPEED_FILL_CAP)
 
 
 ## Arms the smash windup on a locked landing cell.

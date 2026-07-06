@@ -7,7 +7,7 @@ Replace the earlier three-speed-stat sketch with a tighter tick-world speed laye
 ## Relational Context
 
 - `RunBuild` remains the run-scoped projection store. Numeric Speed and Mobility Cooldown rewards record channels there; consumers apply their own base values, caps, and floors when reading totals.
-- `TickPlayer` owns the runtime Speed meter because the meter is player state, not reward-store state. `RunBuild` only answers how fast eligible actions fill it.
+- `TickPlayer` owns the runtime Speed meter because the meter is player state, not reward-store state. `RunBuild` only answers the Speed-stack bonus on top of the player's baseline fill.
 - The Speed meter is shared by move and normal attack only. Wait and mobility actions neither fill nor spend the meter.
 - A full Speed meter makes the next eligible move or normal attack cost no world time, then spends the meter. If the player uses wait or mobility while the meter is full, the charge remains banked.
 - Phase 05 must ship a minimal Speed meter truth display because meter state changes whether the next eligible action advances enemy time. This can be text or simple pips in the existing HUD; final HUD styling and applied-effect tables are phase 07 work.
@@ -52,7 +52,7 @@ Replace the earlier three-speed-stat sketch with a tighter tick-world speed laye
 
 Use a shared helper shape for verb results, for example `{ "consumed": true, "advances_world": true }`. Illegal inputs stay consumed false. Free actions are consumed true and advances_world false.
 
-Initial Speed tuning can keep the old phase-05 curve unless playtest rejects it: +10 meter per Speed stack per eligible action, capped at 50 per action, base 0. Spend happens before resolving the eligible action if the meter is full; fill happens after resolving an eligible action, including a free eligible action.
+Initial Speed tuning starts at +25 meter per eligible action, plus +10 per Speed stack, capped at 50 per action. This gives baseline play one free eligible move or normal attack every four eligible actions, while Speed rewards make the loop faster without letting one action fill more than half the meter. Spend happens before resolving the eligible action if the meter is full; fill happens after resolving an eligible action, including a free eligible action.
 
 The first HUD pass should be deliberately plain and truthful: show numeric meter progress or stable pips, plus a clear ready state such as `NEXT MOVE/ATTACK FREE`. A short message or flash when a Speed spend or Mobility Free Action refund occurs is enough for feedback; do not build the phase 07 HUD refactor or final buff table here.
 

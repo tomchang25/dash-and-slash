@@ -128,6 +128,25 @@ static func apply_defense(amount: float, defense: float) -> float:
         return amount
     return amount * (amount / (amount + defense))
 
+
+## Returns whether any hit outcome in the list satisfies the Mobility Free Action Major's refund
+## condition. Folds a mobility-slot strike's potentially many victim outcomes (Dash's travel path,
+## Smash's 3x3 block) into a single per-action flag, so a strike that hits several qualifying targets
+## still refunds at most once.
+static func any_qualifies_for_mobility_free_action(outcomes: Array[Dictionary]) -> bool:
+    for outcome in outcomes:
+        if qualifies_for_mobility_free_action(outcome):
+            return true
+    return false
+
+
+## Returns whether one committed hit outcome satisfies the Mobility Free Action Major's refund
+## condition: a kill, a guard break, or a back-angle hit.
+static func qualifies_for_mobility_free_action(outcome: Dictionary) -> bool:
+    if bool(outcome.get("killed", false)) or bool(outcome.get("guard_broken", false)):
+        return true
+    return int(outcome.get("angle", DirectionResolver.HitAngle.NONE)) == DirectionResolver.HitAngle.BACK
+
 # == Resolution ==
 
 
