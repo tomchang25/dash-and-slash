@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_arena.gd" id="1_root"]
 [ext_resource type="Script" path="res://common/gameplay/grid/grid_arena.gd" id="2_grid"]
@@ -11,6 +11,9 @@
 [ext_resource type="TileSet" path="res://common/gameplay/grid/water_tileset.tres" id="9_water_ts"]
 [ext_resource type="PackedScene" path="res://game/shared/debug_panel/debug_panel.tscn" id="10_debug_panel"]
 [ext_resource type="Script" uid="uid://c2yiaboqn4q6d" path="res://game/scenes/stages/rewards/wave_reward_overlay.gd" id="11_reward_overlay"]
+[ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_action_controller.gd" id="12_action_controller"]
+[ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_preview_controller.gd" id="13_preview_controller"]
+[ext_resource type="Script" path="res://game/scenes/stages/tick_arena/tick_run_controller.gd" id="14_run_controller"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -69,6 +72,38 @@ unique_name_in_owner = true
 [node name="Player" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("6_player")
+
+[node name="TickActionController" type="Node" parent="." node_paths=PackedStringArray("grid", "view", "engine", "player", "smash_cancel_confirm_panel", "smash_cancel_confirm_button", "smash_cancel_keep_button")]
+unique_name_in_owner = true
+script = ExtResource("12_action_controller")
+grid = NodePath("../GridArena")
+view = NodePath("../GridView")
+engine = NodePath("../TickEngine")
+player = NodePath("../Player")
+smash_cancel_confirm_panel = NodePath("../HUD/SmashCancelConfirmPanel")
+smash_cancel_confirm_button = NodePath("../HUD/SmashCancelConfirmPanel/MarginContainer/RootVBox/SmashCancelButtonRow/SmashCancelConfirmButton")
+smash_cancel_keep_button = NodePath("../HUD/SmashCancelConfirmPanel/MarginContainer/RootVBox/SmashCancelButtonRow/SmashCancelKeepButton")
+
+[node name="TickPreviewController" type="Node" parent="." node_paths=PackedStringArray("grid", "view", "engine", "player", "action_controller")]
+unique_name_in_owner = true
+script = ExtResource("13_preview_controller")
+grid = NodePath("../GridArena")
+view = NodePath("../GridView")
+engine = NodePath("../TickEngine")
+player = NodePath("../Player")
+action_controller = NodePath("../TickActionController")
+
+[node name="TickRunController" type="Node" parent="." node_paths=PackedStringArray("grid", "engine", "player", "enemy_container", "action_controller", "reward_overlay", "wave_banner_overlay", "wave_banner_label")]
+unique_name_in_owner = true
+script = ExtResource("14_run_controller")
+grid = NodePath("../GridArena")
+engine = NodePath("../TickEngine")
+player = NodePath("../Player")
+enemy_container = NodePath("../Enemies")
+action_controller = NodePath("../TickActionController")
+reward_overlay = NodePath("../HUD/WaveRewardOverlay")
+wave_banner_overlay = NodePath("../HUD/WaveBannerOverlay")
+wave_banner_label = NodePath("../HUD/WaveBannerOverlay/CenterContainer/WaveBannerLabel")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 zoom = Vector2(0.65, 0.65)
