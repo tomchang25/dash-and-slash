@@ -18,10 +18,14 @@ const CH_ENEMY_HEALTH_PRESSURE := &"enemy_health_pressure"
 const CH_ENEMY_DAMAGE_PRESSURE := &"enemy_damage_pressure"
 const CH_ENEMY_DEFENSE_PRESSURE := &"enemy_defense_pressure"
 
+const PAYLOAD_DASH := &"dash"
+const PAYLOAD_DEBUG_STUB := &"debug_stub"
+
 const MAJOR_CAP := 4
 
 var _entries: Array[Dictionary] = []
 var _major_entries: Array[Dictionary] = []
+var _mobility_payload_override := PAYLOAD_DASH
 
 # == Common API ==
 
@@ -48,6 +52,20 @@ func total(channel: StringName) -> float:
 func clear() -> void:
     _entries.clear()
     _major_entries.clear()
+    _mobility_payload_override = PAYLOAD_DASH
+
+
+## Returns the active mobility-slot payload. Dash is the default when no Major has replaced the slot.
+func get_mobility_payload() -> StringName:
+    return _mobility_payload_override
+
+
+## Debug/prototype seam for Major payload replacement; production rewards should call this through their effect application path.
+func set_mobility_payload_override(payload: StringName) -> void:
+    if payload != PAYLOAD_DASH and payload != PAYLOAD_DEBUG_STUB:
+        ToastManager.show_dev_error("RunBuild: unknown mobility payload %s" % payload)
+        return
+    _mobility_payload_override = payload
 
 
 ## Registers a Major effect if the store has capacity and no exclusivity-group

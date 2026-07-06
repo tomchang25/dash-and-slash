@@ -4,9 +4,9 @@
 # spawning, previews with resolved outcomes, HUD, and prototype-parity debug shortcuts.
 extends Node2D
 
-enum MobilityMode {
-    DASH,
-    SMASH,
+enum PreviewMode {
+    NEUTRAL,
+    MOBILITY_AIM,
 }
 
 # -- Constants --
@@ -18,10 +18,8 @@ const ModeEnemyScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 
 const PLAYER_ATTACK_DAMAGE := 20.0
 const PLAYER_DASH_DAMAGE := 30.0
-const PLAYER_SMASH_DAMAGE := 30.0
 const DASH_RANGE := 5
 const DASH_COOLDOWN_TICKS := 4
-const SMASH_RANGE := 3
 const MESSAGE_SEC := 1.6
 const SMALL_SPAWN_COUNT := 2
 const CHARGER_SPAWN_COUNT := 1
@@ -32,7 +30,9 @@ const BACKGROUND_COLOR := Color(0.09, 0.1, 0.12)
 
 # -- State --
 
-var _mobility_mode := MobilityMode.DASH
+var _preview_mode := PreviewMode.NEUTRAL
+var _suppress_next_mobility_release := false
+var _run_build := RunBuild.new()
 var _last_aim := Vector2i.RIGHT
 var _message := ""
 var _message_time := 0.0
@@ -62,7 +62,7 @@ func _ready() -> void:
     RenderingServer.set_default_clear_color(BACKGROUND_COLOR)
     _player.setup(_grid, _grid.grid_size / 2)
     _spawn_enemies()
-    _controls_label.text = "WASD step · LMB attack · RMB dash/smash · Space wait · T toggle dash/smash · R reset"
+    _controls_label.text = "WASD step · LMB attack · hold RMB aim mobility/release commit · Esc cancel · Space wait · T debug payload · R reset"
     _refresh_danger()
     _refresh_hud()
 
@@ -91,8 +91,12 @@ func _on_verb_requested(verb: Dictionary) -> void:
             consumed = _verb_move(verb["dir"])
         "attack":
             consumed = _verb_attack()
-        "mobility":
-            consumed = _verb_mobility()
+        "mobility_press":
+            _begin_mobility_aim()
+        "mobility_release":
+            consumed = _release_mobility_aim()
+        "mobility_cancel":
+            _cancel_mobility_aim(true)
         "wait":
             consumed = _verb_wait()
         _:
@@ -140,9 +144,13 @@ func _verb_attack() -> bool:
 
 
 func _verb_mobility() -> bool:
-    if _mobility_mode == MobilityMode.DASH:
+    var payload := _run_build.get_mobility_payload()
+    if payload == RunBuild.PAYLOAD_DASH:
         return _verb_dash()
-    return _verb_smash()
+    if payload == RunBuild.PAYLOAD_DEBUG_STUB:
+        return _verb_debug_stub_mobility()
+    ToastManager.show_dev_error("TickArena: unknown mobility payload %s" % payload)
+    return false
 
 
 func _verb_dash() -> bool:
@@ -154,45 +162,70 @@ func _verb_dash() -> bool:
         _view.flash_deny(_player.cell + plan["dir"] * DASH_RANGE)
         return false
     var dir: Vector2i = plan["dir"]
+    var hit_any := false
     for victim: GridEnemy in plan["victims"]:
+        hit_any = true
         _apply_player_hit(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true)
+    if not hit_any:
+        _apply_player_result_message(TickHitResolver.empty_outcome())
     _view.flash_swing(plan["path"])
     _player.move_to(plan["landing"], true)
     _player.dash_cooldown = DASH_COOLDOWN_TICKS
     return true
 
 
-## First press arms the windup on a locked landing cell; the next mobility press releases the leap and 3x3 hit.
-func _verb_smash() -> bool:
-    if not _player.is_smash_armed():
-        var target := _clamped_smash_target()
-        if not _engine.is_cell_open_for_player(target):
-            _view.flash_deny(target)
-            return false
-        _player.arm_smash(target)
-        _set_message("Smash windup...")
-        return true
-
-    var landing := _player.smash_target
-    if not _engine.is_cell_open_for_player(landing):
-        _view.flash_deny(landing)
+func _verb_debug_stub_mobility() -> bool:
+    var target := _player.cell + _aim_direction()
+    if not _engine.is_cell_open_for_player(target):
+        _view.flash_deny(target)
         return false
-    var area: Array[Vector2i] = []
-    for ox in range(-1, 2):
-        for oy in range(-1, 2):
-            area.append(landing + Vector2i(ox, oy))
-    _view.flash_swing(area)
-    for enemy in _engine.actors():
-        if enemy.is_alive() and _chebyshev(enemy.get_grid_pos() - landing) <= 1:
-            _apply_player_hit(enemy, landing, PLAYER_SMASH_DAMAGE, true)
-    _player.move_to(landing, true)
-    _player.disarm_smash()
+    _view.flash_swing([target])
+    _player.move_to(target, true)
+    _set_message("Debug mobility payload fired.")
     return true
 
 
 func _verb_wait() -> bool:
     _cancel_smash_windup()
     return true
+
+
+func _begin_mobility_aim() -> void:
+    if not _can_aim_mobility_payload():
+        return
+    _preview_mode = PreviewMode.MOBILITY_AIM
+    _suppress_next_mobility_release = false
+
+
+func _release_mobility_aim() -> bool:
+    if _suppress_next_mobility_release:
+        _suppress_next_mobility_release = false
+        return false
+    if _preview_mode != PreviewMode.MOBILITY_AIM:
+        return false
+    _preview_mode = PreviewMode.NEUTRAL
+    return _verb_mobility()
+
+
+func _cancel_mobility_aim(suppress_release: bool) -> void:
+    if _preview_mode != PreviewMode.MOBILITY_AIM:
+        return
+    _preview_mode = PreviewMode.NEUTRAL
+    _suppress_next_mobility_release = suppress_release
+    _set_message("Mobility cancelled.")
+
+
+func _can_aim_mobility_payload() -> bool:
+    var payload := _run_build.get_mobility_payload()
+    if payload == RunBuild.PAYLOAD_DASH:
+        if _player.dash_cooldown > 0:
+            _set_message("Dash on cooldown (%d)." % _player.dash_cooldown)
+            return false
+        return true
+    if payload == RunBuild.PAYLOAD_DEBUG_STUB:
+        return true
+    ToastManager.show_dev_error("TickArena: unknown mobility payload %s" % payload)
+    return false
 
 
 ## Cancels an armed smash when another verb executes; the windup tick already spent is not refunded.
@@ -205,12 +238,26 @@ func _cancel_smash_windup() -> void:
 func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> void:
     var result := enemy.take_hit(origin_cell, damage, is_dash)
     if bool(result["killed"]):
-        _set_message("Enemy destroyed!")
         _remove_enemy(enemy)
-    elif bool(result["guard_broken"]):
+    _apply_player_result_message(result)
+
+
+func _apply_player_result_message(result: Dictionary) -> void:
+    var feedback_kind := StringName(result.get("feedback_kind", TickHitResolver.FEEDBACK_DAMAGED))
+    if feedback_kind == TickHitResolver.FEEDBACK_WHIFF:
+        _set_message("Whiff.")
+    elif feedback_kind == TickHitResolver.FEEDBACK_KILL:
+        _set_message("Enemy destroyed!")
+    elif feedback_kind == TickHitResolver.FEEDBACK_GUARD_BREAK:
         _set_message("%s hit — GUARD BREAK!" % _angle_name(result["angle"]))
-    else:
+    elif feedback_kind == TickHitResolver.FEEDBACK_STAGGER_BURST:
+        _set_message("%s burst hit." % _angle_name(result["angle"]))
+    elif feedback_kind == TickHitResolver.FEEDBACK_BLOCKED:
+        _set_message("%s blocked." % _angle_name(result["angle"]))
+    elif feedback_kind == TickHitResolver.FEEDBACK_DAMAGED:
         _set_message("%s hit." % _angle_name(result["angle"]))
+    else:
+        ToastManager.show_dev_error("TickArena: unexpected feedback kind %s" % feedback_kind)
 
 
 ## Stops scheduling a killed enemy. The enemy runs its own death-state tween and frees itself.
@@ -242,17 +289,21 @@ func _compute_dash_plan() -> Dictionary:
         dir = _last_aim
     var wanted := clampi(absi(delta.x * dir.x + delta.y * dir.y), 1, DASH_RANGE)
 
-    var probe_path: Array[Vector2i] = []
+    var preview_path: Array[Vector2i] = []
+    var travel_path: Array[Vector2i] = []
     var landing_index := -1
     for i in range(1, wanted + 1):
         var step_cell := _player.cell + dir * i
-        probe_path.append(step_cell)
-        if _engine.is_cell_open_for_player(step_cell):
-            landing_index = i - 1
+        if not _grid.is_land(step_cell):
+            break
+        preview_path.append(step_cell)
+        travel_path.append(step_cell)
+        if _engine.enemy_at(step_cell) == null:
+            landing_index = travel_path.size() - 1
     if landing_index < 0:
-        return { "legal": false, "dir": dir, "path": probe_path }
+        return { "legal": false, "dir": dir, "path": preview_path }
 
-    var travel := probe_path.slice(0, landing_index + 1)
+    var travel := travel_path.slice(0, landing_index + 1)
     var victims: Array[GridEnemy] = []
     for travel_cell: Vector2i in travel:
         var enemy := _engine.enemy_at(travel_cell)
@@ -265,17 +316,6 @@ func _compute_dash_plan() -> Dictionary:
         "landing": travel[landing_index],
         "victims": victims,
     }
-
-
-func _clamped_smash_target() -> Vector2i:
-    var delta := _mouse_cell() - _player.cell
-    delta.x = clampi(delta.x, -SMASH_RANGE, SMASH_RANGE)
-    delta.y = clampi(delta.y, -SMASH_RANGE, SMASH_RANGE)
-    return _player.cell + delta
-
-
-func _chebyshev(delta: Vector2i) -> int:
-    return maxi(absi(delta.x), absi(delta.y))
 
 # == Spawning ==
 
@@ -333,7 +373,11 @@ func _reset_run(reason: String) -> void:
 
 func _toggle_mobility_mode() -> void:
     _cancel_smash_windup()
-    _mobility_mode = MobilityMode.SMASH if _mobility_mode == MobilityMode.DASH else MobilityMode.DASH
+    _cancel_mobility_aim(false)
+    if _run_build.get_mobility_payload() == RunBuild.PAYLOAD_DASH:
+        _run_build.set_mobility_payload_override(RunBuild.PAYLOAD_DEBUG_STUB)
+    else:
+        _run_build.set_mobility_payload_override(RunBuild.PAYLOAD_DASH)
     _set_message("Mobility slot: %s" % _mobility_mode_name())
     _refresh_hud()
 
@@ -362,37 +406,43 @@ func _refresh_danger() -> void:
 ## same predict_hit math that resolves the commit, so the display can never lie.
 func _update_preview() -> void:
     var outcomes := { }
-    var preview := { "aim_cell": _player.cell + _aim_direction() }
-    var aim_enemy := _engine.enemy_at(preview["aim_cell"])
-    if aim_enemy != null:
-        outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, _player.cell, PLAYER_ATTACK_DAMAGE, false)
+    var preview := { }
 
-    if _mobility_mode == MobilityMode.DASH:
-        if _player.dash_cooldown <= 0:
-            var plan := _compute_dash_plan()
-            preview["dash_path"] = plan["path"]
-            preview["dash_legal"] = plan["legal"]
-            if bool(plan["legal"]):
-                preview["dash_landing"] = plan["landing"]
-                preview["ghost_cell"] = plan["landing"]
-                var dir: Vector2i = plan["dir"]
-                for victim: GridEnemy in plan["victims"]:
-                    outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true)
-    elif _player.is_smash_armed():
-        preview["smash_armed_center"] = _player.smash_target
-        preview["ghost_cell"] = _player.smash_target
-        _collect_smash_outcomes(_player.smash_target, outcomes)
+    if _preview_mode == PreviewMode.MOBILITY_AIM:
+        _apply_mobility_preview(preview, outcomes)
     else:
-        var target := _clamped_smash_target()
-        preview["smash_center"] = target
-        preview["smash_legal"] = _engine.is_cell_open_for_player(target)
-        if bool(preview["smash_legal"]):
-            preview["ghost_cell"] = target
-            _collect_smash_outcomes(target, outcomes)
+        preview["aim_cell"] = _player.cell + _aim_direction()
+        var aim_enemy := _engine.enemy_at(preview["aim_cell"])
+        if aim_enemy != null:
+            outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, _player.cell, PLAYER_ATTACK_DAMAGE, false)
 
     if not outcomes.is_empty():
         preview["outcomes"] = outcomes.values()
     _view.set_preview(preview)
+
+
+func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
+    var payload := _run_build.get_mobility_payload()
+    if payload == RunBuild.PAYLOAD_DASH:
+        var plan := _compute_dash_plan()
+        preview["dash_path"] = plan["path"]
+        preview["dash_legal"] = plan["legal"]
+        if bool(plan["legal"]):
+            preview["dash_landing"] = plan["landing"]
+            preview["ghost_cell"] = plan["landing"]
+            var dir: Vector2i = plan["dir"]
+            for victim: GridEnemy in plan["victims"]:
+                outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true)
+        return
+    if payload == RunBuild.PAYLOAD_DEBUG_STUB:
+        var target := _player.cell + _aim_direction()
+        preview["dash_path"] = [target]
+        preview["dash_legal"] = _engine.is_cell_open_for_player(target)
+        if bool(preview["dash_legal"]):
+            preview["dash_landing"] = target
+            preview["ghost_cell"] = target
+        return
+    ToastManager.show_dev_error("TickArena: unknown mobility payload %s" % payload)
 
 
 ## Predicts one hit for the preview and condenses it into a display entry: cell, label, and intensity tier.
@@ -403,7 +453,7 @@ func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_d
     if bool(result["killed"]):
         label = "KILL"
         tier = 2
-    elif bool(result["staggered"]):
+    elif bool(result["stagger_burst"]):
         label = "BURST"
         tier = 1
     elif bool(result["guard_broken"]):
@@ -412,12 +462,6 @@ func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_d
     else:
         label = _angle_name(result["angle"]).to_upper()
     return { "cell": enemy.get_grid_pos(), "label": label, "tier": tier }
-
-
-func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
-    for enemy in _engine.actors():
-        if enemy.is_alive() and _chebyshev(enemy.get_grid_pos() - center) <= 1:
-            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, PLAYER_SMASH_DAMAGE, true)
 
 
 func _refresh_hud() -> void:
@@ -447,7 +491,12 @@ func _update_message(delta: float) -> void:
 
 
 func _mobility_mode_name() -> String:
-    return "DASH" if _mobility_mode == MobilityMode.DASH else "SMASH"
+    var payload := _run_build.get_mobility_payload()
+    if payload == RunBuild.PAYLOAD_DASH:
+        return "DASH"
+    if payload == RunBuild.PAYLOAD_DEBUG_STUB:
+        return "DEBUG STUB"
+    return "UNKNOWN"
 
 
 func _angle_name(angle: int) -> String:

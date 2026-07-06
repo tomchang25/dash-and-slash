@@ -335,10 +335,9 @@ func get_attack_tiles() -> Array[Vector2i]:
 
 ## Predicts one player hit without mutating state, sharing math with take_hit() so a preview
 ## can never disagree with the resolved hit. Origin is the attacker's cell (player or dash origin).
-## Returns keys angle, staggered, guard_broken, killed, hp_damage, guard_damage.
+## Returns keys angle, was_guarded, stagger_burst, guard_broken, killed, hp_damage, guard_damage, feedback_kind.
 func predict_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
-    var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
-    return _resolve_hit_outcome(src_pos, base_damage, is_dash)
+    return _resolve_tick_hit_outcome(origin_cell, base_damage, is_dash)
 
 
 ## Applies one player hit from the given origin cell, reusing the established guard/health/feedback
@@ -346,7 +345,7 @@ func predict_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Di
 ## as predict_hit(). A guard break clears banked energy via _on_guard_broken().
 func take_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
     var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
-    var outcome := _resolve_hit_outcome(src_pos, base_damage, is_dash)
+    var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, is_dash)
     if not is_alive():
         return outcome
     _apply_hit_feedback(outcome, src_pos)
@@ -475,7 +474,7 @@ func finish_attack_into_recovery() -> void:
 ## Applies per-wave milestone scaling to this enemy instance: bumps max_health in
 ## place (Health is a per-instance node, safe to mutate), stores a damage
 ## multiplier consumed when attacks stamp their hitbox damage, and stores a flat
-## defense value consumed by EnemyHitResolver.apply_defense(). Guard never scales.
+## defense value consumed by TickHitResolver.apply_defense(). Guard never scales.
 func apply_wave_scaling(hp_multiplier: float, damage_multiplier: float, defense: float) -> void:
     _damage_multiplier = max(damage_multiplier, 0.0)
     _defense = max(defense, 0.0)
@@ -771,23 +770,25 @@ func can_charge_target_from_cell(origin_cell: Vector2i) -> bool:
     return target_cell in cells
 
 
-## Returns the charge line up to the first blocker. The player target cell is included so danger and
-## detonation still cover the player, but other occupied enemy cells stop the line before them.
+## Returns the terrain-unblocked charge line. Occupied actors are pass-through for the path, but not legal landing cells.
 func get_unblocked_charge_cells(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData) -> Array[Vector2i]:
     var cells: Array[Vector2i] = []
     if _grid == null or attack_data == null:
         return cells
 
-    var target_cell := get_target_cell()
     var raw_cells := EnemyAttackController.get_attack_cells(origin_cell, facing, attack_data, _grid)
     for cell: Vector2i in raw_cells:
-        if cell == target_cell:
-            cells.append(cell)
-            break
-        if _is_charge_blocked_by_enemy(cell):
-            break
         cells.append(cell)
     return cells
+
+
+## Returns the farthest legal charge landing cell along the path. Player and enemies are pass-through blockers for landing only.
+func get_charge_landing_cell(tiles: Array[Vector2i]) -> Vector2i:
+    var dest := _grid_pos
+    for line_cell: Vector2i in tiles:
+        if _is_charge_landing_cell_open(line_cell):
+            dest = line_cell
+    return dest
 
 
 ## Performs shared setup when an enemy commits to a non-reposition action.
@@ -965,11 +966,17 @@ func _collect_all_grid_origin_cells() -> Array[Vector2i]:
     return origins
 
 
-func _is_charge_blocked_by_enemy(cell: Vector2i) -> bool:
+func _is_charge_landing_cell_open(cell: Vector2i) -> bool:
+    if _grid == null or not _grid.is_land(cell):
+        return false
     if _tick_engine != null:
+        if _tick_engine.player_cell() == cell:
+            return false
         var enemy: GridEnemy = _tick_engine.enemy_at(cell)
-        return enemy != null and enemy != self
-    return _grid != null and _grid.is_occupied(cell)
+        return enemy == null or enemy == self
+    if has_target() and get_target_cell() == cell:
+        return false
+    return not _grid.is_occupied(cell)
 
 
 func _update_grid_pos() -> void:
@@ -1141,9 +1148,7 @@ func _clear_attack_presentation() -> void:
     pass
 
 
-## Pure hit resolution shared by predict_hit(), take_hit(), and the physics _on_hit_received() path.
-## Resolves the hit angle and the kind's guard-damage rule here, then delegates the guard/hp/lethality
-## math to EnemyHitResolver so a preview, a tick commit, and a real-time overlap can never disagree.
+## Legacy physics-hit resolution path. Tick prediction and commits use _resolve_tick_hit_outcome() / TickHitResolver instead.
 func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -> Dictionary:
     if not is_alive():
         return EnemyHitResolver.empty_outcome()
@@ -1154,20 +1159,56 @@ func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -
     return EnemyHitResolver.resolve_outcome(angle, guard_damage, _guard, health, base_damage, _defense)
 
 
+## Pure tick-grid hit resolution shared by predict_hit() and take_hit(); this is the authoritative path for previews and committed tick verbs.
+func _resolve_tick_hit_outcome(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
+    if not is_alive():
+        return TickHitResolver.empty_outcome()
+
+    return TickHitResolver.resolve_hit(origin_cell, _target_snapshot(), base_damage, TickHitResolver.HitKind.DASH if is_dash else TickHitResolver.HitKind.NORMAL)
+
+
+func _target_snapshot() -> Dictionary:
+    return {
+        "cell": _grid_pos,
+        "facing": _facing_as_cell_dir(),
+        "has_guard": _guard != null,
+        "guard_current": _guard.current() if _guard != null else 0,
+        "guard_max": _guard.max_guard if _guard != null else 0,
+        "staggered": _guard.is_staggered() if _guard != null else false,
+        "hp": health.current() if health != null else 0.0,
+        "hp_max": health.max_health if health != null else 0.0,
+        "defense": _defense,
+        "alive": is_alive(),
+    }
+
+
+func _facing_as_cell_dir() -> Vector2i:
+    if _facing == Vector2.ZERO:
+        return Vector2i.ZERO
+    return TickCombatRules.dominant_direction(Vector2i(roundi(_facing.x), roundi(_facing.y)))
+
+
 ## Plays the established damaged/blocked SFX and guard-break/shield/full-damage VFX for a resolved hit.
 func _apply_hit_feedback(outcome: Dictionary, src_pos: Vector2) -> void:
     var angle := int(outcome["angle"])
-    var full_damage := _guard == null or bool(outcome["staggered"]) or bool(outcome["guard_broken"])
-    var sfx_event := damaged_sfx_event if full_damage else _get_blocked_hit_sfx(angle)
-    if sfx_event != null:
-        AudioManager.play_event(sfx_event, global_position)
-
-    if bool(outcome["guard_broken"]):
+    var feedback_kind := StringName(outcome.get("feedback_kind", TickHitResolver.FEEDBACK_DAMAGED))
+    if feedback_kind == TickHitResolver.FEEDBACK_WHIFF:
+        return
+    if feedback_kind == TickHitResolver.FEEDBACK_BLOCKED:
+        var blocked_event := _get_blocked_hit_sfx(angle)
+        if blocked_event != null:
+            AudioManager.play_event(blocked_event, global_position)
+        CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
+    elif feedback_kind == TickHitResolver.FEEDBACK_GUARD_BREAK:
+        if damaged_sfx_event != null:
+            AudioManager.play_event(damaged_sfx_event, global_position)
         CombatFeedbackVFX.play_guard_break(global_position, self)
-    elif full_damage:
+    elif feedback_kind == TickHitResolver.FEEDBACK_STAGGER_BURST or feedback_kind == TickHitResolver.FEEDBACK_KILL or feedback_kind == TickHitResolver.FEEDBACK_DAMAGED:
+        if damaged_sfx_event != null:
+            AudioManager.play_event(damaged_sfx_event, global_position)
         CombatFeedbackVFX.play_full_damage(global_position, self)
     else:
-        CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
+        ToastManager.show_dev_error("GridEnemy: unexpected feedback kind %s" % feedback_kind)
 
 
 func _resolve_guard_damage(angle: int, guard_damage_profile: int) -> int:

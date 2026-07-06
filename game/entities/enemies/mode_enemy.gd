@@ -225,7 +225,7 @@ func get_committed_attack_cells() -> Array[Vector2i]:
     return _point_executor.get_cells() if _point_executor != null else empty
 
 
-## Tick detonation. CHARGE mode dashes along its line like the charger; TILE/PUFF resolve a single
+## Tick detonation. CHARGE mode rushes along its line like the charger; TILE/PUFF resolve a single
 ## cell-membership check. Every mode plays the attack cue and re-arms mode selection for the next cycle.
 func _tick_detonate() -> void:
     if attack_sfx_event != null:
@@ -233,11 +233,7 @@ func _tick_detonate() -> void:
     var tiles := get_attack_tiles()
     if _mode == Mode.CHARGE:
         _resolve_detonation_on_player(tiles)
-        var dest := _grid_pos
-        for line_cell: Vector2i in tiles:
-            if _tick_engine == null or not _tick_engine.is_cell_open_for_enemy(line_cell, self):
-                break
-            dest = line_cell
+        var dest := get_charge_landing_cell(tiles)
         if dest != _grid_pos:
             tick_snap_to_cell(dest)
     else:

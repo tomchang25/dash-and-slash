@@ -131,16 +131,11 @@ func begin_attack_telegraph() -> bool:
     return true
 
 
-## Tick detonation: damages the player if their cell is on the charge line, then dashes to the farthest
-## open cell along it (stopping short of the player or a blocker), and enters recovery.
+## Tick detonation: damages the player if their cell is on the charge line, then rushes to the farthest open landing cell along it.
 func _tick_detonate() -> void:
     var tiles := get_attack_tiles()
     _resolve_detonation_on_player(tiles)
-    var dest := _grid_pos
-    for line_cell: Vector2i in tiles:
-        if _tick_engine == null or not _tick_engine.is_cell_open_for_enemy(line_cell, self):
-            break
-        dest = line_cell
+    var dest := get_charge_landing_cell(tiles)
     if dest != _grid_pos:
         CombatFeedbackVFX.play_charge_start(global_position, _facing, self)
         tick_snap_to_cell(dest)
