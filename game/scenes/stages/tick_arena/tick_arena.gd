@@ -42,6 +42,8 @@ var _message_time := 0.0
 var _rng := RandomNumberGenerator.new()
 var _dash_payload_button: Button
 var _smash_payload_button: Button
+var _guard_shredder_button: Button
+var _execution_button: Button
 
 # -- Node references --
 
@@ -204,10 +206,12 @@ func _verb_dash() -> bool:
         _view.flash_deny(_player.cell + plan["dir"] * DASH_RANGE)
         return false
     var dir: Vector2i = plan["dir"]
+    var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
+    var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     var hit_any := false
     for victim: GridEnemy in plan["victims"]:
         hit_any = true
-        _apply_player_hit(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true)
+        _apply_player_hit(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true, guard_shredder, execution)
     if not hit_any:
         _apply_player_result_message(TickHitResolver.empty_outcome())
     _view.flash_swing(plan["path"])
@@ -239,11 +243,13 @@ func _verb_smash() -> bool:
         _view.flash_deny(landing)
         return false
     _view.flash_swing(_smash_area(landing))
+    var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
+    var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     var hit_any := false
     for enemy: GridEnemy in _engine.actors():
         if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
             hit_any = true
-            _apply_player_hit(enemy, landing, PLAYER_SMASH_DAMAGE, true)
+            _apply_player_hit(enemy, landing, PLAYER_SMASH_DAMAGE, true, guard_shredder, execution)
     if not hit_any:
         _apply_player_result_message(TickHitResolver.empty_outcome())
     SmashFeedbackVFX.play_impact(_grid.cell_center(landing), self)
@@ -320,21 +326,43 @@ func _close_smash_cancel_confirm() -> void:
     _smash_cancel_confirm_panel.visible = false
 
 
-func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> void:
-    var result := enemy.take_hit(origin_cell, damage, is_dash)
+func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> void:
+    var enemy_pos := enemy.global_position
+    var result := enemy.take_hit(origin_cell, damage, is_dash, guard_shredder_trigger, execution_trigger)
+    _play_major_trigger_feedback(result, enemy_pos)
     if bool(result["killed"]):
         _remove_enemy(enemy)
     _apply_player_result_message(result)
 
 
+## Layers distinct temporary VFX/SFX for a mobility-slot-triggered Major's upgraded result on top of the
+## shared hit feedback GridEnemy already played, so Shredder and Execution read clearly without silencing
+## the fallback guard-break/kill feedback every hit already has.
+func _play_major_trigger_feedback(result: Dictionary, world_pos: Vector2) -> void:
+    var major_trigger := StringName(result.get("major_trigger", TickHitResolver.MAJOR_TRIGGER_NONE))
+    if major_trigger == TickHitResolver.MAJOR_TRIGGER_GUARD_SHREDDER:
+        MajorTriggerFeedbackVFX.play_guard_shredder(world_pos, self)
+        AudioManager.play_event(_player.guard_shredder_sfx_event, world_pos)
+    elif major_trigger == TickHitResolver.MAJOR_TRIGGER_EXECUTION:
+        MajorTriggerFeedbackVFX.play_execution(world_pos, self)
+        AudioManager.play_event(_player.execution_sfx_event, world_pos)
+
+
 func _apply_player_result_message(result: Dictionary) -> void:
     var feedback_kind := StringName(result.get("feedback_kind", TickHitResolver.FEEDBACK_DAMAGED))
+    var major_trigger := StringName(result.get("major_trigger", TickHitResolver.MAJOR_TRIGGER_NONE))
     if feedback_kind == TickHitResolver.FEEDBACK_WHIFF:
         _set_message("Whiff.")
     elif feedback_kind == TickHitResolver.FEEDBACK_KILL:
-        _set_message("Enemy destroyed!")
+        if major_trigger == TickHitResolver.MAJOR_TRIGGER_EXECUTION:
+            _set_message("EXECUTION!")
+        else:
+            _set_message("Enemy destroyed!")
     elif feedback_kind == TickHitResolver.FEEDBACK_GUARD_BREAK:
-        _set_message("%s hit — GUARD BREAK!" % _angle_name(result["angle"]))
+        if major_trigger == TickHitResolver.MAJOR_TRIGGER_GUARD_SHREDDER:
+            _set_message("GUARD SHREDDER!")
+        else:
+            _set_message("%s hit — GUARD BREAK!" % _angle_name(result["angle"]))
     elif feedback_kind == TickHitResolver.FEEDBACK_STAGGER_BURST:
         _set_message("%s burst hit." % _angle_name(result["angle"]))
     elif feedback_kind == TickHitResolver.FEEDBACK_BLOCKED:
@@ -481,12 +509,15 @@ func _reset_run(reason: String) -> void:
 # == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 
 
-## Registers the Major-effect debug controls. This is the extension point Phase 04b reuses to add
-## Guard Shredder and Execution debug toggles to the same panel without redesigning it.
+## Registers the Major-effect debug controls: the mobility-payload buttons from Phase 04a, plus the
+## Guard Shredder and Execution toggles this phase adds through that same extension point.
 func _wire_debug_panel() -> void:
     _dash_payload_button = _debug_panel.add_action("Dash Payload", _on_debug_set_dash_payload)
     _smash_payload_button = _debug_panel.add_action("Smash Payload", _on_debug_set_smash_payload)
     _refresh_debug_payload_buttons()
+    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder)
+    _execution_button = _debug_panel.add_action("Execution", _on_debug_toggle_execution)
+    _refresh_debug_trigger_buttons()
 
 
 func _on_debug_set_dash_payload() -> void:
@@ -501,6 +532,18 @@ func _on_debug_set_smash_payload() -> void:
     _set_debug_mobility_payload(RunBuild.PAYLOAD_SMASH)
 
 
+func _on_debug_toggle_guard_shredder() -> void:
+    if not Debug.enabled:
+        return
+    _toggle_debug_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER, "Guard Shredder")
+
+
+func _on_debug_toggle_execution() -> void:
+    if not Debug.enabled:
+        return
+    _toggle_debug_mobility_trigger(RunBuild.TRIGGER_EXECUTION, "Execution")
+
+
 ## Writes through the same RunBuild override real Major effects use, so debug behavior stays
 ## representative of perk behavior instead of a parallel scene-only flag.
 func _set_debug_mobility_payload(payload: StringName) -> void:
@@ -511,12 +554,31 @@ func _set_debug_mobility_payload(payload: StringName) -> void:
     _refresh_hud()
 
 
+## Flips one mobility-slot-triggered Major through the same RunBuild store real Major effects write to.
+## Guard Shredder and Execution toggle independently so both can be tested alone, together, and
+## alongside either mobility payload before reward-loop acquisition exists.
+func _toggle_debug_mobility_trigger(trigger_id: StringName, display_name: String) -> void:
+    var next_active := not _run_build.has_mobility_trigger(trigger_id)
+    _run_build.set_mobility_trigger(trigger_id, next_active)
+    _set_message("%s: %s" % [display_name, "ON" if next_active else "OFF"])
+    _refresh_debug_trigger_buttons()
+
+
 ## Marks whichever payload button matches the run build's current mobility payload as active, so the
 ## panel stays the readable source of truth instead of the player needing to remember hidden state.
 func _refresh_debug_payload_buttons() -> void:
     var payload := _run_build.get_mobility_payload()
     _dash_payload_button.text = "Dash Payload%s" % (" (Active)" if payload == RunBuild.PAYLOAD_DASH else "")
     _smash_payload_button.text = "Smash Payload%s" % (" (Active)" if payload == RunBuild.PAYLOAD_SMASH else "")
+
+
+## Marks the Guard Shredder / Execution buttons active per the run build's mobility-trigger state, the
+## same readability convention the payload buttons use.
+func _refresh_debug_trigger_buttons() -> void:
+    var guard_shredder_active := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
+    var execution_active := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
+    _guard_shredder_button.text = "Guard Shredder%s" % (" (Active)" if guard_shredder_active else "")
+    _execution_button.text = "Execution%s" % (" (Active)" if execution_active else "")
 
 # == View and HUD ==
 
@@ -572,8 +634,10 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
             preview["dash_landing"] = plan["landing"]
             preview["ghost_cell"] = plan["landing"]
             var dir: Vector2i = plan["dir"]
+            var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
+            var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
             for victim: GridEnemy in plan["victims"]:
-                outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true)
+                outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, PLAYER_DASH_DAMAGE, true, guard_shredder, execution)
         return
     if payload == RunBuild.PAYLOAD_SMASH:
         var target := _clamped_smash_target()
@@ -594,19 +658,22 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
     ToastManager.show_dev_error("TickArena: unknown mobility payload %s" % payload)
 
 
-## Predicts one hit for the preview and condenses it into a display entry: cell, label, and intensity tier.
-func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool) -> Dictionary:
-    var result := enemy.predict_hit(origin_cell, damage, is_dash)
+## Predicts one hit for the preview and condenses it into a display entry: cell, label, and intensity
+## tier. Honesty extends to the mobility-slot-triggered Majors: an active Shredder or Execution upgrades
+## the label to the same distinct result the commit will show, never a generic guard-break/kill fallback.
+func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
+    var result := enemy.predict_hit(origin_cell, damage, is_dash, guard_shredder_trigger, execution_trigger)
+    var major_trigger := StringName(result.get("major_trigger", TickHitResolver.MAJOR_TRIGGER_NONE))
     var label := ""
     var tier := 0
     if bool(result["killed"]):
-        label = "KILL"
+        label = "EXECUTION" if major_trigger == TickHitResolver.MAJOR_TRIGGER_EXECUTION else "KILL"
         tier = 2
     elif bool(result["stagger_burst"]):
         label = "BURST"
         tier = 1
     elif bool(result["guard_broken"]):
-        label = "%s BREAK" % _angle_name(result["angle"]).to_upper()
+        label = "SHREDDER" if major_trigger == TickHitResolver.MAJOR_TRIGGER_GUARD_SHREDDER else "%s BREAK" % _angle_name(result["angle"]).to_upper()
         tier = 1
     else:
         label = _angle_name(result["angle"]).to_upper()
@@ -614,10 +681,14 @@ func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_d
 
 
 ## Collects predicted outcomes for every living enemy in the 3x3 block centered on the given cell.
+## The landing cell is the origin for every victim, per the Smash direction rule (Phase 04 sketch),
+## so Guard Shredder's back-angle check reads relative to the landing, not the player's start cell.
 func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
+    var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
+    var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     for enemy: GridEnemy in _engine.actors():
         if _chebyshev(enemy.get_grid_pos() - center) <= 1:
-            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, PLAYER_SMASH_DAMAGE, true)
+            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, PLAYER_SMASH_DAMAGE, true, guard_shredder, execution)
 
 
 ## Shows the locked Smash landing and its outcomes regardless of the current aim mode, since an armed

@@ -16,6 +16,8 @@ const DAMAGE_FLASH_SEC := 0.18
 
 @export var smash_windup_sfx_event: SpatialAudioEvent
 @export var smash_impact_sfx_event: SpatialAudioEvent
+@export var guard_shredder_sfx_event: SpatialAudioEvent
+@export var execution_sfx_event: SpatialAudioEvent
 
 # -- State --
 

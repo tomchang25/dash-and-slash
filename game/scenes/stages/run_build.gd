@@ -2,8 +2,11 @@
 # Run-scoped store of applied reward-effect contributions. Pure data: holds a
 # signed-entry list per channel and projects each channel's total on read, plus
 # a separate Major-effect record list enforcing the run-wide Major cap and
-# per-group exclusivity. Consumers (Player, WaveController) own their own base
-# values and clamps; this store owns no base values and applies no clamps of its own.
+# per-group exclusivity, and a mobility-slot-triggered-effect flag set (Guard
+# Shredder, Execution) that the active mobility strike's resolution queries
+# directly, regardless of whether the slot payload is Dash or Smash. Consumers
+# (Player, WaveController) own their own base values and clamps; this store
+# owns no base values and applies no clamps of its own.
 class_name RunBuild
 extends RefCounted
 
@@ -22,11 +25,15 @@ const PAYLOAD_DASH := &"dash"
 const PAYLOAD_SMASH := &"smash"
 const PAYLOAD_DEBUG_STUB := &"debug_stub"
 
+const TRIGGER_GUARD_SHREDDER := &"guard_shredder"
+const TRIGGER_EXECUTION := &"execution"
+
 const MAJOR_CAP := 4
 
 var _entries: Array[Dictionary] = []
 var _major_entries: Array[Dictionary] = []
 var _mobility_payload_override := PAYLOAD_DASH
+var _mobility_triggers: Dictionary = { }
 
 # == Common API ==
 
@@ -54,6 +61,7 @@ func clear() -> void:
     _entries.clear()
     _major_entries.clear()
     _mobility_payload_override = PAYLOAD_DASH
+    _mobility_triggers.clear()
 
 
 ## Returns the active mobility-slot payload. Dash is the default when no Major has replaced the slot.
@@ -105,3 +113,20 @@ func has_major_conflict(exclusivity_group: String) -> bool:
 ## Returns how many Major effects are currently registered in this run.
 func major_count() -> int:
     return _major_entries.size()
+
+
+## Returns whether the given mobility-slot-triggered Major effect (Guard Shredder, Execution) is
+## currently active. The active mobility strike's resolution reads this directly instead of forking
+## per-effect code paths per payload, so the same trigger fires whether the slot payload is Dash or Smash.
+func has_mobility_trigger(trigger_id: StringName) -> bool:
+    return bool(_mobility_triggers.get(trigger_id, false))
+
+
+## Activates or deactivates one mobility-slot-triggered Major effect by id. Real Major effects call
+## this from their own apply(); debug controls write through the same call so debug behavior stays
+## representative of perk behavior instead of a parallel scene-only flag.
+func set_mobility_trigger(trigger_id: StringName, active: bool) -> void:
+    if trigger_id != TRIGGER_GUARD_SHREDDER and trigger_id != TRIGGER_EXECUTION:
+        ToastManager.show_dev_error("RunBuild: unknown mobility trigger %s" % trigger_id)
+        return
+    _mobility_triggers[trigger_id] = active

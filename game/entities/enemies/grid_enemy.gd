@@ -335,17 +335,19 @@ func get_attack_tiles() -> Array[Vector2i]:
 
 ## Predicts one player hit without mutating state, sharing math with take_hit() so a preview
 ## can never disagree with the resolved hit. Origin is the attacker's cell (player or dash origin).
-## Returns keys angle, was_guarded, stagger_burst, guard_broken, killed, hp_damage, guard_damage, feedback_kind.
-func predict_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
-    return _resolve_tick_hit_outcome(origin_cell, base_damage, is_dash)
+## guard_shredder_trigger and execution_trigger are the mobility-slot-triggered Major hooks; callers
+## pass true only for an actual mobility-slot strike (Dash or Smash) whose run build has that trigger active.
+## Returns keys angle, was_guarded, stagger_burst, guard_broken, killed, hp_damage, guard_damage, feedback_kind, major_trigger.
+func predict_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
+    return _resolve_tick_hit_outcome(origin_cell, base_damage, is_dash, guard_shredder_trigger, execution_trigger)
 
 
 ## Applies one player hit from the given origin cell, reusing the established guard/health/feedback
 ## seams (damaged/blocked SFX, guard-break/shield/full-damage VFX), and returns the same dictionary
 ## as predict_hit(). A guard break clears banked energy via _on_guard_broken().
-func take_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
+func take_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
     var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
-    var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, is_dash)
+    var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, is_dash, guard_shredder_trigger, execution_trigger)
     if not is_alive():
         return outcome
     _apply_hit_feedback(outcome, src_pos)
@@ -1160,11 +1162,19 @@ func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -
 
 
 ## Pure tick-grid hit resolution shared by predict_hit() and take_hit(); this is the authoritative path for previews and committed tick verbs.
-func _resolve_tick_hit_outcome(origin_cell: Vector2i, base_damage: float, is_dash: bool) -> Dictionary:
+func _resolve_tick_hit_outcome(origin_cell: Vector2i, base_damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
     if not is_alive():
         return TickHitResolver.empty_outcome()
 
-    return TickHitResolver.resolve_hit(origin_cell, _target_snapshot(), base_damage, TickHitResolver.HitKind.DASH if is_dash else TickHitResolver.HitKind.NORMAL)
+    return TickHitResolver.resolve_hit(
+        origin_cell,
+        _target_snapshot(),
+        base_damage,
+        TickHitResolver.HitKind.DASH if is_dash else TickHitResolver.HitKind.NORMAL,
+        -1,
+        guard_shredder_trigger,
+        execution_trigger,
+    )
 
 
 func _target_snapshot() -> Dictionary:

@@ -17,6 +17,12 @@ const FEEDBACK_GUARD_BREAK := &"guard_break"
 const FEEDBACK_STAGGER_BURST := &"stagger_burst"
 const FEEDBACK_KILL := &"kill"
 
+## Outcome metadata distinguishing a mobility-slot-triggered Major's upgraded result from a generic
+## guard break or kill, so presentation can show distinct feedback while the fallback feedback still fires.
+const MAJOR_TRIGGER_NONE := &""
+const MAJOR_TRIGGER_GUARD_SHREDDER := &"guard_shredder"
+const MAJOR_TRIGGER_EXECUTION := &"execution"
+
 # == Common API ==
 
 
@@ -32,11 +38,26 @@ static func empty_outcome() -> Dictionary:
         "hp_damage": 0.0,
         "guard_damage": 0,
         "feedback_kind": FEEDBACK_WHIFF,
+        "major_trigger": MAJOR_TRIGGER_NONE,
     }
 
 
-## Resolves one tick-grid hit from immutable target state. Optional guard damage lets legacy enemy kinds keep their authored guard profile while using this resolver's math.
-static func resolve_hit(attacker_origin_cell: Vector2i, target_snapshot: Dictionary, base_damage: float, hit_kind: int, guard_damage_override := -1) -> Dictionary:
+## Resolves one tick-grid hit from immutable target state. Optional guard damage lets legacy enemy
+## kinds keep their authored guard profile while using this resolver's math. guard_shredder_trigger
+## and execution_trigger are the mobility-slot-triggered Major hooks: pass true only from an actual
+## Dash or Smash mobility-slot strike whose run build has that trigger active, never from a normal attack.
+## The caller's origin_cell already encodes which payload is striking (Dash: the cell the victim was
+## hit from along its travel path; Smash: the locked landing cell) — this resolver derives the hit
+## angle from whatever origin it is given and does not need to know which payload produced it.
+static func resolve_hit(
+        attacker_origin_cell: Vector2i,
+        target_snapshot: Dictionary,
+        base_damage: float,
+        hit_kind: int,
+        guard_damage_override := -1,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+) -> Dictionary:
     if target_snapshot.is_empty() or not bool(target_snapshot.get("alive", true)):
         return empty_outcome()
 
@@ -45,17 +66,41 @@ static func resolve_hit(attacker_origin_cell: Vector2i, target_snapshot: Diction
     var angle := _to_direction_angle(TickCombatRules.resolve_angle(attacker_origin_cell, target_cell, target_facing))
     var guard_max := int(target_snapshot.get("guard_max", 0))
     var guard_damage := guard_damage_override if guard_damage_override >= 0 else _guard_damage_for(hit_kind, angle, guard_max)
-    return resolve_precomputed(angle, guard_damage, target_snapshot, base_damage)
+    return resolve_precomputed(angle, guard_damage, target_snapshot, base_damage, guard_shredder_trigger, execution_trigger)
 
 
-## Resolves one hit from a precomputed angle and guard damage. Legacy adapters use this to share the same outcome math as tick-grid hits.
-static func resolve_precomputed(angle: int, guard_damage: int, target_snapshot: Dictionary, base_damage: float) -> Dictionary:
+## Resolves one hit from a precomputed angle and guard damage. Legacy adapters use this to share the
+## same outcome math as tick-grid hits. Execution takes priority over Guard Shredder because an
+## already-staggered target has no guard left to shred.
+static func resolve_precomputed(
+        angle: int,
+        guard_damage: int,
+        target_snapshot: Dictionary,
+        base_damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+) -> Dictionary:
     if target_snapshot.is_empty() or not bool(target_snapshot.get("alive", true)):
         return empty_outcome()
 
     var guard_current := int(target_snapshot.get("guard_current", 0))
     var already_staggered := bool(target_snapshot.get("staggered", false))
     var has_guard := bool(target_snapshot.get("has_guard", false))
+
+    if execution_trigger and already_staggered:
+        return _resolve_execution_kill(angle, target_snapshot)
+
+    var guard_shredder_hit := (
+        guard_shredder_trigger
+        and has_guard
+        and not already_staggered
+        and guard_current > 0
+        and angle == DirectionResolver.HitAngle.BACK
+    )
+    if guard_shredder_hit:
+        # Zero the guard directly, bypassing the max(half_guard, 32) back guard-damage table.
+        guard_damage = guard_current
+
     var will_break_guard := has_guard and not already_staggered and guard_current > 0 and guard_damage >= guard_current
     var full_damage := not has_guard or already_staggered or will_break_guard
     var hp_damage := base_damage if full_damage else base_damage * GUARDED_DAMAGE_MULTIPLIER
@@ -73,6 +118,7 @@ static func resolve_precomputed(angle: int, guard_damage: int, target_snapshot: 
         "hp_damage": hp_damage,
         "guard_damage": guard_damage,
         "feedback_kind": _feedback_kind(killed, already_staggered, will_break_guard, has_guard, full_damage),
+        "major_trigger": MAJOR_TRIGGER_GUARD_SHREDDER if guard_shredder_hit and will_break_guard else MAJOR_TRIGGER_NONE,
     }
 
 
@@ -83,6 +129,23 @@ static func apply_defense(amount: float, defense: float) -> float:
     return amount * (amount / (amount + defense))
 
 # == Resolution ==
+
+
+## Execution's instant-kill outcome: a dash hit on an already-staggered target kills outright, replacing
+## whatever stagger-burst damage the hit would otherwise deal.
+static func _resolve_execution_kill(angle: int, target_snapshot: Dictionary) -> Dictionary:
+    return {
+        "angle": angle,
+        "was_guarded": false,
+        "staggered": true,
+        "guard_broken": false,
+        "stagger_burst": true,
+        "killed": true,
+        "hp_damage": float(target_snapshot.get("hp", 0.0)),
+        "guard_damage": 0,
+        "feedback_kind": FEEDBACK_KILL,
+        "major_trigger": MAJOR_TRIGGER_EXECUTION,
+    }
 
 
 static func _guard_damage_for(hit_kind: int, angle: int, guard_max: int) -> int:
