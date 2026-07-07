@@ -177,9 +177,9 @@ func is_run_over() -> bool:
     return _run_over
 
 
-## Resets all state for a fresh run, including clearing any pending spawn-warning's grid
-## telegraphs. Future-enemy pressure is not reset here — it lives in the injected RunBuild store,
-## which the arena replaces wholesale for a fresh run.
+## Resets all wave-local state for a fresh run, including clearing any pending spawn-warning's grid
+## telegraphs. Future-enemy pressure is already cleared by TickRunController through the injected
+## RunBuild before this runs, so the wave controller keeps its original store reference.
 func reset() -> void:
     _clear_spawn_queue_telegraphs()
     _current_wave_number = 0

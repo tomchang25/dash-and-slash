@@ -1,6 +1,6 @@
 # test_tick_hit_resolver_mobility_free_action.gd
-# Tests TickHitResolver's Mobility Free Action Major refund-condition helpers on pure outcome
-# dictionaries, independent of RunBuild or the arena scene: a kill, a guard break, or a back-angle hit
+# Tests TickHitResolver's Mobility Free Action Major refund-condition helpers on typed outcomes,
+# independent of RunBuild or the arena scene: a kill, a guard break, or a back-angle hit
 # each qualify alone, a front/side hit with neither does not, and any_qualifies_for_mobility_free_action()
 # folds a mobility strike's multiple victim outcomes into the single per-action refund flag TickArena reads.
 extends GutTest
