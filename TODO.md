@@ -49,7 +49,7 @@ One-line, no reasoning, no backing doc.
 
 One-line, no reasoning, no backing doc.
 
-- [combat] Staggered targets never take the designed 2.0x dash stagger-burst damage — STAGGER_DASH_MULTIPLIER is declared in TickCombatRules but unused by the production hit resolvers (only the prototype applies it).
+- [combat] Staggered targets never take the designed 2.0x dash stagger-burst damage — the production hit resolvers never apply a dash stagger multiplier (only the prototype's own copy does).
 
 ---
 

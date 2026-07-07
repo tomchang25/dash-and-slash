@@ -9,7 +9,7 @@
 class_name TickInput
 extends Node
 
-signal verb_requested(verb: Dictionary)
+signal verb_requested(verb: TickVerb)
 
 # -- Constants --
 
@@ -39,12 +39,12 @@ func _process(delta: float) -> void:
     var mouse_over_ui := get_viewport().gui_get_hovered_control() != null
 
     var verb := _edge_verb(alt_pressed, rmb_pressed, space_pressed, mouse_over_ui)
-    if not verb.is_empty():
+    if verb != null:
         verb_requested.emit(verb)
         _repeat_timer = HOLD_REPEAT_SEC
     else:
         var held := _held_verb(space_pressed, mouse_over_ui)
-        if held.is_empty():
+        if held == null:
             _repeat_timer = 0.0
         else:
             _repeat_timer -= delta
@@ -59,27 +59,27 @@ func _process(delta: float) -> void:
 # == Verb polling ==
 
 
-func _edge_verb(alt_pressed: bool, rmb_pressed: bool, space_pressed: bool, mouse_over_ui: bool) -> Dictionary:
+func _edge_verb(alt_pressed: bool, rmb_pressed: bool, space_pressed: bool, mouse_over_ui: bool) -> TickVerb:
     if alt_pressed != _alt_was_pressed:
-        return { "type": "mode_set", "mobility": alt_pressed }
+        return TickVerb.mode_set(alt_pressed)
     if rmb_pressed and not _rmb_was_pressed and not mouse_over_ui:
-        return { "type": "cancel" }
+        return TickVerb.cancel()
     for action: String in MOVE_ACTIONS:
         if Input.is_action_just_pressed(action):
-            return { "type": "move", "dir": MOVE_ACTIONS[action] }
+            return TickVerb.move(MOVE_ACTIONS[action])
     if Input.is_action_just_pressed("attack") and not mouse_over_ui:
-        return { "type": "confirm" }
+        return TickVerb.confirm()
     if space_pressed and not _space_was_pressed:
-        return { "type": "wait" }
-    return { }
+        return TickVerb.wait()
+    return null
 
 
-func _held_verb(space_pressed: bool, mouse_over_ui: bool) -> Dictionary:
+func _held_verb(space_pressed: bool, mouse_over_ui: bool) -> TickVerb:
     for action: String in MOVE_ACTIONS:
         if Input.is_action_pressed(action):
-            return { "type": "move", "dir": MOVE_ACTIONS[action] }
+            return TickVerb.move(MOVE_ACTIONS[action])
     if Input.is_action_pressed("attack") and not mouse_over_ui:
-        return { "type": "confirm", "repeat": true }
+        return TickVerb.confirm(true)
     if space_pressed:
-        return { "type": "wait" }
-    return { }
+        return TickVerb.wait()
+    return null

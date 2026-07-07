@@ -22,7 +22,7 @@ This is a pure structural refactor. The behavior-preservation guardrail for ever
 | ----- | --------------------------------------------------------------------------------------------------------------------- | ------------------- |
 | 01    | Shared plan math: merge the duplicated pure planning helpers and base-number constants into shared rules/planner code | implementation spec |
 | 03    | Run store in-place reset: build store lives once per scene, restart clears it in place                                | implementation spec |
-| 04    | Combat contracts: single hit-angle enum, typed verb and hit-outcome values, adapter deletion                          | sketch              |
+| 04    | Combat contracts: single hit-angle enum, typed verb and hit-outcome values, adapter deletion                          | implementation spec |
 
 Child numbering keeps its original 01/03/04 labels; 02 (reward ceremony) and 05 (roll fallback) moved to the tick artifact rewards plan. Children land one at a time, each as its own reviewable change. Recommended order: 01 → 04 (combat-side seams stabilize first, and 04 reshapes the outcome values 01's shared math produces), then 03 (run-loop wiring). The `GuardDamageProfile` dash-flag inversion is carved into 04, since it reshapes the same take-hit contract.
 

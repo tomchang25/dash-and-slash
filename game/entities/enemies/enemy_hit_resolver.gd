@@ -10,15 +10,15 @@ const GUARDED_DAMAGE_MULTIPLIER := TickHitResolver.GUARDED_DAMAGE_MULTIPLIER
 # == Common API ==
 
 
-## Returns the zeroed outcome dictionary used when a hit cannot resolve (dead or missing target).
-static func empty_outcome() -> Dictionary:
+## Returns the zeroed outcome used when a hit cannot resolve (dead or missing target).
+static func empty_outcome() -> TickHitOutcome:
     return TickHitResolver.empty_outcome()
 
 
 ## Computes the full outcome of one incoming hit from a pre-resolved hit angle and guard damage.
 ## Pure math over the target's current guard and health state; never mutates either component.
-## Returns keys angle, staggered, guard_broken, killed, hp_damage, guard_damage.
-static func resolve_outcome(angle: int, guard_damage: int, guard: Guard, health: Health, base_damage: float, defense: float) -> Dictionary:
+## Returns a TickHitOutcome with fields angle, staggered, guard_broken, killed, hp_damage, guard_damage.
+static func resolve_outcome(angle: DirectionResolver.HitAngle, guard_damage: int, guard: Guard, health: Health, base_damage: float, defense: float) -> TickHitOutcome:
     return TickHitResolver.resolve_precomputed(angle, guard_damage, _target_snapshot(guard, health, defense), base_damage)
 
 

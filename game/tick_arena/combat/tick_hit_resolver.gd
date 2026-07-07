@@ -3,43 +3,14 @@
 class_name TickHitResolver
 extends RefCounted
 
-enum HitKind {
-    NORMAL,
-    DASH,
-    SMASH,
-}
-
 const GUARDED_DAMAGE_MULTIPLIER := 0.2
-const FEEDBACK_WHIFF := &"whiff"
-const FEEDBACK_BLOCKED := &"blocked"
-const FEEDBACK_DAMAGED := &"damaged"
-const FEEDBACK_GUARD_BREAK := &"guard_break"
-const FEEDBACK_STAGGER_BURST := &"stagger_burst"
-const FEEDBACK_KILL := &"kill"
-
-## Outcome metadata distinguishing a mobility-slot-triggered Major's upgraded result from a generic
-## guard break or kill, so presentation can show distinct feedback while the fallback feedback still fires.
-const MAJOR_TRIGGER_NONE := &""
-const MAJOR_TRIGGER_GUARD_SHREDDER := &"guard_shredder"
-const MAJOR_TRIGGER_EXECUTION := &"execution"
 
 # == Common API ==
 
 
 ## Returns a zeroed outcome for missing, dead, or otherwise unresolvable targets.
-static func empty_outcome() -> Dictionary:
-    return {
-        "angle": DirectionResolver.HitAngle.NONE,
-        "was_guarded": false,
-        "staggered": false,
-        "guard_broken": false,
-        "stagger_burst": false,
-        "killed": false,
-        "hp_damage": 0.0,
-        "guard_damage": 0,
-        "feedback_kind": FEEDBACK_WHIFF,
-        "major_trigger": MAJOR_TRIGGER_NONE,
-    }
+static func empty_outcome() -> TickHitOutcome:
+    return TickHitOutcome.new()
 
 
 ## Resolves one tick-grid hit from immutable target state. Optional guard damage lets legacy enemy
@@ -53,19 +24,18 @@ static func resolve_hit(
         attacker_origin_cell: Vector2i,
         target_snapshot: Dictionary,
         base_damage: float,
-        hit_kind: int,
         guard_damage_override := -1,
         guard_shredder_trigger := false,
         execution_trigger := false,
-) -> Dictionary:
+) -> TickHitOutcome:
     if target_snapshot.is_empty() or not bool(target_snapshot.get("alive", true)):
         return empty_outcome()
 
     var target_cell: Vector2i = target_snapshot.get("cell", Vector2i.ZERO)
     var target_facing: Vector2i = target_snapshot.get("facing", Vector2i.ZERO)
-    var angle := _to_direction_angle(TickCombatRules.resolve_angle(attacker_origin_cell, target_cell, target_facing))
+    var angle := TickCombatRules.resolve_angle(attacker_origin_cell, target_cell, target_facing)
     var guard_max := int(target_snapshot.get("guard_max", 0))
-    var guard_damage := guard_damage_override if guard_damage_override >= 0 else _guard_damage_for(hit_kind, angle, guard_max)
+    var guard_damage := guard_damage_override if guard_damage_override >= 0 else TickCombatRules.guard_damage_for(angle, guard_max)
     return resolve_precomputed(angle, guard_damage, target_snapshot, base_damage, guard_shredder_trigger, execution_trigger)
 
 
@@ -73,13 +43,13 @@ static func resolve_hit(
 ## same outcome math as tick-grid hits. Execution takes priority over Guard Shredder because an
 ## already-staggered target has no guard left to shred.
 static func resolve_precomputed(
-        angle: int,
+        angle: DirectionResolver.HitAngle,
         guard_damage: int,
         target_snapshot: Dictionary,
         base_damage: float,
         guard_shredder_trigger := false,
         execution_trigger := false,
-) -> Dictionary:
+) -> TickHitOutcome:
     if target_snapshot.is_empty() or not bool(target_snapshot.get("alive", true)):
         return empty_outcome()
 
@@ -108,18 +78,18 @@ static func resolve_precomputed(
     var hp_current := float(target_snapshot.get("hp", 0.0))
     var killed := hp_current - hp_damage <= 0.0
 
-    return {
-        "angle": angle,
-        "was_guarded": has_guard and not full_damage,
-        "staggered": already_staggered,
-        "guard_broken": will_break_guard,
-        "stagger_burst": already_staggered,
-        "killed": killed,
-        "hp_damage": hp_damage,
-        "guard_damage": guard_damage,
-        "feedback_kind": _feedback_kind(killed, already_staggered, will_break_guard, has_guard, full_damage),
-        "major_trigger": MAJOR_TRIGGER_GUARD_SHREDDER if guard_shredder_hit and will_break_guard else MAJOR_TRIGGER_NONE,
-    }
+    var outcome := TickHitOutcome.new()
+    outcome.angle = angle
+    outcome.was_guarded = has_guard and not full_damage
+    outcome.staggered = already_staggered
+    outcome.guard_broken = will_break_guard
+    outcome.stagger_burst = already_staggered
+    outcome.killed = killed
+    outcome.hp_damage = hp_damage
+    outcome.guard_damage = guard_damage
+    outcome.feedback_kind = _feedback_kind(killed, already_staggered, will_break_guard, has_guard, full_damage)
+    outcome.major_trigger = TickHitOutcome.MajorTrigger.GUARD_SHREDDER if guard_shredder_hit and will_break_guard else TickHitOutcome.MajorTrigger.NONE
+    return outcome
 
 
 ## Reduces incoming hp damage by a flat defense value using effective = amount * (amount / (amount + defense)). No-op at defense 0.
@@ -133,7 +103,7 @@ static func apply_defense(amount: float, defense: float) -> float:
 ## condition. Folds a mobility-slot strike's potentially many victim outcomes (Dash's travel path,
 ## Smash's 3x3 block) into a single per-action flag, so a strike that hits several qualifying targets
 ## still refunds at most once.
-static func any_qualifies_for_mobility_free_action(outcomes: Array[Dictionary]) -> bool:
+static func any_qualifies_for_mobility_free_action(outcomes: Array[TickHitOutcome]) -> bool:
     for outcome in outcomes:
         if qualifies_for_mobility_free_action(outcome):
             return true
@@ -142,79 +112,35 @@ static func any_qualifies_for_mobility_free_action(outcomes: Array[Dictionary]) 
 
 ## Returns whether one committed hit outcome satisfies the Mobility Free Action Major's refund
 ## condition: a kill, a guard break, or a back-angle hit.
-static func qualifies_for_mobility_free_action(outcome: Dictionary) -> bool:
-    if bool(outcome.get("killed", false)) or bool(outcome.get("guard_broken", false)):
+static func qualifies_for_mobility_free_action(outcome: TickHitOutcome) -> bool:
+    if outcome.killed or outcome.guard_broken:
         return true
-    return int(outcome.get("angle", DirectionResolver.HitAngle.NONE)) == DirectionResolver.HitAngle.BACK
+    return outcome.angle == DirectionResolver.HitAngle.BACK
 
 # == Resolution ==
 
 
 ## Execution's instant-kill outcome: a dash hit on an already-staggered target kills outright, replacing
 ## whatever stagger-burst damage the hit would otherwise deal.
-static func _resolve_execution_kill(angle: int, target_snapshot: Dictionary) -> Dictionary:
-    return {
-        "angle": angle,
-        "was_guarded": false,
-        "staggered": true,
-        "guard_broken": false,
-        "stagger_burst": true,
-        "killed": true,
-        "hp_damage": float(target_snapshot.get("hp", 0.0)),
-        "guard_damage": 0,
-        "feedback_kind": FEEDBACK_KILL,
-        "major_trigger": MAJOR_TRIGGER_EXECUTION,
-    }
+static func _resolve_execution_kill(angle: DirectionResolver.HitAngle, target_snapshot: Dictionary) -> TickHitOutcome:
+    var outcome := TickHitOutcome.new()
+    outcome.angle = angle
+    outcome.staggered = true
+    outcome.stagger_burst = true
+    outcome.killed = true
+    outcome.hp_damage = float(target_snapshot.get("hp", 0.0))
+    outcome.feedback_kind = TickHitOutcome.FeedbackKind.KILL
+    outcome.major_trigger = TickHitOutcome.MajorTrigger.EXECUTION
+    return outcome
 
 
-static func _guard_damage_for(hit_kind: int, angle: int, guard_max: int) -> int:
-    match hit_kind:
-        HitKind.NORMAL:
-            return TickCombatRules.guard_damage_for(_to_tick_angle(angle), guard_max)
-        HitKind.DASH:
-            return TickCombatRules.guard_damage_for(_to_tick_angle(angle), guard_max)
-        HitKind.SMASH:
-            return TickCombatRules.guard_damage_for(_to_tick_angle(angle), guard_max)
-        _:
-            ToastManager.show_dev_error("TickHitResolver: unexpected hit kind %d" % hit_kind)
-            return 0
-
-
-static func _feedback_kind(killed: bool, already_staggered: bool, guard_broken: bool, has_guard: bool, full_damage: bool) -> StringName:
+static func _feedback_kind(killed: bool, already_staggered: bool, guard_broken: bool, has_guard: bool, full_damage: bool) -> TickHitOutcome.FeedbackKind:
     if killed:
-        return FEEDBACK_KILL
+        return TickHitOutcome.FeedbackKind.KILL
     if already_staggered:
-        return FEEDBACK_STAGGER_BURST
+        return TickHitOutcome.FeedbackKind.STAGGER_BURST
     if guard_broken:
-        return FEEDBACK_GUARD_BREAK
+        return TickHitOutcome.FeedbackKind.GUARD_BREAK
     if has_guard and not full_damage:
-        return FEEDBACK_BLOCKED
-    return FEEDBACK_DAMAGED
-
-
-static func _to_direction_angle(angle: int) -> int:
-    match angle:
-        TickCombatRules.HitAngle.FRONT:
-            return DirectionResolver.HitAngle.FRONT
-        TickCombatRules.HitAngle.SIDE:
-            return DirectionResolver.HitAngle.SIDE
-        TickCombatRules.HitAngle.BACK:
-            return DirectionResolver.HitAngle.BACK
-        _:
-            ToastManager.show_dev_error("TickHitResolver: unexpected tick hit angle %d" % angle)
-            return DirectionResolver.HitAngle.NONE
-
-
-static func _to_tick_angle(angle: int) -> int:
-    match angle:
-        DirectionResolver.HitAngle.FRONT:
-            return TickCombatRules.HitAngle.FRONT
-        DirectionResolver.HitAngle.SIDE:
-            return TickCombatRules.HitAngle.SIDE
-        DirectionResolver.HitAngle.BACK:
-            return TickCombatRules.HitAngle.BACK
-        DirectionResolver.HitAngle.NONE:
-            return TickCombatRules.HitAngle.SIDE
-        _:
-            ToastManager.show_dev_error("TickHitResolver: unexpected direction hit angle %d" % angle)
-            return TickCombatRules.HitAngle.SIDE
+        return TickHitOutcome.FeedbackKind.BLOCKED
+    return TickHitOutcome.FeedbackKind.DAMAGED

@@ -15,11 +15,11 @@ func test_default_aim_mode_is_attack() -> void:
 func test_mode_set_verb_switches_to_mobility_and_back() -> void:
     var controller: TickActionController = autofree(TickActionController.new())
 
-    controller.handle_verb({ "type": "mode_set", "mobility": true })
+    controller.handle_verb(TickVerb.mode_set(true))
     assert_eq(controller.aim_mode_name(), "MOBILITY")
     assert_true(controller.is_mobility_mode())
 
-    controller.handle_verb({ "type": "mode_set", "mobility": false })
+    controller.handle_verb(TickVerb.mode_set(false))
     assert_eq(controller.aim_mode_name(), "ATTACK")
     assert_false(controller.is_mobility_mode())
 
@@ -47,9 +47,9 @@ func test_input_locked_blocks_verb_dispatch() -> void:
     var controller: TickActionController = autofree(TickActionController.new())
 
     controller.set_input_locked(true)
-    controller.handle_verb({ "type": "mode_set", "mobility": true })
+    controller.handle_verb(TickVerb.mode_set(true))
     assert_eq(controller.aim_mode_name(), "ATTACK", "a locked controller must ignore even a mode_set verb")
 
     controller.set_input_locked(false)
-    controller.handle_verb({ "type": "mode_set", "mobility": true })
+    controller.handle_verb(TickVerb.mode_set(true))
     assert_eq(controller.aim_mode_name(), "MOBILITY", "unlocking should let verbs dispatch again")

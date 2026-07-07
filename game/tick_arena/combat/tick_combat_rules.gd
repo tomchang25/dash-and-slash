@@ -1,22 +1,15 @@
 # tick_combat_rules.gd
 # Static combat rules for the tick arena: player combat base numbers, hit-angle resolution/display,
-# guard damage, HP bypass, and stagger multipliers. Numbers mirror the design baseline (GDD v0.5
-# section 6); phase 3 formalizes this into the shared hit resolver.
+# and guard damage/HP bypass. Numbers mirror the design baseline (GDD v0.5 section 6); phase 3
+# formalizes this into the shared hit resolver. Hit angle is DirectionResolver.HitAngle, the single
+# production hit-angle vocabulary shared with the legacy physics path.
 class_name TickCombatRules
-
-enum HitAngle {
-    FRONT,
-    SIDE,
-    BACK,
-}
 
 const FRONT_GUARD_DAMAGE := 8
 const SIDE_GUARD_FLOOR := 16
 const BACK_GUARD_FLOOR := 32
 const SIDE_HP_BYPASS := 0.1
 const BACK_HP_BYPASS := 0.25
-const STAGGER_ATTACK_MULTIPLIER := 1.0
-const STAGGER_DASH_MULTIPLIER := 2.0
 
 const PLAYER_ATTACK_DAMAGE := 20.0
 const PLAYER_DASH_DAMAGE := 30.0
@@ -32,25 +25,25 @@ const MAX_MOBILITY_RANGE_BONUS_PERCENT := 200.0
 
 ## Classifies the attack angle from the attacker's origin cell relative to the target's facing.
 ## Perfectly diagonal or zero deltas resolve to SIDE.
-static func resolve_angle(attacker_cell: Vector2i, target_cell: Vector2i, target_facing: Vector2i) -> HitAngle:
+static func resolve_angle(attacker_cell: Vector2i, target_cell: Vector2i, target_facing: Vector2i) -> DirectionResolver.HitAngle:
     var dir := dominant_direction(attacker_cell - target_cell)
     if dir == Vector2i.ZERO:
-        return HitAngle.SIDE
+        return DirectionResolver.HitAngle.SIDE
     if dir == target_facing:
-        return HitAngle.FRONT
+        return DirectionResolver.HitAngle.FRONT
     if dir == -target_facing:
-        return HitAngle.BACK
-    return HitAngle.SIDE
+        return DirectionResolver.HitAngle.BACK
+    return DirectionResolver.HitAngle.SIDE
 
 
 ## Returns the guard damage for a hit at the given angle against a target with the given guard maximum.
-static func guard_damage_for(angle: HitAngle, max_guard: int) -> int:
+static func guard_damage_for(angle: DirectionResolver.HitAngle, max_guard: int) -> int:
     match angle:
-        HitAngle.FRONT:
+        DirectionResolver.HitAngle.FRONT:
             return FRONT_GUARD_DAMAGE
-        HitAngle.SIDE:
+        DirectionResolver.HitAngle.SIDE:
             return maxi(int(max_guard / 4.0), SIDE_GUARD_FLOOR)
-        HitAngle.BACK:
+        DirectionResolver.HitAngle.BACK:
             return maxi(int(max_guard / 2.0), BACK_GUARD_FLOOR)
         _:
             ToastManager.show_dev_error("TickCombatRules: unexpected hit angle %d" % angle)
@@ -58,13 +51,13 @@ static func guard_damage_for(angle: HitAngle, max_guard: int) -> int:
 
 
 ## Returns the fraction of base damage that bypasses an unbroken guard at the given angle.
-static func hp_bypass_for(angle: HitAngle) -> float:
+static func hp_bypass_for(angle: DirectionResolver.HitAngle) -> float:
     match angle:
-        HitAngle.FRONT:
+        DirectionResolver.HitAngle.FRONT:
             return 0.0
-        HitAngle.SIDE:
+        DirectionResolver.HitAngle.SIDE:
             return SIDE_HP_BYPASS
-        HitAngle.BACK:
+        DirectionResolver.HitAngle.BACK:
             return BACK_HP_BYPASS
         _:
             ToastManager.show_dev_error("TickCombatRules: unexpected hit angle %d" % angle)
@@ -81,10 +74,8 @@ static func dominant_direction(delta: Vector2i) -> Vector2i:
 
 
 ## Renders a resolved hit angle as the display label used in HUD feedback messages and preview
-## badges. Takes the untyped int a hit-outcome dictionary carries (DirectionResolver.HitAngle,
-## including its NONE member) rather than this file's own HitAngle enum; unifying the two hit-angle
-## vocabularies is child 04's job, not this move.
-static func angle_name(angle: int) -> String:
+## badges. Handles NONE for empty outcomes as well as the three real hit angles.
+static func angle_name(angle: DirectionResolver.HitAngle) -> String:
     match angle:
         DirectionResolver.HitAngle.FRONT:
             return "Front"

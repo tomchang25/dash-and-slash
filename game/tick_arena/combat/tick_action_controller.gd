@@ -126,24 +126,24 @@ func cancel_smash_windup() -> void:
 ## bool: a consumed verb only advances the world when it was not a Speed-meter or Mobility Free
 ## Action Major free action, and illegal inputs stay consumed false per the shared verb-result contract.
 ## The tick arena root connects TickInput's verb_requested signal directly to this method.
-func handle_verb(verb: Dictionary) -> void:
+func handle_verb(verb: TickVerb) -> void:
     if _input_locked or _smash_cancel_confirm_open:
         return
     var result := _verb_illegal()
-    match String(verb.get("type", "")):
-        "move":
-            result = _verb_move(verb["dir"])
-        "confirm":
-            if not (bool(verb.get("repeat", false)) and not _confirm_is_attack()):
+    match verb.kind:
+        TickVerb.Kind.MOVE:
+            result = _verb_move(verb.dir)
+        TickVerb.Kind.CONFIRM:
+            if not (verb.repeat and not _confirm_is_attack()):
                 result = _verb_confirm()
-        "mode_set":
-            _set_aim_mode(bool(verb.get("mobility", false)))
-        "cancel":
+        TickVerb.Kind.MODE_SET:
+            _set_aim_mode(verb.mobility)
+        TickVerb.Kind.CANCEL:
             _verb_cancel()
-        "wait":
+        TickVerb.Kind.WAIT:
             result = _verb_wait()
         _:
-            ToastManager.show_dev_error("TickActionController: unknown verb %s" % str(verb))
+            ToastManager.show_dev_error("TickActionController: unknown verb kind %d" % verb.kind)
     if bool(result.get("advances_world", false)):
         engine.advance_world()
     elif bool(result.get("consumed", false)):
@@ -197,7 +197,7 @@ func _verb_attack() -> Dictionary:
     var free_action := _spend_speed_if_full()
     var enemy := engine.enemy_at(target)
     if enemy != null:
-        _apply_player_hit(enemy, player.cell, _normal_attack_damage(), false)
+        _apply_player_hit(enemy, player.cell, _normal_attack_damage())
     _fill_speed_meter()
     if free_action:
         _append_message_suffix("Speed spent — free attack!")
@@ -227,9 +227,9 @@ func _verb_dash() -> Dictionary:
     var dir: Vector2i = plan["dir"]
     var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
-    var outcomes: Array[Dictionary] = []
+    var outcomes: Array[TickHitOutcome] = []
     for victim: GridEnemy in plan["victims"]:
-        outcomes.append(_apply_player_hit(victim, victim.get_grid_pos() - dir, _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE), true, guard_shredder, execution))
+        outcomes.append(_apply_player_hit(victim, victim.get_grid_pos() - dir, _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE), guard_shredder, execution))
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     view.flash_swing(plan["path"])
@@ -267,10 +267,10 @@ func _verb_smash() -> Dictionary:
     view.flash_swing(_smash_area(landing))
     var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
-    var outcomes: Array[Dictionary] = []
+    var outcomes: Array[TickHitOutcome] = []
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
-            outcomes.append(_apply_player_hit(enemy, landing, _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE), true, guard_shredder, execution))
+            outcomes.append(_apply_player_hit(enemy, landing, _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE), guard_shredder, execution))
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
@@ -352,7 +352,7 @@ func _mobility_range_cells(base_range: int) -> int:
 ## Whether a mobility-slot strike's collected hit outcomes refund this action's world advancement:
 ## the Mobility Free Action Major must be active, and at least one outcome must be a kill, guard
 ## break, or back-angle hit. A strike with several qualifying victims still refunds at most once.
-func _mobility_action_refunds(outcomes: Array[Dictionary]) -> bool:
+func _mobility_action_refunds(outcomes: Array[TickHitOutcome]) -> bool:
     return _run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION) and TickHitResolver.any_qualifies_for_mobility_free_action(outcomes)
 
 
@@ -405,9 +405,9 @@ func _close_smash_cancel_confirm() -> void:
 ## collect it for the Mobility Free Action Major's refund check instead of losing it. A kill needs
 ## no explicit removal here: take_hit() synchronously fires the enemy's died signal, which the wave
 ## controller (via the spawner's died_callback) already uses to drop it from alive-count tracking.
-func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
+func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, guard_shredder_trigger := false, execution_trigger := false) -> TickHitOutcome:
     var enemy_pos := enemy.global_position
-    var result := enemy.take_hit(origin_cell, damage, is_dash, guard_shredder_trigger, execution_trigger)
+    var result := enemy.take_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger)
     _play_major_trigger_feedback(result, enemy_pos)
     _apply_player_result_message(result)
     return result
@@ -416,39 +416,37 @@ func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, i
 ## Layers distinct temporary VFX/SFX for a mobility-slot-triggered Major's upgraded result on top of the
 ## shared hit feedback GridEnemy already played, so Shredder and Execution read clearly without silencing
 ## the fallback guard-break/kill feedback every hit already has.
-func _play_major_trigger_feedback(result: Dictionary, world_pos: Vector2) -> void:
-    var major_trigger := StringName(result.get("major_trigger", TickHitResolver.MAJOR_TRIGGER_NONE))
-    if major_trigger == TickHitResolver.MAJOR_TRIGGER_GUARD_SHREDDER:
+func _play_major_trigger_feedback(result: TickHitOutcome, world_pos: Vector2) -> void:
+    if result.major_trigger == TickHitOutcome.MajorTrigger.GUARD_SHREDDER:
         MajorTriggerFeedbackVFX.play_guard_shredder(world_pos, self)
         AudioManager.play_event(player.guard_shredder_sfx_event, world_pos)
-    elif major_trigger == TickHitResolver.MAJOR_TRIGGER_EXECUTION:
+    elif result.major_trigger == TickHitOutcome.MajorTrigger.EXECUTION:
         MajorTriggerFeedbackVFX.play_execution(world_pos, self)
         AudioManager.play_event(player.execution_sfx_event, world_pos)
 
 
-func _apply_player_result_message(result: Dictionary) -> void:
-    var feedback_kind := StringName(result.get("feedback_kind", TickHitResolver.FEEDBACK_DAMAGED))
-    var major_trigger := StringName(result.get("major_trigger", TickHitResolver.MAJOR_TRIGGER_NONE))
-    if feedback_kind == TickHitResolver.FEEDBACK_WHIFF:
-        set_message("Whiff.")
-    elif feedback_kind == TickHitResolver.FEEDBACK_KILL:
-        if major_trigger == TickHitResolver.MAJOR_TRIGGER_EXECUTION:
-            set_message("EXECUTION!")
-        else:
-            set_message("Enemy destroyed!")
-    elif feedback_kind == TickHitResolver.FEEDBACK_GUARD_BREAK:
-        if major_trigger == TickHitResolver.MAJOR_TRIGGER_GUARD_SHREDDER:
-            set_message("GUARD SHREDDER!")
-        else:
-            set_message("%s hit — GUARD BREAK!" % TickCombatRules.angle_name(result["angle"]))
-    elif feedback_kind == TickHitResolver.FEEDBACK_STAGGER_BURST:
-        set_message("%s burst hit." % TickCombatRules.angle_name(result["angle"]))
-    elif feedback_kind == TickHitResolver.FEEDBACK_BLOCKED:
-        set_message("%s blocked." % TickCombatRules.angle_name(result["angle"]))
-    elif feedback_kind == TickHitResolver.FEEDBACK_DAMAGED:
-        set_message("%s hit." % TickCombatRules.angle_name(result["angle"]))
-    else:
-        ToastManager.show_dev_error("TickActionController: unexpected feedback kind %s" % feedback_kind)
+func _apply_player_result_message(result: TickHitOutcome) -> void:
+    match result.feedback_kind:
+        TickHitOutcome.FeedbackKind.WHIFF:
+            set_message("Whiff.")
+        TickHitOutcome.FeedbackKind.KILL:
+            if result.major_trigger == TickHitOutcome.MajorTrigger.EXECUTION:
+                set_message("EXECUTION!")
+            else:
+                set_message("Enemy destroyed!")
+        TickHitOutcome.FeedbackKind.GUARD_BREAK:
+            if result.major_trigger == TickHitOutcome.MajorTrigger.GUARD_SHREDDER:
+                set_message("GUARD SHREDDER!")
+            else:
+                set_message("%s hit — GUARD BREAK!" % TickCombatRules.angle_name(result.angle))
+        TickHitOutcome.FeedbackKind.STAGGER_BURST:
+            set_message("%s burst hit." % TickCombatRules.angle_name(result.angle))
+        TickHitOutcome.FeedbackKind.BLOCKED:
+            set_message("%s blocked." % TickCombatRules.angle_name(result.angle))
+        TickHitOutcome.FeedbackKind.DAMAGED:
+            set_message("%s hit." % TickCombatRules.angle_name(result.angle))
+        _:
+            ToastManager.show_dev_error("TickActionController: unexpected feedback kind %s" % result.feedback_kind)
 
 # == Aiming and plans ==
 

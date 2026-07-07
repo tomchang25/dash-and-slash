@@ -206,11 +206,11 @@ func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) ->
     _apply_hit_feedback(outcome, src_pos)
 
     if health != null:
-        health.take_damage(float(outcome["hp_damage"]), source)
+        health.take_damage(outcome.hp_damage, source)
     if health != null and not health.is_alive():
         return
     if _guard != null:
-        _guard.take_guard_damage(int(outcome["guard_damage"]))
+        _guard.take_guard_damage(outcome.guard_damage)
 
 
 func _on_stagger_started() -> void:
@@ -311,26 +311,26 @@ func get_attack_tiles() -> Array[Vector2i]:
 ## can never disagree with the resolved hit. Origin is the attacker's cell (player or dash origin).
 ## guard_shredder_trigger and execution_trigger are the mobility-slot-triggered Major hooks; callers
 ## pass true only for an actual mobility-slot strike (Dash or Smash) whose run build has that trigger active.
-## Returns keys angle, was_guarded, stagger_burst, guard_broken, killed, hp_damage, guard_damage, feedback_kind, major_trigger.
-func predict_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
-    return _resolve_tick_hit_outcome(origin_cell, base_damage, is_dash, guard_shredder_trigger, execution_trigger)
+## Returns a TickHitOutcome with fields angle, was_guarded, stagger_burst, guard_broken, killed, hp_damage, guard_damage, feedback_kind, major_trigger.
+func predict_hit(origin_cell: Vector2i, base_damage: float, guard_shredder_trigger := false, execution_trigger := false) -> TickHitOutcome:
+    return _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger)
 
 
 ## Applies one player hit from the given origin cell, reusing the established guard/health/feedback
-## seams (damaged/blocked SFX, guard-break/shield/full-damage VFX), and returns the same dictionary
+## seams (damaged/blocked SFX, guard-break/shield/full-damage VFX), and returns the same outcome
 ## as predict_hit(). A guard break clears banked energy via _on_guard_broken().
-func take_hit(origin_cell: Vector2i, base_damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
+func take_hit(origin_cell: Vector2i, base_damage: float, guard_shredder_trigger := false, execution_trigger := false) -> TickHitOutcome:
     var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
-    var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, is_dash, guard_shredder_trigger, execution_trigger)
+    var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger)
     if not is_alive():
         return outcome
     _apply_hit_feedback(outcome, src_pos)
     if health != null:
-        health.take_damage(float(outcome["hp_damage"]), self)
+        health.take_damage(outcome.hp_damage, self)
     if health != null and not health.is_alive():
         return outcome
-    if _guard != null and int(outcome["guard_damage"]) > 0:
-        _guard.take_guard_damage(int(outcome["guard_damage"]))
+    if _guard != null and outcome.guard_damage > 0:
+        _guard.take_guard_damage(outcome.guard_damage)
     return outcome
 
 
@@ -1096,7 +1096,7 @@ func _clear_attack_presentation() -> void:
 
 
 ## Legacy physics-hit resolution path. Tick prediction and commits use _resolve_tick_hit_outcome() / TickHitResolver instead.
-func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -> Dictionary:
+func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -> TickHitOutcome:
     if not is_alive():
         return EnemyHitResolver.empty_outcome()
 
@@ -1107,7 +1107,7 @@ func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -
 
 
 ## Pure tick-grid hit resolution shared by predict_hit() and take_hit(); this is the authoritative path for previews and committed tick verbs.
-func _resolve_tick_hit_outcome(origin_cell: Vector2i, base_damage: float, is_dash: bool, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
+func _resolve_tick_hit_outcome(origin_cell: Vector2i, base_damage: float, guard_shredder_trigger := false, execution_trigger := false) -> TickHitOutcome:
     if not is_alive():
         return TickHitResolver.empty_outcome()
 
@@ -1115,7 +1115,6 @@ func _resolve_tick_hit_outcome(origin_cell: Vector2i, base_damage: float, is_das
         origin_cell,
         _target_snapshot(),
         base_damage,
-        TickHitResolver.HitKind.DASH if is_dash else TickHitResolver.HitKind.NORMAL,
         -1,
         guard_shredder_trigger,
         execution_trigger,
@@ -1144,35 +1143,34 @@ func _facing_as_cell_dir() -> Vector2i:
 
 
 ## Plays the established damaged/blocked SFX and guard-break/shield/full-damage VFX for a resolved hit.
-func _apply_hit_feedback(outcome: Dictionary, src_pos: Vector2) -> void:
-    var angle := int(outcome["angle"])
-    var feedback_kind := StringName(outcome.get("feedback_kind", TickHitResolver.FEEDBACK_DAMAGED))
-    if feedback_kind == TickHitResolver.FEEDBACK_WHIFF:
-        return
-    if feedback_kind == TickHitResolver.FEEDBACK_BLOCKED:
-        var blocked_event := _get_blocked_hit_sfx(angle)
-        if blocked_event != null:
-            AudioManager.play_event(blocked_event, global_position)
-        CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
-    elif feedback_kind == TickHitResolver.FEEDBACK_GUARD_BREAK:
-        if damaged_sfx_event != null:
-            AudioManager.play_event(damaged_sfx_event, global_position)
-        CombatFeedbackVFX.play_guard_break(global_position, self)
-    elif feedback_kind == TickHitResolver.FEEDBACK_STAGGER_BURST or feedback_kind == TickHitResolver.FEEDBACK_KILL or feedback_kind == TickHitResolver.FEEDBACK_DAMAGED:
-        if damaged_sfx_event != null:
-            AudioManager.play_event(damaged_sfx_event, global_position)
-        CombatFeedbackVFX.play_full_damage(global_position, self)
-    else:
-        ToastManager.show_dev_error("GridEnemy: unexpected feedback kind %s" % feedback_kind)
+func _apply_hit_feedback(outcome: TickHitOutcome, src_pos: Vector2) -> void:
+    match outcome.feedback_kind:
+        TickHitOutcome.FeedbackKind.WHIFF:
+            return
+        TickHitOutcome.FeedbackKind.BLOCKED:
+            var blocked_event := _get_blocked_hit_sfx(outcome.angle)
+            if blocked_event != null:
+                AudioManager.play_event(blocked_event, global_position)
+            CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
+        TickHitOutcome.FeedbackKind.GUARD_BREAK:
+            if damaged_sfx_event != null:
+                AudioManager.play_event(damaged_sfx_event, global_position)
+            CombatFeedbackVFX.play_guard_break(global_position, self)
+        TickHitOutcome.FeedbackKind.STAGGER_BURST, TickHitOutcome.FeedbackKind.KILL, TickHitOutcome.FeedbackKind.DAMAGED:
+            if damaged_sfx_event != null:
+                AudioManager.play_event(damaged_sfx_event, global_position)
+            CombatFeedbackVFX.play_full_damage(global_position, self)
+        _:
+            ToastManager.show_dev_error("GridEnemy: unexpected feedback kind %s" % outcome.feedback_kind)
 
 
-func _resolve_guard_damage(angle: int, guard_damage_profile: int) -> int:
+func _resolve_guard_damage(angle: DirectionResolver.HitAngle, guard_damage_profile: int) -> int:
     if guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
         return DirectionResolver.dash_guard_damage(angle)
     return DirectionResolver.normal_guard_damage(angle)
 
 
-func _get_blocked_hit_sfx(angle: int) -> SpatialAudioEvent:
+func _get_blocked_hit_sfx(angle: DirectionResolver.HitAngle) -> SpatialAudioEvent:
     return damaged_sfx_event if angle == DirectionResolver.HitAngle.BACK else blocked_sfx_event
 
 
