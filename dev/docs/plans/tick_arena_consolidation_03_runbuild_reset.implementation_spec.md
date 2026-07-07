@@ -34,12 +34,12 @@ Construct the run-scoped `RunBuild` once per arena scene and reset it in place o
 
 ## Files to Change
 
-| File | Change Size | Purpose |
-| --- | --- | --- |
-| `game/tick_arena/tick_arena.gd` | Medium | Stop rebuilding the store; `_restart_run` delegates to the run controller; drop `restart_requested` wiring; update header doctrine |
-| `game/tick_arena/run/tick_run_controller.gd` | Medium | `reset_run(reason)` clears the store in place; restart button handled locally; drop the signal; update header doctrine |
-| `game/tick_arena/run/run_build.gd` | Small | `clear()` docstring reflects production use |
-| `test/unit/*` | Small | Cover `clear()` resetting entries, majors, payload override, and triggers together |
+| File                                         | Change Size | Purpose                                                                                                                            |
+| -------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `game/tick_arena/tick_arena.gd`              | Medium      | Stop rebuilding the store; `_restart_run` delegates to the run controller; drop `restart_requested` wiring; update header doctrine |
+| `game/tick_arena/run/tick_run_controller.gd` | Medium      | `reset_run(reason)` clears the store in place; restart button handled locally; drop the signal; update header doctrine             |
+| `game/tick_arena/run/run_build.gd`           | Small       | `clear()` docstring reflects production use                                                                                        |
+| `test/unit/*`                                | Small       | Cover `clear()` resetting entries, majors, payload override, and triggers together                                                 |
 
 ## Implementation Notes
 
@@ -48,11 +48,11 @@ Construct the run-scoped `RunBuild` once per arena scene and reset it in place o
 
 ## Edge Cases
 
-| Case | Expected Handling |
-| --- | --- |
+| Case                                                       | Expected Handling                                                                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Restart while the wave banner or reward overlay is pending | Existing cancellation path runs unchanged before the store clears; no stale callback can apply a reward onto the cleared store |
-| Restart with owned Majors / payload override / triggers | `clear()` drops them; `run_reset_finished` still drives the root's debug-button and HUD refresh |
-| Death overlay restart vs debug R key | Both converge on the same run-controller reset method |
+| Restart with owned Majors / payload override / triggers    | `clear()` drops them; `run_reset_finished` still drives the root's debug-button and HUD refresh                                |
+| Death overlay restart vs debug R key                       | Both converge on the same run-controller reset method                                                                          |
 
 ## Acceptance Criteria
 

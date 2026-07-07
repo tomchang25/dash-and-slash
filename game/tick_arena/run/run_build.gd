@@ -60,8 +60,10 @@ func total(channel: StringName) -> float:
     return sum
 
 
-## Clears every recorded entry. Not used on the production restart path
-## (a fresh RunBuild is built per run) — provided for tests and in-place reset.
+## Clears every recorded entry, the Major-effect record list, the mobility payload override (back
+## to the Dash default), and the mobility-trigger set. This is the sole production restart path:
+## the arena root constructs one RunBuild per arena scene and TickRunController.reset_run() clears
+## it in place, so every collaborator keeps its original injected reference for the scene's lifetime.
 func clear() -> void:
     _entries.clear()
     _major_entries.clear()
