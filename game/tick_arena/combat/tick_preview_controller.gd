@@ -1,22 +1,12 @@
 # tick_preview_controller.gd
 # Owns read-only tick-arena preview calculation: mouse cell/aim resolution, dash plan previews,
 # smash previews, and predicted outcome badges. Writes only view payloads to TickGridView and must
-# never mutate player state, enemy state, run-build state, wave state, or world time. Duplicates a
-# handful of pure planning helpers also present on TickActionController rather than sharing them
-# across the boundary, per the ownership split's correctness-over-consolidation rule; the aim mode
-# and last-aim direction it reads are the action controller's own truth so a preview can never
-# disagree with what a confirm would actually resolve.
+# never mutate player state, enemy state, run-build state, wave state, or world time. Shares pure
+# planning helpers and combat base numbers with TickActionController through TickActionPlanner and
+# TickCombatRules so a preview can never disagree with what a commit resolves; the aim mode and
+# last-aim direction it reads stay the action controller's own truth.
 class_name TickPreviewController
 extends Node
-
-# -- Constants --
-
-const PLAYER_ATTACK_DAMAGE := 20.0
-const PLAYER_DASH_DAMAGE := 30.0
-const PLAYER_SMASH_DAMAGE := 30.0
-const DASH_RANGE := 5
-const SMASH_RANGE := 3
-const MAX_MOBILITY_RANGE_BONUS_PERCENT := 200.0
 
 # -- Exports --
 
@@ -84,7 +74,14 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
             var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
             var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
             for victim: GridEnemy in plan["victims"]:
-                outcomes[victim.get_grid_pos()] = _outcome_entry(victim, victim.get_grid_pos() - dir, _mobility_attack_damage(PLAYER_DASH_DAMAGE), true, guard_shredder, execution)
+                outcomes[victim.get_grid_pos()] = _outcome_entry(
+                    victim,
+                    victim.get_grid_pos() - dir,
+                    _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE),
+                    true,
+                    guard_shredder,
+                    execution,
+                )
         return
     if payload == RunBuild.PAYLOAD_SMASH:
         var target := _clamped_smash_target()
@@ -120,10 +117,10 @@ func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, is_d
         label = "BURST"
         tier = 1
     elif bool(result["guard_broken"]):
-        label = "SHREDDER" if major_trigger == TickHitResolver.MAJOR_TRIGGER_GUARD_SHREDDER else "%s BREAK" % _angle_name(result["angle"]).to_upper()
+        label = "SHREDDER" if major_trigger == TickHitResolver.MAJOR_TRIGGER_GUARD_SHREDDER else "%s BREAK" % TickCombatRules.angle_name(result["angle"]).to_upper()
         tier = 1
     else:
-        label = _angle_name(result["angle"]).to_upper()
+        label = TickCombatRules.angle_name(result["angle"]).to_upper()
     return { "cell": enemy.get_grid_pos(), "label": label, "tier": tier }
 
 
@@ -135,7 +132,7 @@ func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - center) <= 1:
-            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, _mobility_attack_damage(PLAYER_SMASH_DAMAGE), true, guard_shredder, execution)
+            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE), true, guard_shredder, execution)
 
 
 ## Shows the locked Smash landing and its outcomes regardless of the current aim mode, since an armed
@@ -149,94 +146,37 @@ func _apply_locked_smash_preview(preview: Dictionary, outcomes: Dictionary) -> v
 
 
 func _mouse_cell() -> Vector2i:
-    return grid.world_to_grid(grid.get_global_mouse_position())
+    return TickActionPlanner.mouse_cell(grid)
 
 
 func _aim_direction() -> Vector2i:
-    var dir := TickCombatRules.dominant_direction(_mouse_cell() - player.cell)
-    if dir == Vector2i.ZERO:
-        return action_controller.get_last_aim()
-    return dir
+    return TickActionPlanner.aim_direction(_mouse_cell(), player.cell, action_controller.get_last_aim())
 
 
-## Computes the dash plan shared by the preview and the verb: direction and wanted length from the cursor,
-## landing on the farthest open cell at or before it, victims collected along the traveled path.
 func _compute_dash_plan() -> Dictionary:
-    var delta := _mouse_cell() - player.cell
-    var dir := TickCombatRules.dominant_direction(delta)
-    if dir == Vector2i.ZERO:
-        dir = action_controller.get_last_aim()
-    var wanted := clampi(absi(delta.x * dir.x + delta.y * dir.y), 1, _mobility_range_cells(DASH_RANGE))
-
-    var preview_path: Array[Vector2i] = []
-    var travel_path: Array[Vector2i] = []
-    var landing_index := -1
-    for i in range(1, wanted + 1):
-        var step_cell := player.cell + dir * i
-        if not grid.is_land(step_cell):
-            break
-        preview_path.append(step_cell)
-        travel_path.append(step_cell)
-        if engine.enemy_at(step_cell) == null:
-            landing_index = travel_path.size() - 1
-    if landing_index < 0:
-        return { "legal": false, "dir": dir, "path": preview_path }
-
-    var travel := travel_path.slice(0, landing_index + 1)
-    var victims: Array[GridEnemy] = []
-    for travel_cell: Vector2i in travel:
-        var enemy := engine.enemy_at(travel_cell)
-        if enemy != null:
-            victims.append(enemy)
-    return {
-        "legal": true,
-        "dir": dir,
-        "path": travel,
-        "landing": travel[landing_index],
-        "victims": victims,
-    }
+    return TickActionPlanner.compute_dash_plan(grid, engine, _mouse_cell(), player.cell, action_controller.get_last_aim(), _mobility_range_cells(TickCombatRules.DASH_RANGE))
 
 
-## Clamps the mouse-aimed cell to the Smash range box independently per axis.
 func _clamped_smash_target() -> Vector2i:
-    var smash_range := _mobility_range_cells(SMASH_RANGE)
-    var delta := _mouse_cell() - player.cell
-    delta.x = clampi(delta.x, -smash_range, smash_range)
-    delta.y = clampi(delta.y, -smash_range, smash_range)
-    return player.cell + delta
+    return TickActionPlanner.clamped_smash_target(_mouse_cell(), player.cell, _mobility_range_cells(TickCombatRules.SMASH_RANGE))
 
 
 func _chebyshev(delta: Vector2i) -> int:
-    return maxi(absi(delta.x), absi(delta.y))
+    return TickActionPlanner.chebyshev(delta)
 
 
 ## Projects normal attack's base damage through the run's Normal Attack Damage bonus total.
 func _normal_attack_damage() -> float:
-    return PLAYER_ATTACK_DAMAGE + _run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE)
+    return TickCombatRules.normal_attack_damage(_run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE))
 
 
 ## Projects a mobility-slot payload's base damage (Dash or Smash) through the run's Mobility Attack
 ## Damage bonus total.
 func _mobility_attack_damage(base_damage: float) -> float:
-    return base_damage + _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE)
+    return TickCombatRules.mobility_attack_damage(base_damage, _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE))
 
 
 ## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility
 ## Range percent bonus.
 func _mobility_range_cells(base_range: int) -> int:
-    return TickCombatRules.mobility_range_cells(base_range, _run_build.total(RunBuild.CH_MOBILITY_RANGE), MAX_MOBILITY_RANGE_BONUS_PERCENT)
-
-
-func _angle_name(angle: int) -> String:
-    match angle:
-        DirectionResolver.HitAngle.FRONT:
-            return "Front"
-        DirectionResolver.HitAngle.SIDE:
-            return "Side"
-        DirectionResolver.HitAngle.BACK:
-            return "BACK"
-        DirectionResolver.HitAngle.NONE:
-            return "Side"
-        _:
-            ToastManager.show_dev_error("TickPreviewController: unexpected hit angle %d" % angle)
-            return "?"
+    return TickCombatRules.mobility_range_cells(base_range, _run_build.total(RunBuild.CH_MOBILITY_RANGE), TickCombatRules.MAX_MOBILITY_RANGE_BONUS_PERCENT)

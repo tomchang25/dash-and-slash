@@ -17,14 +17,6 @@ enum AimMode {
 
 # -- Constants --
 
-const PLAYER_ATTACK_DAMAGE := 20.0
-const PLAYER_DASH_DAMAGE := 30.0
-const PLAYER_SMASH_DAMAGE := 30.0
-const DASH_RANGE := 5
-const DASH_COOLDOWN_TICKS := 4
-const SMASH_RANGE := 3
-const SMASH_COOLDOWN_TICKS := 6
-const MAX_MOBILITY_RANGE_BONUS_PERCENT := 200.0
 const MESSAGE_SEC := 1.6
 
 # -- Exports --
@@ -230,19 +222,19 @@ func _verb_dash() -> Dictionary:
         return _verb_illegal()
     var plan := _compute_dash_plan()
     if not bool(plan["legal"]):
-        view.flash_deny(player.cell + plan["dir"] * _mobility_range_cells(DASH_RANGE))
+        view.flash_deny(player.cell + plan["dir"] * _mobility_range_cells(TickCombatRules.DASH_RANGE))
         return _verb_illegal()
     var dir: Vector2i = plan["dir"]
     var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     var outcomes: Array[Dictionary] = []
     for victim: GridEnemy in plan["victims"]:
-        outcomes.append(_apply_player_hit(victim, victim.get_grid_pos() - dir, _mobility_attack_damage(PLAYER_DASH_DAMAGE), true, guard_shredder, execution))
+        outcomes.append(_apply_player_hit(victim, victim.get_grid_pos() - dir, _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE), true, guard_shredder, execution))
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     view.flash_swing(plan["path"])
     player.move_to(plan["landing"], true)
-    player.dash_cooldown = _mobility_cooldown_ticks(DASH_COOLDOWN_TICKS)
+    player.dash_cooldown = _mobility_cooldown_ticks(TickCombatRules.DASH_COOLDOWN_TICKS)
     var refunds := _mobility_action_refunds(outcomes)
     if refunds:
         _append_message_suffix("Mobility refunded — free!")
@@ -278,14 +270,14 @@ func _verb_smash() -> Dictionary:
     var outcomes: Array[Dictionary] = []
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
-            outcomes.append(_apply_player_hit(enemy, landing, _mobility_attack_damage(PLAYER_SMASH_DAMAGE), true, guard_shredder, execution))
+            outcomes.append(_apply_player_hit(enemy, landing, _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE), true, guard_shredder, execution))
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
     AudioManager.play_event(player.smash_impact_sfx_event, grid.cell_center(landing))
     player.move_to(landing, true)
     player.disarm_smash()
-    player.smash_cooldown = _mobility_cooldown_ticks(SMASH_COOLDOWN_TICKS)
+    player.smash_cooldown = _mobility_cooldown_ticks(TickCombatRules.SMASH_COOLDOWN_TICKS)
     _close_smash_cancel_confirm()
     var refunds := _mobility_action_refunds(outcomes)
     if refunds:
@@ -342,19 +334,19 @@ func _mobility_cooldown_ticks(base_ticks: int) -> int:
 
 ## Projects normal attack's base damage through the run's Normal Attack Damage bonus total.
 func _normal_attack_damage() -> float:
-    return PLAYER_ATTACK_DAMAGE + _run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE)
+    return TickCombatRules.normal_attack_damage(_run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE))
 
 
 ## Projects a mobility-slot payload's base damage (Dash or Smash) through the run's Mobility Attack
 ## Damage bonus total.
 func _mobility_attack_damage(base_damage: float) -> float:
-    return base_damage + _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE)
+    return TickCombatRules.mobility_attack_damage(base_damage, _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE))
 
 
 ## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility
 ## Range percent bonus.
 func _mobility_range_cells(base_range: int) -> int:
-    return TickCombatRules.mobility_range_cells(base_range, _run_build.total(RunBuild.CH_MOBILITY_RANGE), MAX_MOBILITY_RANGE_BONUS_PERCENT)
+    return TickCombatRules.mobility_range_cells(base_range, _run_build.total(RunBuild.CH_MOBILITY_RANGE), TickCombatRules.MAX_MOBILITY_RANGE_BONUS_PERCENT)
 
 
 ## Whether a mobility-slot strike's collected hit outcomes refund this action's world advancement:
@@ -448,13 +440,13 @@ func _apply_player_result_message(result: Dictionary) -> void:
         if major_trigger == TickHitResolver.MAJOR_TRIGGER_GUARD_SHREDDER:
             set_message("GUARD SHREDDER!")
         else:
-            set_message("%s hit — GUARD BREAK!" % _angle_name(result["angle"]))
+            set_message("%s hit — GUARD BREAK!" % TickCombatRules.angle_name(result["angle"]))
     elif feedback_kind == TickHitResolver.FEEDBACK_STAGGER_BURST:
-        set_message("%s burst hit." % _angle_name(result["angle"]))
+        set_message("%s burst hit." % TickCombatRules.angle_name(result["angle"]))
     elif feedback_kind == TickHitResolver.FEEDBACK_BLOCKED:
-        set_message("%s blocked." % _angle_name(result["angle"]))
+        set_message("%s blocked." % TickCombatRules.angle_name(result["angle"]))
     elif feedback_kind == TickHitResolver.FEEDBACK_DAMAGED:
-        set_message("%s hit." % _angle_name(result["angle"]))
+        set_message("%s hit." % TickCombatRules.angle_name(result["angle"]))
     else:
         ToastManager.show_dev_error("TickActionController: unexpected feedback kind %s" % feedback_kind)
 
@@ -462,74 +454,27 @@ func _apply_player_result_message(result: Dictionary) -> void:
 
 
 func _mouse_cell() -> Vector2i:
-    return grid.world_to_grid(grid.get_global_mouse_position())
+    return TickActionPlanner.mouse_cell(grid)
 
 
 func _aim_direction() -> Vector2i:
-    var dir := TickCombatRules.dominant_direction(_mouse_cell() - player.cell)
-    if dir == Vector2i.ZERO:
-        return _last_aim
-    return dir
+    return TickActionPlanner.aim_direction(_mouse_cell(), player.cell, _last_aim)
 
 
-## Computes the dash plan shared by the preview and the verb: direction and wanted length from the cursor,
-## landing on the farthest open cell at or before it, victims collected along the traveled path.
 func _compute_dash_plan() -> Dictionary:
-    var delta := _mouse_cell() - player.cell
-    var dir := TickCombatRules.dominant_direction(delta)
-    if dir == Vector2i.ZERO:
-        dir = _last_aim
-    var wanted := clampi(absi(delta.x * dir.x + delta.y * dir.y), 1, _mobility_range_cells(DASH_RANGE))
-
-    var preview_path: Array[Vector2i] = []
-    var travel_path: Array[Vector2i] = []
-    var landing_index := -1
-    for i in range(1, wanted + 1):
-        var step_cell := player.cell + dir * i
-        if not grid.is_land(step_cell):
-            break
-        preview_path.append(step_cell)
-        travel_path.append(step_cell)
-        if engine.enemy_at(step_cell) == null:
-            landing_index = travel_path.size() - 1
-    if landing_index < 0:
-        return { "legal": false, "dir": dir, "path": preview_path }
-
-    var travel := travel_path.slice(0, landing_index + 1)
-    var victims: Array[GridEnemy] = []
-    for travel_cell: Vector2i in travel:
-        var enemy := engine.enemy_at(travel_cell)
-        if enemy != null:
-            victims.append(enemy)
-    return {
-        "legal": true,
-        "dir": dir,
-        "path": travel,
-        "landing": travel[landing_index],
-        "victims": victims,
-    }
+    return TickActionPlanner.compute_dash_plan(grid, engine, _mouse_cell(), player.cell, _last_aim, _mobility_range_cells(TickCombatRules.DASH_RANGE))
 
 
-## Clamps the mouse-aimed cell to the Smash range box independently per axis.
 func _clamped_smash_target() -> Vector2i:
-    var smash_range := _mobility_range_cells(SMASH_RANGE)
-    var delta := _mouse_cell() - player.cell
-    delta.x = clampi(delta.x, -smash_range, smash_range)
-    delta.y = clampi(delta.y, -smash_range, smash_range)
-    return player.cell + delta
+    return TickActionPlanner.clamped_smash_target(_mouse_cell(), player.cell, _mobility_range_cells(TickCombatRules.SMASH_RANGE))
 
 
-## Returns the 3x3 block of cells centered on the given landing cell.
 func _smash_area(center: Vector2i) -> Array[Vector2i]:
-    var area: Array[Vector2i] = []
-    for ox in range(-1, 2):
-        for oy in range(-1, 2):
-            area.append(center + Vector2i(ox, oy))
-    return area
+    return TickActionPlanner.smash_area(center)
 
 
 func _chebyshev(delta: Vector2i) -> int:
-    return maxi(absi(delta.x), absi(delta.y))
+    return TickActionPlanner.chebyshev(delta)
 
 # == Messages ==
 
@@ -541,18 +486,3 @@ func _update_message(delta: float) -> void:
     if _message_time <= 0.0:
         _message = ""
         state_changed.emit()
-
-
-func _angle_name(angle: int) -> String:
-    match angle:
-        DirectionResolver.HitAngle.FRONT:
-            return "Front"
-        DirectionResolver.HitAngle.SIDE:
-            return "Side"
-        DirectionResolver.HitAngle.BACK:
-            return "BACK"
-        DirectionResolver.HitAngle.NONE:
-            return "Side"
-        _:
-            ToastManager.show_dev_error("TickActionController: unexpected hit angle %d" % angle)
-            return "?"

@@ -1,6 +1,7 @@
 # tick_combat_rules.gd
-# Static combat rules for the tick arena: hit-angle resolution, guard damage, HP bypass, and stagger multipliers.
-# Numbers mirror the design baseline (GDD v0.5 section 6); phase 3 formalizes this into the shared hit resolver.
+# Static combat rules for the tick arena: player combat base numbers, hit-angle resolution/display,
+# guard damage, HP bypass, and stagger multipliers. Numbers mirror the design baseline (GDD v0.5
+# section 6); phase 3 formalizes this into the shared hit resolver.
 class_name TickCombatRules
 
 enum HitAngle {
@@ -16,6 +17,15 @@ const SIDE_HP_BYPASS := 0.1
 const BACK_HP_BYPASS := 0.25
 const STAGGER_ATTACK_MULTIPLIER := 1.0
 const STAGGER_DASH_MULTIPLIER := 2.0
+
+const PLAYER_ATTACK_DAMAGE := 20.0
+const PLAYER_DASH_DAMAGE := 30.0
+const PLAYER_SMASH_DAMAGE := 30.0
+const DASH_RANGE := 5
+const DASH_COOLDOWN_TICKS := 4
+const SMASH_RANGE := 3
+const SMASH_COOLDOWN_TICKS := 6
+const MAX_MOBILITY_RANGE_BONUS_PERCENT := 200.0
 
 # == Common API ==
 
@@ -70,6 +80,25 @@ static func dominant_direction(delta: Vector2i) -> Vector2i:
     return Vector2i(0, signi(delta.y))
 
 
+## Renders a resolved hit angle as the display label used in HUD feedback messages and preview
+## badges. Takes the untyped int a hit-outcome dictionary carries (DirectionResolver.HitAngle,
+## including its NONE member) rather than this file's own HitAngle enum; unifying the two hit-angle
+## vocabularies is child 04's job, not this move.
+static func angle_name(angle: int) -> String:
+    match angle:
+        DirectionResolver.HitAngle.FRONT:
+            return "Front"
+        DirectionResolver.HitAngle.SIDE:
+            return "Side"
+        DirectionResolver.HitAngle.BACK:
+            return "BACK"
+        DirectionResolver.HitAngle.NONE:
+            return "NONE"
+        _:
+            ToastManager.show_dev_error("TickCombatRules: unexpected hit angle %d" % angle)
+            return "?"
+
+
 ## Projects a mobility-slot payload's base cooldown (Dash or Smash) through the run's Mobility
 ## Cooldown reduction stacks, floored at 1 tick so the mobility slot is never truly free through this Minor.
 static func mobility_cooldown_ticks(base_ticks: int, reduction_stacks: int) -> int:
@@ -82,3 +111,14 @@ static func mobility_cooldown_ticks(base_ticks: int, reduction_stacks: int) -> i
 static func mobility_range_cells(base_range: int, bonus_percent: float, max_bonus_percent: float) -> int:
     var capped_percent := minf(bonus_percent, max_bonus_percent)
     return maxi(int(round(float(base_range) * (1.0 + capped_percent / 100.0))), 1)
+
+
+## Projects normal attack's base damage through the run's Normal Attack Damage bonus total.
+static func normal_attack_damage(bonus_total: float) -> float:
+    return PLAYER_ATTACK_DAMAGE + bonus_total
+
+
+## Projects a mobility-slot payload's base damage (Dash or Smash) through the run's Mobility Attack
+## Damage bonus total.
+static func mobility_attack_damage(base_damage: float, bonus_total: float) -> float:
+    return base_damage + bonus_total
