@@ -22,7 +22,10 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-- [refactor] Tick arena structure consolidation: shared plan math, RunBuild in-place reset, typed combat contracts — [ref plans/tick_arena_structure_consolidation.md]
+- [combat] Staggered targets never take the designed 2.0x dash stagger-burst damage — the production hit resolvers never apply a dash stagger multiplier (only the prototype's own copy does).
+- [charge-enemy] balance charge enemy to 5 grid range instead until end grid
+- [spawn-enemy] the enemies spawn when wave begining somehow without any telegraph or any other sign, countdown. Also, somehow enemy should not
+- 目前Enemy不該有頻繁的Idle，因為都是1 Tick解決，所以如果被搶Path應該繼續simulate而不是卡在那邊, also this issue happened when wave spawn first round, all enemies remain idle in next round
 
 ---
 
@@ -48,8 +51,6 @@ One-line, no reasoning, no backing doc.
 ## Bug
 
 One-line, no reasoning, no backing doc.
-
-- [combat] Staggered targets never take the designed 2.0x dash stagger-burst damage — the production hit resolvers never apply a dash stagger multiplier (only the prototype's own copy does).
 
 ---
 

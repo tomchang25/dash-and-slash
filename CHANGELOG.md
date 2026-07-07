@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Tick Arena Structure Consolidation
+
+- 2026-07-07 — [combat] Tick arena combat contracts are consolidated around shared planning rules, one run-scoped build store that resets in place, and typed verb/hit-outcome values so preview and committed action paths share the same math without changing player-facing behavior
+
 ### Tick Enemy Ownership
 
 - 2026-07-07 — [enemy] Enemy behavior ownership is fully settled onto the tick engine: hit resolution and path planning are shared stateless helpers, each enemy owns a per-enemy tick combat runtime for telegraph/recovery timing, the state machine is narrowed to a decide-only intent layer (plan, step, turn, commit, stagger, dead), and the leftover real-time chase/cooldown code path is deleted now that every production enemy is tick-bound
