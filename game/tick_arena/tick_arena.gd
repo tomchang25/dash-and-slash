@@ -1,5 +1,5 @@
 # tick_arena.gd
-# Tick arena scene root (debug-only until cutover; run the scene directly). Composition layer: wires
+# Tick arena scene root (the production arena route). Composition layer: wires
 # the action, preview, and transitional run controllers to their scene collaborators and each other,
 # owns the shared run-scoped RunBuild, and keeps the small HUD/debug-panel glue that has not yet
 # earned its own controller.
@@ -57,7 +57,7 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-    # Debug-only arena shortcut; production never routes here until cutover replaces it.
+    # Player-facing run-reset shortcut — the controls label advertises "R reset", so this stays ungated.
     if event is InputEventKey and event.pressed and not event.echo:
         if event.physical_keycode == KEY_R:
             _restart_run("Run reset.")

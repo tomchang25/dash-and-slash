@@ -22,7 +22,6 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-- [combat] Full conversion to player-clocked tick grid combat (input, enemies, speed stats, run loop); prototype gate passed 2026-07-05 — [ref plans/tick_combat_rework.md]
 - [combat] Tick enemy ownership rework: FSM narrowed to intent layer, per-enemy tick combat runtime, base-class extraction — [ref plans/tick_combat_rework_02c_enemy_ownership.md]
 
 ---
@@ -31,6 +30,9 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
+- [refactor] Tick arena structure consolidation: shared plan math, reward ceremony collapse, RunBuild in-place reset, typed combat contracts, roll fallback rewrite — [ref plans/tick_arena_structure_consolidation.md]
+- [ui] Tick arena HUD refactor: single combat-info layer plus run-build summary — gated on the reward-artifacts decision — [ref plans/tick_arena_hud_refactor.sketch.md]
+
 ---
 
 ## Chore
@@ -38,12 +40,16 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 One-line, no reasoning, no backing doc.
 
 - [wave-balance] Playtest and retune WaveScaling's per-tier hp/damage/defense growth constants against the target curve (runs ending ~wave 20, wave 30 as practical ceiling).
+- [audio] Add a dedicated guard-broken SFX event — guard break currently plays only VFX plus the generic damaged/blocked audio (forgotten bullet from the shipped guard rework).
+- [docs] Sync the GDD to v0.5 shipped reality (drop the draft banner, close resolved deferred-list items) — remaining tail from the archived tick combat rework cutover.
 
 ---
 
 ## Bug
 
 One-line, no reasoning, no backing doc.
+
+- [combat] Staggered targets never take the designed 2.0x dash stagger-burst damage — STAGGER_DASH_MULTIPLIER is declared in TickCombatRules but unused by the production hit resolvers (only the prototype applies it).
 
 ---
 
@@ -53,21 +59,10 @@ Preliminary concepts — bigger than a one-liner, but a single `###` sub-section
 
 ### Future Major Effects
 
-Later Major content that should wait until the tick-combat Major override and triggered-effect seams have shipped through the active tick rework plan.
+Later Major content. The override and triggered-effect seams these need are shipped (Smash proves the payload override; Guard Shredder, Execution, and Mobility Free Action prove the trigger seam), so these are ready to build whenever content volume is wanted.
 
 - Chain Dash should share `SmashMajorEffect.EXCLUSIVITY_GROUP` and use `RunBuild.set_mobility_payload_override()` the same way Smash does (see `game/tick_arena/reward/effects/smash_major_effect.gd`).
 - Shockwave Dash and other mobility-slot-triggered Majors should reuse `RunBuild.set_mobility_trigger()` / `has_mobility_trigger()` (the seam Guard Shredder and Execution use, payload-agnostic across Dash and Smash) instead of forking either payload's resolution.
-
-### Guard Damage, HP Bypass, And Stagger Burst Rework
-
-Baseline hit resolution values are finalized (GDD v0.4 §6); this replaces the earlier front/side/back numbers and moves the instant-break and instant-kill behaviors out of baseline entirely.
-
-- Normal attack and dash share one guard damage table: front 8, side max(quarter_guard, 16), back max(half_guard, 32).
-- Guard-active hits also bypass a fraction of base damage straight to HP by angle: front 0, side 0.1, back 0.25.
-- Once an enemy is staggered (guard already broken), hits deal HP damage at a multiplier: normal attack 1.0x, dash 2.0x.
-- Guard broken on hit plays a new broken SFX; guard-active hits play blocked SFX; staggered hits play damaged SFX scaled to the multiplier.
-- Enemy max_guard does not scale with the 5-wave milestone system — only def/hp/damage scale, so the quarter/half guard floors stay meaningful for the whole run.
-- Instant guard break on a back dash hit, and instant kill on a staggered dash hit, are no longer baseline — see the Guard Shredder and Execution major effects under Major And Minor Run Build Effects.
 
 ### Enemy Sprite Readability Scaffold
 
@@ -99,37 +94,33 @@ Replace uniform enemy scene selection with weighted spawn pools that can scale b
 
 ### Wave Reward Deferred Ideas
 
-Later reward work that should wait until Major/Minor run build state exists.
+Later reward-economy work, kept behind the core loop stabilizing. The former terrain-targeting and terrain-shaping ideas were dropped — per-wave terrain mutation is frozen and the obstacle-grid direction replaces that pressure channel.
 
-- Manual terrain targeting with tile preview, validity highlight, confirmation, and cancellation.
 - Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
-- Advanced terrain shaping beyond random connected add and random safe connected remove.
+
+### Entity Layer Legacy Mixing Cleanup
+
+Once `tick_combat_rework_02c_enemy_ownership` step 5 and the cutover closeout land, survey the remaining legacy surface in `game/entities/` and promote a "tick purification" main plan. The investigation, the unclaimed residue (Entity's CharacterBody2D base, the physics hitbox/hurtbox chain, GridEnemy's dual-clock branch, the Enemy thin layer), and the open questions live in `plans/entity_layer_legacy_mixing.probe.md` — deliberately excluded from the tick arena structure consolidation plan to keep its zero-behavior-change guardrail intact.
 
 ### 增加額外障礙物 Grid 替代
 
 凍結每輪隨機增減或搬動地形；太隨機或太碎的地形有可能導致死局或卡手，不適合目前偏半益智型的 tick combat。後續地圖壓力改研究在穩定 10x10 基底上增加額外障礙物 grid，取代每輪碎地形的 run cadence。
 
-### Weapon Class Attack Variants
+- Corrupt Land（已自 tick rework 流程退役）是此方向的第一個候選危險格機制——spec 保留在 `plans/tick_combat_rework_06a_corrupt_land.implementation_spec.md`，撿起時先對照 codebase 修訂。
 
-Player sprite addon and player attack hitbox rework for weapon/class readability.
+### Character Classes
 
-- Kunai / Ninja: thrust attack, fast but weak, dash damage creates a long line attack.
-- Katana / Samurai: 45-degree slash, average damage and speed, dash damage stays direct.
-- Heavy axe / undecided class: 180-degree slash, high damage and slow speed, dash damage creates a landing circle area hitbox.
+Rewrite of the old weapon-class idea against tick verbs: a class is a bundled starting identity, not a hitbox variant.
+
+- Each class bundles a distinct base Speed profile (meter fill rate), normal attack cell shape, default mobility payload (Dash vs Smash), and one unique class-locked perk.
+- Class visual identity is a weapon sprite/marker on the round player body pointing at the current mouse aim (folded in from the retired Player Weapon draft) — the tick player has no combat facing, so the marker reads as aim, not facing.
+- Example directions to explore: kunai/ninja (fast Speed fill, line-thrust attack shape, Dash default), katana/samurai (balanced, arc slash shape, Dash default), heavy axe (slow, wide shape, Smash default).
 
 ### Defensive Terrain And Tower Reward Cards
 
-Later terrain-control reward cards that add player-owned board pressure after the core chaos loop is stable.
+Later reward cards that add player-owned board pressure, re-anchored to the stable-base obstacle-grid direction (see 增加額外障礙物 Grid 替代) now that per-wave terrain mutation is frozen.
 
 - Add Fortified Land as a reward card that blocks tile attacks from spawning on that cell.
 - Add Tower as a reward card that regularly attacks nearby tiles.
 - Add Archer Tower as a reward card that behaves like Tower but launches one-hit arrows.
-- Keep these behind core terrain chaos, Major/Minor build state, and basic enemy spawn weighting work.
-
-### Player Weapon
-
-Prototype a rounder player body with a weapon/facing marker that communicates aim direction now and can become the class identity read later.
-
-- Add or adjust player prototype weapon/facing marker nodes so the marker points toward the current aim direction.
-- Keep the player body visually round enough that facing is read from the weapon/facing marker rather than the character silhouette.
-- Treat the marker as the future class representation instead of requiring a full player character sprite immediately.
+- Keep these behind the obstacle-grid work and basic enemy spawn weighting.

@@ -1,10 +1,12 @@
-# Tick Combat Rework 07: All HUD Refactor
+# Tick Arena HUD Refactor
 
-Skeleton sketch written ahead of the phase; revise against the codebase at phase start. The codebase wins every disagreement.
+Severed from the shipped tick combat rework (was its Phase 07) once the conversion closed out. Skeleton sketch; revise against the codebase at implementation start — the codebase wins every disagreement.
+
+Gated on the reward-artifacts decision. If rewards become a Risk-of-Rain-style artifact system, the run-build summary this HUD renders is reshaped (a grouped artifact list with a stacked-effect sum panel rather than Minor/Major reward-effect grouping), so build this after that pivot is decided — otherwise the build-summary half gets built twice.
 
 ## Goal
 
-Refactor the tick arena HUD into a single readable combat information layer after the run loop, rewards, speed meter, and mobility refunds all exist. This phase turns the minimal truth displays from earlier phases into a durable player-facing HUD without changing combat rules.
+Refactor the tick arena HUD into a single readable combat information layer after the run loop, rewards, speed meter, and mobility refunds all exist. This turns the minimal truth displays from earlier phases into a durable player-facing HUD without changing combat rules.
 
 ## Requirements
 

@@ -16,6 +16,30 @@ Rules:
 
 ## [unreleased]
 
+### Tick Run Loop
+
+- 2026-07-07 — [combat] The tick arena now plays a full player-clocked run loop end to end — waves, reward choice, milestone elites, death, and restart — with automatic per-wave terrain mutation frozen out of the loop
+- 2026-07-07 — [waves] Wave spawning is counted in player actions: spawn warnings count down in ticks, concurrent population stays in the low tick-world range, and overflow enemies queue and drain as kills free space
+- 2026-07-07 — [combat] Tick arena code is promoted into its own feature-root layout (combat, player, wave, reward, view) instead of living as a tangled stage subfolder
+- 2026-07-06 — [combat] Reward effects apply through the run-scoped build store as shared cross-system truth, so the tick player projects damage, range, health, speed, and cooldown from recorded channels instead of legacy real-time player APIs
+- 2026-07-06 — [combat] Action resolution, previews, and run flow are split into scene-scoped controllers, reducing the arena root to composition and signal wiring
+
+### Tick Speed Stats
+
+- 2026-07-06 — [combat] Player speed is now data-driven: a shared Speed meter fills from moves and normal attacks to grant a free action, Mobility Cooldown reduces the active slot's cooldown, and a Mobility Free Action Major refunds mobility strikes that kill, guard-break, or hit from behind
+
+### Tick Mobility, Majors, And Rewards
+
+- 2026-07-06 — [combat] Dash lands on the grid with preview-is-truth targeting — a landing ghost and per-victim angle/result badges computed by the same hit math that resolves the commit — and the mobility slot becomes an ability-override seam
+- 2026-07-06 — [combat] Smash ships as the first slot-replacing Major (a windup leap-and-slam) on that seam, driven by command-style input: hold Alt for mobility mode, click to confirm, arm the windup then release
+- 2026-07-06 — [combat] Guard Shredder and Execution ship as mobility-slot-triggered Majors that fire for whichever payload occupies the slot, with previews showing the upgraded outcome honestly
+- 2026-07-06 — [combat] A minimal tick reward loop (wave clear, three-choice reward, next wave) lets these Majors and the Minor effects be earned in the arena, with debug-panel toggles for every Major ahead of the reward wiring
+
+### Tick Combat Conversion
+
+- 2026-07-05 — [combat] Production enemies now run on the tick engine — telegraph countdowns count player actions, movement snaps one cell per action, and enemy-to-player damage resolves as a cell-membership check at detonation instead of physics overlap
+- 2026-07-05 — [combat] A playable player-clocked tick arena productionizes the prototype's tick scheduler, one-tick player verbs, and input feel, reusing the production terrain and autotile grid presentation instead of grey-box drawing
+
 ### Tick Combat Prototype
 
 - 2026-07-05 — [combat] Grey-box prototype validated the player-clocked tick combat direction with a go verdict: grid player with four one-tick verbs, three-stage tick resolution, telegraphed melee and charger enemies, a dash/smash mobility slot with windup grammar, and free mouse aiming that never advances time
