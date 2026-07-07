@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Tick Enemy Ownership
+
+- 2026-07-07 — [enemy] Enemy behavior ownership is fully settled onto the tick engine: hit resolution and path planning are shared stateless helpers, each enemy owns a per-enemy tick combat runtime for telegraph/recovery timing, the state machine is narrowed to a decide-only intent layer (plan, step, turn, commit, stagger, dead), and the leftover real-time chase/cooldown code path is deleted now that every production enemy is tick-bound
+
 ### Tick Run Loop
 
 - 2026-07-07 — [combat] The tick arena now plays a full player-clocked run loop end to end — waves, reward choice, milestone elites, death, and restart — with automatic per-wave terrain mutation frozen out of the loop

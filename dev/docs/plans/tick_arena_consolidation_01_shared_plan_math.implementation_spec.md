@@ -28,13 +28,13 @@ Merge the planning helpers and player combat base numbers duplicated between the
 
 ## Files to Change
 
-| File | Change Size | Purpose |
-| --- | --- | --- |
-| `game/tick_arena/combat/tick_action_planner.gd` (new) | Medium | Pure static geometry/plan functions shared by action and preview |
-| `game/tick_arena/combat/tick_combat_rules.gd` | Small | Absorb base-number constants and damage/range projection statics |
-| `game/tick_arena/combat/tick_action_controller.gd` | Medium | Delete local copies; call shared planner/rules |
-| `game/tick_arena/combat/tick_preview_controller.gd` | Medium | Delete local copies; call shared planner/rules; rewrite header doctrine |
-| `test/unit/*` | Small | Add focused planner tests (dash landing/victims, smash clamp, aim fallback) |
+| File                                                  | Change Size | Purpose                                                                     |
+| ----------------------------------------------------- | ----------- | --------------------------------------------------------------------------- |
+| `game/tick_arena/combat/tick_action_planner.gd` (new) | Medium      | Pure static geometry/plan functions shared by action and preview            |
+| `game/tick_arena/combat/tick_combat_rules.gd`         | Small       | Absorb base-number constants and damage/range projection statics            |
+| `game/tick_arena/combat/tick_action_controller.gd`    | Medium      | Delete local copies; call shared planner/rules                              |
+| `game/tick_arena/combat/tick_preview_controller.gd`   | Medium      | Delete local copies; call shared planner/rules; rewrite header doctrine     |
+| `test/unit/*`                                         | Small       | Add focused planner tests (dash landing/victims, smash clamp, aim fallback) |
 
 ## Implementation Notes
 
@@ -44,10 +44,10 @@ Merge the planning helpers and player combat base numbers duplicated between the
 
 ## Edge Cases
 
-| Case | Expected Handling |
-| --- | --- |
-| Mouse delta zero or perfectly diagonal | Shared aim helper falls back to the passed last-aim, identical for preview and commit |
-| Debug-stub mobility payload | Both controllers keep their existing stub branches; only the shared geometry they call moves |
+| Case                                   | Expected Handling                                                                            |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Mouse delta zero or perfectly diagonal | Shared aim helper falls back to the passed last-aim, identical for preview and commit        |
+| Debug-stub mobility payload            | Both controllers keep their existing stub branches; only the shared geometry they call moves |
 
 ## Acceptance Criteria
 

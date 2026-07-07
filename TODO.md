@@ -22,7 +22,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-- [combat] Tick enemy ownership rework: FSM narrowed to intent layer, per-enemy tick combat runtime, base-class extraction — [ref plans/tick_combat_rework_02c_enemy_ownership.md]
+- [refactor] Tick arena structure consolidation: shared plan math, RunBuild in-place reset, typed combat contracts — [ref plans/tick_arena_structure_consolidation.md]
 
 ---
 
@@ -30,7 +30,6 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-- [refactor] Tick arena structure consolidation: shared plan math, RunBuild in-place reset, typed combat contracts — [ref plans/tick_arena_structure_consolidation.md]
 - [rewards] Tick artifact rewards: replace point-balanced generator with Risk-of-Rain artifacts, milestone curses, unified Minor/Major, build inspection panel — [ref plans/tick_artifact_rewards.md]
 - [ui] Tick arena HUD refactor: single combat-info layer plus run-build summary — gated on tick artifact rewards shipping — [ref plans/tick_arena_hud_refactor.sketch.md]
 
@@ -107,7 +106,7 @@ Once `tick_combat_rework_02c_enemy_ownership` step 5 and the cutover closeout la
 
 凍結每輪隨機增減或搬動地形；太隨機或太碎的地形有可能導致死局或卡手，不適合目前偏半益智型的 tick combat。後續地圖壓力改研究在穩定 10x10 基底上增加額外障礙物 grid，取代每輪碎地形的 run cadence。
 
-- Corrupt Land（已自 tick rework 流程退役）是此方向的第一個候選危險格機制——spec 保留在 `plans/tick_combat_rework_06a_corrupt_land.implementation_spec.md`，撿起時先對照 codebase 修訂。
+- Corrupt Land（已自 tick rework 流程退役）是此方向的第一個候選危險格機制——spec 保留在 `archived/tick_combat_rework_06a_corrupt_land.implementation_spec.md`，撿起時先對照 codebase 修訂。
 
 ### Character Classes
 

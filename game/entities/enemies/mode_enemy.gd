@@ -39,13 +39,6 @@ func _ready() -> void:
     _disable_mode_hitboxes()
     _apply_current_mode_color()
 
-# == Overridden Custom Methods ================================================
-
-
-func start_cooldown() -> void:
-    super()
-    _mode_ready = false
-
 # == Signal handlers ==========================================================
 
 

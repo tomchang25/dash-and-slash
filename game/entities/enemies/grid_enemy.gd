@@ -8,8 +8,6 @@
 class_name GridEnemy
 extends Enemy
 
-const MOVE_SPEED := 120.0
-const CYCLE_COOLDOWN := 1.0
 const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
 const NO_BLOCKED_CELL := Vector2i(-1, -1)
 ## Energy-skeleton default: 100 = one action per world tick. Slower kinds skip beats; see get_tick_speed().
@@ -53,7 +51,6 @@ var _tick_engine = null
 var _tick_runtime := EnemyTickRuntime.new()
 
 # -- Timer / tween handles ----------------------------------------------------
-var _cooldown_timer: Timer
 var _stagger_tween: Tween
 var _hurt_tween: Tween
 var _tick_move_tween: Tween
@@ -86,11 +83,6 @@ func _ready() -> void:
         health.damaged.connect(_on_damaged)
         _on_health_changed(health.current(), health.max_health)
 
-    _cooldown_timer = Timer.new()
-    _cooldown_timer.one_shot = true
-    # node-src: timer
-    add_child(_cooldown_timer)
-
     if _guard != null:
         _guard.guard_changed.connect(_on_guard_changed)
         _guard.guard_broken.connect(_on_guard_broken)
@@ -100,23 +92,6 @@ func _ready() -> void:
 
     face_arrow()
     _init_debug_fsm_state()
-
-
-func _physics_process(_delta: float) -> void:
-    # Tick-clocked enemies never move on physics frames; the engine drives position via snap-steps.
-    if _tick_engine != null:
-        return
-
-    if not is_instance_valid(_target):
-        velocity = Vector2.ZERO
-        move_and_slide()
-        return
-
-    if _grid == null:
-        velocity = global_position.direction_to(_target.global_position) * get_move_speed()
-
-    move_and_slide()
-    queue_redraw()
 
 
 func _draw() -> void:
@@ -177,10 +152,9 @@ func _on_guard_broken() -> void:
     clear_planned_path()
     # A guard break clears any banked action energy and cancels the pending attack, so a
     # just-recovered enemy can never surprise the player with saved-up movement or a stale telegraph.
-    if _tick_engine != null:
-        _tick_engine.clear_energy(self)
-        cancel_tick_attack()
-        _tick_runtime.clear_recovery()
+    _tick_engine.clear_energy(self)
+    cancel_tick_attack()
+    _tick_runtime.clear_recovery()
     _on_guard_broken_extra()
     var staggered_state_id := get_staggered_state_id()
     if _state_machine != null and staggered_state_id >= 0:
@@ -429,7 +403,7 @@ func tick_step_along_path() -> bool:
         # Lost the reservation to a higher-priority claim before stepping; abandon the path this tick.
         clear_planned_path()
         return false
-    if _tick_engine != null and not _tick_engine.is_cell_open_for_enemy(next, self):
+    if not _tick_engine.is_cell_open_for_enemy(next, self):
         # The player (not a grid occupant) or another actor moved onto the reserved cell since planning.
         clear_planned_path()
         return false
@@ -497,14 +471,12 @@ func get_target() -> Node2D:
     return _target
 
 
-## Returns the target's current grid cell, or NO_BLOCKED_CELL when unavailable. Tick-clocked enemies
-## read the engine's logical player cell so planning never lags the player's move tween by a frame.
+## Returns the target's current grid cell, or NO_BLOCKED_CELL when unavailable. Reads the engine's
+## logical player cell so planning never lags the player's move tween by a frame.
 func get_target_cell() -> Vector2i:
     if _grid == null or not has_target():
         return NO_BLOCKED_CELL
-    if _tick_engine != null:
-        return _tick_engine.player_cell()
-    return _grid.world_to_grid(_target.global_position)
+    return _tick_engine.player_cell()
 
 
 func set_target(target: Node2D) -> void:
@@ -517,19 +489,6 @@ func is_staggered() -> bool:
 
 func set_staggered(value: bool) -> void:
     _staggered = value
-
-
-func cooldown_active() -> bool:
-    return _cooldown_timer != null and _cooldown_timer.time_left > 0.0
-
-
-func get_cycle_cooldown() -> float:
-    return enemy_data.cycle_cooldown if enemy_data != null else CYCLE_COOLDOWN
-
-
-func start_cooldown() -> void:
-    if _cooldown_timer != null:
-        _cooldown_timer.start(get_cycle_cooldown())
 
 
 func tile_size() -> float:
@@ -550,10 +509,6 @@ func set_grid_pos(pos: Vector2i) -> void:
 
 func get_facing() -> Vector2:
     return _facing
-
-
-func set_facing(v: Vector2) -> void:
-    _facing = cardinal_snap(v)
 
 
 func plan_next_action() -> bool:
@@ -886,10 +841,6 @@ func plan_charge_origin_action() -> bool:
     return true
 
 
-func get_move_speed() -> float:
-    return enemy_data.move_speed if enemy_data != null else MOVE_SPEED
-
-
 ## Shared cell-origin planning for tile attacks. Computes target-derived origin
 ## candidates, verifies the committed facing can hit the target, and paths to one.
 func plan_cell_attack_action(get_cells_for_origin: Callable, get_origins_for_target: Callable = Callable()) -> bool:
@@ -971,14 +922,10 @@ func _collect_all_grid_origin_cells() -> Array[Vector2i]:
 func _is_charge_landing_cell_open(cell: Vector2i) -> bool:
     if _grid == null or not _grid.is_land(cell):
         return false
-    if _tick_engine != null:
-        if _tick_engine.player_cell() == cell:
-            return false
-        var enemy: GridEnemy = _tick_engine.enemy_at(cell)
-        return enemy == null or enemy == self
-    if has_target() and get_target_cell() == cell:
+    if _tick_engine.player_cell() == cell:
         return false
-    return not _grid.is_occupied(cell)
+    var enemy: GridEnemy = _tick_engine.enemy_at(cell)
+    return enemy == null or enemy == self
 
 
 func _update_grid_pos() -> void:
@@ -1138,8 +1085,6 @@ func _tick_detonate() -> void:
 ## Damages the player when their cell is inside the given locked tiles, then notifies presentation.
 ## This cell-membership check replaces enemy-side physics hitbox overlap for enemy-to-player damage.
 func _resolve_detonation_on_player(tiles: Array[Vector2i]) -> void:
-    if _tick_engine == null:
-        return
     if _tick_engine.player_cell() in tiles:
         _tick_engine.damage_player(get_attack_hit_damage(), self)
     _tick_engine.notify_detonation(tiles)
