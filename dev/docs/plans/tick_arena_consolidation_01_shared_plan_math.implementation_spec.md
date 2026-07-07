@@ -1,8 +1,17 @@
 # Tick Arena Consolidation 01: Shared Plan Math
 
+Parent Plan: `tick_arena_structure_consolidation.md`
+
 ## Goal
 
 Merge the planning helpers and player combat base numbers duplicated between the action and preview controllers into shared pure code, so the preview can never disagree with what a commit resolves. This executes the "later cleanup can merge pure helpers" pass that the 06b ownership spec explicitly deferred.
+
+## Summary
+
+- **Drift risk:** Action and preview currently carry duplicated pure planning helpers and combat base numbers, so a one-sided edit can make previews lie about committed results.
+- **Shared shape:** Combat tuning numbers and damage/range projections move into the existing rules home; geometry and plan construction move into a new static planner that receives all state as explicit read-only inputs.
+- **Ownership boundary:** The action controller remains the only writer of player, enemy, run-build, and world-time state; the preview controller remains read-only and only emits view payloads.
+- **Result:** A planning-number or pure-rule edit has one home, while dash-plan dictionaries and view-facing payload shapes stay unchanged because child 04 owns contract typing.
 
 ## Relational Context
 

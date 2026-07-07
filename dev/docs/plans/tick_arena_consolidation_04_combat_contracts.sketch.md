@@ -1,10 +1,19 @@
 # Tick Arena Consolidation 04: Combat Contracts
 
+Parent Plan: `tick_arena_structure_consolidation.md`
+
 ## Goal
 
 Give tick combat one hit-angle vocabulary and typed cross-module contracts: the verb a player input emits and the outcome a hit resolves to become typed values instead of stringly-keyed dictionaries, so a typo'd key or missing default fails loudly instead of silently.
 
-## Requirements
+## Summary
+
+- **Contract pressure:** Tick combat still has duplicate angle vocabulary and string-keyed verb/outcome payloads, which makes typo or missing-default bugs too easy to hide.
+- **Likely direction:** Keep view-facing preview/danger dictionaries unchanged, but replace the combat-side angle, verb, and hit-outcome seams with typed values.
+- **Verification focus:** The later spec must check the outside-`game/tick_arena/` blast radius around enemy hit prediction and take-hit paths before finalizing files and relationships.
+- **Expected result:** Combat dispatch and hit consumption fail loudly through typed fields/enums, while feedback text, preview badges, and view payloads continue to behave the same.
+
+## Sketch
 
 1. Exactly one hit-angle enum exists across tick combat; the duplicate enum and its two-way adapter functions delete, because two identical vocabularies plus converters is pure ceremony.
 2. Input verbs are typed values with an enum kind, so the action controller matches on an enum instead of `String(verb.get("type", ""))`.
@@ -12,7 +21,7 @@ Give tick combat one hit-angle vocabulary and typed cross-module contracts: the 
 4. Match arms that return the same value for every branch collapse, and parameters that become dead after the collapse are removed rather than kept "for symmetry".
 5. Tick hit resolution stops depending on a physics component's enum: the enemy-side take-hit path currently derives its is-dash flag from a hitbox guard-damage profile, and that flag becomes an explicit parameter of the typed contract, because tick logic reading legacy collision metadata is exactly the coupling this child exists to remove (carved out of the entity-layer legacy probe, which owns the rest of the physics-chain question).
 
-## Sketch (non-normative)
+Candidate implementation shape to verify:
 
 - Adopt `DirectionResolver.HitAngle` as the sole angle vocabulary. `TickCombatRules.resolve_angle` / `guard_damage_for` / `hp_bypass_for` take and return it directly; delete `TickCombatRules.HitAngle`, `TickHitResolver._to_direction_angle`, and `_to_tick_angle`.
 - `TickHitResolver._guard_damage_for` matches on hit kind but every branch returns the same expression — collapse to a direct call. That likely makes the `hit_kind` parameter of `resolve_hit` dead; verify the `GridEnemy.take_hit` / `predict_hit` call sites (they live outside `game/tick_arena/`) before removing it.

@@ -1,23 +1,21 @@
 # Tick Artifact Rewards 01: Data Model
 
+Parent Plan: `tick_artifact_rewards.md`
+
 ## Goal
 
 Replace the tier-split reward-effect class hierarchy with one composed artifact concept: an artifact carries identity plus a list of effect contributions, and rarity/stack/exclusivity/curse become data instead of subclasses. This is the foundation the roll, cadence, and inspection children read.
 
-## Requirements
+## Summary
 
-1. One artifact type replaces the `WaveRewardEffectDefinition` tier hierarchy; Minor and Major stop being separate classes and become the same concept with different data.
-2. An artifact's behavior is a list of effect contributions, not a hard-coded `apply()` body, so a new reward is authored as data (identity + effect list) rather than a new subclass.
-3. The run-wide Major cap generalizes to a rarity-keyed legendary-slot cap; offer eligibility becomes one rule for every artifact.
-4. The legacy real-time-player seam leaves the reward context in the same pass, since the artifact context is being rebuilt anyway and no artifact reads a legacy player.
+- **Shape pressure:** The current reward model splits Minor and Major into parallel type paths, so adding or inspecting rewards requires understanding class hierarchy instead of one artifact concept.
+- **Likely direction:** Use one artifact object with identity, rarity, stack/exclusivity/curse metadata, optional pacing gates, and a list of effect contributions. Contributions cover build-store channel amounts, mobility payload replacement, and mobility trigger activation.
+- **Context cleanup:** The reward context likely drops its legacy real-time-player field during this pass, because the new artifact context should only need the grid and run build.
+- **Expected result:** Existing reward behavior stays the same, but authored rewards become data-shaped artifacts with composed effects, one eligibility predicate, and one owned-artifact registry that later roll and inspection work can read.
 
-## Design
+## Sketch
 
-The offered content stays behaviorally identical to today's shipped pool (same channels, same amounts, same Major behaviors); only the class shape changes. Curses are just artifacts whose contributions are negative/pressure channel amounts — the curse pool wiring is child 02's concern, but the data shape that lets a curse exist lives here.
-
-## Sketch (non-normative)
-
-Composition replaces inheritance — the artifact *has* effects rather than *being* a typed effect:
+Composition replaces inheritance — the artifact has effects rather than being a typed effect:
 
 ```gdscript
 # artifact.gd — one class, replaces WaveRewardEffectDefinition + every concrete effect subclass
@@ -52,13 +50,14 @@ class TriggerArtifactEffect:            # old Guard Shredder / Execution / Flowi
     func apply(rb, _stacks): rb.set_mobility_trigger(trigger, true)
 ```
 
-- A runtime **owned artifact** is `{ artifact, stacks }` (today's `WaveRewardEffect` wrapper repurposed): `total_points`-style helpers disappear with pricing; `description()` and stack math stay.
-- **Apply pipeline collapses** to one loop: `for e in artifact.effects: e.apply(run_build, stacks)`. `WaveRewardApplier` (a three-line loop class) is deleted; the choice controller inlines it.
-- **RunBuild generalization:** keep `_entries` / `record` / `total`, `_mobility_payload_override`, and `_mobility_triggers` as-is. Rename/repurpose `_major_entries` + `MAJOR_CAP` into an owned-artifact registry with a legendary-slot cap keyed on rarity; `add_major`/`can_add_major`/`has_major`/`has_major_conflict` become `add_artifact`/`can_add_legendary`/`has_artifact`/`has_exclusivity_conflict`. Unique non-legendary artifacts still register for the "already owned" check.
-- **One eligibility predicate** replaces `MajorEffect.is_applicable` and the Minor pass-through: `wave >= min_wave and not (max_stacks == 1 and owned) and not exclusivity_conflict and (rarity != LEGENDARY or legendary_slot_free)`.
-- **Deletions:** every `*_effect.gd` channel subclass, `major_effect.gd`, `major_placeholder_effect.gd` (or move to test), `player_stat_effect.gd`, `attack_range_effect.gd`, `wave_reward_applier.gd`, and the `Tier` enum. The four Major subclasses (Smash/Guard Shredder/Execution/Flowing Strike) become authored `Artifact` instances with a `PayloadArtifactEffect` or `TriggerArtifactEffect`, not classes.
-- **Context:** `WaveRewardContext` drops its legacy `player` field, becoming `(grid, run_build)`; `AttackRangeEffect` and its `PlayerStatEffect` gate go with it. Update the run controller's construction site and every unit-test call.
-- **Authoring:** artifacts can stay code-constructed in a pool builder first (like today's `_make_default_effect_definitions`); moving them to `.tres` resources is a later follow-on, out of scope here.
+- A runtime owned artifact is likely `{ artifact, stacks }` using the current reward wrapper shape where possible; total-points helpers disappear with pricing, while description and stack math stay.
+- The apply pipeline likely collapses to one loop over `artifact.effects`; verify whether the current applier class still earns its own file or should be inlined into the choice controller.
+- Run-build state likely keeps the existing channel entries, mobility payload override, and mobility triggers, while the Major registry generalizes into an owned-artifact registry with a rarity-keyed legendary-slot cap.
+- One eligibility predicate replaces split Minor/Major applicability: within minimum wave, not already owned if unique, no exclusivity conflict, and a free legendary slot for legendary artifacts.
+- Candidate deletions to verify during spec writing: one-subclass-per-channel effects, the abstract Major layer, placeholder/test-only Major files, player-stat gate effects, the tiny reward applier, and the reward Tier enum.
+- Context likely becomes `(grid, run_build)`; verify current construction sites and tests before deleting the legacy player field.
+- Authoring can stay code-constructed in the current pool builder first; moving artifacts to `.tres` resources is a later follow-on.
+- Curses are just artifacts whose contributions are negative or enemy-pressure channel amounts. Child 02 owns the curse-pool wiring, but this child owns the data shape that lets curses exist.
 
 ## Non-Goals
 

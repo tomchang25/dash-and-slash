@@ -1,23 +1,21 @@
 # Tick Artifact Rewards 02: Roll, Cadence, And Curses
 
+Parent Plan: `tick_artifact_rewards.md`
+
 ## Goal
 
-Rebuild the reward roll and its wave cadence on top of the artifact data model: flat-random distinct three-choice from a rarity pool, the milestone curse+Major beat with a Minor ×2 fallback, and the four enemy-pressure channels re-homed as the curse pool. The point-balancing generator is deleted.
+Rebuild the reward roll and its wave cadence on top of the artifact data model: flat-random distinct three-choice from a rarity pool, the milestone curse+Major beat with a Minor x2 fallback, and the four enemy-pressure channels re-homed as the curse pool. The point-balancing generator is deleted.
 
-## Requirements
+## Summary
 
-1. A reward offer is three distinct artifacts rolled flat-random from the eligible pool of the requested kind (Minor, Major, or curse); no offer repeats an artifact.
-2. Normal waves offer a Minor three-choice; milestone waves offer a curse three-choice plus a Major three-choice, the Major choice falling back to two Minors when the Major pool is empty.
-3. Enemy pressure enters a run only through chosen curses drawn from the four existing pressure channels, not through any per-offer price.
-4. The point-balancing generator — profiles, target points, rejection sampling, and the nested combination fallback — no longer exists.
+- **Complexity target:** The current point-balanced generator carries profiles, target points, rejection sampling, and nested fallback machinery that the artifact three-choice model does not need.
+- **Likely direction:** Replace the generator with filtered distinct artifact picks, split by Minor, Major, and curse eligibility. Normal waves offer Minors; milestone waves offer curses first, then Majors with a two-Minor fallback if no Major is eligible.
+- **Pressure economy:** Enemy pressure moves out of hidden per-offer pricing and into chosen milestone curses built from the four existing pressure channels.
+- **Expected result:** Offers become simple and readable, every visible pick is an artifact, and the old closest-combination fallback disappears instead of being reimplemented.
 
-## Design
+## Sketch
 
-The curse pool is the four pressure channels (future enemy count, enemy health, enemy damage, enemy defense) expressed as `is_curse` artifacts. Their magnitudes are authored directly rather than derived from a point budget. Milestone detection reuses the existing every-fifth-wave rule that already schedules the milestone elite, so the curse+Major beat needs no new cadence clock.
-
-## Sketch (non-normative)
-
-- **Generator shrinks to a picker.** `WaveRewardChoiceGenerator` loses `roll_choices`'s profile logic, `_roll_choice`, `_is_valid_choice`, `_fallback_choice`, `_capture_best_effects`, `_expanded_single_effect_options`, all `_total_points`/`_upside`/`_downside` helpers, and `MAX_ROLL_ATTEMPTS`. What remains:
+- **Generator shrinks to a picker.** `WaveRewardChoiceGenerator` likely loses profile logic, per-choice validation against point budgets, retry attempts, best-effect capture, expanded single-effect options, total-points helpers, upside/downside helpers, and the nested fallback. What remains is closer to:
 
 ```gdscript
 func roll(kind, count, wave_number, context) -> Array[Artifact]:
@@ -26,15 +24,12 @@ func roll(kind, count, wave_number, context) -> Array[Artifact]:
     return pool.slice(0, count)                          # distinct by construction
 ```
 
-  Rarity weighting is a later refinement; first pass is the flat shuffle above. `kind` selects Minor / Major / curse by the artifact's rarity-or-`is_curse` classification.
-
-- **Cadence lives in the run controller**, which already knows milestone-ness. On normal wave clear it opens one Minor three-choice (today's flow). On milestone clear it opens the curse three-choice, then the Major three-choice; if `roll(MAJOR, 3, ...)` returns empty, it opens a Minor ×2 instead. Sequencing two overlays back-to-back reuses the existing pause/continue seam that already gates one reward overlay.
-
-- **Curse pool** is authored alongside the artifact pool as four `is_curse` artifacts, each a single `ChannelArtifactEffect` on one pressure channel (percent channels keep `unit_scale = 0.01`). They are excluded from the Minor/Major pools by the `is_curse` flag and only surface in the curse roll.
-
-- **Choice value objects.** `WaveRewardChoice` (today wraps profile + target points + effects) simplifies to wrap one artifact; profile/target-points fields and `_make_display_name`'s profile switch delete. The overlay renders artifact name + rarity color + description lines.
-
-- **Fallback contract.** The Minor ×2 fallback is the only fallback; the old closest-combination search is gone. An empty Minor pool (all owned) is a real edge — degrade to "No reward" cards, the overlay already handles disabled slots.
+- Rarity weighting is a later refinement; first pass is the flat shuffle above. `kind` selects Minor / Major / curse by artifact classification and the `is_curse` flag.
+- **Cadence likely lives in the run controller**, which already knows milestone-ness. On normal wave clear it opens one Minor three-choice. On milestone clear it opens the curse three-choice, then the Major three-choice; if the Major roll returns empty, it opens a Minor x2 instead.
+- Sequencing two overlays back-to-back should reuse the existing pause/continue seam that already gates one reward overlay.
+- **Curse pool** is authored alongside the artifact pool as four `is_curse` artifacts, each a single channel contribution on one pressure channel. Percent channels keep their current scale convention.
+- **Choice value objects** likely simplify to wrap one artifact. Profile/target-point fields and display-name profile switching delete; the overlay renders artifact name, rarity color, and description lines.
+- **Fallback contract:** The Minor x2 fallback is the only designed fallback. An empty Minor pool is a real edge; degrade to disabled "No reward" cards if the existing overlay supports that shape.
 
 ## Non-Goals
 
@@ -44,7 +39,7 @@ func roll(kind, count, wave_number, context) -> Array[Artifact]:
 
 ## Acceptance Criteria
 
-1. Every offer is three (or two, for the Major fallback) distinct artifacts of the requested kind; none repeats within an offer.
-2. Normal waves show a Minor three-choice; milestone waves show a curse three-choice then a Major three-choice, falling back to a Minor ×2 when no Major is eligible.
+1. Every offer is three, or two for the Major fallback, distinct artifacts of the requested kind; none repeats within an offer.
+2. Normal waves show a Minor three-choice; milestone waves show a curse three-choice then a Major three-choice, falling back to a Minor x2 when no Major is eligible.
 3. No point-balancing generator code remains; the roll is a filtered shuffle.
 4. Enemy pressure reaches a run only via chosen curses; lint and unit tests pass.

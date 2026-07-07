@@ -28,7 +28,7 @@ Child numbering keeps its original 01/03/04 labels; 02 (reward ceremony) and 05 
 
 ### Backing documents
 
-Child documents live alongside this plan as `tick_arena_consolidation_0N_*.implementation_spec.md` / `.sketch.md`. Sketches are non-normative per the sketch standard; the codebase wins every disagreement at implementation time.
+Child documents live alongside this plan as `tick_arena_consolidation_0N_*.implementation_spec.md` / `.sketch.md`. Sketches are optional exploration notes for child slices; implementation always runs from an implementation spec written against the live codebase when that child is next to land.
 
 ## Non-Goals
 

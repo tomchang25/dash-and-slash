@@ -56,7 +56,7 @@ This plan supersedes the reward-side of the tick arena structure consolidation: 
 
 ## Children
 
-Child documents live alongside this plan as `tick_artifact_rewards_0N_*.sketch.md`, non-normative per the sketch standard.
+Child documents live alongside this plan as `tick_artifact_rewards_0N_*.sketch.md`. They are optional exploration notes for child slices; implementation always runs from child implementation specs written against the live codebase when each child is next to land.
 
 | Child | Focus                                                                                                                                                                                                                                           | Form   |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |

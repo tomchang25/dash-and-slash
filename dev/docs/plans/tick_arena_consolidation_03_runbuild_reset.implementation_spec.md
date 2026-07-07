@@ -1,8 +1,17 @@
 # Tick Arena Consolidation 03: Run Store In-Place Reset
 
+Parent Plan: `tick_arena_structure_consolidation.md`
+
 ## Goal
 
 Construct the run-scoped `RunBuild` once per arena scene and reset it in place on restart, deleting the fresh-instance re-wiring chain where every holder must be re-pointed and one missed holder is a silent stale-state bug.
+
+## Summary
+
+- **Restart risk:** Replacing `RunBuild` on every restart forces multiple collaborators to be re-pointed, and one missed holder silently keeps stale run state.
+- **Reset shape:** The arena scene constructs one `RunBuild`; restart clears that store in place, so the arena root, run controller, action controller, preview controller, reward context, and wave controller keep their original injected reference.
+- **Control flow:** Restart handling moves into the run controller for the death-overlay button and the root's debug R-key path, while `run_reset_finished` stays as the root-facing refresh signal for HUD and debug-panel state.
+- **Result:** A restarted run starts from default build state without any collaborator re-wiring; the replacement path is deleted entirely so the old stale-reference bug class cannot survive as a second reset mode.
 
 ## Relational Context
 

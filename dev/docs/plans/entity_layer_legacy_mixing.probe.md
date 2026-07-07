@@ -2,7 +2,7 @@
 
 Status: Draft probe.
 
-Decision: 02c step 5 has landed — the probe's gate is clear. Ready to promote into its own "tick purification" main plan; that promotion just hasn't happened yet. This probe also inherits the deletion sweep from the now-archived tick combat rework cutover, so nothing is orphaned by that archival.
+Decision: 02c step 5 has landed — the probe's gate is clear. Ready to convert into its own "tick purification" main plan; that conversion just hasn't happened yet. This probe also inherits the deletion sweep from the now-archived tick combat rework cutover, so nothing is orphaned by that archival.
 
 The tick conversion left `game/entities/` and `common/gameplay/entity/` straddling two eras. The legacy real-time Player is an orphan: no scene instantiates `player.tscn` since the legacy arena scene was deleted, and its last production reference (the reward context's legacy `player` field) is already scheduled for deletion by consolidation child 02. `GridEnemy`'s dual-clock hybrid is now resolved: 02c step 5 deleted the real-time-only surface (the `_physics_process` chase path, the real-time cooldown `Timer` and its cycle-cooldown accessors, `set_facing()`, `get_move_speed()`, and every `_tick_engine == null` fallback branch), since production spawning always binds a tick engine before an enemy acts. What remains below is genuinely unclaimed.
 
