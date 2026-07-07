@@ -2,7 +2,7 @@
 
 Severed from the shipped tick combat rework (was its Phase 07) once the conversion closed out. Skeleton sketch; revise against the codebase at implementation start — the codebase wins every disagreement.
 
-Gated on the reward-artifacts decision. If rewards become a Risk-of-Rain-style artifact system, the run-build summary this HUD renders is reshaped (a grouped artifact list with a stacked-effect sum panel rather than Minor/Major reward-effect grouping), so build this after that pivot is decided — otherwise the build-summary half gets built twice.
+Gated on the tick artifact rewards plan shipping. That plan reshapes the run-build summary into a grouped artifact list with a stacked-effect sum panel, and ships its own MVP inspection panel (its child 03); this HUD refactor absorbs and polishes that panel rather than inventing a parallel one, so build it after artifacts lands — otherwise the build-summary half gets built twice.
 
 ## Goal
 

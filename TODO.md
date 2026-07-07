@@ -30,8 +30,9 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-- [refactor] Tick arena structure consolidation: shared plan math, reward ceremony collapse, RunBuild in-place reset, typed combat contracts, roll fallback rewrite — [ref plans/tick_arena_structure_consolidation.md]
-- [ui] Tick arena HUD refactor: single combat-info layer plus run-build summary — gated on the reward-artifacts decision — [ref plans/tick_arena_hud_refactor.sketch.md]
+- [refactor] Tick arena structure consolidation: shared plan math, RunBuild in-place reset, typed combat contracts — [ref plans/tick_arena_structure_consolidation.md]
+- [rewards] Tick artifact rewards: replace point-balanced generator with Risk-of-Rain artifacts, milestone curses, unified Minor/Major, build inspection panel — [ref plans/tick_artifact_rewards.md]
+- [ui] Tick arena HUD refactor: single combat-info layer plus run-build summary — gated on tick artifact rewards shipping — [ref plans/tick_arena_hud_refactor.sketch.md]
 
 ---
 
