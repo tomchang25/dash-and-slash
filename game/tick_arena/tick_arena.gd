@@ -25,13 +25,11 @@ var _execution_button: Button
 @onready var _engine: TickEngine = %TickEngine
 @onready var _input: TickInput = %TickInput
 @onready var _player: TickPlayer = %Player
-@onready var _stats_label: Label = %StatsLabel
-@onready var _controls_label: Label = %ControlsLabel
 @onready var _debug_panel: DebugPanel = %DebugPanel
 @onready var _action_controller: TickActionController = %TickActionController
 @onready var _preview_controller: TickPreviewController = %TickPreviewController
 @onready var _run_controller: TickRunController = %TickRunController
-@onready var _build_button: Button = %BuildButton
+@onready var _hud: TickArenaHud = %TickArenaHud
 @onready var _build_inspection_panel: BuildInspectionPanel = %BuildInspectionPanel
 
 # == Lifecycle ==
@@ -47,7 +45,8 @@ func _ready() -> void:
     _run_controller.reward_applied.connect(_on_reward_applied)
     _run_controller.run_reset_finished.connect(_on_run_reset_finished)
     _run_controller.spawn_warning_changed.connect(_on_spawn_warning_changed)
-    _build_button.pressed.connect(_on_build_button_pressed)
+    _hud.build_pressed.connect(_on_build_button_pressed)
+    _hud.settings_pressed.connect(_on_settings_button_pressed)
 
     RenderingServer.set_default_clear_color(BACKGROUND_COLOR)
     _player.setup(_grid, _grid.grid_size / 2)
@@ -56,14 +55,13 @@ func _ready() -> void:
     _run_controller.setup(_run_build)
     _build_inspection_panel.setup(_run_build)
     _run_controller.start_first_wave()
-    _controls_label.text = "WASD step · Hold Alt for Mobility Mode · LMB confirm · RMB cancel · Space wait · R reset"
     _wire_debug_panel()
     _refresh_danger()
     _refresh_hud()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-    # Player-facing run-reset shortcut — the controls label advertises "R reset", so this stays ungated.
+    # Player-facing run-reset shortcut; stays ungated regardless of HUD state.
     if event is InputEventKey and event.pressed and not event.echo:
         if event.physical_keycode == KEY_R:
             _restart_run("Run reset.")
@@ -104,6 +102,12 @@ func _on_spawn_warning_changed(_cells: Array[Vector2i], _ticks: int) -> void:
 
 func _on_build_button_pressed() -> void:
     _build_inspection_panel.toggle()
+
+
+## Routes the HUD's settings button through the existing settings overlay toggle path; the HUD
+## itself never touches SettingsStore, since it is read-only display state.
+func _on_settings_button_pressed() -> void:
+    SettingsStore.toggle_overlay()
 
 # == Restart ==
 
@@ -218,21 +222,24 @@ func _clear_danger_telegraphs() -> void:
     _danger_telegraph_cells_by_source.clear()
 
 
+## Builds a plain-data snapshot from the existing owners and hands it to the HUD presenter to render
+## the presenter never reaches into player/run-build/run-controller state itself.
 func _refresh_hud() -> void:
-    _stats_label.text = "HP %d/%d    Dash CD %d    Smash CD %d    Mode: %s    Mobility: %s    Tick %d\nSpeed Energy %d/%d (+%d/action) %s\n%s" % [
-        int(_player.hp),
-        int(_player.max_hp(_run_build.total(RunBuild.CH_MAX_HEALTH))),
-        _player.dash_cooldown,
-        _player.smash_cooldown,
-        _action_controller.aim_mode_name(),
-        _mobility_mode_name(),
-        _engine.tick_count(),
-        _player.speed_meter,
-        TickPlayer.SPEED_METER_MAX,
-        _player.speed_meter_fill_for(_run_build.total(RunBuild.CH_SPEED)),
-        "— NEXT MOVE/ATTACK FREE" if _player.is_speed_meter_full() else "",
-        _action_controller.current_message(),
-    ]
+    _hud.render(
+        {
+            "hp": _player.hp,
+            "max_hp": _player.max_hp(_run_build.total(RunBuild.CH_MAX_HEALTH)),
+            "mobility_payload": _run_build.get_mobility_payload(),
+            "dash_cooldown": _player.dash_cooldown,
+            "smash_cooldown": _player.smash_cooldown,
+            "speed_meter": _player.speed_meter,
+            "speed_meter_max": TickPlayer.SPEED_METER_MAX,
+            "speed_meter_ready": _player.is_speed_meter_full(),
+            "tick_count": _engine.tick_count(),
+            "wave_display_text": _run_controller.get_wave_display_text(),
+            "artifact_rows": BuildInspectionFormatter.build_artifact_rows(_run_build),
+        },
+    )
 
 
 func _mobility_mode_name() -> String:

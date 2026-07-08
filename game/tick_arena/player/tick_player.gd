@@ -11,6 +11,8 @@ const MOVE_TWEEN_SEC := 0.09
 const LEAP_TWEEN_SEC := 0.12
 const BODY_RADIUS := 40.0
 const DAMAGE_FLASH_SEC := 0.18
+const SPEED_READY_OUTLINE_COLOR := Color(1.0, 0.78, 0.18, 1.0)
+const SMASH_ARMED_OUTLINE_COLOR := Color(0.3, 0.9, 1.0, 1.0)
 
 ## Full meter: the next eligible move or normal attack skips world advancement and spends the charge.
 const SPEED_METER_MAX := 100
@@ -51,8 +53,10 @@ var _flash_tween: Tween = null
 
 func _draw() -> void:
     draw_circle(Vector2.ZERO, BODY_RADIUS, Color(0.93, 0.96, 1.0))
+    if is_speed_meter_full():
+        draw_arc(Vector2.ZERO, BODY_RADIUS + 8.0, 0.0, TAU, 36, SPEED_READY_OUTLINE_COLOR, 6.0)
     if _smash_armed:
-        draw_arc(Vector2.ZERO, BODY_RADIUS + 10.0, 0.0, TAU, 32, Color(0.3, 0.9, 1.0), 4.0)
+        draw_arc(Vector2.ZERO, BODY_RADIUS + 16.0, 0.0, TAU, 36, SMASH_ARMED_OUTLINE_COLOR, 4.0)
 
 # == Common API ==
 
@@ -125,6 +129,7 @@ func is_speed_meter_full() -> bool:
 ## Spends the full Speed charge for the eligible action now resolving as a free action.
 func spend_speed_meter() -> void:
     speed_meter = 0
+    queue_redraw()
 
 
 ## Fills the Speed meter after an eligible move or normal attack resolves, including a free one, from
@@ -133,6 +138,7 @@ func spend_speed_meter() -> void:
 func fill_speed_meter(speed_stacks: float) -> void:
     var gain := speed_meter_fill_for(speed_stacks)
     speed_meter = mini(speed_meter + gain, SPEED_METER_MAX)
+    queue_redraw()
 
 
 ## Returns the meter energy gained by one eligible move or normal attack at the given Speed stack total.

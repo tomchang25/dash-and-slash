@@ -5,14 +5,14 @@
 [node name="BuildInspectionPanel" type="PanelContainer" unique_id=1290224412]
 visible = false
 custom_minimum_size = Vector2(520, 640)
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -480.0
-offset_top = 80.0
-offset_right = -20.0
-offset_bottom = 742.0
-grow_horizontal = 0
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -710.0
+offset_right = 544.0
+offset_bottom = -70.0
+grow_vertical = 0
 script = ExtResource("1_panel")
 
 [node name="MarginContainer" type="MarginContainer" parent="." unique_id=606732994]

@@ -2,13 +2,12 @@
 # Owns tick-arena verb dispatch (move, confirm/attack, mobility payloads, wait), Speed meter
 # spend/fill, Mobility Free Action refunds, hit application, and the decision to advance the tick
 # world (tick resolution stage 1); world advancement itself is handed to TickEngine. Result
-# presentation (HUD message text/timer, Major-trigger VFX/SFX) belongs to TickCombatFeedback; this
-# controller forwards set_message/current_message/state_changed to it so external callers keep working
-# unchanged. Aim/plan resolution (mouse cell, aim direction, dash/smash plans) is shared with
-# TickPreviewController through TickAimContext. May mutate TickPlayer, RunBuild, enemy health through
-# the existing hit path, and TickGridView input-driven feedback flashes; may request world advancement
-# from TickEngine, but never owns tick count, actor energy, wave state, reward state, spawn queues, or
-# terrain cadence.
+# presentation (debug info text plus Major-trigger VFX/SFX) belongs to TickCombatFeedback; this
+# controller forwards set_message to it so debug controls and run reset code keep one feedback path.
+# Aim/plan resolution (mouse cell, aim direction, dash/smash plans) is shared with TickPreviewController
+# through TickAimContext. May mutate TickPlayer, RunBuild, enemy health through the existing hit path,
+# and TickGridView input-driven feedback flashes; may request world advancement from TickEngine, but
+# never owns tick count, actor energy, wave state, reward state, spawn queues, or terrain cadence.
 class_name TickActionController
 extends Node
 
@@ -45,7 +44,6 @@ var _last_aim := Vector2i.RIGHT
 func _ready() -> void:
     smash_cancel_confirm_button.pressed.connect(_on_smash_cancel_confirm_pressed)
     smash_cancel_keep_button.pressed.connect(_on_smash_cancel_keep_pressed)
-    feedback.message_changed.connect(_on_feedback_message_changed)
 
 # == Signal handlers ==
 
@@ -58,13 +56,6 @@ func _on_smash_cancel_confirm_pressed() -> void:
 
 func _on_smash_cancel_keep_pressed() -> void:
     _close_smash_cancel_confirm()
-
-
-## A message set or its display timer expiring both change HUD-visible state, so the arena root's
-## existing state_changed -> _refresh_hud/_refresh_danger wiring must fire the same as it does for a
-## free action's meter/cooldown change.
-func _on_feedback_message_changed() -> void:
-    state_changed.emit()
 
 # == Common API ==
 
@@ -89,22 +80,14 @@ func reset_for_new_run() -> void:
     _close_smash_cancel_confirm()
 
 
-## Forwards to TickCombatFeedback; exposed here so debug controls and the run controller can post the
-## same feedback real verb resolution uses instead of reaching into the feedback node directly.
+## Forwards to TickCombatFeedback; exposed here so debug controls and the run controller can post
+## optional debug info through the same presentation path real verb resolution uses.
 func set_message(text: String) -> void:
     feedback.set_message(text)
 
 
-func current_message() -> String:
-    return feedback.current_message()
-
-
 func is_mobility_mode() -> bool:
     return _aim_mode == AimMode.MOBILITY
-
-
-func aim_mode_name() -> String:
-    return "ATTACK" if _aim_mode == AimMode.ATTACK else "MOBILITY"
 
 
 ## Returns the last non-zero aim direction, shared read-only with the preview controller so its aim
@@ -173,7 +156,7 @@ func _verb_move(dir: Vector2i) -> Dictionary:
     player.move_to(target)
     _fill_speed_meter()
     if free_action:
-        feedback.append_suffix("Speed spent — free move!")
+        ToastManager.show_info("Speed spent: free move.")
     return _verb_result(not free_action)
 
 
@@ -206,7 +189,7 @@ func _verb_attack() -> Dictionary:
         _apply_player_hit(enemy, player.cell, TickCombatProjection.normal_attack_damage(_run_build))
     _fill_speed_meter()
     if free_action:
-        feedback.append_suffix("Speed spent — free attack!")
+        ToastManager.show_info("Speed spent: free attack.")
     return _verb_result(not free_action)
 
 
@@ -253,7 +236,7 @@ func _verb_dash() -> Dictionary:
     player.dash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.DASH_COOLDOWN_TICKS)
     var refunds := _mobility_action_refunds(outcomes)
     if refunds:
-        feedback.append_suffix("Mobility refunded — free!")
+        ToastManager.show_info("Mobility refunded: free action.")
     return _verb_result(not refunds)
 
 
@@ -308,7 +291,7 @@ func _verb_smash() -> Dictionary:
     _close_smash_cancel_confirm()
     var refunds := _mobility_action_refunds(outcomes)
     if refunds:
-        feedback.append_suffix("Mobility refunded — free!")
+        ToastManager.show_info("Mobility refunded: free action.")
     return _verb_result(not refunds)
 
 

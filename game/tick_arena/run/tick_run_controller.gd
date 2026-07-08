@@ -158,6 +158,14 @@ func get_spawn_warning_danger() -> Dictionary:
         return { }
     return _wave_controller.get_spawn_warning_danger()
 
+
+## Returns the current wave's display text, so the HUD can read wave state through this controller
+## instead of reaching into WaveController directly.
+func get_wave_display_text() -> String:
+    if _wave_controller == null:
+        return ""
+    return _wave_controller.get_wave_display_text()
+
 # == Death / Restart ==
 
 
