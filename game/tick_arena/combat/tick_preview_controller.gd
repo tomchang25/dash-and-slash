@@ -52,7 +52,7 @@ func _update_preview() -> void:
         preview["aim_cell"] = player.cell + _aim_direction()
         var aim_enemy := engine.enemy_at(preview["aim_cell"])
         if aim_enemy != null:
-            outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, player.cell, _normal_attack_damage())
+            outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, player.cell, TickCombatProjection.normal_attack_damage(_run_build))
 
     if not outcomes.is_empty():
         preview["outcomes"] = outcomes.values()
@@ -71,16 +71,16 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
             preview["dash_landing"] = plan["landing"]
             preview["ghost_cell"] = plan["landing"]
             var dir: Vector2i = plan["dir"]
-            var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
-            var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
+            var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
+            var execution := TickCombatProjection.has_mobility_execution(_run_build)
             for victim: GridEnemy in plan["victims"]:
                 outcomes[victim.get_grid_pos()] = _outcome_entry(
                     victim,
                     victim.get_grid_pos() - dir,
-                    _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE),
+                    TickCombatProjection.mobility_attack_damage(_run_build, TickCombatRules.PLAYER_DASH_DAMAGE),
                     guard_shredder,
                     execution,
-                    TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
+                    TickCombatProjection.mobility_stagger_burst_multiplier(),
                 )
         return
     if payload == RunBuild.PAYLOAD_SMASH:
@@ -134,17 +134,17 @@ func _outcome_entry(
 ## The landing cell is the origin for every victim, per the Smash direction rule (Phase 04 sketch),
 ## so Guard Shredder's back-angle check reads relative to the landing, not the player's start cell.
 func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
-    var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
-    var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
+    var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
+    var execution := TickCombatProjection.has_mobility_execution(_run_build)
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - center) <= 1:
             outcomes[enemy.get_grid_pos()] = _outcome_entry(
                 enemy,
                 center,
-                _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE),
+                TickCombatProjection.mobility_attack_damage(_run_build, TickCombatRules.PLAYER_SMASH_DAMAGE),
                 guard_shredder,
                 execution,
-                TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
+                TickCombatProjection.mobility_stagger_burst_multiplier(),
             )
 
 
@@ -167,29 +167,19 @@ func _aim_direction() -> Vector2i:
 
 
 func _compute_dash_plan() -> Dictionary:
-    return TickActionPlanner.compute_dash_plan(grid, engine, _mouse_cell(), player.cell, action_controller.get_last_aim(), _mobility_range_cells(TickCombatRules.DASH_RANGE))
+    return TickActionPlanner.compute_dash_plan(
+        grid,
+        engine,
+        _mouse_cell(),
+        player.cell,
+        action_controller.get_last_aim(),
+        TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.DASH_RANGE),
+    )
 
 
 func _clamped_smash_target() -> Vector2i:
-    return TickActionPlanner.clamped_smash_target(_mouse_cell(), player.cell, _mobility_range_cells(TickCombatRules.SMASH_RANGE))
+    return TickActionPlanner.clamped_smash_target(_mouse_cell(), player.cell, TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.SMASH_RANGE))
 
 
 func _chebyshev(delta: Vector2i) -> int:
     return TickActionPlanner.chebyshev(delta)
-
-
-## Projects normal attack's base damage through the run's Normal Attack Damage bonus total.
-func _normal_attack_damage() -> float:
-    return TickCombatRules.normal_attack_damage(_run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE))
-
-
-## Projects a mobility-slot payload's base damage (Dash or Smash) through the run's Mobility Attack
-## Damage bonus total.
-func _mobility_attack_damage(base_damage: float) -> float:
-    return TickCombatRules.mobility_attack_damage(base_damage, _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE))
-
-
-## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility
-## Range percent bonus.
-func _mobility_range_cells(base_range: int) -> int:
-    return TickCombatRules.mobility_range_cells(base_range, _run_build.total(RunBuild.CH_MOBILITY_RANGE), TickCombatRules.MAX_MOBILITY_RANGE_BONUS_PERCENT)

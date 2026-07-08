@@ -199,7 +199,7 @@ func _verb_attack() -> Dictionary:
     var free_action := _spend_speed_if_full()
     var enemy := engine.enemy_at(target)
     if enemy != null:
-        _apply_player_hit(enemy, player.cell, _normal_attack_damage())
+        _apply_player_hit(enemy, player.cell, TickCombatProjection.normal_attack_damage(_run_build))
     _fill_speed_meter()
     if free_action:
         _append_message_suffix("Speed spent — free attack!")
@@ -224,29 +224,29 @@ func _verb_dash() -> Dictionary:
         return _verb_illegal()
     var plan := _compute_dash_plan()
     if not bool(plan["legal"]):
-        view.flash_deny(player.cell + plan["dir"] * _mobility_range_cells(TickCombatRules.DASH_RANGE))
+        view.flash_deny(player.cell + plan["dir"] * TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.DASH_RANGE))
         return _verb_illegal()
     _tick_player_action_upkeep()
     var dir: Vector2i = plan["dir"]
-    var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
-    var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
+    var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
+    var execution := TickCombatProjection.has_mobility_execution(_run_build)
     var outcomes: Array[TickHitOutcome] = []
     for victim: GridEnemy in plan["victims"]:
         outcomes.append(
             _apply_player_hit(
                 victim,
                 victim.get_grid_pos() - dir,
-                _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE),
+                TickCombatProjection.mobility_attack_damage(_run_build, TickCombatRules.PLAYER_DASH_DAMAGE),
                 guard_shredder,
                 execution,
-                TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
+                TickCombatProjection.mobility_stagger_burst_multiplier(),
             ),
         )
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     view.flash_swing(plan["path"])
     player.move_to(plan["landing"], true)
-    player.dash_cooldown = _mobility_cooldown_ticks(TickCombatRules.DASH_COOLDOWN_TICKS)
+    player.dash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.DASH_COOLDOWN_TICKS)
     var refunds := _mobility_action_refunds(outcomes)
     if refunds:
         _append_message_suffix("Mobility refunded — free!")
@@ -279,8 +279,8 @@ func _verb_smash() -> Dictionary:
         return _verb_illegal()
     _tick_player_action_upkeep()
     view.flash_swing(_smash_area(landing))
-    var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
-    var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
+    var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
+    var execution := TickCombatProjection.has_mobility_execution(_run_build)
     var outcomes: Array[TickHitOutcome] = []
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
@@ -288,10 +288,10 @@ func _verb_smash() -> Dictionary:
                 _apply_player_hit(
                     enemy,
                     landing,
-                    _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE),
+                    TickCombatProjection.mobility_attack_damage(_run_build, TickCombatRules.PLAYER_SMASH_DAMAGE),
                     guard_shredder,
                     execution,
-                    TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
+                    TickCombatProjection.mobility_stagger_burst_multiplier(),
                 ),
             )
     if outcomes.is_empty():
@@ -300,7 +300,7 @@ func _verb_smash() -> Dictionary:
     AudioManager.play_event(player.smash_impact_sfx_event, grid.cell_center(landing))
     player.move_to(landing, true)
     player.disarm_smash()
-    player.smash_cooldown = _mobility_cooldown_ticks(TickCombatRules.SMASH_COOLDOWN_TICKS)
+    player.smash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.SMASH_COOLDOWN_TICKS)
     _close_smash_cancel_confirm()
     var refunds := _mobility_action_refunds(outcomes)
     if refunds:
@@ -359,33 +359,11 @@ func _fill_speed_meter() -> void:
     player.fill_speed_meter(_run_build.total(RunBuild.CH_SPEED))
 
 
-## Projects a mobility-slot payload's base cooldown through the run's Mobility Cooldown reduction, floored at 1 tick.
-func _mobility_cooldown_ticks(base_ticks: int) -> int:
-    return TickCombatRules.mobility_cooldown_ticks(base_ticks, int(_run_build.total(RunBuild.CH_MOBILITY_COOLDOWN)))
-
-
-## Projects normal attack's base damage through the run's Normal Attack Damage bonus total.
-func _normal_attack_damage() -> float:
-    return TickCombatRules.normal_attack_damage(_run_build.total(RunBuild.CH_NORMAL_ATTACK_DAMAGE))
-
-
-## Projects a mobility-slot payload's base damage (Dash or Smash) through the run's Mobility Attack
-## Damage bonus total.
-func _mobility_attack_damage(base_damage: float) -> float:
-    return TickCombatRules.mobility_attack_damage(base_damage, _run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE))
-
-
-## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility
-## Range percent bonus.
-func _mobility_range_cells(base_range: int) -> int:
-    return TickCombatRules.mobility_range_cells(base_range, _run_build.total(RunBuild.CH_MOBILITY_RANGE), TickCombatRules.MAX_MOBILITY_RANGE_BONUS_PERCENT)
-
-
 ## Whether a mobility-slot strike's collected hit outcomes refund this action's world advancement:
 ## the Mobility Free Action Major must be active, and at least one outcome must be a kill, guard
 ## break, or back-angle hit. A strike with several qualifying victims still refunds at most once.
 func _mobility_action_refunds(outcomes: Array[TickHitOutcome]) -> bool:
-    return _run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION) and TickHitResolver.any_qualifies_for_mobility_free_action(outcomes)
+    return TickCombatProjection.has_mobility_free_action(_run_build) and TickHitResolver.any_qualifies_for_mobility_free_action(outcomes)
 
 
 ## Appends a short suffix to the current HUD message instead of replacing it, so a Speed spend or
@@ -499,11 +477,18 @@ func _aim_direction() -> Vector2i:
 
 
 func _compute_dash_plan() -> Dictionary:
-    return TickActionPlanner.compute_dash_plan(grid, engine, _mouse_cell(), player.cell, _last_aim, _mobility_range_cells(TickCombatRules.DASH_RANGE))
+    return TickActionPlanner.compute_dash_plan(
+        grid,
+        engine,
+        _mouse_cell(),
+        player.cell,
+        _last_aim,
+        TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.DASH_RANGE),
+    )
 
 
 func _clamped_smash_target() -> Vector2i:
-    return TickActionPlanner.clamped_smash_target(_mouse_cell(), player.cell, _mobility_range_cells(TickCombatRules.SMASH_RANGE))
+    return TickActionPlanner.clamped_smash_target(_mouse_cell(), player.cell, TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.SMASH_RANGE))
 
 
 func _smash_area(center: Vector2i) -> Array[Vector2i]:

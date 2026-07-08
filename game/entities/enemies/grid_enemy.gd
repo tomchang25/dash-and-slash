@@ -1110,13 +1110,21 @@ func _clear_attack_presentation() -> void:
 ## Legacy physics-hit resolution path. Tick prediction and commits use _resolve_tick_hit_outcome() / TickHitResolver instead.
 func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -> TickHitOutcome:
     if not is_alive():
-        return EnemyHitResolver.empty_outcome()
+        return TickHitResolver.empty_outcome()
 
     var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
     var profile := Hitbox.GuardDamageProfile.DASH if is_dash else Hitbox.GuardDamageProfile.NORMAL
     var guard_damage := _resolve_guard_damage(angle, profile)
     var stagger_burst_multiplier := TickCombatRules.STAGGER_MOBILITY_MULTIPLIER if is_dash else TickCombatRules.STAGGER_ATTACK_MULTIPLIER
-    return EnemyHitResolver.resolve_outcome(angle, guard_damage, _guard, health, base_damage, _defense, stagger_burst_multiplier)
+    return TickHitResolver.resolve_precomputed(
+        angle,
+        guard_damage,
+        _target_snapshot(),
+        base_damage,
+        false,
+        false,
+        stagger_burst_multiplier,
+    )
 
 
 ## Pure tick-grid hit resolution shared by predict_hit() and take_hit(); this is the authoritative path for previews and committed tick verbs.
