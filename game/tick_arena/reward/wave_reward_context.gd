@@ -10,6 +10,6 @@ var run_build: RunBuild
 # == Lifecycle ==
 
 
-func _init(init_grid: GridArena, _legacy_player: Variant, init_run_build: RunBuild) -> void:
+func _init(init_grid: GridArena, init_run_build: RunBuild) -> void:
     grid = init_grid
     run_build = init_run_build

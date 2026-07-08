@@ -15,7 +15,6 @@ enum TerrainMutationKind {
 
 var _overlay: WaveRewardOverlay
 var _generator: WaveRewardChoiceGenerator
-var _applier: WaveRewardApplier
 var _context: WaveRewardContext
 var _current_offer: Array[WaveRewardChoice] = []
 var _was_paused := false
@@ -26,12 +25,10 @@ var _was_paused := false
 func _init(
         overlay: WaveRewardOverlay,
         generator: WaveRewardChoiceGenerator,
-        applier: WaveRewardApplier,
         context: WaveRewardContext,
 ) -> void:
     _overlay = overlay
     _generator = generator
-    _applier = applier
     _context = context
     _overlay.choice_selected.connect(_on_choice_selected)
 
@@ -50,7 +47,8 @@ func open_reward_choice(wave_number: int, target_points: float, terrain_mutation
 func _on_choice_selected(choice: WaveRewardChoice) -> void:
     if not choice in _current_offer:
         return
-    _applier.apply(choice, _context)
+    for effect in choice.effects:
+        effect.apply(_context)
     _current_offer.clear()
     _overlay.hide_choices()
     _overlay.get_tree().paused = _was_paused

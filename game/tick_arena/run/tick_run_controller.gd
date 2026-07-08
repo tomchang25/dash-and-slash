@@ -165,19 +165,16 @@ func _wire_wave_controller() -> void:
 # == Rewards ==
 
 
-## Wires the shared reward generator/applier/context/controller and overlay flow (Phase 04c bridge)
-## against this arena's own RunBuild, so a won Major writes through the same store tick verbs read.
-## The context's player field stays null: Majors and every tick-compatible Minor read and write
-## RunBuild directly, while Attack Range is the sole remaining legacy player-stat effect and is
-## filtered out of this pool by its own is_applicable() check.
+## Wires the shared reward generator/context/controller and overlay flow against this arena's own
+## RunBuild, so a picked artifact writes through the same store tick verbs read. Every artifact —
+## legendary or common — reads and writes RunBuild directly through its effect contributions, so
+## the context carries only the grid and the run build.
 func _wire_reward_flow() -> void:
     var reward_generator := WaveRewardChoiceGenerator.new(_rng)
-    var reward_applier := WaveRewardApplier.new()
-    _reward_context = WaveRewardContext.new(grid, null, _run_build)
+    _reward_context = WaveRewardContext.new(grid, _run_build)
     _reward_controller = WaveRewardChoiceController.new(
         reward_overlay,
         reward_generator,
-        reward_applier,
         _reward_context,
     )
     _reward_controller.choice_applied.connect(_on_reward_choice_applied)

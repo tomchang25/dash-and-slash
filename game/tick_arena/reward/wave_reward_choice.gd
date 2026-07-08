@@ -3,7 +3,7 @@
 class_name WaveRewardChoice
 extends RefCounted
 
-var profile := WaveRewardEffectDefinition.Profile.CONSERVATIVE
+var profile := WaveRewardChoiceGenerator.Profile.CONSERVATIVE
 var target_points := 0.0
 var effects: Array[WaveRewardEffect] = []
 var display_name := ""
@@ -16,7 +16,7 @@ func _init(
         init_target_points: float,
         init_effects: Array[WaveRewardEffect],
 ) -> void:
-    profile = init_profile as WaveRewardEffectDefinition.Profile
+    profile = init_profile as WaveRewardChoiceGenerator.Profile
     target_points = init_target_points
     effects = init_effects.duplicate()
     display_name = _make_display_name()
@@ -46,11 +46,11 @@ func effect_count() -> int:
 
 func _make_display_name() -> String:
     match profile:
-        WaveRewardEffectDefinition.Profile.CONSERVATIVE:
+        WaveRewardChoiceGenerator.Profile.CONSERVATIVE:
             return "Steady Offer"
-        WaveRewardEffectDefinition.Profile.BALANCED:
+        WaveRewardChoiceGenerator.Profile.BALANCED:
             return "Balanced Offer"
-        WaveRewardEffectDefinition.Profile.AGGRESSIVE:
+        WaveRewardChoiceGenerator.Profile.AGGRESSIVE:
             return "Bold Offer"
         _:
             ToastManager.show_dev_error("Unknown reward profile: %s" % profile)

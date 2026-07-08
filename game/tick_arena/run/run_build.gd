@@ -1,7 +1,7 @@
 # run_build.gd
 # Run-scoped store of applied reward-effect contributions. Pure data: holds a
 # signed-entry list per channel and projects each channel's total on read, plus
-# a separate Major-effect record list enforcing the run-wide Major cap and
+# an owned-artifact registry enforcing the run-wide legendary-rarity cap and
 # per-group exclusivity, and a mobility-slot-triggered-effect flag set (Guard
 # Shredder, Execution, Mobility Free Action) that the active mobility strike's
 # resolution queries directly, regardless of whether the slot payload is Dash
@@ -33,10 +33,10 @@ const TRIGGER_GUARD_SHREDDER := &"guard_shredder"
 const TRIGGER_EXECUTION := &"execution"
 const TRIGGER_MOBILITY_FREE_ACTION := &"mobility_free_action"
 
-const MAJOR_CAP := 4
+const LEGENDARY_CAP := 4
 
 var _entries: Array[Dictionary] = []
-var _major_entries: Array[Dictionary] = []
+var _owned_artifacts: Array[Dictionary] = []
 var _mobility_payload_override := PAYLOAD_DASH
 var _mobility_triggers: Dictionary = { }
 
@@ -60,13 +60,13 @@ func total(channel: StringName) -> float:
     return sum
 
 
-## Clears every recorded entry, the Major-effect record list, the mobility payload override (back
+## Clears every recorded entry, the owned-artifact registry, the mobility payload override (back
 ## to the Dash default), and the mobility-trigger set. This is the sole production restart path:
 ## the arena root constructs one RunBuild per arena scene and TickRunController.reset_run() clears
 ## it in place, so every collaborator keeps its original injected reference for the scene's lifetime.
 func clear() -> void:
     _entries.clear()
-    _major_entries.clear()
+    _owned_artifacts.clear()
     _mobility_payload_override = PAYLOAD_DASH
     _mobility_triggers.clear()
 
@@ -76,7 +76,7 @@ func get_mobility_payload() -> StringName:
     return _mobility_payload_override
 
 
-## Debug/prototype seam for Major payload replacement; production rewards should call this through their effect application path.
+## Debug/prototype seam for artifact payload replacement; production rewards should call this through their effect application path.
 func set_mobility_payload_override(payload: StringName) -> void:
     if payload != PAYLOAD_DASH and payload != PAYLOAD_SMASH and payload != PAYLOAD_DEBUG_STUB:
         ToastManager.show_dev_error("RunBuild: unknown mobility payload %s" % payload)
@@ -84,57 +84,75 @@ func set_mobility_payload_override(payload: StringName) -> void:
     _mobility_payload_override = payload
 
 
-## Registers a Major effect if the store has capacity, the same effect id is not already
-## registered, and there is no exclusivity-group conflict; returns false without registering
-## otherwise. This stays authoritative rather than trusting the caller's own pre-offer check, so a
-## rejected add is observable instead of silently no-op'ing.
-func add_major(effect_id: String, exclusivity_group: String) -> bool:
-    if has_major(effect_id) or not can_add_major(exclusivity_group):
+## Registers an artifact pick in the owned-artifact registry: a fresh stackable pick is appended, a
+## repeat stackable pick increments the existing entry's stacks, and a repeat unique pick is
+## rejected. A fresh pick is also rejected when the legendary cap is full or its exclusivity group
+## already has a member. This stays authoritative rather than trusting the caller's own pre-offer
+## check, so a rejected acquire is observable instead of silently no-op'ing.
+func acquire_artifact(artifact: Artifact, stacks: int = 1) -> bool:
+    var index := _find_owned_index(artifact.id)
+    if index != -1:
+        if artifact.max_stacks <= 1:
+            return false
+        _owned_artifacts[index]["stacks"] += stacks
+        return true
+    if not can_acquire_artifact(artifact):
         return false
-    _major_entries.append({ "effect_id": effect_id, "exclusivity_group": exclusivity_group })
+    _owned_artifacts.append({ "artifact": artifact, "stacks": stacks })
     return true
 
 
-## Returns whether another Major could be registered right now: the cap has
-## room and, if the group is non-empty, no existing member shares it. Does not check for an
-## already-registered effect id of its own; callers that must reject re-offering the same effect
-## (such as MajorEffect.is_applicable()) pair this with has_major().
-func can_add_major(exclusivity_group: String) -> bool:
-    return has_major_capacity() and not has_major_conflict(exclusivity_group)
+## Returns whether the given artifact could be freshly registered right now: no exclusivity
+## conflict, and if it is legendary, the legendary cap has room. Does not check for an
+## already-owned unique artifact of its own; callers that must reject re-offering an owned unique
+## (such as Artifact.is_eligible()) pair this with has_artifact().
+func can_acquire_artifact(artifact: Artifact) -> bool:
+    if has_exclusivity_conflict(artifact.exclusivity_group):
+        return false
+    if artifact.rarity == Artifact.Rarity.LEGENDARY:
+        return has_legendary_capacity()
+    return true
 
 
-## Returns whether the given Major effect id is already registered in this run. A Major with an
-## empty exclusivity group (Guard Shredder, Execution) has no group conflict to fall back on, so
-## this is the only guard against the same effect being offered or applied a second time.
-func has_major(effect_id: String) -> bool:
-    for entry in _major_entries:
-        if entry["effect_id"] == effect_id:
-            return true
-    return false
+## Returns whether the given artifact id is already registered in this run.
+func has_artifact(id: StringName) -> bool:
+    return _find_owned_index(id) != -1
 
 
-## Returns whether the run-wide Major cap still has room for another entry.
-func has_major_capacity() -> bool:
-    return major_count() < MAJOR_CAP
+## Returns whether the run-wide legendary cap still has room for another legendary artifact.
+func has_legendary_capacity() -> bool:
+    return legendary_count() < LEGENDARY_CAP
 
 
 ## Returns whether a non-empty exclusivity group already has a registered
 ## member. An empty group never conflicts.
-func has_major_conflict(exclusivity_group: String) -> bool:
-    if exclusivity_group == "":
+func has_exclusivity_conflict(exclusivity_group: StringName) -> bool:
+    if exclusivity_group == &"":
         return false
-    for entry in _major_entries:
-        if entry["exclusivity_group"] == exclusivity_group:
+    for entry in _owned_artifacts:
+        var owned: Artifact = entry["artifact"]
+        if owned.exclusivity_group == exclusivity_group:
             return true
     return false
 
 
-## Returns how many Major effects are currently registered in this run.
-func major_count() -> int:
-    return _major_entries.size()
+## Returns how many legendary-rarity artifacts are currently registered in this run.
+func legendary_count() -> int:
+    var count := 0
+    for entry in _owned_artifacts:
+        var owned: Artifact = entry["artifact"]
+        if owned.rarity == Artifact.Rarity.LEGENDARY:
+            count += 1
+    return count
 
 
-## Returns whether the given mobility-slot-triggered Major effect (Guard Shredder, Execution,
+## Returns a copy of the owned-artifact registry, one `{ "artifact": Artifact, "stacks": int }`
+## entry per distinct owned artifact. Read by the build inspection panel.
+func get_owned_artifacts() -> Array[Dictionary]:
+    return _owned_artifacts.duplicate()
+
+
+## Returns whether the given mobility-slot-triggered artifact effect (Guard Shredder, Execution,
 ## Mobility Free Action) is currently active. The active mobility strike's resolution reads this
 ## directly instead of forking per-effect code paths per payload, so the same trigger fires whether
 ## the slot payload is Dash or Smash.
@@ -142,11 +160,22 @@ func has_mobility_trigger(trigger_id: StringName) -> bool:
     return bool(_mobility_triggers.get(trigger_id, false))
 
 
-## Activates or deactivates one mobility-slot-triggered Major effect by id. Real Major effects call
-## this from their own apply(); debug controls write through the same call so debug behavior stays
-## representative of perk behavior instead of a parallel scene-only flag.
+## Activates or deactivates one mobility-slot-triggered artifact effect by id. Real trigger effects
+## call this from their own apply(); debug controls write through the same call so debug behavior
+## stays representative of artifact behavior instead of a parallel scene-only flag.
 func set_mobility_trigger(trigger_id: StringName, active: bool) -> void:
     if trigger_id != TRIGGER_GUARD_SHREDDER and trigger_id != TRIGGER_EXECUTION and trigger_id != TRIGGER_MOBILITY_FREE_ACTION:
         ToastManager.show_dev_error("RunBuild: unknown mobility trigger %s" % trigger_id)
         return
     _mobility_triggers[trigger_id] = active
+
+# == Owned Artifacts ==
+
+
+## Returns the registry index of the given artifact id, or -1 if it is not owned.
+func _find_owned_index(id: StringName) -> int:
+    for i in _owned_artifacts.size():
+        var owned: Artifact = _owned_artifacts[i]["artifact"]
+        if owned.id == id:
+            return i
+    return -1

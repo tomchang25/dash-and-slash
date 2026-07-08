@@ -1,36 +1,41 @@
 # wave_reward_effect.gd
-# Runtime reward effect value rolled into one wave reward choice.
+# Runtime owned-artifact value rolled into one wave reward choice.
 class_name WaveRewardEffect
 extends RefCounted
 
-var definition: WaveRewardEffectDefinition
+var artifact: Artifact
 var stacks := 1
 
 # == Lifecycle ==
 
 
-func _init(init_definition: WaveRewardEffectDefinition, init_stacks: int = 1) -> void:
-    definition = init_definition
+func _init(init_artifact: Artifact, init_stacks: int = 1) -> void:
+    artifact = init_artifact
     stacks = max(init_stacks, 1)
 
 # == Common API ==
 
 
 func total_points() -> float:
-    return definition.point_value * stacks
+    return artifact.point_value * stacks
 
 
 func total_magnitude() -> float:
-    return definition.magnitude * float(stacks)
+    return artifact.magnitude * float(stacks)
 
 
-## Delegates application to the prototype definition.
+## Registers the artifact in the run build's owned-artifact registry, then applies its effect
+## contributions. A rejected registration here signals a programmer error, since is_eligible is the
+## pre-offer filter that should have already excluded a conflicting or already-owned artifact.
 func apply(context: WaveRewardContext) -> void:
-    definition.apply(context, stacks)
+    if not context.run_build.acquire_artifact(artifact, stacks):
+        ToastManager.show_dev_error("WaveRewardEffect: %s rejected by RunBuild after passing is_eligible" % artifact.id)
+        return
+    artifact.apply(context, stacks)
 
 
 func description() -> String:
     var amount := total_magnitude()
     if is_equal_approx(amount, roundf(amount)):
-        return definition.description_template % int(amount)
-    return definition.description_template % amount
+        return artifact.description_template % int(amount)
+    return artifact.description_template % amount

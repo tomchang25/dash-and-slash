@@ -60,7 +60,7 @@ Child documents live alongside this plan as `tick_artifact_rewards_0N_*.sketch.m
 
 | Child | Focus                                                                                                                                                                                                                                           | Form   |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| 01    | Artifact data model: the unified artifact plus effect-contribution composition, rarity/stack/exclusivity/curse, legendary-slot cap generalization, and the legacy-player seam removal; absorbs the former consolidation channel-effect collapse | sketch |
+| 01    | Artifact data model: the unified artifact plus effect-contribution composition, rarity/stack/exclusivity/curse, legendary-slot cap generalization, and the legacy-player seam removal; absorbs the former consolidation channel-effect collapse | spec   |
 | 02    | Roll, cadence, and curses: rarity-weighted distinct three-choice, the milestone curse+Major beat with Minor ×2 fallback, the curse pool built from the pressure channels, and point-generator removal                                           | sketch |
 | 03    | Build inspection panel: a settings-button-style toggle opening a panel that lists owned artifacts and the current build's summed effect totals                                                                                                  | sketch |
 
