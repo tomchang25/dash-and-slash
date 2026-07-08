@@ -83,9 +83,7 @@ func _make_normal_attack_damage_artifact() -> Artifact:
         &"",
         false,
         1,
-        -1,
         10.0,
-        [WaveRewardChoiceGenerator.Profile.CONSERVATIVE],
         [ChannelArtifactEffect.new(RunBuild.CH_NORMAL_ATTACK_DAMAGE, 10.0)],
     )
 
@@ -100,9 +98,7 @@ func _make_dash_attack_damage_artifact() -> Artifact:
         &"",
         false,
         1,
-        -1,
         20.0,
-        [WaveRewardChoiceGenerator.Profile.CONSERVATIVE],
         [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_ATTACK_DAMAGE, 20.0)],
     )
 
@@ -117,9 +113,7 @@ func _make_dash_range_artifact() -> Artifact:
         &"",
         false,
         1,
-        -1,
         10.0,
-        [WaveRewardChoiceGenerator.Profile.CONSERVATIVE],
         [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_RANGE, 10.0)],
     )
 
@@ -134,8 +128,6 @@ func _make_max_health_artifact() -> Artifact:
         &"",
         false,
         1,
-        -1,
         20.0,
-        [WaveRewardChoiceGenerator.Profile.CONSERVATIVE],
         [ChannelArtifactEffect.new(RunBuild.CH_MAX_HEALTH, 20.0)],
     )

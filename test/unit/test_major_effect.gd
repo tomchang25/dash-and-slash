@@ -101,8 +101,6 @@ func _make_legendary(id: StringName, exclusivity_group: StringName) -> Artifact:
         exclusivity_group,
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [],
     )

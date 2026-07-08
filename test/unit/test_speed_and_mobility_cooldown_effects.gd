@@ -59,9 +59,7 @@ func _make_speed_artifact() -> Artifact:
         &"",
         false,
         1,
-        -1,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.CONSERVATIVE],
         [ChannelArtifactEffect.new(RunBuild.CH_SPEED, 1.0)],
     )
 
@@ -76,8 +74,6 @@ func _make_mobility_cooldown_artifact() -> Artifact:
         &"",
         false,
         1,
-        -1,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.CONSERVATIVE],
         [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_COOLDOWN, 1.0)],
     )

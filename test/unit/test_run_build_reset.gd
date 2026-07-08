@@ -15,9 +15,7 @@ func test_clear_resets_entries_artifacts_payload_override_and_triggers_together(
         &"",
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [],
     )
     run_build.record(RunBuild.CH_MAX_HEALTH, 20.0)

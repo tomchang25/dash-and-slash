@@ -60,9 +60,7 @@ func _make_execution() -> Artifact:
         &"",
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [TriggerArtifactEffect.new(RunBuild.TRIGGER_EXECUTION)],
     )
 
@@ -77,8 +75,6 @@ func _make_legendary(id: StringName, exclusivity_group: StringName) -> Artifact:
         exclusivity_group,
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [],
     )

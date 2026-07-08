@@ -1,15 +1,16 @@
 # wave_reward_choice_generator.gd
-# Pure reward-choice generator that builds point-balanced artifact combinations.
+# Pure reward-choice picker that rolls distinct eligible artifacts of a requested kind.
 class_name WaveRewardChoiceGenerator
 extends RefCounted
 
-enum Profile {
-    CONSERVATIVE,
-    BALANCED,
-    AGGRESSIVE,
+## Which artifact pool an offer draws from. Kind is derived from Artifact data (rarity, is_curse),
+## not stored on the artifact itself: Minor is common and not a curse, Major is legendary, curse is
+## any artifact with is_curse set.
+enum RewardKind {
+    MINOR,
+    MAJOR,
+    CURSE,
 }
-
-const MAX_ROLL_ATTEMPTS := 80
 
 ## Exclusivity-group id shared by every mobility-slot payload replacement (Smash today, the future
 ## Chain Dash), since only one can be active at a time.
@@ -29,129 +30,47 @@ func _init(rng: RandomNumberGenerator = null) -> void:
 # == Common API ==
 
 
-func roll_choices(wave_number: int, target_points: float, context: WaveRewardContext) -> Array[WaveRewardChoice]:
-    return [
-        _roll_choice(Profile.CONSERVATIVE, wave_number, target_points, context),
-        _roll_choice(Profile.BALANCED, wave_number, target_points, context),
-        _roll_choice(Profile.AGGRESSIVE, wave_number, target_points, context),
-    ]
+## Returns up to count distinct, eligible artifacts of the given kind as offered choices at one
+## stack each. Returns fewer than count if the eligible pool is smaller than count — callers must
+## not assume a full offer.
+func roll(kind: RewardKind, count: int, wave_number: int, context: WaveRewardContext) -> Array[WaveRewardChoice]:
+    var pool := _eligible_artifacts(kind, wave_number, context)
+    _shuffle(pool)
+    var choices: Array[WaveRewardChoice] = []
+    for artifact in pool.slice(0, count):
+        choices.append(WaveRewardChoice.new(artifact, 1))
+    return choices
 
-# == Rolling ==
-
-
-func _roll_choice(
-        profile: int,
-        wave_number: int,
-        target_points: float,
-        context: WaveRewardContext,
-) -> WaveRewardChoice:
-    var available := _available_artifacts(profile, wave_number, context)
-    for attempt in MAX_ROLL_ATTEMPTS:
-        var effects := _roll_effects_for_profile(profile, available)
-        if _is_valid_choice(profile, effects, target_points):
-            return WaveRewardChoice.new(profile, target_points, effects)
-
-    return _fallback_choice(profile, target_points, available)
+# == Pool Filtering ==
 
 
-func _roll_effects_for_profile(
-        profile: int,
-        available: Array[Artifact],
-) -> Array[WaveRewardEffect]:
-    var effects: Array[WaveRewardEffect] = []
-    var picked_ids: Array[StringName] = []
-    var desired_count := _random_effect_count(profile)
-    var candidates := available.duplicate()
-    candidates.shuffle()
-
-    while effects.size() < desired_count and not candidates.is_empty():
-        var artifact: Artifact = candidates.pop_back()
-        if artifact.id in picked_ids:
+func _eligible_artifacts(kind: RewardKind, wave_number: int, context: WaveRewardContext) -> Array[Artifact]:
+    var eligible: Array[Artifact] = []
+    for artifact in _artifacts:
+        if _kind_of(artifact) != kind:
             continue
-        picked_ids.append(artifact.id)
-        var stacks := _rng.randi_range(1, _max_stacks_for_profile(profile, artifact))
-        effects.append(artifact.create_effect(stacks))
-
-    return effects
-
-
-func _is_valid_choice(
-        profile: int,
-        effects: Array[WaveRewardEffect],
-        target_points: float,
-) -> bool:
-    if effects.is_empty() or not is_equal_approx(_total_points(effects), target_points):
-        return false
-    match profile:
-        Profile.CONSERVATIVE:
-            return effects.size() <= 2 and _total_upside(effects) <= 1.0 and _total_downside(effects) <= target_points + 2.0
-        Profile.BALANCED:
-            return effects.size() >= 2 and effects.size() <= 3 and _total_upside(effects) >= 1.0 and _total_downside(effects) >= 1.0
-        Profile.AGGRESSIVE:
-            return effects.size() >= 3 and effects.size() <= 4 and _total_upside(effects) >= 3.0 and _total_downside(effects) >= 3.0
-        _:
-            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
-            return false
+        if wave_number < artifact.min_wave:
+            continue
+        if not artifact.is_eligible(context):
+            continue
+        eligible.append(artifact)
+    return eligible
 
 
-## TODO, need cleanup this mess logic
-func _fallback_choice(
-        profile: int,
-        target_points: float,
-        available: Array[Artifact],
-) -> WaveRewardChoice:
-    var best_effects: Array[WaveRewardEffect] = []
-    var best_distance := INF
-    var options := _expanded_single_effect_options(available, profile)
-    var max_count := _max_effect_count(profile)
-
-    for a in options.size():
-        var effects := [options[a]]
-        best_distance = _capture_best_effects(effects, target_points, best_effects, best_distance)
-        for b in range(a + 1, options.size()):
-            if _shares_artifact_id(options[b], effects):
-                continue
-            effects = [options[a], options[b]]
-            best_distance = _capture_best_effects(effects, target_points, best_effects, best_distance)
-            if max_count < 3:
-                continue
-            for c in range(b + 1, options.size()):
-                if _shares_artifact_id(options[c], effects):
-                    continue
-                effects = [options[a], options[b], options[c]]
-                best_distance = _capture_best_effects(effects, target_points, best_effects, best_distance)
-                if max_count < 4:
-                    continue
-                for d in range(c + 1, options.size()):
-                    if _shares_artifact_id(options[d], effects):
-                        continue
-                    effects = [options[a], options[b], options[c], options[d]]
-                    best_distance = _capture_best_effects(effects, target_points, best_effects, best_distance)
-
-    return WaveRewardChoice.new(profile, target_points, best_effects)
+func _kind_of(artifact: Artifact) -> RewardKind:
+    if artifact.is_curse:
+        return RewardKind.CURSE
+    if artifact.rarity == Artifact.Rarity.LEGENDARY:
+        return RewardKind.MAJOR
+    return RewardKind.MINOR
 
 
-func _shares_artifact_id(candidate: WaveRewardEffect, chosen: Array) -> bool:
-    for effect: WaveRewardEffect in chosen:
-        if effect.artifact.id == candidate.artifact.id:
-            return true
-    return false
-
-
-func _capture_best_effects(
-        effects: Array,
-        target_points: float,
-        best_effects: Array[WaveRewardEffect],
-        best_distance: float,
-) -> float:
-    var typed_effects: Array[WaveRewardEffect] = []
-    for effect: WaveRewardEffect in effects:
-        typed_effects.append(effect)
-    var distance := absf(_total_points(typed_effects) - target_points)
-    if distance < best_distance:
-        best_effects.assign(typed_effects)
-        return distance
-    return best_distance
+func _shuffle(pool: Array[Artifact]) -> void:
+    for i in range(pool.size() - 1, 0, -1):
+        var j := _rng.randi_range(0, i)
+        var swap := pool[i]
+        pool[i] = pool[j]
+        pool[j] = swap
 
 # == Artifact Pool ==
 
@@ -167,9 +86,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            1,
             1.0,
-            [Profile.CONSERVATIVE, Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_FUTURE_ENEMY_COUNT, 1.0)],
         ),
         Artifact.new(
@@ -181,9 +98,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            -1,
             10.0,
-            [Profile.CONSERVATIVE, Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_NORMAL_ATTACK_DAMAGE, 10.0)],
         ),
         Artifact.new(
@@ -195,9 +110,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            -1,
             1.0,
-            [Profile.CONSERVATIVE, Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_SPEED, 1.0)],
         ),
         Artifact.new(
@@ -209,9 +122,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            -1,
             20.0,
-            [Profile.CONSERVATIVE, Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_ATTACK_DAMAGE, 20.0)],
         ),
         Artifact.new(
@@ -223,9 +134,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            -1,
             1.0,
-            [Profile.CONSERVATIVE, Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_COOLDOWN, 1.0)],
         ),
         Artifact.new(
@@ -237,9 +146,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            -1,
             10.0,
-            [Profile.CONSERVATIVE, Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_ATTACK_RANGE, 10.0)],
         ),
         Artifact.new(
@@ -251,9 +158,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            -1,
             10.0,
-            [Profile.CONSERVATIVE, Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_RANGE, 10.0)],
         ),
         Artifact.new(
@@ -265,9 +170,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            -1,
             20.0,
-            [Profile.CONSERVATIVE, Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_MAX_HEALTH, 20.0)],
         ),
         Artifact.new(
@@ -279,9 +182,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            2,
             5.0,
-            [Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_HEALTH_PRESSURE, 5.0, 0.01)],
         ),
         Artifact.new(
@@ -293,9 +194,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            2,
             5.0,
-            [Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_DAMAGE_PRESSURE, 5.0, 0.01)],
         ),
         Artifact.new(
@@ -307,9 +206,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             1,
-            2,
             3.0,
-            [Profile.BALANCED, Profile.AGGRESSIVE],
             [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_DEFENSE_PRESSURE, 3.0)],
         ),
         Artifact.new(
@@ -321,9 +218,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             SMASH_EXCLUSIVITY_GROUP,
             false,
             2,
-            -4,
             1.0,
-            [Profile.AGGRESSIVE],
             [PayloadArtifactEffect.new(RunBuild.PAYLOAD_SMASH)],
         ),
         Artifact.new(
@@ -335,9 +230,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             2,
-            -4,
             1.0,
-            [Profile.AGGRESSIVE],
             [TriggerArtifactEffect.new(RunBuild.TRIGGER_GUARD_SHREDDER)],
         ),
         Artifact.new(
@@ -349,9 +242,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             2,
-            -4,
             1.0,
-            [Profile.AGGRESSIVE],
             [TriggerArtifactEffect.new(RunBuild.TRIGGER_EXECUTION)],
         ),
         Artifact.new(
@@ -363,102 +254,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             &"",
             false,
             2,
-            -4,
             1.0,
-            [Profile.AGGRESSIVE],
             [TriggerArtifactEffect.new(RunBuild.TRIGGER_MOBILITY_FREE_ACTION)],
         ),
     ]
-
-
-func _available_artifacts(
-        profile: int,
-        wave_number: int,
-        context: WaveRewardContext,
-) -> Array[Artifact]:
-    var available: Array[Artifact] = []
-    for artifact in _artifacts:
-        if wave_number < artifact.min_wave or not artifact.allows_profile(profile):
-            continue
-        if not artifact.is_eligible(context):
-            continue
-        available.append(artifact)
-    return available
-
-# == Constraints ==
-
-
-func _random_effect_count(profile: int) -> int:
-    match profile:
-        Profile.CONSERVATIVE:
-            return _rng.randi_range(1, 2)
-        Profile.BALANCED:
-            return _rng.randi_range(2, 3)
-        Profile.AGGRESSIVE:
-            return _rng.randi_range(3, 4)
-        _:
-            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
-            return 1
-
-
-func _max_effect_count(profile: int) -> int:
-    match profile:
-        Profile.CONSERVATIVE:
-            return 2
-        Profile.BALANCED:
-            return 3
-        Profile.AGGRESSIVE:
-            return 4
-        _:
-            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
-            return 1
-
-
-func _max_stacks_for_profile(
-        profile: int,
-        artifact: Artifact,
-) -> int:
-    match profile:
-        Profile.CONSERVATIVE:
-            return min(artifact.max_stacks, 2)
-        Profile.BALANCED:
-            return min(artifact.max_stacks, 2)
-        Profile.AGGRESSIVE:
-            return artifact.max_stacks
-        _:
-            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
-            return 1
-
-
-func _expanded_single_effect_options(
-        artifacts: Array[Artifact],
-        profile: int,
-) -> Array[WaveRewardEffect]:
-    var options: Array[WaveRewardEffect] = []
-    for artifact in artifacts:
-        for stacks in range(1, _max_stacks_for_profile(profile, artifact) + 1):
-            options.append(artifact.create_effect(stacks))
-    return options
-
-
-func _total_points(effects: Array[WaveRewardEffect]) -> float:
-    var total := 0.0
-    for effect in effects:
-        total += effect.total_points()
-    return total
-
-
-func _total_upside(effects: Array[WaveRewardEffect]) -> float:
-    var total := 0.0
-    for effect in effects:
-        if effect.total_points() < 0:
-            total += absf(effect.total_points())
-    return total
-
-
-func _total_downside(effects: Array[WaveRewardEffect]) -> float:
-    var total := 0.0
-    for effect in effects:
-        if effect.total_points() > 0:
-            total += effect.total_points()
-    return total

@@ -187,13 +187,8 @@ func _open_reward_choice() -> void:
     var wave_number := _wave_controller.get_wave_number()
     _reward_controller.open_reward_choice(
         wave_number,
-        _reward_target_points(wave_number),
         WaveRewardChoiceController.TerrainMutationKind.REMOVE_LAND,
     )
-
-
-func _reward_target_points(wave_number: int) -> float:
-    return float(max(wave_number - 1, 0))
 
 # == Wave banner ==
 

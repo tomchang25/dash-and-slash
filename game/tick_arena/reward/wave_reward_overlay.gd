@@ -15,6 +15,7 @@ var _choices: Array[WaveRewardChoice] = []
 ## Absent in the tick arena's overlay instance by design (Phase 6e freezes terrain mutation), so this
 ## looks the node up tolerantly instead of the strict %-shorthand, which would log a missing-node
 ## error every time this overlay enters the tree there.
+# node-ref: allow - optional node absent by design in the tick arena instance; strict %-shorthand would error there
 @onready var _terrain_mutation_note_label: Label = get_node_or_null(^"%TerrainMutationNoteLabel")
 
 # == Lifecycle ==
@@ -62,17 +63,8 @@ func _on_choice_button_pressed(index: int) -> void:
 
 
 func _format_choice(choice: WaveRewardChoice) -> String:
-    var lines := [choice.display_name]
-    lines.append("Points: %s / %s" % [_format_points(choice.total_points()), _format_points(choice.target_points)])
-    lines.append("")
-    lines.append_array(choice.description_lines())
+    var lines := [choice.artifact.display_name, "", choice.description()]
     return "\n".join(lines)
-
-
-func _format_points(points: float) -> String:
-    if is_equal_approx(points, roundf(points)):
-        return "%d" % int(roundf(points))
-    return "%.1f" % points
 
 
 func _format_terrain_mutation_note(terrain_mutation_kind: int) -> String:

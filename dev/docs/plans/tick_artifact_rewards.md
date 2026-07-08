@@ -61,10 +61,13 @@ Child documents live alongside this plan as `tick_artifact_rewards_0N_*.sketch.m
 | Child | Focus                                                                                                                                                                                                                                           | Form   |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | 01    | Artifact data model: the unified artifact plus effect-contribution composition, rarity/stack/exclusivity/curse, legendary-slot cap generalization, and the legacy-player seam removal; absorbs the former consolidation channel-effect collapse | spec   |
-| 02    | Roll, cadence, and curses: rarity-weighted distinct three-choice, the milestone curse+Major beat with Minor ×2 fallback, the curse pool built from the pressure channels, and point-generator removal                                           | sketch |
+| 02a   | Roll collapse: replace the point-balancing generator with a kind-filtered distinct single-artifact picker, fold the choice/effect wrappers into one owned unit, and slim the artifact of its dead roll metadata (split from the 02 sketch)       | spec   |
+| 02b   | Cadence and curses: the milestone curse+Major beat with Minor ×2 fallback, and the curse pool re-homed from the four pressure channels (remaining half of the 02 sketch)                                                                        | sketch |
 | 03    | Build inspection panel: a settings-button-style toggle opening a panel that lists owned artifacts and the current build's summed effect totals                                                                                                  | sketch |
 
-Order: 01 first (the data model everything else reads), then 02 and 03 in either order.
+Order: 01 first (the data model everything else reads), then 02a (collapses the roll and finalizes the artifact shape), then 02b and 03 in either order. The `.tres` authoring migration follows 02a, once the artifact shape is final.
+
+The 02 sketch (`tick_artifact_rewards_02_roll_cadence_curses.sketch.md`) is the umbrella for 02a and 02b: 02a owns the roll/picker collapse, 02b owns the cadence and curse pool.
 
 ## Acceptance Criteria
 

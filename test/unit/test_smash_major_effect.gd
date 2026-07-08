@@ -56,9 +56,7 @@ func _make_smash() -> Artifact:
         WaveRewardChoiceGenerator.SMASH_EXCLUSIVITY_GROUP,
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [PayloadArtifactEffect.new(RunBuild.PAYLOAD_SMASH)],
     )
 
@@ -73,8 +71,6 @@ func _make_legendary(id: StringName, exclusivity_group: StringName) -> Artifact:
         exclusivity_group,
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [],
     )

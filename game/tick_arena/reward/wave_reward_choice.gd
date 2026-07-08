@@ -1,57 +1,33 @@
 # wave_reward_choice.gd
-# Runtime value object representing one generated reward choice.
+# Runtime owned-artifact value object representing one offered reward choice.
 class_name WaveRewardChoice
 extends RefCounted
 
-var profile := WaveRewardChoiceGenerator.Profile.CONSERVATIVE
-var target_points := 0.0
-var effects: Array[WaveRewardEffect] = []
-var display_name := ""
+var artifact: Artifact
+var stacks := 1
 
 # == Lifecycle ==
 
 
-func _init(
-        init_profile: int,
-        init_target_points: float,
-        init_effects: Array[WaveRewardEffect],
-) -> void:
-    profile = init_profile as WaveRewardChoiceGenerator.Profile
-    target_points = init_target_points
-    effects = init_effects.duplicate()
-    display_name = _make_display_name()
+func _init(init_artifact: Artifact, init_stacks: int = 1) -> void:
+    artifact = init_artifact
+    stacks = max(init_stacks, 1)
 
 # == Common API ==
 
 
-func total_points() -> float:
-    var total := 0.0
-    for effect in effects:
-        total += effect.total_points()
-    return total
+## Registers the artifact in the run build's owned-artifact registry, then applies its effect
+## contributions. A rejected registration here signals a programmer error, since is_eligible is the
+## pre-offer filter that should have already excluded a conflicting or already-owned artifact.
+func apply(context: WaveRewardContext) -> void:
+    if not context.run_build.acquire_artifact(artifact, stacks):
+        ToastManager.show_dev_error("WaveRewardChoice: %s rejected by RunBuild after passing is_eligible" % artifact.id)
+        return
+    artifact.apply(context, stacks)
 
 
-func description_lines() -> Array[String]:
-    var lines: Array[String] = []
-    for effect in effects:
-        lines.append(effect.description())
-    return lines
-
-
-func effect_count() -> int:
-    return effects.size()
-
-# == Display ==
-
-
-func _make_display_name() -> String:
-    match profile:
-        WaveRewardChoiceGenerator.Profile.CONSERVATIVE:
-            return "Steady Offer"
-        WaveRewardChoiceGenerator.Profile.BALANCED:
-            return "Balanced Offer"
-        WaveRewardChoiceGenerator.Profile.AGGRESSIVE:
-            return "Bold Offer"
-        _:
-            ToastManager.show_dev_error("Unknown reward profile: %s" % profile)
-            return "Reward Offer"
+func description() -> String:
+    var amount := artifact.magnitude * float(stacks)
+    if is_equal_approx(amount, roundf(amount)):
+        return artifact.description_template % int(amount)
+    return artifact.description_template % amount

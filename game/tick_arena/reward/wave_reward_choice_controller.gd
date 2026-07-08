@@ -35,8 +35,8 @@ func _init(
 # == Common API ==
 
 
-func open_reward_choice(wave_number: int, target_points: float, terrain_mutation_kind: int) -> void:
-    _current_offer = _generator.roll_choices(wave_number, target_points, _context)
+func open_reward_choice(wave_number: int, terrain_mutation_kind: int) -> void:
+    _current_offer = _generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 3, wave_number, _context)
     _was_paused = _overlay.get_tree().paused
     _overlay.show_choices(_current_offer, terrain_mutation_kind)
     _overlay.get_tree().paused = true
@@ -47,8 +47,7 @@ func open_reward_choice(wave_number: int, target_points: float, terrain_mutation
 func _on_choice_selected(choice: WaveRewardChoice) -> void:
     if not choice in _current_offer:
         return
-    for effect in choice.effects:
-        effect.apply(_context)
+    choice.apply(_context)
     _current_offer.clear()
     _overlay.hide_choices()
     _overlay.get_tree().paused = _was_paused

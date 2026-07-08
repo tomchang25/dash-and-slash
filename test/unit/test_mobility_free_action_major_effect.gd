@@ -50,9 +50,7 @@ func test_mobility_free_action_can_be_active_alongside_guard_shredder_and_execut
         &"",
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [TriggerArtifactEffect.new(RunBuild.TRIGGER_GUARD_SHREDDER)],
     )
     var execution := Artifact.new(
@@ -64,9 +62,7 @@ func test_mobility_free_action_can_be_active_alongside_guard_shredder_and_execut
         &"",
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [TriggerArtifactEffect.new(RunBuild.TRIGGER_EXECUTION)],
     )
 
@@ -93,8 +89,6 @@ func _make_mobility_free_action() -> Artifact:
         &"",
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [TriggerArtifactEffect.new(RunBuild.TRIGGER_MOBILITY_FREE_ACTION)],
     )

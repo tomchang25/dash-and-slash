@@ -61,9 +61,7 @@ func _make_guard_shredder() -> Artifact:
         &"",
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [TriggerArtifactEffect.new(RunBuild.TRIGGER_GUARD_SHREDDER)],
     )
 
@@ -78,8 +76,6 @@ func _make_execution() -> Artifact:
         &"",
         false,
         2,
-        -4,
         1.0,
-        [WaveRewardChoiceGenerator.Profile.AGGRESSIVE],
         [TriggerArtifactEffect.new(RunBuild.TRIGGER_EXECUTION)],
     )
