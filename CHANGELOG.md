@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Tick Artifact Rewards
+
+- 2026-07-08 — [rewards] Rewards now ship as Resource-backed artifact cards with distinct flat rolls, milestone Minor x2/Major offers, automatic curse reveals, and an on-demand build inspection panel
+
 ### Tick Arena Combat Feedback And Aim
 
 - 2026-07-08 — [combat] Result presentation (HUD outcome messages, Major-trigger VFX/SFX) moves out of TickActionController into a dedicated TickCombatFeedback, and aim/plan resolution is shared between the action and preview controllers through a TickAimContext instead of two duplicated wrapper sets
