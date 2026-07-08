@@ -62,10 +62,11 @@ common/           Reusable systems (not feature-specific)
   framework/      State machine pattern
   gameplay/       Gameplay components and grid system
   utils/          Random utilities
-data/             Designer resources
-  definitions/    Resource class scripts (.gd)
-  yaml/           Human-authored SFX synth patches, rendered via dev/tools/render_sfx.py
-  tres/           Generated SFX playback resources — do not hand-edit (gitignored)
+data/             Designer resources, domain-first: data/<domain>/definitions/ + domain-owned content
+  rewards/        Artifact/ArtifactRegistry schemas and authored reward content
+  enemies/        Enemy Resource schemas (EnemyData, EnemyAttackData)
+  yaml/sfx/       Human-authored SFX synth patches, rendered via dev/tools/render_sfx.py (SFX domain only)
+  tres/           Generated SFX playback resources — do not hand-edit (gitignored, SFX domain only)
 dev/              Development tooling and documentation
   agent_rules/    Agent-specific instructions
   docs/           Architecture docs
@@ -87,7 +88,7 @@ test/             Unit tests and test runner
 
 ## Data Pipeline
 
-SFX are authored as YAML patches under `data/yaml/sfx/*.yaml` and rendered via `dev/tools/render_sfx.py` into WAV + `UiAudioEvent .tres` output. Never hand-edit the generated WAV or `.tres` files. Gameplay data (enemies, player stats) is hand-authored directly as `.tres` resources alongside its feature code — see `dev/docs/archived/enemy_data_backed_structure.md` and `data_driven_player_stats.sketch.md` for why generated data was rejected for that content.
+`data/` is domain-first: the first directory level under `data/` is the content domain (e.g. `data/rewards/`, `data/enemies/`), each owning its own `definitions/` Resource schemas and authored content. There is no project-wide generated-`.tres` rule — a domain only has a generated pipeline if it documents one. SFX is the current example: it is authored as YAML patches under `data/yaml/sfx/*.yaml` and rendered via `dev/tools/render_sfx.py` into WAV + `UiAudioEvent .tres` output under `data/tres/`; never hand-edit those generated WAV or `.tres` files. Other domains' `.tres` content is hand-authored and safe to edit directly. Gameplay data (enemies, player stats) is hand-authored directly as `.tres` resources alongside its feature code — see `dev/docs/archived/enemy_data_backed_structure.md` and `data_driven_player_stats.sketch.md` for why generated data was rejected for that content.
 
 ## Conventions
 
