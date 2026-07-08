@@ -3,6 +3,8 @@
 # its exclusivity group with a synthetic Chain Dash stand-in so only one can ever be active.
 extends GutTest
 
+const MOBILITY_SLOT_REPLACEMENT_GROUP := &"mobility_slot_replacement"
+
 func test_smash_apply_registers_artifact_and_swaps_mobility_payload() -> void:
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, run_build)
@@ -21,7 +23,7 @@ func test_smash_and_synthetic_chain_dash_are_mutually_exclusive() -> void:
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, run_build)
     var smash := _make_smash()
-    var chain_dash := _make_legendary("chain_dash_synthetic", WaveRewardChoiceGenerator.SMASH_EXCLUSIVITY_GROUP)
+    var chain_dash := _make_legendary("chain_dash_synthetic", MOBILITY_SLOT_REPLACEMENT_GROUP)
 
     run_build.acquire_artifact(smash, 1)
     smash.apply(context, 1)
@@ -56,7 +58,7 @@ func _make_smash() -> Artifact:
     artifact.description_template = "Replace Dash with an area leap-and-slam (%d)"
     artifact.rarity = Artifact.Rarity.LEGENDARY
     artifact.max_stacks = 1
-    artifact.exclusivity_group = WaveRewardChoiceGenerator.SMASH_EXCLUSIVITY_GROUP
+    artifact.exclusivity_group = MOBILITY_SLOT_REPLACEMENT_GROUP
     artifact.min_wave = 2
     artifact.magnitude = 1.0
     artifact.effects = [effect]

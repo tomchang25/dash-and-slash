@@ -59,7 +59,7 @@ Preliminary concepts — bigger than a one-liner, but a single `###` sub-section
 
 Later Major content. The override and triggered-effect seams these need are shipped (Smash proves the payload override; Guard Shredder, Execution, and Mobility Free Action prove the trigger seam), so these are ready to build whenever content volume is wanted.
 
-- Chain Dash should share `SmashMajorEffect.EXCLUSIVITY_GROUP` and use `RunBuild.set_mobility_payload_override()` the same way Smash does (see `game/tick_arena/reward/effects/smash_major_effect.gd`).
+- Chain Dash should use the same artifact exclusivity group as `data/rewards/artifacts/smash.tres` (`mobility_slot_replacement`) and apply through `PayloadArtifactEffect` / `RunBuild.set_mobility_payload_override()`.
 - Shockwave Dash and other mobility-slot-triggered Majors should reuse `RunBuild.set_mobility_trigger()` / `has_mobility_trigger()` (the seam Guard Shredder and Execution use, payload-agnostic across Dash and Smash) instead of forking either payload's resolution.
 
 ### Enemy Sprite Readability Scaffold

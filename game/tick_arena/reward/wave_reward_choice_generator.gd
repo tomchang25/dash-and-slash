@@ -13,10 +13,6 @@ enum RewardKind {
     CURSE,
 }
 
-## Exclusivity-group id shared by every mobility-slot payload replacement (Smash today, the future
-## Chain Dash), since only one can be active at a time.
-const SMASH_EXCLUSIVITY_GROUP := &"mobility_slot_replacement"
-
 var _rng: RandomNumberGenerator
 var _registry: ArtifactRegistry
 

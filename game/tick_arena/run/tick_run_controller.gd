@@ -249,23 +249,32 @@ func _build_normal_offer(wave_number: int) -> Array[WaveRewardChoice]:
 ## slots 2 and 3 use an eligible Major each when available, falling back per slot to another
 ## Minor x2 pick so every milestone offer presents three enabled choices.
 func _build_milestone_offer(wave_number: int) -> Array[WaveRewardChoice]:
-    var offer: Array[WaveRewardChoice] = [_roll_minor_x2(wave_number)]
     var majors := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MAJOR, 2, wave_number, _reward_context)
+    var minor_x2_fallbacks := _roll_minor_x2_choices(wave_number, 3 - majors.size())
+    var offer: Array[WaveRewardChoice] = [_take_next_choice(minor_x2_fallbacks)]
     for i in 2:
         if i < majors.size():
             offer.append(majors[i])
         else:
-            offer.append(_roll_minor_x2(wave_number))
+            offer.append(_take_next_choice(minor_x2_fallbacks))
     return offer
 
 
-## Rolls one eligible Minor from the flat Minor pool and returns it as a two-stack choice; a thin
-## Minor pool degrades to the generator's own empty result rather than fabricating a second artifact.
-func _roll_minor_x2(wave_number: int) -> WaveRewardChoice:
-    var picks := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 1, wave_number, _reward_context)
-    if picks.is_empty():
+## Rolls the needed milestone Minor x2 fallback choices from one distinct Minor pool so the fixed
+## baseline and fallback slots cannot repeat the same Minor artifact within a single offer.
+func _roll_minor_x2_choices(wave_number: int, count: int) -> Array[WaveRewardChoice]:
+    var picks := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, count, wave_number, _reward_context)
+    var choices: Array[WaveRewardChoice] = []
+    for pick in picks:
+        choices.append(WaveRewardChoice.single(pick.artifact(), 2))
+    return choices
+
+
+func _take_next_choice(choices: Array[WaveRewardChoice]) -> WaveRewardChoice:
+    if choices.is_empty():
         return WaveRewardChoice.empty()
-    return WaveRewardChoice.single(picks[0].artifact(), 2)
+    var choice: WaveRewardChoice = choices.pop_front()
+    return choice
 
 # == Wave banner ==
 

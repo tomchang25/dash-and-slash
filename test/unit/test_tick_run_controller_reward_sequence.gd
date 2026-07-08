@@ -36,6 +36,7 @@ func test_normal_offer_is_three_single_minor_choices() -> void:
     var offer := controller.build_normal_offer(1)
 
     assert_eq(offer.size(), 3, "a normal wave offers three choices")
+    _assert_offer_artifacts_are_distinct(offer)
     for choice in offer:
         assert_eq(choice.artifacts().size(), 1, "each normal choice is a single artifact")
         assert_eq(choice.stack_count(), 1, "each normal choice is a single stack")
@@ -49,6 +50,7 @@ func test_milestone_offer_first_slot_is_one_eligible_minor_at_two_stacks() -> vo
     var offer := controller.build_milestone_offer(5)
 
     assert_eq(offer.size(), 3, "a milestone wave offers exactly three choices")
+    _assert_offer_artifacts_are_distinct(offer)
     assert_eq(offer[0].artifacts().size(), 1, "slot 1 holds exactly one Minor artifact, not a bundled pair")
     assert_eq(offer[0].artifact().rarity, Artifact.Rarity.COMMON, "slot 1 is always an eligible Minor")
     assert_eq(offer[0].stack_count(), 2, "slot 1 is always the same Minor at two stacks")
@@ -62,6 +64,7 @@ func test_milestone_offer_uses_eligible_majors_when_available() -> void:
 
     var offer := controller.build_milestone_offer(5)
 
+    _assert_offer_artifacts_are_distinct(offer)
     var major_count := 0
     for i in range(1, offer.size()):
         if offer[i].artifact().rarity == Artifact.Rarity.LEGENDARY:
@@ -83,6 +86,7 @@ func test_milestone_offer_fills_missing_major_slots_with_minor_x2() -> void:
     var offer := controller.build_milestone_offer(5)
 
     assert_eq(offer.size(), 3, "a milestone wave still offers exactly three enabled choices")
+    _assert_offer_artifacts_are_distinct(offer)
     for choice in offer:
         assert_false(choice.is_empty(), "the fallback choice must still be an enabled choice")
         assert_eq(choice.artifact().rarity, Artifact.Rarity.COMMON, "every slot falls back to an eligible Minor when no Major is eligible")
@@ -103,3 +107,13 @@ func _make_legendary_filler(id: StringName) -> Artifact:
     artifact.min_wave = 2
     artifact.magnitude = 1.0
     return artifact
+
+
+func _assert_offer_artifacts_are_distinct(offer: Array[WaveRewardChoice]) -> void:
+    var seen_ids: Dictionary = { }
+    for choice in offer:
+        if choice.is_empty():
+            continue
+        var artifact_id := choice.artifact().id
+        assert_false(seen_ids.has(artifact_id), "artifact %s should not repeat within one offer" % artifact_id)
+        seen_ids[artifact_id] = true
