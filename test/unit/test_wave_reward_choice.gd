@@ -1,7 +1,7 @@
 # test_wave_reward_choice.gd
-# Tests WaveRewardChoice's bundle apply semantics: a Minor x2 bundle applies its two distinct
-# artifacts through the run build's owned-artifact registry at one stack each, not as one artifact
-# duplicated into a two-stack pick.
+# Tests WaveRewardChoice's single-entry apply semantics: a Minor x2 choice applies one artifact at
+# two stacks through the run build's owned-artifact registry, not two distinct artifacts at one
+# stack each.
 extends GutTest
 
 func test_single_choice_applies_one_artifact_at_one_stack() -> void:
@@ -16,30 +16,34 @@ func test_single_choice_applies_one_artifact_at_one_stack() -> void:
     assert_eq(run_build.total(RunBuild.CH_SPEED), 1.0)
 
 
-func test_bundle_choice_applies_two_distinct_artifacts_at_one_stack_each() -> void:
+func test_two_stack_choice_applies_one_artifact_at_two_stacks() -> void:
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, run_build)
     var speed := _make_minor(&"speed_up", RunBuild.CH_SPEED, 1.0)
-    var health := _make_minor(&"max_health_up", RunBuild.CH_MAX_HEALTH, 20.0)
 
-    var choice := WaveRewardChoice.bundle([speed, health])
+    var choice := WaveRewardChoice.single(speed, 2)
     choice.apply(context)
 
     assert_true(run_build.has_artifact(&"speed_up"))
-    assert_true(run_build.has_artifact(&"max_health_up"))
-    assert_eq(run_build.total(RunBuild.CH_SPEED), 1.0, "the bundle should apply speed_up at one stack, not two")
-    assert_eq(run_build.total(RunBuild.CH_MAX_HEALTH), 20.0, "the bundle should apply max_health_up at one stack, not  two")
+    assert_eq(run_build.total(RunBuild.CH_SPEED), 2.0, "a two-stack choice should apply speed_up at two stacks, not one")
 
     var owned := run_build.get_owned_artifacts()
-    assert_eq(owned.size(), 2, "the bundle should register two distinct owned artifacts, not one artifact at two stacks")
+    assert_eq(owned.size(), 1, "a two-stack choice should register one owned artifact, not two distinct artifacts")
+    assert_eq(owned[0]["stacks"], 2)
 
 
-func test_bundle_choice_title_reports_minor_x2() -> void:
+func test_two_stack_choice_title_reports_the_single_artifact_name() -> void:
     var speed := _make_minor(&"speed_up", RunBuild.CH_SPEED, 1.0)
-    var health := _make_minor(&"max_health_up", RunBuild.CH_MAX_HEALTH, 20.0)
-    var choice := WaveRewardChoice.bundle([speed, health])
+    var choice := WaveRewardChoice.single(speed, 2)
 
-    assert_eq(choice.title(), "Minor x2")
+    assert_eq(choice.title(), "Minor Placeholder", "a Minor x2 choice keeps the same artifact title, not a bundled 'Minor x2' name")
+
+
+func test_two_stack_choice_description_reports_doubled_effect() -> void:
+    var speed := _make_minor(&"speed_up", RunBuild.CH_SPEED, 1.0)
+    var choice := WaveRewardChoice.single(speed, 2)
+
+    assert_eq(choice.description(), "+2 test channel", "a Minor x2 choice should report the doubled magnitude in one effect line")
 
 
 func test_empty_choice_applies_nothing() -> void:

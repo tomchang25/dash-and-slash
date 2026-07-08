@@ -16,6 +16,7 @@
 [ext_resource type="Script" path="res://game/tick_arena/run/tick_run_controller.gd" id="14_run_controller"]
 [ext_resource type="Script" path="res://game/tick_arena/combat/tick_combat_feedback.gd" id="15_combat_feedback"]
 [ext_resource type="Resource" path="res://data/rewards/default_artifact_registry.tres" id="16_artifact_registry"]
+[ext_resource type="PackedScene" path="res://game/tick_arena/reward/wave_reward_card.tscn" id="17_reward_card"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -269,29 +270,23 @@ horizontal_alignment = 1
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ChoiceButton1" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox"]
+[node name="RewardCard1" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox" instance=ExtResource("17_reward_card")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(290, 240)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-text = "Reward choice"
 
-[node name="ChoiceButton2" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox"]
+[node name="RewardCard2" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox" instance=ExtResource("17_reward_card")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(290, 240)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-text = "Reward choice"
 
-[node name="ChoiceButton3" type="Button" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox"]
+[node name="RewardCard3" parent="HUD/WaveRewardOverlay/CenterContainer/PanelContainer/RootVBox/ChoiceHBox" instance=ExtResource("17_reward_card")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(290, 240)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-text = "Reward choice"
 
 [node name="DeathOverlay" type="Control" parent="HUD"]
 unique_name_in_owner = true

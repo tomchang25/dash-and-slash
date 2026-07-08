@@ -14,21 +14,21 @@ var _choices: Array[WaveRewardChoice] = []
 # -- Node references --
 
 @onready var _title_label: Label = %TitleLabel
-@onready var _choice_buttons: Array[Button] = [%ChoiceButton1, %ChoiceButton2, %ChoiceButton3]
+@onready var _cards: Array[WaveRewardCard] = [%RewardCard1, %RewardCard2, %RewardCard3]
 
 # == Lifecycle ==
 
 
 func _ready() -> void:
     process_mode = Node.PROCESS_MODE_ALWAYS
-    for i in _choice_buttons.size():
-        _choice_buttons[i].pressed.connect(_on_choice_button_pressed.bind(i))
+    for i in _cards.size():
+        _cards[i].card_pressed.connect(_on_card_pressed.bind(i))
     hide_choices()
 
 # == Signal handlers ==
 
 
-func _on_choice_button_pressed(index: int) -> void:
+func _on_card_pressed(index: int) -> void:
     if index < 0 or index >= _choices.size():
         return
     choice_selected.emit(_choices[index])
@@ -36,43 +36,31 @@ func _on_choice_button_pressed(index: int) -> void:
 # == Common API ==
 
 
-## Shows a multi-card reward offer: one enabled button per choice (up to the button count), each
-## showing that choice's title and description. Slots beyond the offered choices show a disabled
-## "No reward" card.
+## Shows a multi-card reward offer: one enabled card per choice (up to the card count). Slots
+## beyond the offered choices show a disabled empty-state card instead of fabricating a choice.
 func show_offer(title: String, choices: Array[WaveRewardChoice]) -> void:
     _title_label.text = title
     _choices = choices.duplicate()
-    for i in _choice_buttons.size():
-        var button := _choice_buttons[i]
-        button.visible = true
+    for i in _cards.size():
+        _cards[i].visible = true
         if i < _choices.size():
-            button.text = _format_choice(_choices[i])
-            button.disabled = false
+            _cards[i].setup(_choices[i], false)
         else:
-            button.text = "No reward"
-            button.disabled = true
+            _cards[i].setup(WaveRewardChoice.empty(), true)
     visible = true
 
 
-## Shows one forced confirmation card in the first button slot and hides the rest; confirming
-## applies it through the same choice_selected path a normal offer pick uses.
+## Shows one forced confirmation card in the first slot and hides the rest; confirming applies it
+## through the same choice_selected path a normal offer pick uses.
 func show_confirmation(title: String, choice: WaveRewardChoice) -> void:
     _title_label.text = title
     _choices = [choice]
-    _choice_buttons[0].visible = true
-    _choice_buttons[0].text = _format_choice(choice)
-    _choice_buttons[0].disabled = false
-    for i in range(1, _choice_buttons.size()):
-        _choice_buttons[i].visible = false
+    _cards[0].visible = true
+    _cards[0].setup(choice, false)
+    for i in range(1, _cards.size()):
+        _cards[i].visible = false
     visible = true
 
 
 func hide_choices() -> void:
     visible = false
-
-# == Display ==
-
-
-func _format_choice(choice: WaveRewardChoice) -> String:
-    var lines := [choice.title(), "", choice.description()]
-    return "\n".join(lines)

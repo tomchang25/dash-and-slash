@@ -1,8 +1,9 @@
 # artifact.gd
 # Resource definition for one reward artifact: identity, rarity/stack/exclusivity/curse metadata,
-# and the list of effect contributions applied to RunBuild when picked. Authored directly as .tres
-# content and cataloged by ArtifactRegistry — the read-only content source WaveRewardChoiceGenerator
-# rolls and filters against; the generator never authors artifact content itself.
+# the list of effect contributions applied to RunBuild when picked, and the icon reward cards
+# render. Authored directly as .tres content and cataloged by ArtifactRegistry — the read-only
+# content source WaveRewardChoiceGenerator rolls and filters against; the generator never authors
+# artifact content itself.
 class_name Artifact
 extends Resource
 
@@ -21,6 +22,7 @@ enum Rarity {
 @export var min_wave := 1
 @export var magnitude := 1.0
 @export var effects: Array[ArtifactEffect] = []
+@export var icon: Texture2D
 
 # == Common API ==
 

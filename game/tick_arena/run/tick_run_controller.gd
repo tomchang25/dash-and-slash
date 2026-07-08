@@ -245,28 +245,27 @@ func _build_normal_offer(wave_number: int) -> Array[WaveRewardChoice]:
     return _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 3, wave_number, _reward_context)
 
 
-## Builds the fixed milestone offer shape: slot 1 is always a Minor x2 bundle; slots 2 and 3 use an
-## eligible Major each when available, falling back per slot to another Minor x2 bundle so every
-## milestone offer presents three enabled choices.
+## Builds the fixed milestone offer shape: slot 1 is always one eligible Minor at two stacks
+## slots 2 and 3 use an eligible Major each when available, falling back per slot to another
+## Minor x2 pick so every milestone offer presents three enabled choices.
 func _build_milestone_offer(wave_number: int) -> Array[WaveRewardChoice]:
-    var offer: Array[WaveRewardChoice] = [_roll_minor_x2_bundle(wave_number)]
+    var offer: Array[WaveRewardChoice] = [_roll_minor_x2(wave_number)]
     var majors := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MAJOR, 2, wave_number, _reward_context)
     for i in 2:
         if i < majors.size():
             offer.append(majors[i])
         else:
-            offer.append(_roll_minor_x2_bundle(wave_number))
+            offer.append(_roll_minor_x2(wave_number))
     return offer
 
 
-## Rolls two distinct Minors from the flat Minor pool and bundles them into one choice; if fewer
-## than two are eligible, the bundle holds whatever exists instead of duplicating one artifact.
-func _roll_minor_x2_bundle(wave_number: int) -> WaveRewardChoice:
-    var picks := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 2, wave_number, _reward_context)
-    var artifacts: Array[Artifact] = []
-    for pick in picks:
-        artifacts.append_array(pick.artifacts())
-    return WaveRewardChoice.bundle(artifacts)
+## Rolls one eligible Minor from the flat Minor pool and returns it as a two-stack choice; a thin
+## Minor pool degrades to the generator's own empty result rather than fabricating a second artifact.
+func _roll_minor_x2(wave_number: int) -> WaveRewardChoice:
+    var picks := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 1, wave_number, _reward_context)
+    if picks.is_empty():
+        return WaveRewardChoice.empty()
+    return WaveRewardChoice.single(picks[0].artifact(), 2)
 
 # == Wave banner ==
 

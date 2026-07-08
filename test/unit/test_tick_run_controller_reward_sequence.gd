@@ -1,9 +1,10 @@
 # test_tick_run_controller_reward_sequence.gd
 # Narrow coverage for TickRunController's milestone reward-offer assembly: the fixed Minor x2 first
-# slot and the per-slot Major-or-Minor x2 fallback in the other two slots. Full wave-completion ->
-# banner -> offer -> curse-confirmation -> next-wave sequencing needs the arena's full scene-node
-# graph (grid, engine, player, overlays), so that sequence is covered by manual editor verification
-# instead, per the cadence spec's documented escape hatch for scene-level coverage.
+# slot (one eligible Minor at two stacks) and the per-slot Major-or-Minor x2 fallback in the other
+# two slots. Full wave-completion -> banner -> offer -> curse-confirmation -> next-wave sequencing
+# needs the arena's full scene-node graph (grid, engine, player, overlays), so that sequence is
+# covered by manual editor verification instead, per the cadence spec's documented escape hatch for
+# scene-level coverage.
 extends GutTest
 
 ## Test-only subclass exposing TickRunController's private offer-assembly helpers through public
@@ -37,9 +38,10 @@ func test_normal_offer_is_three_single_minor_choices() -> void:
     assert_eq(offer.size(), 3, "a normal wave offers three choices")
     for choice in offer:
         assert_eq(choice.artifacts().size(), 1, "each normal choice is a single artifact")
+        assert_eq(choice.stack_count(), 1, "each normal choice is a single stack")
 
 
-func test_milestone_offer_first_slot_is_always_minor_x2() -> void:
+func test_milestone_offer_first_slot_is_one_eligible_minor_at_two_stacks() -> void:
     var context := WaveRewardContext.new(null, RunBuild.new())
     var controller: TestTickRunController = autofree(TestTickRunController.new())
     controller.inject_reward_flow(WaveRewardChoiceGenerator.new(_load_default_registry()), context)
@@ -47,9 +49,10 @@ func test_milestone_offer_first_slot_is_always_minor_x2() -> void:
     var offer := controller.build_milestone_offer(5)
 
     assert_eq(offer.size(), 3, "a milestone wave offers exactly three choices")
-    assert_eq(offer[0].title(), "Minor x2", "slot 1 is always the Minor x2 bundle")
-    assert_eq(offer[0].artifacts().size(), 2, "slot 1 bundles two distinct Minors")
-    assert_ne(offer[0].artifacts()[0].id, offer[0].artifacts()[1].id, "the Minor x2 bundle must hold two distinct artifacts")
+    assert_eq(offer[0].artifacts().size(), 1, "slot 1 holds exactly one Minor artifact, not a bundled pair")
+    assert_eq(offer[0].artifact().rarity, Artifact.Rarity.COMMON, "slot 1 is always an eligible Minor")
+    assert_eq(offer[0].stack_count(), 2, "slot 1 is always the same Minor at two stacks")
+    assert_eq(offer[0].title(), offer[0].artifact().display_name, "slot 1's title is the real artifact name, not a bundled 'Minor x2' label")
 
 
 func test_milestone_offer_uses_eligible_majors_when_available() -> void:
@@ -61,8 +64,9 @@ func test_milestone_offer_uses_eligible_majors_when_available() -> void:
 
     var major_count := 0
     for i in range(1, offer.size()):
-        if offer[i].title() != "Minor x2":
+        if offer[i].artifact().rarity == Artifact.Rarity.LEGENDARY:
             major_count += 1
+            assert_eq(offer[i].stack_count(), 1, "a Major fallback slot uses a single stack")
     assert_eq(major_count, 2, "with an empty build, both fallback slots should fill with eligible Majors")
 
 
@@ -80,8 +84,9 @@ func test_milestone_offer_fills_missing_major_slots_with_minor_x2() -> void:
 
     assert_eq(offer.size(), 3, "a milestone wave still offers exactly three enabled choices")
     for choice in offer:
-        assert_eq(choice.title(), "Minor x2", "every slot falls back to Minor x2 when no Major is eligible")
-        assert_false(choice.is_empty(), "the fallback bundle must still be an enabled choice")
+        assert_false(choice.is_empty(), "the fallback choice must still be an enabled choice")
+        assert_eq(choice.artifact().rarity, Artifact.Rarity.COMMON, "every slot falls back to an eligible Minor when no Major is eligible")
+        assert_eq(choice.stack_count(), 2, "every fallback slot is the same Minor at two stacks")
 
 
 func _load_default_registry() -> ArtifactRegistry:

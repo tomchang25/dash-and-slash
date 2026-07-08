@@ -1,12 +1,14 @@
 # wave_reward_choice.gd
-# Runtime owned-artifact value object representing one offered reward choice as a bundle of one or
-# more artifact picks applied together: a single artifact for most cards, two distinct Minors for a
-# `Minor x2` bundle, or zero entries for the no-eligible-curse fallback.
+# Runtime owned-artifact value object representing one offered reward choice as at most one
+# artifact pick applied at a given stack count: a single artifact at one stack for a normal Minor,
+# Major, or curse offer, the same artifact at two stacks for a milestone `Minor x2` slot, or zero
+# entries for the no-eligible-curse fallback.
 class_name WaveRewardChoice
 extends RefCounted
 
-## Bundle entries, one `{ "artifact": Artifact, "stacks": int }` dictionary per artifact this choice
-## applies. Most choices hold exactly one entry; a `Minor x2` bundle holds two.
+## Entries, one `{ "artifact": Artifact, "stacks": int }` dictionary per artifact this choice
+## applies. Every production choice holds at most one entry; `entries` stays an array so a future
+## multi-artifact choice shape does not require a value-object rewrite.
 var entries: Array[Dictionary] = []
 
 # == Lifecycle ==
@@ -19,19 +21,9 @@ func _init(init_entries: Array[Dictionary]) -> void:
 
 
 ## Builds a single-artifact choice at the given stack count — the shape every normal Minor, Major,
-## and curse offer uses.
-static func single(artifact: Artifact, stacks: int = 1) -> WaveRewardChoice:
-    var built: Array[Dictionary] = [{ "artifact": artifact, "stacks": max(stacks, 1) }]
-    return WaveRewardChoice.new(built)
-
-
-## Builds a bundle choice from one or more distinct artifacts, each applied at one stack — the
-## `Minor x2` shape. Accepts fewer than two artifacts so a thin Minor pool degrades to a smaller
-## bundle instead of fabricating a duplicate stack.
-static func bundle(p_artifacts: Array[Artifact]) -> WaveRewardChoice:
-    var built: Array[Dictionary] = []
-    for artifact in p_artifacts:
-        built.append({ "artifact": artifact, "stacks": 1 })
+## curse, and milestone `Minor x2` offer uses.
+static func single(picked_artifact: Artifact, stacks: int = 1) -> WaveRewardChoice:
+    var built: Array[Dictionary] = [{ "artifact": picked_artifact, "stacks": max(stacks, 1) }]
     return WaveRewardChoice.new(built)
 
 
@@ -50,6 +42,21 @@ func artifacts() -> Array[Artifact]:
     return result
 
 
+## Returns this choice's single artifact, or null for the no-eligible-curse fallback. Card UI reads
+## this instead of indexing into entries directly.
+func artifact() -> Artifact:
+    if entries.is_empty():
+        return null
+    return entries[0]["artifact"]
+
+
+## Returns this choice's stack count, or 0 for the no-eligible-curse fallback.
+func stack_count() -> int:
+    if entries.is_empty():
+        return 0
+    return entries[0]["stacks"]
+
+
 ## Returns true when this choice has no artifact entries at all.
 func is_empty() -> bool:
     return entries.is_empty()
@@ -57,49 +64,40 @@ func is_empty() -> bool:
 
 ## Registers each entry's artifact in the run build's owned-artifact registry, then applies its
 ## effect contributions. A rejected registration signals a programmer error, since is_eligible is
-## the pre-offer filter that should have already excluded a conflicting or already-owned artifact
-## one rejected entry does not stop the rest of the bundle from applying.
+## the pre-offer filter that should have already excluded a conflicting or already-owned artifact.
 func apply(context: WaveRewardContext) -> void:
     for entry in entries:
-        var artifact: Artifact = entry["artifact"]
+        var picked_artifact: Artifact = entry["artifact"]
         var stacks: int = entry["stacks"]
-        if not context.run_build.acquire_artifact(artifact, stacks):
-            ToastManager.show_dev_error("WaveRewardChoice: %s rejected by RunBuild after passing is_eligible" % artifact.id)
+        if not context.run_build.acquire_artifact(picked_artifact, stacks):
+            ToastManager.show_dev_error("WaveRewardChoice: %s rejected by RunBuild after passing is_eligible" % picked_artifact.id)
             continue
-        artifact.apply(context, stacks)
+        picked_artifact.apply(context, stacks)
 
 
-## Display title for the reward card: the single artifact's own name, "Minor x2" for a two-artifact
-## bundle, or a dev-visible fallback label when a roll found nothing to offer.
+## Display title for the reward card: the single artifact's own name, or a dev-visible fallback
+## label when a roll found nothing to offer. A milestone `Minor x2` choice keeps the same artifact
+## title as its one-stack form; the stack count is communicated by the card's stack badge, not a
+## second pseudo-artifact name.
 func title() -> String:
     if entries.is_empty():
         return "None available"
-    if entries.size() == 1:
-        var artifact: Artifact = entries[0]["artifact"]
-        return artifact.display_name
-    return "Minor x2"
+    return entries[0]["artifact"].display_name
 
 
-## Multi-line description body: one formatted effect line per entry, prefixed with the artifact's
-## name when the choice bundles more than one.
+## Description body: the entry's stack-scaled effect line.
 func description() -> String:
     if entries.is_empty():
         return "No eligible artifact could be rolled."
-    if entries.size() == 1:
-        return _format_effect(entries[0])
-    var lines: Array[String] = []
-    for entry in entries:
-        var artifact: Artifact = entry["artifact"]
-        lines.append("%s: %s" % [artifact.display_name, _format_effect(entry)])
-    return "\n".join(lines)
+    return _format_effect(entries[0])
 
 # == Description ==
 
 
 func _format_effect(entry: Dictionary) -> String:
-    var artifact: Artifact = entry["artifact"]
+    var picked_artifact: Artifact = entry["artifact"]
     var stacks: int = entry["stacks"]
-    var amount := artifact.magnitude * float(stacks)
+    var amount := picked_artifact.magnitude * float(stacks)
     if is_equal_approx(amount, roundf(amount)):
-        return artifact.description_template % int(amount)
-    return artifact.description_template % amount
+        return picked_artifact.description_template % int(amount)
+    return picked_artifact.description_template % amount
