@@ -12,6 +12,7 @@ const BACKGROUND_COLOR := Color(0.09, 0.1, 0.12)
 # -- State --
 
 var _run_build := RunBuild.new()
+var _danger_telegraph_cells_by_source: Dictionary = { }
 var _dash_payload_button: Button
 var _smash_payload_button: Button
 var _guard_shredder_button: Button
@@ -40,8 +41,10 @@ func _ready() -> void:
     _engine.attack_detonated.connect(_view.flash_detonation)
     _engine.player_died.connect(_run_controller.handle_player_died)
     _action_controller.state_changed.connect(_refresh_hud)
+    _action_controller.state_changed.connect(_refresh_danger)
     _run_controller.reward_applied.connect(_on_reward_applied)
     _run_controller.run_reset_finished.connect(_on_run_reset_finished)
+    _run_controller.spawn_warning_changed.connect(_on_spawn_warning_changed)
 
     RenderingServer.set_default_clear_color(BACKGROUND_COLOR)
     _player.setup(_grid, _grid.grid_size / 2)
@@ -84,6 +87,10 @@ func _on_run_reset_finished() -> void:
     _refresh_debug_trigger_buttons()
     _refresh_danger()
     _refresh_hud()
+
+
+func _on_spawn_warning_changed(_cells: Array[Vector2i], _ticks: int) -> void:
+    _refresh_danger()
 
 # == Restart ==
 
@@ -174,8 +181,11 @@ func _refresh_debug_trigger_buttons() -> void:
 ## in the enemy-danger palette, and to the debug overlay for the tick countdowns; runs after every
 ## world advance (hits resolve in stage 1 and are covered by the advance that follows every consumed verb).
 func _refresh_danger() -> void:
-    _grid.clear_all_telegraphs()
+    _clear_danger_telegraphs()
     var danger: Array[Dictionary] = []
+    var spawn_warning := _run_controller.get_spawn_warning_danger()
+    if not spawn_warning.is_empty():
+        danger.append(spawn_warning)
     for enemy in _engine.actors():
         var enemy_danger := enemy.get_danger()
         if enemy_danger.is_empty():
@@ -184,7 +194,15 @@ func _refresh_danger() -> void:
         var cells: Array[Vector2i] = enemy_danger["cells"]
         var phase := GridArena.TelegraphPhase.CHARGE if int(enemy_danger["ticks"]) <= 1 else GridArena.TelegraphPhase.WARNING
         _grid.set_telegraph(enemy, cells, phase)
+        _danger_telegraph_cells_by_source[enemy] = cells.duplicate()
     _view.set_danger(danger)
+
+
+func _clear_danger_telegraphs() -> void:
+    for source in _danger_telegraph_cells_by_source.keys():
+        var cells: Array[Vector2i] = _danger_telegraph_cells_by_source[source]
+        _grid.clear_telegraph(source, cells)
+    _danger_telegraph_cells_by_source.clear()
 
 
 func _refresh_hud() -> void:

@@ -111,7 +111,7 @@ func reset(start_cell: Vector2i, max_health_bonus := 0.0) -> void:
     queue_redraw()
 
 
-## Counts tick-based cooldowns down by one world tick.
+## Counts tick-based cooldowns down by one consumed player action.
 func tick_cooldowns() -> void:
     dash_cooldown = maxi(dash_cooldown - 1, 0)
     smash_cooldown = maxi(smash_cooldown - 1, 0)

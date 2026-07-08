@@ -164,6 +164,7 @@ func _verb_move(dir: Vector2i) -> Dictionary:
     if not engine.is_cell_open_for_player(target):
         view.flash_deny(target)
         return _verb_illegal()
+    _tick_player_action_upkeep()
     var free_action := _spend_speed_if_full()
     player.move_to(target)
     _fill_speed_meter()
@@ -193,6 +194,7 @@ func _verb_attack() -> Dictionary:
     var aim := _aim_direction()
     _last_aim = aim
     var target := player.cell + aim
+    _tick_player_action_upkeep()
     view.flash_swing([target])
     var free_action := _spend_speed_if_full()
     var enemy := engine.enemy_at(target)
@@ -224,12 +226,22 @@ func _verb_dash() -> Dictionary:
     if not bool(plan["legal"]):
         view.flash_deny(player.cell + plan["dir"] * _mobility_range_cells(TickCombatRules.DASH_RANGE))
         return _verb_illegal()
+    _tick_player_action_upkeep()
     var dir: Vector2i = plan["dir"]
     var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     var outcomes: Array[TickHitOutcome] = []
     for victim: GridEnemy in plan["victims"]:
-        outcomes.append(_apply_player_hit(victim, victim.get_grid_pos() - dir, _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE), guard_shredder, execution))
+        outcomes.append(
+            _apply_player_hit(
+                victim,
+                victim.get_grid_pos() - dir,
+                _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE),
+                guard_shredder,
+                execution,
+                TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
+            ),
+        )
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     view.flash_swing(plan["path"])
@@ -253,6 +265,7 @@ func _verb_smash() -> Dictionary:
         if not engine.is_cell_open_for_player(target):
             view.flash_deny(target)
             return _verb_illegal()
+        _tick_player_action_upkeep()
         player.arm_smash(target)
         _close_smash_cancel_confirm()
         SmashFeedbackVFX.play_windup(player.global_position, self)
@@ -264,13 +277,23 @@ func _verb_smash() -> Dictionary:
     if not engine.is_cell_open_for_player(landing):
         view.flash_deny(landing)
         return _verb_illegal()
+    _tick_player_action_upkeep()
     view.flash_swing(_smash_area(landing))
     var guard_shredder := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     var outcomes: Array[TickHitOutcome] = []
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
-            outcomes.append(_apply_player_hit(enemy, landing, _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE), guard_shredder, execution))
+            outcomes.append(
+                _apply_player_hit(
+                    enemy,
+                    landing,
+                    _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE),
+                    guard_shredder,
+                    execution,
+                    TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
+                ),
+            )
     if outcomes.is_empty():
         _apply_player_result_message(TickHitResolver.empty_outcome())
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
@@ -290,6 +313,7 @@ func _verb_debug_stub_mobility() -> Dictionary:
     if not engine.is_cell_open_for_player(target):
         view.flash_deny(target)
         return _verb_illegal()
+    _tick_player_action_upkeep()
     view.flash_swing([target])
     player.move_to(target, true)
     set_message("Debug mobility payload fired.")
@@ -298,6 +322,7 @@ func _verb_debug_stub_mobility() -> Dictionary:
 
 func _verb_wait() -> Dictionary:
     cancel_smash_windup()
+    _tick_player_action_upkeep()
     return _verb_result(true)
 
 
@@ -310,6 +335,13 @@ func _verb_result(advances_world: bool) -> Dictionary:
 ## Shared verb-result shape for an illegal input: consumes nothing and never advances the world.
 func _verb_illegal() -> Dictionary:
     return { "consumed": false, "advances_world": false }
+
+
+## Advances player-side per-action upkeep for a consumed verb. This is intentionally separate from
+## TickEngine.advance_world() so free actions reduce player cooldowns without advancing enemy clocks,
+## spawn warnings, or attack telegraphs.
+func _tick_player_action_upkeep() -> void:
+    player.tick_cooldowns()
 
 
 ## Spends a full Speed charge for the eligible move/attack now resolving, returning whether it was
@@ -405,9 +437,16 @@ func _close_smash_cancel_confirm() -> void:
 ## collect it for the Mobility Free Action Major's refund check instead of losing it. A kill needs
 ## no explicit removal here: take_hit() synchronously fires the enemy's died signal, which the wave
 ## controller (via the spawner's died_callback) already uses to drop it from alive-count tracking.
-func _apply_player_hit(enemy: GridEnemy, origin_cell: Vector2i, damage: float, guard_shredder_trigger := false, execution_trigger := false) -> TickHitOutcome:
+func _apply_player_hit(
+        enemy: GridEnemy,
+        origin_cell: Vector2i,
+        damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+) -> TickHitOutcome:
     var enemy_pos := enemy.global_position
-    var result := enemy.take_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger)
+    var result := enemy.take_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
     _play_major_trigger_feedback(result, enemy_pos)
     _apply_player_result_message(result)
     return result

@@ -312,16 +312,28 @@ func get_attack_tiles() -> Array[Vector2i]:
 ## guard_shredder_trigger and execution_trigger are the mobility-slot-triggered Major hooks; callers
 ## pass true only for an actual mobility-slot strike (Dash or Smash) whose run build has that trigger active.
 ## Returns a TickHitOutcome with fields angle, was_guarded, stagger_burst, guard_broken, killed, hp_damage, guard_damage, feedback_kind, major_trigger.
-func predict_hit(origin_cell: Vector2i, base_damage: float, guard_shredder_trigger := false, execution_trigger := false) -> TickHitOutcome:
-    return _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger)
+func predict_hit(
+        origin_cell: Vector2i,
+        base_damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+) -> TickHitOutcome:
+    return _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
 
 
 ## Applies one player hit from the given origin cell, reusing the established guard/health/feedback
 ## seams (damaged/blocked SFX, guard-break/shield/full-damage VFX), and returns the same outcome
 ## as predict_hit(). A guard break clears banked energy via _on_guard_broken().
-func take_hit(origin_cell: Vector2i, base_damage: float, guard_shredder_trigger := false, execution_trigger := false) -> TickHitOutcome:
+func take_hit(
+        origin_cell: Vector2i,
+        base_damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+) -> TickHitOutcome:
     var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
-    var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger)
+    var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
     if not is_alive():
         return outcome
     _apply_hit_feedback(outcome, src_pos)
@@ -1103,11 +1115,18 @@ func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -
     var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
     var profile := Hitbox.GuardDamageProfile.DASH if is_dash else Hitbox.GuardDamageProfile.NORMAL
     var guard_damage := _resolve_guard_damage(angle, profile)
-    return EnemyHitResolver.resolve_outcome(angle, guard_damage, _guard, health, base_damage, _defense)
+    var stagger_burst_multiplier := TickCombatRules.STAGGER_MOBILITY_MULTIPLIER if is_dash else TickCombatRules.STAGGER_ATTACK_MULTIPLIER
+    return EnemyHitResolver.resolve_outcome(angle, guard_damage, _guard, health, base_damage, _defense, stagger_burst_multiplier)
 
 
 ## Pure tick-grid hit resolution shared by predict_hit() and take_hit(); this is the authoritative path for previews and committed tick verbs.
-func _resolve_tick_hit_outcome(origin_cell: Vector2i, base_damage: float, guard_shredder_trigger := false, execution_trigger := false) -> TickHitOutcome:
+func _resolve_tick_hit_outcome(
+        origin_cell: Vector2i,
+        base_damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+) -> TickHitOutcome:
     if not is_alive():
         return TickHitResolver.empty_outcome()
 
@@ -1118,6 +1137,7 @@ func _resolve_tick_hit_outcome(origin_cell: Vector2i, base_damage: float, guard_
         -1,
         guard_shredder_trigger,
         execution_trigger,
+        stagger_burst_multiplier,
     )
 
 

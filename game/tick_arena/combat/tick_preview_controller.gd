@@ -80,6 +80,7 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
                     _mobility_attack_damage(TickCombatRules.PLAYER_DASH_DAMAGE),
                     guard_shredder,
                     execution,
+                    TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
                 )
         return
     if payload == RunBuild.PAYLOAD_SMASH:
@@ -104,8 +105,15 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
 ## Predicts one hit for the preview and condenses it into a display entry: cell, label, and intensity
 ## tier. Honesty extends to the mobility-slot-triggered Majors: an active Shredder or Execution upgrades
 ## the label to the same distinct result the commit will show, never a generic guard-break/kill fallback.
-func _outcome_entry(enemy: GridEnemy, origin_cell: Vector2i, damage: float, guard_shredder_trigger := false, execution_trigger := false) -> Dictionary:
-    var result := enemy.predict_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger)
+func _outcome_entry(
+        enemy: GridEnemy,
+        origin_cell: Vector2i,
+        damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+) -> Dictionary:
+    var result := enemy.predict_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
     var label := ""
     var tier := 0
     if result.killed:
@@ -130,7 +138,14 @@ func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
     var execution := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     for enemy: GridEnemy in engine.actors():
         if _chebyshev(enemy.get_grid_pos() - center) <= 1:
-            outcomes[enemy.get_grid_pos()] = _outcome_entry(enemy, center, _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE), guard_shredder, execution)
+            outcomes[enemy.get_grid_pos()] = _outcome_entry(
+                enemy,
+                center,
+                _mobility_attack_damage(TickCombatRules.PLAYER_SMASH_DAMAGE),
+                guard_shredder,
+                execution,
+                TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
+            )
 
 
 ## Shows the locked Smash landing and its outcomes regardless of the current aim mode, since an armed

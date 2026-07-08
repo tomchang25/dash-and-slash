@@ -27,8 +27,8 @@ var _player_dead := false
 
 
 ## Advances the world by exactly one tick after a consumed player verb (stage 1 already resolved):
-## stage 2 detonates zero-countdown attacks against the player's new cell, stage 3 counts status in
-## world ticks and grants action energy only to enabled actors, then tick cooldowns count down.
+## stage 2 detonates zero-countdown attacks against the player's new cell, then stage 3 counts status in
+## world ticks and grants action energy only to enabled actors.
 func advance_world() -> void:
     _tick_count += 1
 
@@ -52,7 +52,6 @@ func advance_world() -> void:
             _energy[actor] = int(_energy[actor]) - ENERGY_PER_ACTION
             actor.act_tick()
 
-    _player.tick_cooldowns()
     world_advanced.emit(_tick_count)
 
     if _player_dead:

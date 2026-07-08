@@ -12,6 +12,7 @@ signal wave_started(display_text: String, is_milestone_wave: bool)
 signal normal_wave_completed(wave_number: int, is_milestone_wave: bool)
 signal elite_spawned(elite: Node)
 signal elite_cleared
+signal spawn_warning_changed(cells: Array[Vector2i], ticks: int)
 
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
 const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
@@ -47,6 +48,8 @@ func _on_world_advanced(_tick_count: int) -> void:
     _warning_ticks_remaining -= 1
     if _warning_ticks_remaining <= 0:
         _resolve_pending_batch()
+        return
+    _emit_spawn_warning_changed()
 
 
 func _on_enemy_died(enemy: Entity) -> void:
@@ -189,6 +192,17 @@ func reset() -> void:
     _run_over = false
 
 
+## Returns the current spawn-warning display payload ({cells, ticks}), or an empty dictionary.
+func get_spawn_warning_danger() -> Dictionary:
+    if _pending_batch.is_empty() or _warning_ticks_remaining <= 0:
+        return { }
+    return {
+        "cells": _pending_batch_cells(),
+        "ticks": _warning_ticks_remaining,
+        "kind": "spawn",
+    }
+
+
 ## Debug-only: instantly kills every currently alive enemy. Callers must guard
 ## with Debug.enabled (see debug_standard.md).
 func force_kill_all_enemies() -> void:
@@ -258,6 +272,7 @@ func _schedule_next_warning_batch() -> void:
         telegraph_cells.append(entry["cell"])
     _grid.set_telegraph(self, telegraph_cells, GridArena.TelegraphPhase.SPAWNING)
     _warning_ticks_remaining = SPAWN_WARNING_TICKS
+    _emit_spawn_warning_changed()
 
 
 ## Clears the pending batch's SPAWNING telegraph, revalidates each entry's reserved cell against
@@ -299,6 +314,8 @@ func _resolve_pending_batch() -> void:
         _spawn_one(entry)
 
     _schedule_next_warning_batch()
+    if _pending_batch.is_empty():
+        spawn_warning_changed.emit([], 0)
 
 
 func _spawn_one(entry: Dictionary) -> void:
@@ -340,3 +357,15 @@ func _clear_spawn_queue_telegraphs() -> void:
         _grid.clear_telegraph(self, cells)
         _pending_batch.clear()
     _spawn_queue.clear()
+    spawn_warning_changed.emit([], 0)
+
+
+func _pending_batch_cells() -> Array[Vector2i]:
+    var cells: Array[Vector2i] = []
+    for entry in _pending_batch:
+        cells.append(entry["cell"])
+    return cells
+
+
+func _emit_spawn_warning_changed() -> void:
+    spawn_warning_changed.emit(_pending_batch_cells(), _warning_ticks_remaining)

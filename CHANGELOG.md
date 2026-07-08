@@ -16,6 +16,12 @@ Rules:
 
 ## [unreleased]
 
+### Tick Arena Fixes
+
+- 2026-07-08 — [combat] Mobility attacks now apply stagger-burst damage consistently for Dash and Smash, and player mobility cooldowns tick on consumed actions even when Speed grants a free action
+- 2026-07-08 — [waves] Wave spawns now expose player-action countdown warnings and keep spawn danger telegraphs visible through arena danger refreshes
+- 2026-07-08 — [enemy] ChargeEnemy uses a five-cell line charge range without changing ModeEnemy's full-line behavior
+
 ### Tick Arena Structure Consolidation
 
 - 2026-07-07 — [combat] Tick arena combat contracts are consolidated around shared planning rules, one run-scoped build store that resets in place, and typed verb/hit-outcome values so preview and committed action paths share the same math without changing player-facing behavior

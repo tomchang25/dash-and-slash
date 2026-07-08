@@ -35,6 +35,23 @@ func test_guard_shredder_does_not_retrigger_on_already_staggered_target() -> voi
     assert_eq(outcome.major_trigger, TickHitOutcome.MajorTrigger.NONE)
 
 
+func test_mobility_stagger_burst_applies_mobility_multiplier() -> void:
+    var snapshot := _snapshot(100, 0, true)
+
+    var outcome := TickHitResolver.resolve_precomputed(
+        DirectionResolver.HitAngle.SIDE,
+        0,
+        snapshot,
+        30.0,
+        false,
+        false,
+        TickCombatRules.STAGGER_MOBILITY_MULTIPLIER,
+    )
+
+    assert_true(outcome.stagger_burst)
+    assert_eq(outcome.hp_damage, 60.0)
+
+
 func test_execution_kills_instantly_on_already_staggered_dash_hit() -> void:
     var snapshot := _snapshot(50, 0, true)
 

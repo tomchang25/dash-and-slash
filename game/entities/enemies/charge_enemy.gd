@@ -4,6 +4,7 @@ class_name ChargeEnemy
 extends GridEnemy
 
 const CHARGING_SPEED := 480.0
+const CHARGE_RANGE := 5
 ## Baseline tick speed: the charger's threat is bursty and self-paces via align/turn/telegraph/recovery.
 const TICK_SPEED := 100
 
@@ -207,11 +208,12 @@ func _configure_point_executor() -> void:
 func _create_fallback_attack_data() -> EnemyAttackData:
     var attack_data := EnemyAttackData.new()
     attack_data.attack_kind = EnemyAttackData.AttackKind.CHARGE
-    attack_data.cell_shape = EnemyAttackData.CellShape.FULL_LINE
+    attack_data.cell_shape = EnemyAttackData.CellShape.LINE
     attack_data.damage = 8.0
     attack_data.damage_interval = 0.6
     attack_data.warning_duration = 2
     attack_data.charge_duration = 0
     attack_data.recovery_duration = 2
+    attack_data.line_length = CHARGE_RANGE
     attack_data.charge_speed = CHARGING_SPEED
     return attack_data

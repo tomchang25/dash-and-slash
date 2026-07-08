@@ -10,6 +10,7 @@ extends Node
 
 signal reward_applied
 signal run_reset_finished
+signal spawn_warning_changed(cells: Array[Vector2i], ticks: int)
 
 # -- Constants --
 
@@ -72,6 +73,10 @@ func _on_normal_wave_completed(_wave_number: int, _is_milestone_wave: bool) -> v
 func _on_restart_button_pressed() -> void:
     reset_run("Run reset.")
 
+
+func _on_spawn_warning_changed(cells: Array[Vector2i], ticks: int) -> void:
+    spawn_warning_changed.emit(cells, ticks)
+
 # == Common API ==
 
 
@@ -122,6 +127,13 @@ func reset_run(reason: String) -> void:
     action_controller.set_message(reason)
     run_reset_finished.emit()
 
+
+## Returns the active spawn-warning display payload from the wave controller, or an empty dictionary.
+func get_spawn_warning_danger() -> Dictionary:
+    if _wave_controller == null:
+        return { }
+    return _wave_controller.get_spawn_warning_danger()
+
 # == Death / Restart ==
 
 
@@ -148,6 +160,7 @@ func _wire_wave_controller() -> void:
     _wave_controller.setup(grid, _spawn_planner, _spawner, engine)
     _wave_controller.set_run_build(_run_build)
     _wave_controller.normal_wave_completed.connect(_on_normal_wave_completed)
+    _wave_controller.spawn_warning_changed.connect(_on_spawn_warning_changed)
 
 # == Rewards ==
 

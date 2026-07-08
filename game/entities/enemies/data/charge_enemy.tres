@@ -7,9 +7,9 @@
 script = ExtResource("2_attack_data")
 attack_id = "charge"
 attack_kind = 1
-cell_shape = 3
 damage = 8.0
 recovery_duration = 2
+line_length = 5
 
 [resource]
 script = ExtResource("1_data")

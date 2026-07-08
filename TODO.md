@@ -22,10 +22,7 @@ In-flight and ready-to-implement work lives in `## Active` — promoted from `##
 > Ship a phase → cut it from that file + append `CHANGELOG.md`, leaving this line untouched.
 > All phases shipped → archive the plan file + delete this line.
 
-- [combat] Staggered targets never take the designed 2.0x dash stagger-burst damage — the production hit resolvers never apply a dash stagger multiplier (only the prototype's own copy does).
-- [charge-enemy] balance charge enemy to 5 grid range instead until end grid
-- [spawn-enemy] the enemies spawn when wave begining somehow without any telegraph or any other sign, countdown. Also, somehow enemy should not
-- 目前Enemy不該有頻繁的Idle，因為都是1 Tick解決，所以如果被搶Path應該繼續simulate而不是卡在那邊, also this issue happened when wave spawn first round, all enemies remain idle in next round
+Nothing currently in progress.
 
 ---
 
@@ -92,6 +89,14 @@ Replace uniform enemy scene selection with weighted spawn pools that can scale b
 - Allow spawn weights to vary by wave, milestone, stage, or run configuration.
 - Keep reward downside pressure as fixed future enemy additions or weighted pool modifiers instead of hidden randomness.
 - Consider lowering ChargeEnemy spawn share after the idle-corner fallback fix has been tested in real waves.
+
+### Enemy Idle And Path Reservation Follow-up
+
+Enemy Idle is currently a tick decision state, not a long-lived waiting state. When a GridEnemy in Reposition loses ownership of the first reserved path step, `tick_step_along_path()` clears the path and returns false; `EnemyRepositionState` then transitions back to Idle instead of replanning, turning, or committing inside the same funded actor action. That makes path conflicts consume the enemy's action and produces visible idle churn. Newly spawned enemies can show a related symptom because the first Idle decision may only transition into Reposition, with the actual step delayed until the next `advance_tick()`.
+
+- Decide whether one funded enemy action should resolve decision plus movement/turn/commit in the same tick, instead of paying a separate FSM-transition tick.
+- Add an immediate replan path for reservation-lost or blocked-first-step cases so the enemy still simulates useful behavior when its planned path is stolen.
+- Recheck newly spawned enemy behavior after spawn warning resolution so first-round actors do not appear parked in Idle for the next round.
 
 ### Wave Reward Deferred Ideas
 

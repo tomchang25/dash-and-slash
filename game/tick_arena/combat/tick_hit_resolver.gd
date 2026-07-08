@@ -17,6 +17,7 @@ static func empty_outcome() -> TickHitOutcome:
 ## kinds keep their authored guard profile while using this resolver's math. guard_shredder_trigger
 ## and execution_trigger are the mobility-slot-triggered Major hooks: pass true only from an actual
 ## Dash or Smash mobility-slot strike whose run build has that trigger active, never from a normal attack.
+## stagger_burst_multiplier lets mobility payloads restore their authored 2.0x payoff against already-staggered targets.
 ## The caller's origin_cell already encodes which payload is striking (Dash: the cell the victim was
 ## hit from along its travel path; Smash: the locked landing cell) — this resolver derives the hit
 ## angle from whatever origin it is given and does not need to know which payload produced it.
@@ -27,6 +28,7 @@ static func resolve_hit(
         guard_damage_override := -1,
         guard_shredder_trigger := false,
         execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
 ) -> TickHitOutcome:
     if target_snapshot.is_empty() or not bool(target_snapshot.get("alive", true)):
         return empty_outcome()
@@ -36,7 +38,7 @@ static func resolve_hit(
     var angle := TickCombatRules.resolve_angle(attacker_origin_cell, target_cell, target_facing)
     var guard_max := int(target_snapshot.get("guard_max", 0))
     var guard_damage := guard_damage_override if guard_damage_override >= 0 else TickCombatRules.guard_damage_for(angle, guard_max)
-    return resolve_precomputed(angle, guard_damage, target_snapshot, base_damage, guard_shredder_trigger, execution_trigger)
+    return resolve_precomputed(angle, guard_damage, target_snapshot, base_damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
 
 
 ## Resolves one hit from a precomputed angle and guard damage. Legacy adapters use this to share the
@@ -49,6 +51,7 @@ static func resolve_precomputed(
         base_damage: float,
         guard_shredder_trigger := false,
         execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
 ) -> TickHitOutcome:
     if target_snapshot.is_empty() or not bool(target_snapshot.get("alive", true)):
         return empty_outcome()
@@ -74,6 +77,8 @@ static func resolve_precomputed(
     var will_break_guard := has_guard and not already_staggered and guard_current > 0 and guard_damage >= guard_current
     var full_damage := not has_guard or already_staggered or will_break_guard
     var hp_damage := base_damage if full_damage else base_damage * GUARDED_DAMAGE_MULTIPLIER
+    if already_staggered:
+        hp_damage *= stagger_burst_multiplier
     hp_damage = apply_defense(hp_damage, float(target_snapshot.get("defense", 0.0)))
     var hp_current := float(target_snapshot.get("hp", 0.0))
     var killed := hp_current - hp_damage <= 0.0
