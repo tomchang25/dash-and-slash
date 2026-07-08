@@ -63,11 +63,13 @@ Child documents live alongside this plan as `tick_artifact_rewards_0N_*.sketch.m
 | 01    | Artifact data model: the unified artifact plus effect-contribution composition, rarity/stack/exclusivity/curse, legendary-slot cap generalization, and the legacy-player seam removal; absorbs the former consolidation channel-effect collapse | spec   |
 | 02a   | Roll collapse: replace the point-balancing generator with a kind-filtered distinct single-artifact picker, fold the choice/effect wrappers into one owned unit, and slim the artifact of its dead roll metadata (split from the 02 sketch)      | spec   |
 | 02b   | Cadence and curses: milestone `Minor x2 / Major-or-Minorx2 / Major-or-Minorx2`, automatic curse confirmation, and the curse pool re-homed from the four pressure channels (remaining half of the 02 sketch)                                     | spec   |
+| 02c   | Artifact registry Resource migration: delete the generator-owned hardcoded artifact pool, make artifacts/effects Resource-backed, and feed rolls from an `ArtifactRegistry` without changing 02b cadence                                         | spec   |
+| 02d   | Domain-first data layout: move reward definitions/resources into `data/rewards/` and update project data rules so generated pipelines are domain-owned rather than globally imposed                                                               | spec   |
 | 03    | Build inspection panel: a settings-button-style toggle opening a panel that lists owned artifacts and the current build's summed effect totals                                                                                                  | sketch |
 
-Order: 01 first (the data model everything else reads), then 02a (collapses the roll and finalizes the artifact shape), then 02b and 03 in either order. The `.tres` authoring migration follows 02a, once the artifact shape is final.
+Order: 01 first (the data model everything else reads), then 02a (collapses the roll and finalizes the artifact shape), then 02b (cadence/curses), then 02c and 02d before 03 so the inspection panel reads stable Resource-backed reward data from its final domain path.
 
-The 02 sketch (`tick_artifact_rewards_02_roll_cadence_curses.sketch.md`) is the umbrella for 02a and 02b: 02a owns the roll/picker collapse, 02b owns the cadence and curse pool.
+The 02 sketch (`tick_artifact_rewards_02_roll_cadence_curses.sketch.md`) is the umbrella for 02a and 02b: 02a owns the roll/picker collapse, 02b owns the cadence and curse pool. 02c and 02d are follow-on stabilization slices discovered after 02b: 02c removes the hardcoded artifact catalog from runtime code, and 02d moves the authored resources into the final domain-first data layout before HUD work starts.
 
 ## Acceptance Criteria
 
