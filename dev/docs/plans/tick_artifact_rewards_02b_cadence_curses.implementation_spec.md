@@ -2,6 +2,8 @@
 
 Parent Plan: `tick_artifact_rewards.md`
 
+> Supersession note: this child landed the original milestone cadence with two-distinct-Minor `Minor x2` bundles. Child 03 (`tick_artifact_rewards_03_reward_cards_same_minor_x2.implementation_spec.md`) intentionally supersedes that one choice shape: future implementation should treat `Minor x2` as one eligible Minor artifact at two stacks so each reward choice can render as one card.
+
 ## Goal
 
 Complete the remaining child 02 reward behavior by keeping normal waves on Minor three-choice offers, making every milestone offer testable as `Minor x2 / Major-or-Minorx2 / Major-or-Minorx2`, and moving enemy-pressure artifacts into an automatic post-selection curse reveal. Difficulty pressure reaches the run only through the forced milestone curse, while the milestone reward choice itself stays a clean upside decision.

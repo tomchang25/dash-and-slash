@@ -2,11 +2,11 @@
 
 ## Goal
 
-Replace the point-balanced reward generator with a Risk-of-Rain-style artifact system: rewards are named artifacts that stack contributions into the run-scoped build store, offered three at a time, with difficulty pressure moved out of per-offer pricing and into milestone curse reveals. This collapses the reward system's most complex code (point pricing, rejection sampling, the nested fallback) into flat rarity-weighted rolls, unifies the Minor/Major split into one artifact concept the player can inspect, and keeps art cost to one placeholder icon per artifact.
+Replace the point-balanced reward generator with a Risk-of-Rain-style artifact system presented through readable card-style reward choices: rewards are named artifacts that stack contributions into the run-scoped build store, offered three at a time, with difficulty pressure moved out of per-offer pricing and into milestone curse reveals. This collapses the reward system's most complex code (point pricing, rejection sampling, the nested fallback) into flat rarity-weighted rolls, unifies the Minor/Major split into one artifact concept the player can inspect, and keeps art cost to one placeholder icon per artifact.
 
 ## Requirements
 
-1. Every reward card presents one or more artifacts — named, described, icon-bearing pickups that each apply a list of effect contributions to the run build. Most cards present one artifact; milestone `Minor x2` cards bundle two distinct Minor artifacts as a deliberate fallback/baseline. The Minor/Major distinction stops being a type split and becomes data (rarity, stack rule, exclusivity), because the player should read "artifacts of different power," not two parallel systems.
+1. Every reward card presents one artifact — a named, described, icon-bearing pickup that applies a list of effect contributions to the run build. Milestone `Minor x2` cards are the same Minor artifact at two stacks, not two different artifacts chained inside one choice, because one reward choice should read as one card. The Minor/Major distinction stops being a type split and becomes data (rarity, stack rule, exclusivity), because the player should read "artifacts of different power," not two parallel systems.
 2. Rewards are offered three at a time, always distinct within an offer, rolled flat-random from a rarity pool as the first pass — the point-balancing generator (profiles, target points, rejection sampling, nested fallback) is deleted, because a three-choice artifact roll needs none of it.
 3. Difficulty pressure moves out of per-offer pricing into milestone curses: every fifth wave forces one automatic curse reveal after the player picks the milestone reward, so risk is a clear periodic cost rather than a hidden cost bundled into every upside pick or a second downside optimization step.
 4. The milestone reward offer is always three enabled choices: slot 1 is a fixed `Minor x2` baseline, while slots 2 and 3 offer behavior-changing Major artifacts when eligible and fall back per slot to `Minor x2` when Major choices are exhausted.
@@ -19,10 +19,10 @@ Replace the point-balanced reward generator with a Risk-of-Rain-style artifact s
 
 | Wave kind                  | Offer                                                                                   |
 | -------------------------- | --------------------------------------------------------------------------------------- |
-| Normal (1-4, 6-9, ...)     | Minor three-choice                                                                      |
+| Normal (1-4, 6-9, ...)     | Three single-stack Minor cards                                                          |
 | Milestone (5, 10, 15, ...) | `Minor x2 / Major-or-Minorx2 / Major-or-Minorx2`, then one automatic curse confirmation |
 
-Milestone waves already spawn a milestone elite; the fixed `Minor x2` baseline, Major slots, and forced curse reveal ride that same existing cadence. Majors are therefore first reachable at wave 5 purely by construction — no explicit wave gate is needed. A per-artifact minimum wave survives only as an optional pacing knob to push individual strong artifacts to later milestones, not as the mechanism that makes Majors start at 5.
+Milestone waves already spawn a milestone elite; the fixed `Minor x2` baseline, Major slots, and forced curse reveal ride that same existing cadence. A `Minor x2` card is one eligible Minor artifact offered at two stacks, so its card identity, icon, and description stay singular while the stack badge and effect magnitude communicate the doubled value. Majors are therefore first reachable at wave 5 purely by construction — no explicit wave gate is needed. A per-artifact minimum wave survives only as an optional pacing knob to push individual strong artifacts to later milestones, not as the mechanism that makes Majors start at 5.
 
 The first build-defining pick landing at wave 5 (four Minor picks precede it) is a deliberate rhythm — early Minors shape the build, the first Major is an identity spike, and the fixed `Minor x2` slot keeps every milestone testable and useful even when Major availability is thin — but its exact feel is a playtest tuning question, not fixed here.
 
@@ -56,24 +56,25 @@ This plan supersedes the reward-side of the tick arena structure consolidation: 
 
 ## Children
 
-Child documents live alongside this plan as `tick_artifact_rewards_0N_*.sketch.md`. They are optional exploration notes for child slices; implementation always runs from child implementation specs written against the live codebase when each child is next to land.
+Child documents live alongside this plan as `tick_artifact_rewards_0N_*.sketch.md` or `tick_artifact_rewards_0N_*.implementation_spec.md`. Sketches are optional exploration notes for child slices; implementation always runs from child implementation specs written against the live codebase when each child is next to land.
 
-| Child | Focus                                                                                                                                                                                                                                           | Form   |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| 01    | Artifact data model: the unified artifact plus effect-contribution composition, rarity/stack/exclusivity/curse, legendary-slot cap generalization, and the legacy-player seam removal; absorbs the former consolidation channel-effect collapse | spec   |
-| 02a   | Roll collapse: replace the point-balancing generator with a kind-filtered distinct single-artifact picker, fold the choice/effect wrappers into one owned unit, and slim the artifact of its dead roll metadata (split from the 02 sketch)      | spec   |
-| 02b   | Cadence and curses: milestone `Minor x2 / Major-or-Minorx2 / Major-or-Minorx2`, automatic curse confirmation, and the curse pool re-homed from the four pressure channels (remaining half of the 02 sketch)                                     | spec   |
-| 02c   | Artifact registry Resource migration: delete the generator-owned hardcoded artifact pool, make artifacts/effects Resource-backed, and feed rolls from an `ArtifactRegistry` without changing 02b cadence                                         | spec   |
-| 02d   | Domain-first data layout: move reward definitions/resources into `data/rewards/` and update project data rules so generated pipelines are domain-owned rather than globally imposed                                                               | spec   |
-| 03    | Build inspection panel: a settings-button-style toggle opening a panel that lists owned artifacts and the current build's summed effect totals                                                                                                  | sketch |
+| Child | Focus                                                                                                                                                                                                                                           | Form |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 01    | Artifact data model: the unified artifact plus effect-contribution composition, rarity/stack/exclusivity/curse, legendary-slot cap generalization, and the legacy-player seam removal; absorbs the former consolidation channel-effect collapse | spec |
+| 02a   | Roll collapse: replace the point-balancing generator with a kind-filtered distinct single-artifact picker, fold the choice/effect wrappers into one owned unit, and slim the artifact of its dead roll metadata (split from the 02 sketch)      | spec |
+| 02b   | Cadence and curses: milestone `Minor x2 / Major-or-Minorx2 / Major-or-Minorx2`, automatic curse confirmation, and the curse pool re-homed from the four pressure channels (remaining half of the 02 sketch)                                     | spec |
+| 02c   | Artifact registry Resource migration: delete the generator-owned hardcoded artifact pool, make artifacts/effects Resource-backed, and feed rolls from an `ArtifactRegistry` without changing 02b cadence                                        | spec |
+| 02d   | Domain-first data layout: move reward definitions/resources into `data/rewards/` and update project data rules so generated pipelines are domain-owned rather than globally imposed                                                             | spec |
+| 03    | Reward card view and same-Minor `Minor x2`: convert reward choices from text buttons into Slay-the-Spire-style artifact cards, add placeholder icon data, and make milestone Minor x2 cards one Minor at two stacks                             | spec |
+| 04    | Build inspection panel: a settings-button-style toggle opening a panel that lists owned artifacts and the current build's summed effect totals                                                                                                  | spec |
 
-Order: 01 first (the data model everything else reads), then 02a (collapses the roll and finalizes the artifact shape), then 02b (cadence/curses), then 02c and 02d before 03 so the inspection panel reads stable Resource-backed reward data from its final domain path.
+Order: 01 first (the data model everything else reads), then 02a (collapses the roll and finalizes the artifact shape), then 02b (cadence/curses), then 02c and 02d before 03 so reward-card rendering reads stable Resource-backed reward data from its final domain path. 04 follows 03 so the inspection panel can reuse the final card color/icon language instead of inventing a parallel summary style.
 
-The 02 sketch (`tick_artifact_rewards_02_roll_cadence_curses.sketch.md`) is the umbrella for 02a and 02b: 02a owns the roll/picker collapse, 02b owns the cadence and curse pool. 02c and 02d are follow-on stabilization slices discovered after 02b: 02c removes the hardcoded artifact catalog from runtime code, and 02d moves the authored resources into the final domain-first data layout before HUD work starts.
+The 02 sketch (`tick_artifact_rewards_02_roll_cadence_curses.sketch.md`) is the umbrella for 02a and 02b: 02a owns the roll/picker collapse, 02b owns the cadence and curse pool. 02c and 02d are follow-on stabilization slices discovered after 02b: 02c removes the hardcoded artifact catalog from runtime code, and 02d moves the authored resources into the final domain-first data layout before reward-card and HUD work starts.
 
 ## Acceptance Criteria
 
-1. Every reward offered is an artifact with a name, icon, rarity, and effect list; picking one applies its contributions to the run build.
+1. Every reward offered is an artifact card with a name, icon, rarity, stack badge when above one stack, and effect list; picking one applies its contributions to the run build.
 2. Normal waves offer three distinct Minors; milestone waves offer three enabled reward choices with a fixed `Minor x2` first slot, Major-or-Minorx2 fallback in the other slots, then one automatic curse confirmation.
 3. The point-balancing generator and its fallback no longer exist; offers are flat-random distinct picks from a rarity pool.
 4. Carried-over Smash, Guard Shredder, Execution, and Flowing Strike behave exactly as before, now expressed as artifacts.
