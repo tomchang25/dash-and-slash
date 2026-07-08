@@ -3,7 +3,7 @@
 # one of RunBuild's existing mutators, so the store's read API never changes shape.
 @abstract
 class_name ArtifactEffect
-extends RefCounted
+extends Resource
 
 # == Effect Contract ==
 

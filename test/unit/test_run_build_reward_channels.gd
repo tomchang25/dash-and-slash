@@ -74,60 +74,31 @@ func test_max_health_artifact_records_to_run_build_channel_without_grid() -> voi
 
 
 func _make_normal_attack_damage_artifact() -> Artifact:
-    return Artifact.new(
-        &"attack_up",
-        "Sharpened Edge",
-        "+%d normal attack damage",
-        Artifact.Rarity.COMMON,
-        3,
-        &"",
-        false,
-        1,
-        10.0,
-        [ChannelArtifactEffect.new(RunBuild.CH_NORMAL_ATTACK_DAMAGE, 10.0)],
-    )
+    return _make_channel_artifact(&"attack_up", "Sharpened Edge", "+%d normal attack damage", 3, RunBuild.CH_NORMAL_ATTACK_DAMAGE, 10.0)
 
 
 func _make_dash_attack_damage_artifact() -> Artifact:
-    return Artifact.new(
-        &"dash_attack_up",
-        "Impact Dash",
-        "+%d dash attack damage",
-        Artifact.Rarity.COMMON,
-        3,
-        &"",
-        false,
-        1,
-        20.0,
-        [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_ATTACK_DAMAGE, 20.0)],
-    )
+    return _make_channel_artifact(&"dash_attack_up", "Impact Dash", "+%d dash attack damage", 3, RunBuild.CH_MOBILITY_ATTACK_DAMAGE, 20.0)
 
 
 func _make_dash_range_artifact() -> Artifact:
-    return Artifact.new(
-        &"dash_range_up",
-        "Longer Dash",
-        "+%d%% dash range",
-        Artifact.Rarity.COMMON,
-        3,
-        &"",
-        false,
-        1,
-        10.0,
-        [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_RANGE, 10.0)],
-    )
+    return _make_channel_artifact(&"dash_range_up", "Longer Dash", "+%d%% dash range", 3, RunBuild.CH_MOBILITY_RANGE, 10.0)
 
 
 func _make_max_health_artifact() -> Artifact:
-    return Artifact.new(
-        &"max_health_up",
-        "Vital Spark",
-        "+%d max health",
-        Artifact.Rarity.COMMON,
-        2,
-        &"",
-        false,
-        1,
-        20.0,
-        [ChannelArtifactEffect.new(RunBuild.CH_MAX_HEALTH, 20.0)],
-    )
+    return _make_channel_artifact(&"max_health_up", "Vital Spark", "+%d max health", 2, RunBuild.CH_MAX_HEALTH, 20.0)
+
+
+func _make_channel_artifact(id: StringName, display_name: String, description_template: String, max_stacks: int, channel: StringName, magnitude: float) -> Artifact:
+    var effect := ChannelArtifactEffect.new()
+    effect.channel = channel
+    effect.amount = magnitude
+
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = display_name
+    artifact.description_template = description_template
+    artifact.max_stacks = max_stacks
+    artifact.magnitude = magnitude
+    artifact.effects = [effect]
+    return artifact

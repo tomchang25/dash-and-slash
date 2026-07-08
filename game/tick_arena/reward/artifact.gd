@@ -1,52 +1,26 @@
 # artifact.gd
-# Prototype definition for one reward artifact: identity, rarity/stack/exclusivity/curse metadata,
-# and the list of effect contributions applied to RunBuild when picked. Replaces the former
-# WaveRewardEffectDefinition tier hierarchy — rarity, stack rule, exclusivity, and curse status are
-# data instead of subclasses.
+# Resource definition for one reward artifact: identity, rarity/stack/exclusivity/curse metadata,
+# and the list of effect contributions applied to RunBuild when picked. Authored directly as .tres
+# content and cataloged by ArtifactRegistry — the read-only content source WaveRewardChoiceGenerator
+# rolls and filters against; the generator never authors artifact content itself.
 class_name Artifact
-extends RefCounted
+extends Resource
 
 enum Rarity {
     COMMON,
     LEGENDARY,
 }
 
-var id := &""
-var display_name := ""
-var description_template := ""
-var rarity := Rarity.COMMON
-var max_stacks := 1
-var exclusivity_group := &""
-var is_curse := false
-var min_wave := 1
-var magnitude := 1.0
-var effects: Array[ArtifactEffect] = []
-
-# == Lifecycle ==
-
-
-func _init(
-        init_id: StringName,
-        init_display_name: String,
-        init_description_template: String,
-        init_rarity: Rarity,
-        init_max_stacks: int,
-        init_exclusivity_group: StringName,
-        init_is_curse: bool,
-        init_min_wave: int,
-        init_magnitude: float,
-        init_effects: Array[ArtifactEffect],
-) -> void:
-    id = init_id
-    display_name = init_display_name
-    description_template = init_description_template
-    rarity = init_rarity
-    max_stacks = init_max_stacks
-    exclusivity_group = init_exclusivity_group
-    is_curse = init_is_curse
-    min_wave = init_min_wave
-    magnitude = init_magnitude
-    effects = init_effects.duplicate()
+@export var id := &""
+@export var display_name := ""
+@export var description_template := ""
+@export var rarity: Rarity = Rarity.COMMON
+@export var max_stacks := 1
+@export var exclusivity_group := &""
+@export var is_curse := false
+@export var min_wave := 1
+@export var magnitude := 1.0
+@export var effects: Array[ArtifactEffect] = []
 
 # == Common API ==
 

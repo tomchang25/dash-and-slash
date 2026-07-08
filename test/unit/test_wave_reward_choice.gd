@@ -54,15 +54,15 @@ func test_empty_choice_applies_nothing() -> void:
 
 
 func _make_minor(id: StringName, channel: StringName, magnitude: float) -> Artifact:
-    return Artifact.new(
-        id,
-        "Minor Placeholder",
-        "+%d test channel",
-        Artifact.Rarity.COMMON,
-        3,
-        &"",
-        false,
-        1,
-        magnitude,
-        [ChannelArtifactEffect.new(channel, magnitude)],
-    )
+    var effect := ChannelArtifactEffect.new()
+    effect.channel = channel
+    effect.amount = magnitude
+
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = "Minor Placeholder"
+    artifact.description_template = "+%d test channel"
+    artifact.max_stacks = 3
+    artifact.magnitude = magnitude
+    artifact.effects = [effect]
+    return artifact

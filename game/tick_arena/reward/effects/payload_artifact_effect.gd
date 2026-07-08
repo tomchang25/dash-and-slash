@@ -3,13 +3,7 @@
 class_name PayloadArtifactEffect
 extends ArtifactEffect
 
-var payload := RunBuild.PAYLOAD_DASH
-
-# == Lifecycle ==
-
-
-func _init(init_payload: StringName) -> void:
-    payload = init_payload
+@export var payload: StringName = RunBuild.PAYLOAD_DASH
 
 # == Overridden Custom Methods ==
 

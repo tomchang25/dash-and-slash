@@ -6,18 +6,14 @@ extends GutTest
 
 func test_clear_resets_entries_artifacts_payload_override_and_triggers_together() -> void:
     var run_build := RunBuild.new()
-    var artifact := Artifact.new(
-        &"major_a",
-        "Major Placeholder",
-        "Major placeholder (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        &"",
-        false,
-        2,
-        1.0,
-        [],
-    )
+    var artifact := Artifact.new()
+    artifact.id = &"major_a"
+    artifact.display_name = "Major Placeholder"
+    artifact.description_template = "Major placeholder (%d)"
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
     run_build.record(RunBuild.CH_MAX_HEALTH, 20.0)
     run_build.record(RunBuild.CH_SPEED, 5.0)
     run_build.acquire_artifact(artifact, 1)

@@ -34,6 +34,7 @@ const WAVE_BANNER_FADE := 0.35
 @export var enemy_container: Node2D
 @export var action_controller: TickActionController
 @export var reward_overlay: WaveRewardOverlay
+@export var artifact_registry: ArtifactRegistry
 @export var wave_banner_overlay: Control
 @export var wave_banner_label: Label
 @export var death_overlay: Control
@@ -192,9 +193,13 @@ func _wire_wave_controller() -> void:
 ## Wires the shared reward generator/context/controller and overlay flow against this arena's own
 ## RunBuild, so a picked artifact writes through the same store tick verbs read. Every artifact —
 ## legendary or common — reads and writes RunBuild directly through its effect contributions, so
-## the context carries only the grid and the run build.
+## the context carries only the grid and the run build. The arena scene injects the production
+## artifact registry explicitly, matching the other required scene dependencies.
 func _wire_reward_flow() -> void:
-    _reward_generator = WaveRewardChoiceGenerator.new(_rng)
+    if artifact_registry == null:
+        ToastManager.show_dev_error("TickRunController: missing artifact registry")
+        artifact_registry = ArtifactRegistry.new()
+    _reward_generator = WaveRewardChoiceGenerator.new(artifact_registry, _rng)
     _reward_context = WaveRewardContext.new(grid, _run_build)
     _reward_controller = WaveRewardChoiceController.new(reward_overlay, _reward_context)
     _reward_controller.choice_applied.connect(_on_reward_choice_applied)

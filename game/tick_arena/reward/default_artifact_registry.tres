@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ArtifactRegistry" format=3 uid="uid://060q0bi3obc5"]
+
+[ext_resource type="Script" uid="uid://okamu2owrwh8" path="res://game/tick_arena/reward/artifact_registry.gd" id="1_registry"]
+[ext_resource type="Script" uid="uid://bc8xcmmfdfnkl" path="res://game/tick_arena/reward/artifact.gd" id="2_artifact"]
+[ext_resource type="Resource" uid="uid://rnfyi284vaqd" path="res://game/tick_arena/reward/artifacts/future_enemy.tres" id="art_future_enemy"]
+[ext_resource type="Resource" uid="uid://2fkzol45s6be" path="res://game/tick_arena/reward/artifacts/attack_up.tres" id="art_attack_up"]
+[ext_resource type="Resource" uid="uid://jppkmsjrxmot" path="res://game/tick_arena/reward/artifacts/speed_up.tres" id="art_speed_up"]
+[ext_resource type="Resource" uid="uid://oavzs9dqrlbr" path="res://game/tick_arena/reward/artifacts/dash_attack_up.tres" id="art_dash_attack_up"]
+[ext_resource type="Resource" uid="uid://4jy54qpxl5i9" path="res://game/tick_arena/reward/artifacts/mobility_cooldown_down.tres" id="art_mobility_cooldown_down"]
+[ext_resource type="Resource" uid="uid://zxro70zgrp8o" path="res://game/tick_arena/reward/artifacts/attack_range_up.tres" id="art_attack_range_up"]
+[ext_resource type="Resource" uid="uid://kt8mh7ow7j0p" path="res://game/tick_arena/reward/artifacts/dash_range_up.tres" id="art_dash_range_up"]
+[ext_resource type="Resource" uid="uid://flwiwmroojy4" path="res://game/tick_arena/reward/artifacts/max_health_up.tres" id="art_max_health_up"]
+[ext_resource type="Resource" uid="uid://oia446zb405h" path="res://game/tick_arena/reward/artifacts/enemy_health_pressure.tres" id="art_enemy_health_pressure"]
+[ext_resource type="Resource" uid="uid://a8sx1jdlwexr" path="res://game/tick_arena/reward/artifacts/enemy_damage_pressure.tres" id="art_enemy_damage_pressure"]
+[ext_resource type="Resource" uid="uid://rsn7fhk0n2wc" path="res://game/tick_arena/reward/artifacts/enemy_defense_pressure.tres" id="art_enemy_defense_pressure"]
+[ext_resource type="Resource" uid="uid://vcvs1v1u143n" path="res://game/tick_arena/reward/artifacts/smash.tres" id="art_smash"]
+[ext_resource type="Resource" uid="uid://yh0lcj4542z0" path="res://game/tick_arena/reward/artifacts/guard_shredder.tres" id="art_guard_shredder"]
+[ext_resource type="Resource" uid="uid://tqdp8g4womhx" path="res://game/tick_arena/reward/artifacts/execution.tres" id="art_execution"]
+[ext_resource type="Resource" uid="uid://cdgx20yzzjfn" path="res://game/tick_arena/reward/artifacts/mobility_free_action.tres" id="art_mobility_free_action"]
+
+[resource]
+script = ExtResource("1_registry")
+artifacts = Array[ExtResource("2_artifact")]([ExtResource("art_future_enemy"), ExtResource("art_attack_up"), ExtResource("art_speed_up"), ExtResource("art_dash_attack_up"), ExtResource("art_mobility_cooldown_down"), ExtResource("art_attack_range_up"), ExtResource("art_dash_range_up"), ExtResource("art_max_health_up"), ExtResource("art_enemy_health_pressure"), ExtResource("art_enemy_damage_pressure"), ExtResource("art_enemy_defense_pressure"), ExtResource("art_smash"), ExtResource("art_guard_shredder"), ExtResource("art_execution"), ExtResource("art_mobility_free_action")])

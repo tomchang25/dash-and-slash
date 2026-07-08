@@ -5,13 +5,7 @@
 class_name TriggerArtifactEffect
 extends ArtifactEffect
 
-var trigger := &""
-
-# == Lifecycle ==
-
-
-func _init(init_trigger: StringName) -> void:
-    trigger = init_trigger
+@export var trigger := &""
 
 # == Overridden Custom Methods ==
 

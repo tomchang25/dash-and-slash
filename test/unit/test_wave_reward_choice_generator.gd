@@ -4,8 +4,10 @@
 # and Major offers respect the run-wide legendary cap.
 extends GutTest
 
+const DEFAULT_REGISTRY_PATH := "res://game/tick_arena/reward/default_artifact_registry.tres"
+
 func test_pressure_artifacts_roll_as_curses() -> void:
-    var generator := WaveRewardChoiceGenerator.new()
+    var generator := WaveRewardChoiceGenerator.new(_load_default_registry())
     var context := WaveRewardContext.new(null, RunBuild.new())
 
     var curses := generator.roll(WaveRewardChoiceGenerator.RewardKind.CURSE, 10, 5, context)
@@ -21,7 +23,7 @@ func test_pressure_artifacts_roll_as_curses() -> void:
 
 
 func test_normal_minor_pool_excludes_pressure_and_legendary_artifacts() -> void:
-    var generator := WaveRewardChoiceGenerator.new()
+    var generator := WaveRewardChoiceGenerator.new(_load_default_registry())
     var context := WaveRewardContext.new(null, RunBuild.new())
 
     var minors := generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 30, 5, context)
@@ -33,7 +35,7 @@ func test_normal_minor_pool_excludes_pressure_and_legendary_artifacts() -> void:
 
 
 func test_major_pool_respects_legendary_cap() -> void:
-    var generator := WaveRewardChoiceGenerator.new()
+    var generator := WaveRewardChoiceGenerator.new(_load_default_registry())
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, run_build)
 
@@ -45,3 +47,7 @@ func test_major_pool_respects_legendary_cap() -> void:
 
     var majors_after_cap := generator.roll(WaveRewardChoiceGenerator.RewardKind.MAJOR, 10, 5, context)
     assert_true(majors_after_cap.is_empty(), "no further Major should be eligible once the legendary cap is full")
+
+
+func _load_default_registry() -> ArtifactRegistry:
+    return load(DEFAULT_REGISTRY_PATH) as ArtifactRegistry

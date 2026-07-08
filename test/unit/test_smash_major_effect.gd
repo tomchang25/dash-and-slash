@@ -47,30 +47,30 @@ func test_smash_still_respects_the_legendary_cap() -> void:
 
 
 func _make_smash() -> Artifact:
-    return Artifact.new(
-        &"smash",
-        "Smash",
-        "Replace Dash with an area leap-and-slam (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        WaveRewardChoiceGenerator.SMASH_EXCLUSIVITY_GROUP,
-        false,
-        2,
-        1.0,
-        [PayloadArtifactEffect.new(RunBuild.PAYLOAD_SMASH)],
-    )
+    var effect := PayloadArtifactEffect.new()
+    effect.payload = RunBuild.PAYLOAD_SMASH
+
+    var artifact := Artifact.new()
+    artifact.id = &"smash"
+    artifact.display_name = "Smash"
+    artifact.description_template = "Replace Dash with an area leap-and-slam (%d)"
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.exclusivity_group = WaveRewardChoiceGenerator.SMASH_EXCLUSIVITY_GROUP
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
+    artifact.effects = [effect]
+    return artifact
 
 
 func _make_legendary(id: StringName, exclusivity_group: StringName) -> Artifact:
-    return Artifact.new(
-        id,
-        "Major Placeholder",
-        "Major placeholder (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        exclusivity_group,
-        false,
-        2,
-        1.0,
-        [],
-    )
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = "Major Placeholder"
+    artifact.description_template = "Major placeholder (%d)"
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.exclusivity_group = exclusivity_group
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
+    return artifact

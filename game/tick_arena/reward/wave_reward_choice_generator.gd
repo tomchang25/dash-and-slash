@@ -1,5 +1,6 @@
 # wave_reward_choice_generator.gd
-# Pure reward-choice picker that rolls distinct eligible artifacts of a requested kind.
+# Pure reward-choice picker that rolls distinct eligible artifacts of a requested kind from an
+# injected ArtifactRegistry catalog. Never authors artifact content itself.
 class_name WaveRewardChoiceGenerator
 extends RefCounted
 
@@ -17,15 +18,21 @@ enum RewardKind {
 const SMASH_EXCLUSIVITY_GROUP := &"mobility_slot_replacement"
 
 var _rng: RandomNumberGenerator
-var _artifacts: Array[Artifact] = []
+var _registry: ArtifactRegistry
 
 # == Lifecycle ==
 
 
-func _init(rng: RandomNumberGenerator = null) -> void:
+## Constructs the generator against an injected content registry. A null registry is a
+## developer-visible error: the generator falls back to an empty registry rather than hardcoded
+## artifact content, so a missing catalog reads as "no eligible artifacts" instead of a crash.
+func _init(registry: ArtifactRegistry, rng: RandomNumberGenerator = null) -> void:
+    if registry == null:
+        ToastManager.show_dev_error("WaveRewardChoiceGenerator: constructed with a null ArtifactRegistry")
+        registry = ArtifactRegistry.new()
+    _registry = registry
     _rng = rng if rng != null else RandomNumberGenerator.new()
     _rng.randomize()
-    _artifacts = _make_default_artifacts()
 
 # == Common API ==
 
@@ -46,7 +53,9 @@ func roll(kind: RewardKind, count: int, wave_number: int, context: WaveRewardCon
 
 func _eligible_artifacts(kind: RewardKind, wave_number: int, context: WaveRewardContext) -> Array[Artifact]:
     var eligible: Array[Artifact] = []
-    for artifact in _artifacts:
+    for artifact in _registry.get_artifacts():
+        if artifact == null:
+            continue
         if _kind_of(artifact) != kind:
             continue
         if wave_number < artifact.min_wave:
@@ -71,190 +80,3 @@ func _shuffle(pool: Array[Artifact]) -> void:
         var swap := pool[i]
         pool[i] = pool[j]
         pool[j] = swap
-
-# == Artifact Pool ==
-
-
-func _make_default_artifacts() -> Array[Artifact]:
-    return [
-        Artifact.new(
-            &"future_enemy",
-            "Raise Pressure",
-            "+%d future enemy",
-            Artifact.Rarity.COMMON,
-            4,
-            &"",
-            true,
-            1,
-            1.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_FUTURE_ENEMY_COUNT, 1.0)],
-        ),
-        Artifact.new(
-            &"attack_up",
-            "Sharpened Edge",
-            "+%d normal attack damage",
-            Artifact.Rarity.COMMON,
-            3,
-            &"",
-            false,
-            1,
-            10.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_NORMAL_ATTACK_DAMAGE, 10.0)],
-        ),
-        Artifact.new(
-            &"speed_up",
-            "Fleet Step",
-            "+%d Speed",
-            Artifact.Rarity.COMMON,
-            5,
-            &"",
-            false,
-            1,
-            1.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_SPEED, 1.0)],
-        ),
-        Artifact.new(
-            &"dash_attack_up",
-            "Impact Dash",
-            "+%d dash attack damage",
-            Artifact.Rarity.COMMON,
-            3,
-            &"",
-            false,
-            1,
-            20.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_ATTACK_DAMAGE, 20.0)],
-        ),
-        Artifact.new(
-            &"mobility_cooldown_down",
-            "Light Footwork",
-            "-%d mobility cooldown (ticks)",
-            Artifact.Rarity.COMMON,
-            3,
-            &"",
-            false,
-            1,
-            1.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_COOLDOWN, 1.0)],
-        ),
-        Artifact.new(
-            &"attack_range_up",
-            "Longer Reach",
-            "+%d%% attack range",
-            Artifact.Rarity.COMMON,
-            3,
-            &"",
-            false,
-            1,
-            10.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_ATTACK_RANGE, 10.0)],
-        ),
-        Artifact.new(
-            &"dash_range_up",
-            "Longer Dash",
-            "+%d%% dash range",
-            Artifact.Rarity.COMMON,
-            3,
-            &"",
-            false,
-            1,
-            10.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_RANGE, 10.0)],
-        ),
-        Artifact.new(
-            &"max_health_up",
-            "Vital Spark",
-            "+%d max health",
-            Artifact.Rarity.COMMON,
-            2,
-            &"",
-            false,
-            1,
-            20.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_MAX_HEALTH, 20.0)],
-        ),
-        Artifact.new(
-            &"enemy_health_pressure",
-            "Enemy Vitality",
-            "+%d%% future enemy health",
-            Artifact.Rarity.COMMON,
-            3,
-            &"",
-            true,
-            1,
-            5.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_HEALTH_PRESSURE, 5.0, 0.01)],
-        ),
-        Artifact.new(
-            &"enemy_damage_pressure",
-            "Enemy Ferocity",
-            "+%d%% future enemy damage",
-            Artifact.Rarity.COMMON,
-            3,
-            &"",
-            true,
-            1,
-            5.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_DAMAGE_PRESSURE, 5.0, 0.01)],
-        ),
-        Artifact.new(
-            &"enemy_defense_pressure",
-            "Enemy Armor",
-            "+%d future enemy defense",
-            Artifact.Rarity.COMMON,
-            3,
-            &"",
-            true,
-            1,
-            3.0,
-            [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_DEFENSE_PRESSURE, 3.0)],
-        ),
-        Artifact.new(
-            &"smash",
-            "Smash",
-            "Replace Dash with an area leap-and-slam (%d)",
-            Artifact.Rarity.LEGENDARY,
-            1,
-            SMASH_EXCLUSIVITY_GROUP,
-            false,
-            2,
-            1.0,
-            [PayloadArtifactEffect.new(RunBuild.PAYLOAD_SMASH)],
-        ),
-        Artifact.new(
-            &"guard_shredder",
-            "Guard Shredder",
-            "Back-angle dash hits break guard instantly (%d)",
-            Artifact.Rarity.LEGENDARY,
-            1,
-            &"",
-            false,
-            2,
-            1.0,
-            [TriggerArtifactEffect.new(RunBuild.TRIGGER_GUARD_SHREDDER)],
-        ),
-        Artifact.new(
-            &"execution",
-            "Execution",
-            "Dash hits on staggered targets kill instantly (%d)",
-            Artifact.Rarity.LEGENDARY,
-            1,
-            &"",
-            false,
-            2,
-            1.0,
-            [TriggerArtifactEffect.new(RunBuild.TRIGGER_EXECUTION)],
-        ),
-        Artifact.new(
-            &"mobility_free_action",
-            "Flowing Strike",
-            "Kill, guard-break, or back-angle mobility strikes skip world time (%d)",
-            Artifact.Rarity.LEGENDARY,
-            1,
-            &"",
-            false,
-            2,
-            1.0,
-            [TriggerArtifactEffect.new(RunBuild.TRIGGER_MOBILITY_FREE_ACTION)],
-        ),
-    ]

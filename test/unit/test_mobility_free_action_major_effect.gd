@@ -41,30 +41,8 @@ func test_mobility_free_action_can_be_active_alongside_guard_shredder_and_execut
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, run_build)
     var mobility_free_action := _make_mobility_free_action()
-    var guard_shredder := Artifact.new(
-        &"guard_shredder",
-        "Guard Shredder",
-        "Back-angle dash hits break guard instantly (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        &"",
-        false,
-        2,
-        1.0,
-        [TriggerArtifactEffect.new(RunBuild.TRIGGER_GUARD_SHREDDER)],
-    )
-    var execution := Artifact.new(
-        &"execution",
-        "Execution",
-        "Dash hits on staggered targets kill instantly (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        &"",
-        false,
-        2,
-        1.0,
-        [TriggerArtifactEffect.new(RunBuild.TRIGGER_EXECUTION)],
-    )
+    var guard_shredder := _make_trigger_artifact(&"guard_shredder", "Guard Shredder", "Back-angle dash hits break guard instantly (%d)", RunBuild.TRIGGER_GUARD_SHREDDER)
+    var execution := _make_trigger_artifact(&"execution", "Execution", "Dash hits on staggered targets kill instantly (%d)", RunBuild.TRIGGER_EXECUTION)
 
     run_build.acquire_artifact(mobility_free_action, 1)
     mobility_free_action.apply(context, 1)
@@ -80,15 +58,25 @@ func test_mobility_free_action_can_be_active_alongside_guard_shredder_and_execut
 
 
 func _make_mobility_free_action() -> Artifact:
-    return Artifact.new(
+    return _make_trigger_artifact(
         &"mobility_free_action",
         "Flowing Strike",
         "Kill, guard-break, or back-angle mobility strikes skip world time (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        &"",
-        false,
-        2,
-        1.0,
-        [TriggerArtifactEffect.new(RunBuild.TRIGGER_MOBILITY_FREE_ACTION)],
+        RunBuild.TRIGGER_MOBILITY_FREE_ACTION,
     )
+
+
+func _make_trigger_artifact(id: StringName, display_name: String, description_template: String, trigger: StringName) -> Artifact:
+    var effect := TriggerArtifactEffect.new()
+    effect.trigger = trigger
+
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = display_name
+    artifact.description_template = description_template
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
+    artifact.effects = [effect]
+    return artifact

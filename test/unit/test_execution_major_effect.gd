@@ -51,30 +51,29 @@ func test_execution_still_respects_the_legendary_cap() -> void:
 
 
 func _make_execution() -> Artifact:
-    return Artifact.new(
-        &"execution",
-        "Execution",
-        "Dash hits on staggered targets kill instantly (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        &"",
-        false,
-        2,
-        1.0,
-        [TriggerArtifactEffect.new(RunBuild.TRIGGER_EXECUTION)],
-    )
+    var effect := TriggerArtifactEffect.new()
+    effect.trigger = RunBuild.TRIGGER_EXECUTION
+
+    var artifact := Artifact.new()
+    artifact.id = &"execution"
+    artifact.display_name = "Execution"
+    artifact.description_template = "Dash hits on staggered targets kill instantly (%d)"
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
+    artifact.effects = [effect]
+    return artifact
 
 
 func _make_legendary(id: StringName, exclusivity_group: StringName) -> Artifact:
-    return Artifact.new(
-        id,
-        "Major Placeholder",
-        "Major placeholder (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        exclusivity_group,
-        false,
-        2,
-        1.0,
-        [],
-    )
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = "Major Placeholder"
+    artifact.description_template = "Major placeholder (%d)"
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.exclusivity_group = exclusivity_group
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
+    return artifact

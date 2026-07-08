@@ -50,30 +50,23 @@ func test_mobility_cooldown_artifact_records_stacked_contribution_to_run_build_c
 
 
 func _make_speed_artifact() -> Artifact:
-    return Artifact.new(
-        &"speed_up",
-        "Fleet Step",
-        "+%d Speed",
-        Artifact.Rarity.COMMON,
-        5,
-        &"",
-        false,
-        1,
-        1.0,
-        [ChannelArtifactEffect.new(RunBuild.CH_SPEED, 1.0)],
-    )
+    return _make_channel_artifact(&"speed_up", "Fleet Step", "+%d Speed", 5, RunBuild.CH_SPEED, 1.0)
 
 
 func _make_mobility_cooldown_artifact() -> Artifact:
-    return Artifact.new(
-        &"mobility_cooldown_down",
-        "Light Footwork",
-        "-%d mobility cooldown (ticks)",
-        Artifact.Rarity.COMMON,
-        3,
-        &"",
-        false,
-        1,
-        1.0,
-        [ChannelArtifactEffect.new(RunBuild.CH_MOBILITY_COOLDOWN, 1.0)],
-    )
+    return _make_channel_artifact(&"mobility_cooldown_down", "Light Footwork", "-%d mobility cooldown (ticks)", 3, RunBuild.CH_MOBILITY_COOLDOWN, 1.0)
+
+
+func _make_channel_artifact(id: StringName, display_name: String, description_template: String, max_stacks: int, channel: StringName, magnitude: float) -> Artifact:
+    var effect := ChannelArtifactEffect.new()
+    effect.channel = channel
+    effect.amount = magnitude
+
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = display_name
+    artifact.description_template = description_template
+    artifact.max_stacks = max_stacks
+    artifact.magnitude = magnitude
+    artifact.effects = [effect]
+    return artifact

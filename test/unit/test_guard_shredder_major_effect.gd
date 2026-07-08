@@ -52,30 +52,24 @@ func test_guard_shredder_and_execution_can_both_be_active() -> void:
 
 
 func _make_guard_shredder() -> Artifact:
-    return Artifact.new(
-        &"guard_shredder",
-        "Guard Shredder",
-        "Back-angle dash hits break guard instantly (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        &"",
-        false,
-        2,
-        1.0,
-        [TriggerArtifactEffect.new(RunBuild.TRIGGER_GUARD_SHREDDER)],
-    )
+    return _make_trigger_artifact(&"guard_shredder", "Guard Shredder", "Back-angle dash hits break guard instantly (%d)", RunBuild.TRIGGER_GUARD_SHREDDER)
 
 
 func _make_execution() -> Artifact:
-    return Artifact.new(
-        &"execution",
-        "Execution",
-        "Dash hits on staggered targets kill instantly (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        &"",
-        false,
-        2,
-        1.0,
-        [TriggerArtifactEffect.new(RunBuild.TRIGGER_EXECUTION)],
-    )
+    return _make_trigger_artifact(&"execution", "Execution", "Dash hits on staggered targets kill instantly (%d)", RunBuild.TRIGGER_EXECUTION)
+
+
+func _make_trigger_artifact(id: StringName, display_name: String, description_template: String, trigger: StringName) -> Artifact:
+    var effect := TriggerArtifactEffect.new()
+    effect.trigger = trigger
+
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = display_name
+    artifact.description_template = description_template
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
+    artifact.effects = [effect]
+    return artifact

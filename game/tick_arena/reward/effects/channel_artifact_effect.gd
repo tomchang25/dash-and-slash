@@ -5,17 +5,9 @@
 class_name ChannelArtifactEffect
 extends ArtifactEffect
 
-var channel := &""
-var amount := 0.0
-var unit_scale := 1.0
-
-# == Lifecycle ==
-
-
-func _init(init_channel: StringName, init_amount: float, init_unit_scale: float = 1.0) -> void:
-    channel = init_channel
-    amount = init_amount
-    unit_scale = init_unit_scale
+@export var channel := &""
+@export var amount := 0.0
+@export var unit_scale := 1.0
 
 # == Overridden Custom Methods ==
 

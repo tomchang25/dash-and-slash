@@ -92,15 +92,13 @@ func test_different_exclusivity_groups_can_both_be_active() -> void:
 
 
 func _make_legendary(id: StringName, exclusivity_group: StringName) -> Artifact:
-    return Artifact.new(
-        id,
-        "Major Placeholder",
-        "Major placeholder (%d)",
-        Artifact.Rarity.LEGENDARY,
-        1,
-        exclusivity_group,
-        false,
-        2,
-        1.0,
-        [],
-    )
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = "Major Placeholder"
+    artifact.description_template = "Major placeholder (%d)"
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.exclusivity_group = exclusivity_group
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
+    return artifact

@@ -24,11 +24,13 @@ class TestTickRunController:
     func build_milestone_offer(wave_number: int) -> Array[WaveRewardChoice]:
         return _build_milestone_offer(wave_number)
 
+const DEFAULT_REGISTRY_PATH := "res://game/tick_arena/reward/default_artifact_registry.tres"
+
 
 func test_normal_offer_is_three_single_minor_choices() -> void:
     var context := WaveRewardContext.new(null, RunBuild.new())
     var controller: TestTickRunController = autofree(TestTickRunController.new())
-    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(), context)
+    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(_load_default_registry()), context)
 
     var offer := controller.build_normal_offer(1)
 
@@ -40,7 +42,7 @@ func test_normal_offer_is_three_single_minor_choices() -> void:
 func test_milestone_offer_first_slot_is_always_minor_x2() -> void:
     var context := WaveRewardContext.new(null, RunBuild.new())
     var controller: TestTickRunController = autofree(TestTickRunController.new())
-    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(), context)
+    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(_load_default_registry()), context)
 
     var offer := controller.build_milestone_offer(5)
 
@@ -53,7 +55,7 @@ func test_milestone_offer_first_slot_is_always_minor_x2() -> void:
 func test_milestone_offer_uses_eligible_majors_when_available() -> void:
     var context := WaveRewardContext.new(null, RunBuild.new())
     var controller: TestTickRunController = autofree(TestTickRunController.new())
-    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(), context)
+    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(_load_default_registry()), context)
 
     var offer := controller.build_milestone_offer(5)
 
@@ -68,23 +70,11 @@ func test_milestone_offer_fills_missing_major_slots_with_minor_x2() -> void:
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, run_build)
     var controller: TestTickRunController = autofree(TestTickRunController.new())
-    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(), context)
+    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(_load_default_registry()), context)
 
     # Fill the legendary cap so no Major can be eligible, forcing every slot's fallback path.
     for i in RunBuild.LEGENDARY_CAP:
-        var filler := Artifact.new(
-            "major_%d" % i,
-            "Major Placeholder",
-            "Major placeholder (%d)",
-            Artifact.Rarity.LEGENDARY,
-            1,
-            "",
-            false,
-            2,
-            1.0,
-            [],
-        )
-        run_build.acquire_artifact(filler, 1)
+        run_build.acquire_artifact(_make_legendary_filler("major_%d" % i), 1)
 
     var offer := controller.build_milestone_offer(5)
 
@@ -92,3 +82,19 @@ func test_milestone_offer_fills_missing_major_slots_with_minor_x2() -> void:
     for choice in offer:
         assert_eq(choice.title(), "Minor x2", "every slot falls back to Minor x2 when no Major is eligible")
         assert_false(choice.is_empty(), "the fallback bundle must still be an enabled choice")
+
+
+func _load_default_registry() -> ArtifactRegistry:
+    return load(DEFAULT_REGISTRY_PATH) as ArtifactRegistry
+
+
+func _make_legendary_filler(id: StringName) -> Artifact:
+    var artifact := Artifact.new()
+    artifact.id = id
+    artifact.display_name = "Major Placeholder"
+    artifact.description_template = "Major placeholder (%d)"
+    artifact.rarity = Artifact.Rarity.LEGENDARY
+    artifact.max_stacks = 1
+    artifact.min_wave = 2
+    artifact.magnitude = 1.0
+    return artifact
