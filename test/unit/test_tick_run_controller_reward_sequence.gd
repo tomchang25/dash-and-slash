@@ -24,7 +24,7 @@ class TestTickRunController:
     func build_milestone_offer(wave_number: int) -> Array[WaveRewardChoice]:
         return _build_milestone_offer(wave_number)
 
-const DEFAULT_REGISTRY_PATH := "res://game/tick_arena/reward/default_artifact_registry.tres"
+const DEFAULT_REGISTRY_PATH := "res://data/rewards/default_artifact_registry.tres"
 
 
 func test_normal_offer_is_three_single_minor_choices() -> void:

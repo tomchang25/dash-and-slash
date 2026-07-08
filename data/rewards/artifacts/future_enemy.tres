@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="Artifact" format=3 uid="uid://rnfyi284vaqd"]
 
-[ext_resource type="Script" uid="uid://bc8xcmmfdfnkl" path="res://game/tick_arena/reward/artifact.gd" id="1_artifact"]
-[ext_resource type="Script" uid="uid://bappb0olcgqlm" path="res://game/tick_arena/reward/effects/channel_artifact_effect.gd" id="2_effect"]
+[ext_resource type="Script" uid="uid://bc8xcmmfdfnkl" path="res://data/rewards/definitions/artifact.gd" id="1_artifact"]
+[ext_resource type="Script" uid="uid://bappb0olcgqlm" path="res://data/rewards/definitions/effects/channel_artifact_effect.gd" id="2_effect"]
 
 [sub_resource type="Resource" id="effect"]
 script = ExtResource("2_effect")

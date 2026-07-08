@@ -4,7 +4,7 @@
 # and Major offers respect the run-wide legendary cap.
 extends GutTest
 
-const DEFAULT_REGISTRY_PATH := "res://game/tick_arena/reward/default_artifact_registry.tres"
+const DEFAULT_REGISTRY_PATH := "res://data/rewards/default_artifact_registry.tres"
 
 func test_pressure_artifacts_roll_as_curses() -> void:
     var generator := WaveRewardChoiceGenerator.new(_load_default_registry())

@@ -15,7 +15,7 @@
 [ext_resource type="Script" path="res://game/tick_arena/combat/tick_preview_controller.gd" id="13_preview_controller"]
 [ext_resource type="Script" path="res://game/tick_arena/run/tick_run_controller.gd" id="14_run_controller"]
 [ext_resource type="Script" path="res://game/tick_arena/combat/tick_combat_feedback.gd" id="15_combat_feedback"]
-[ext_resource type="Resource" path="res://game/tick_arena/reward/default_artifact_registry.tres" id="16_artifact_registry"]
+[ext_resource type="Resource" path="res://data/rewards/default_artifact_registry.tres" id="16_artifact_registry"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)

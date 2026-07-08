@@ -4,7 +4,8 @@
 # fully-migrated catalog.
 extends GutTest
 
-const DEFAULT_REGISTRY_PATH := "res://game/tick_arena/reward/default_artifact_registry.tres"
+const DEFAULT_REGISTRY_PATH := "res://data/rewards/default_artifact_registry.tres"
+
 
 func test_get_by_id_returns_matching_artifact() -> void:
     var registry := ArtifactRegistry.new()
@@ -42,6 +43,7 @@ func test_validate_fails_on_null_entry() -> void:
     registry.artifacts = [_make_artifact(&"first"), null]
 
     assert_false(registry.validate())
+    assert_push_error("artifact at index 1 is null")
 
 
 func test_validate_fails_on_empty_id() -> void:
@@ -49,6 +51,7 @@ func test_validate_fails_on_empty_id() -> void:
     registry.artifacts = [_make_artifact(&"")]
 
     assert_false(registry.validate())
+    assert_push_error("artifact at index 0 has an empty id")
 
 
 func test_validate_fails_on_duplicate_id() -> void:
@@ -56,6 +59,7 @@ func test_validate_fails_on_duplicate_id() -> void:
     registry.artifacts = [_make_artifact(&"dup"), _make_artifact(&"dup")]
 
     assert_false(registry.validate())
+    assert_push_error("duplicate artifact id 'dup'")
 
 
 func test_production_default_registry_is_valid() -> void:
