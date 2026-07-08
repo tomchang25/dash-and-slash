@@ -9,6 +9,8 @@
 # Generated SFX assets (never hand-edit)
 /assets
 /build
+/.vscode
+
 **/*_back
 
 **/*.tmp
