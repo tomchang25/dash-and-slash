@@ -1,6 +1,5 @@
 # enemy_attack_controller.gd
-# Shared cell-based attack controller that owns cell snapshots, telegraph phases,
-# per-cell tile hitbox creation, hitbox enablement, and cleanup for tile attacks.
+# Shared cell-based attack controller that owns cell snapshots, telegraph phases, and cleanup for tile attacks.
 class_name EnemyAttackController
 extends Node
 
@@ -8,16 +7,13 @@ const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vect
 
 var _grid: GridArena
 var _telegraph: TileTelegraph
-var _tile_hitboxes: Array[Hitbox] = []
-var _hitbox_parent: Node
 var _attack_cells: Array[Vector2i] = []
 var _prepared := false
 
 
-func setup(grid: GridArena, telegraph: TileTelegraph, hitbox_parent: Node) -> void:
+func setup(grid: GridArena, telegraph: TileTelegraph) -> void:
     _grid = grid
     _telegraph = telegraph
-    _hitbox_parent = hitbox_parent
     if _telegraph != null:
         _telegraph.setup(grid)
     cancel()
@@ -59,10 +55,8 @@ static func get_attack_origin_cells(target_cell: Vector2i, attack_data: EnemyAtt
     return origins
 
 
-## Prepares the controller for an attack. Computes cells, configures the tile hitbox geometry,
-## and stores prepared state for subsequent telegraph/attack calls. damage_multiplier applies
-## per-wave enemy scaling on top of the resource's base damage.
-func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData, damage_multiplier: float = 1.0) -> bool:
+## Prepares the controller for an attack by computing and storing the committed tile footprint.
+func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData) -> bool:
     cancel()
     if _grid == null:
         return false
@@ -71,9 +65,16 @@ func prepare(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackDat
     if _attack_cells.is_empty():
         return false
 
-    _create_tile_hitboxes(attack_data.damage * damage_multiplier, attack_data.damage_interval)
     _prepared = true
     return true
+
+
+## Prepares the controller from a caller-computed footprint, used by attacks that trim their line before committing.
+func prepare_cells(cells: Array[Vector2i]) -> bool:
+    cancel()
+    _attack_cells = cells.duplicate()
+    _prepared = not _attack_cells.is_empty()
+    return _prepared
 
 
 func show_warning() -> void:
@@ -96,13 +97,9 @@ func begin_attack() -> void:
         return
     if _telegraph != null:
         _telegraph.show_active(_attack_cells)
-    for hitbox in _tile_hitboxes:
-        hitbox.set_enabled(true)
 
 
 func end_attack() -> void:
-    for hitbox in _tile_hitboxes:
-        hitbox.set_enabled(false)
     if _telegraph != null:
         _telegraph.clear()
     _attack_cells.clear()
@@ -110,11 +107,6 @@ func end_attack() -> void:
 
 
 func cancel() -> void:
-    for hitbox in _tile_hitboxes:
-        if is_instance_valid(hitbox):
-            hitbox.set_enabled(false)
-            hitbox.queue_free()
-    _tile_hitboxes.clear()
     if _telegraph != null:
         _telegraph.clear()
     _attack_cells.clear()
@@ -184,32 +176,3 @@ static func _max_grid_axis_length(grid: GridArena) -> int:
     if grid == null:
         return 0
     return maxi(grid.grid_size.x, grid.grid_size.y)
-
-
-## Creates one Hitbox per attack cell, each sized to a single tile.
-func _create_tile_hitboxes(damage: float, damage_interval: float) -> void:
-    if _grid == null or _hitbox_parent == null or _attack_cells.is_empty():
-        return
-
-    var size := Vector2.ONE * _grid.tile_size * 0.9
-    for cell in _attack_cells:
-        var hitbox := Hitbox.new()
-        hitbox.damage = damage
-        hitbox.damage_interval = damage_interval
-        hitbox.guard_damage_profile = Hitbox.GuardDamageProfile.NORMAL
-
-        var shape := CollisionShape2D.new()
-        var rect := RectangleShape2D.new()
-        rect.size = size
-        shape.shape = rect
-        hitbox.collision_shape = shape
-
-        # node-src: ephemeral - per-cell tile hitbox collision shape
-        hitbox.add_child(shape)
-
-        hitbox.monitoring = false
-
-        # node-src: ephemeral - per-cell tile hitbox
-        _hitbox_parent.add_child(hitbox)
-        hitbox.global_position = _grid.cell_center(cell)
-        _tile_hitboxes.append(hitbox)

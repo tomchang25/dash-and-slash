@@ -13,9 +13,7 @@ var _attack_data: EnemyAttackData
 var _charge_cells: Array[Vector2i] = []
 
 # -- Node references ----------------------------------------------------------
-@onready var _contact_hitbox: Hitbox = %ContactHitbox
 @onready var _telegraph: TileTelegraph = %TileTelegraph
-@onready var _point_executor: EnemyPointAttackExecutor = %PointAttackExecutor
 
 # == Lifecycle ================================================================
 
@@ -23,9 +21,6 @@ var _charge_cells: Array[Vector2i] = []
 func _ready() -> void:
     super()
     _select_attack_data()
-    _configure_point_executor()
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
     if _telegraph != null:
         _telegraph.setup(_grid)
 
@@ -61,8 +56,6 @@ func clear_stored_charge_cells() -> void:
 
 func face_arrow() -> void:
     super()
-    if _contact_hitbox != null:
-        _contact_hitbox.rotation = _facing.angle() + PI / 2.0
 
 
 ## Commits the charge both before planning and on arrival, whenever the enemy is aligned and already
@@ -155,18 +148,15 @@ func plan_next_action() -> bool:
     return plan_charge_origin_action()
 
 
-## Defensive cleanup on guard break and reset: stops the windup and disables the charge contact hitbox.
+## Defensive cleanup on guard break and reset: stops the windup.
 func end_charge_attack() -> void:
     stop_attack_windup_vfx()
-    if _point_executor != null:
-        _point_executor.set_hitbox_enabled(false)
 
 # == Setup helpers =============================================================
 
 
 func _after_setup_ready() -> void:
     _select_attack_data()
-    _configure_point_executor()
     if _telegraph != null:
         _telegraph.setup(_grid)
 
@@ -180,8 +170,6 @@ func _on_guard_broken_extra() -> void:
 func _on_begin_death_extra() -> void:
     if _telegraph != null:
         _telegraph.clear()
-    if _point_executor != null:
-        _point_executor.set_hitbox_enabled(false)
 
 
 func _reset_extra() -> void:
@@ -196,13 +184,6 @@ func _select_attack_data() -> void:
                 _attack_data = attack
                 return
     _attack_data = _create_fallback_attack_data()
-
-
-func _configure_point_executor() -> void:
-    if _point_executor == null:
-        return
-    _point_executor.setup(_grid, _telegraph, _contact_hitbox, true)
-    _point_executor.configure(get_current_attack_data(), get_damage_multiplier())
 
 
 func _create_fallback_attack_data() -> EnemyAttackData:

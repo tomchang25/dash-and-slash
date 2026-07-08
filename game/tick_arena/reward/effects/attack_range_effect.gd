@@ -4,4 +4,4 @@ class_name AttackRangeEffect
 extends PlayerStatEffect
 
 func apply(context: WaveRewardContext, stacks: int) -> void:
-    context.player.add_attack_range(magnitude * float(stacks))
+    context.run_build.record(RunBuild.CH_ATTACK_RANGE, magnitude * float(stacks))

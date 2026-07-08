@@ -1,9 +1,8 @@
 [gd_scene format=3 uid="uid://dssmenemy01"]
 
 [ext_resource type="Script" uid="uid://b5qmhsdk0f0ty" path="res://game/entities/enemies/small_enemy.gd" id="1_enemy"]
-[ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/components/health.gd" id="2_health"]
-[ext_resource type="Script" uid="uid://cp2srbhn2qgpw" path="res://common/gameplay/components/hurtbox.gd" id="3_hurtbox"]
-[ext_resource type="Script" uid="uid://cbjfefnqiava6" path="res://common/gameplay/components/guard.gd" id="5_guard"]
+[ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/combat/health.gd" id="2_health"]
+[ext_resource type="Script" uid="uid://cbjfefnqiava6" path="res://common/gameplay/combat/guard.gd" id="5_guard"]
 [ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="7_sm"]
 [ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="8_telegraph"]
 [ext_resource type="Script" uid="uid://v830nt1qxe7u" path="res://game/entities/enemies/states/enemy_idle_state.gd" id="9_idle_state"]
@@ -11,19 +10,14 @@
 [ext_resource type="Script" uid="uid://bwg432ox13y5p" path="res://game/entities/enemies/states/enemy_face_once_state.gd" id="11_face_state"]
 [ext_resource type="Script" uid="uid://kso7t1372ljp" path="res://game/entities/enemies/states/enemy_staggered_state.gd" id="15_staggered_state"]
 [ext_resource type="Script" uid="uid://dccf5ed0kuq50" path="res://game/entities/enemies/enemy_attack_controller.gd" id="16_attack_controller"]
-[ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/components/enemy_status_bars.tscn" id="17_status_bars"]
+[ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/view/enemy_status_bars.tscn" id="17_status_bars"]
 [ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="18_died_audio"]
 [ext_resource type="Script" uid="uid://barkfgyuqruhw" path="res://game/entities/enemies/states/enemy_dead_state.gd" id="19_dead_state"]
 [ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="20_damaged_audio"]
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="21_blocked_audio"]
 [ext_resource type="Resource" uid="uid://bgjp48injwiyn" path="res://game/entities/enemies/data/small_enemy.tres" id="22_enemy_data"]
 
-[sub_resource type="RectangleShape2D" id="hurt_shape"]
-size = Vector2(90, 90)
-
-[node name="SmallEnemy" type="CharacterBody2D" unique_id=694366884 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "hurtbox", "_body", "_facing_arrow")]
-collision_layer = 0
-collision_mask = 0
+[node name="SmallEnemy" type="Node2D" unique_id=694366884 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "_body", "_facing_arrow")]
 script = ExtResource("1_enemy")
 death_sfx_event = ExtResource("18_died_audio")
 damaged_sfx_event = ExtResource("20_damaged_audio")
@@ -33,7 +27,6 @@ health = NodePath("Health")
 _state_machine = NodePath("StateMachine")
 _guard = NodePath("Guard")
 _status_bars = NodePath("StatusBars")
-hurtbox = NodePath("Hurtbox")
 _body = NodePath("Body")
 _facing_arrow = NodePath("FacingArrow")
 
@@ -50,15 +43,6 @@ polygon = PackedVector2Array(0, 0, -15, 48, 15, 48)
 [node name="Health" type="Node" parent="." unique_id=1276586402]
 unique_name_in_owner = true
 script = ExtResource("2_health")
-
-[node name="Hurtbox" type="Area2D" parent="." unique_id=198748403]
-unique_name_in_owner = true
-collision_layer = 2
-collision_mask = 4
-script = ExtResource("3_hurtbox")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=418982724]
-shape = SubResource("hurt_shape")
 
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
 unique_name_in_owner = true

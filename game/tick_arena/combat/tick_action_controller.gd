@@ -469,6 +469,8 @@ func _apply_player_result_message(result: TickHitOutcome) -> void:
 
 
 func _mouse_cell() -> Vector2i:
+    if not grid.is_inside_tree():
+        return player.cell + _last_aim
     return TickActionPlanner.mouse_cell(grid)
 
 

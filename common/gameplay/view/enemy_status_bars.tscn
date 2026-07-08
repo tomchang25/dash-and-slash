@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cgfdigxq4ywrg"]
 
-[ext_resource type="Script" uid="uid://dstatusbar01" path="res://common/gameplay/components/enemy_status_bars.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://nufbmbiveajc" path="res://common/gameplay/components/shield_status_icon.tscn" id="2_shield"]
+[ext_resource type="Script" uid="uid://dstatusbar01" path="res://common/gameplay/view/enemy_status_bars.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://nufbmbiveajc" path="res://common/gameplay/view/shield_status_icon.tscn" id="2_shield"]
 
 [sub_resource type="StyleBoxFlat" id="hp_bar_bg"]
 bg_color = Color(0.25, 0.02, 0.02, 0.9)

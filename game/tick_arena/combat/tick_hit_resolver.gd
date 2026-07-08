@@ -45,7 +45,7 @@ static func resolve_hit(
 ## same outcome math as tick-grid hits. Execution takes priority over Guard Shredder because an
 ## already-staggered target has no guard left to shred.
 static func resolve_precomputed(
-        angle: DirectionResolver.HitAngle,
+        angle: TileDirectionResolver.HitAngle,
         guard_damage: int,
         target_snapshot: Dictionary,
         base_damage: float,
@@ -68,7 +68,7 @@ static func resolve_precomputed(
         and has_guard
         and not already_staggered
         and guard_current > 0
-        and angle == DirectionResolver.HitAngle.BACK
+        and angle == TileDirectionResolver.HitAngle.BACK
     )
     if guard_shredder_hit:
         # Zero the guard directly, bypassing the max(half_guard, 32) back guard-damage table.
@@ -120,14 +120,14 @@ static func any_qualifies_for_mobility_free_action(outcomes: Array[TickHitOutcom
 static func qualifies_for_mobility_free_action(outcome: TickHitOutcome) -> bool:
     if outcome.killed or outcome.guard_broken:
         return true
-    return outcome.angle == DirectionResolver.HitAngle.BACK
+    return outcome.angle == TileDirectionResolver.HitAngle.BACK
 
 # == Resolution ==
 
 
 ## Execution's instant-kill outcome: a dash hit on an already-staggered target kills outright, replacing
 ## whatever stagger-burst damage the hit would otherwise deal.
-static func _resolve_execution_kill(angle: DirectionResolver.HitAngle, target_snapshot: Dictionary) -> TickHitOutcome:
+static func _resolve_execution_kill(angle: TileDirectionResolver.HitAngle, target_snapshot: Dictionary) -> TickHitOutcome:
     var outcome := TickHitOutcome.new()
     outcome.angle = angle
     outcome.staggered = true

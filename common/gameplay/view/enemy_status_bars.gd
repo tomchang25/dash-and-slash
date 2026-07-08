@@ -1,5 +1,5 @@
 # enemy_status_bars.gd
-# Component that displays floating HP and dynamic shield guard indicators.
+# Floating combat status view for HP and dynamic shield guard indicators.
 class_name EnemyStatusBars
 extends Node2D
 

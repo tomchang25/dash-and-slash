@@ -1,9 +1,5 @@
 # guard.gd
-# Component: guard / shield / stagger system. Owns the guard-point pool and
-# stagger state. Communicates via signals. Has reset() / set_enabled() for
-# pool lifecycle.
-# Stagger is a tick countdown driven by the owner's tick callback via advance_stagger()
-# it is not a wall-clock timer, so displayed stagger windows stay honest in player actions.
+# Combat guard state for one actor. Owns guard points and tick-counted stagger state.
 class_name Guard
 extends Node
 

@@ -10,7 +10,7 @@ extends GutTest
 func test_guard_shredder_zeroes_guard_and_staggers_on_back_hit() -> void:
     var snapshot := _snapshot(50, 20, false)
 
-    var outcome := TickHitResolver.resolve_precomputed(DirectionResolver.HitAngle.BACK, 8, snapshot, 30.0, true, false)
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.BACK, 8, snapshot, 30.0, true, false)
 
     assert_true(outcome.guard_broken)
     assert_eq(outcome.guard_damage, 20, "guard shredder should zero the full 20 guard, not the 8 the back table would deal")
@@ -20,7 +20,7 @@ func test_guard_shredder_zeroes_guard_and_staggers_on_back_hit() -> void:
 func test_guard_shredder_does_not_trigger_off_back_angle() -> void:
     var snapshot := _snapshot(50, 20, false)
 
-    var outcome := TickHitResolver.resolve_precomputed(DirectionResolver.HitAngle.SIDE, 5, snapshot, 30.0, true, false)
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.SIDE, 5, snapshot, 30.0, true, false)
 
     assert_false(outcome.guard_broken, "side angle should keep the normal table, not shred")
     assert_eq(outcome.guard_damage, 5)
@@ -30,7 +30,7 @@ func test_guard_shredder_does_not_trigger_off_back_angle() -> void:
 func test_guard_shredder_does_not_retrigger_on_already_staggered_target() -> void:
     var snapshot := _snapshot(50, 0, true)
 
-    var outcome := TickHitResolver.resolve_precomputed(DirectionResolver.HitAngle.BACK, 8, snapshot, 30.0, true, false)
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.BACK, 8, snapshot, 30.0, true, false)
 
     assert_eq(outcome.major_trigger, TickHitOutcome.MajorTrigger.NONE)
 
@@ -39,7 +39,7 @@ func test_mobility_stagger_burst_applies_mobility_multiplier() -> void:
     var snapshot := _snapshot(100, 0, true)
 
     var outcome := TickHitResolver.resolve_precomputed(
-        DirectionResolver.HitAngle.SIDE,
+        TileDirectionResolver.HitAngle.SIDE,
         0,
         snapshot,
         30.0,
@@ -55,7 +55,7 @@ func test_mobility_stagger_burst_applies_mobility_multiplier() -> void:
 func test_execution_kills_instantly_on_already_staggered_dash_hit() -> void:
     var snapshot := _snapshot(50, 0, true)
 
-    var outcome := TickHitResolver.resolve_precomputed(DirectionResolver.HitAngle.SIDE, 4, snapshot, 1.0, false, true)
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.SIDE, 4, snapshot, 1.0, false, true)
 
     assert_true(outcome.killed, "execution should kill regardless of how small base_damage is")
     assert_eq(outcome.major_trigger, TickHitOutcome.MajorTrigger.EXECUTION)
@@ -64,7 +64,7 @@ func test_execution_kills_instantly_on_already_staggered_dash_hit() -> void:
 func test_execution_does_not_trigger_without_stagger() -> void:
     var snapshot := _snapshot(50, 20, false)
 
-    var outcome := TickHitResolver.resolve_precomputed(DirectionResolver.HitAngle.FRONT, 8, snapshot, 1.0, false, true)
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.FRONT, 8, snapshot, 1.0, false, true)
 
     assert_false(outcome.killed)
     assert_eq(outcome.major_trigger, TickHitOutcome.MajorTrigger.NONE)
@@ -73,7 +73,7 @@ func test_execution_does_not_trigger_without_stagger() -> void:
 func test_execution_takes_priority_over_guard_shredder_on_staggered_target() -> void:
     var snapshot := _snapshot(50, 0, true)
 
-    var outcome := TickHitResolver.resolve_precomputed(DirectionResolver.HitAngle.BACK, 8, snapshot, 1.0, true, true)
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.BACK, 8, snapshot, 1.0, true, true)
 
     assert_true(outcome.killed)
     assert_eq(outcome.major_trigger, TickHitOutcome.MajorTrigger.EXECUTION)
@@ -87,7 +87,7 @@ func test_guard_shredder_triggers_from_a_smash_style_landing_origin() -> void:
 
     var outcome := TickHitResolver.resolve_hit(landing, snapshot, 30.0, -1, true, false)
 
-    assert_eq(outcome.angle, DirectionResolver.HitAngle.BACK)
+    assert_eq(outcome.angle, TileDirectionResolver.HitAngle.BACK)
     assert_true(outcome.guard_broken)
     assert_eq(outcome.guard_damage, 20)
     assert_eq(outcome.major_trigger, TickHitOutcome.MajorTrigger.GUARD_SHREDDER)

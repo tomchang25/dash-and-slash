@@ -1,8 +1,5 @@
 # tick_combat_rules.gd
-# Static combat rules for the tick arena: player combat base numbers, hit-angle resolution/display,
-# and guard damage/HP bypass. Numbers mirror the design baseline (GDD v0.5 section 6); phase 3
-# formalizes this into the shared hit resolver. Hit angle is DirectionResolver.HitAngle, the single
-# production hit-angle vocabulary shared with the legacy physics path.
+# Static combat rules for the tick arena: player combat base numbers, tile hit-angle display, guard damage, and HP bypass.
 class_name TickCombatRules
 
 const FRONT_GUARD_DAMAGE := 8
@@ -25,42 +22,40 @@ const STAGGER_MOBILITY_MULTIPLIER := 2.0
 # == Common API ==
 
 
-## Classifies the attack angle from the attacker's origin cell relative to the target's facing.
-## Perfectly diagonal or zero deltas resolve to SIDE.
-static func resolve_angle(attacker_cell: Vector2i, target_cell: Vector2i, target_facing: Vector2i) -> DirectionResolver.HitAngle:
-    var dir := dominant_direction(attacker_cell - target_cell)
-    if dir == Vector2i.ZERO:
-        return DirectionResolver.HitAngle.SIDE
-    if dir == target_facing:
-        return DirectionResolver.HitAngle.FRONT
-    if dir == -target_facing:
-        return DirectionResolver.HitAngle.BACK
-    return DirectionResolver.HitAngle.SIDE
+## Classifies the attack angle from the attacker's origin cell relative to the target's tile facing.
+static func resolve_angle(attacker_cell: Vector2i, target_cell: Vector2i, target_facing: Vector2i) -> TileDirectionResolver.HitAngle:
+    return TileDirectionResolver.resolve(attacker_cell, target_cell, target_facing)
 
 
 ## Returns the guard damage for a hit at the given angle against a target with the given guard maximum.
-static func guard_damage_for(angle: DirectionResolver.HitAngle, max_guard: int) -> int:
+static func guard_damage_for(angle: TileDirectionResolver.HitAngle, max_guard: int) -> int:
     match angle:
-        DirectionResolver.HitAngle.FRONT:
+        TileDirectionResolver.HitAngle.FRONT:
             return FRONT_GUARD_DAMAGE
-        DirectionResolver.HitAngle.SIDE:
+        TileDirectionResolver.HitAngle.SIDE:
             return maxi(int(max_guard / 4.0), SIDE_GUARD_FLOOR)
-        DirectionResolver.HitAngle.BACK:
+        TileDirectionResolver.HitAngle.BACK:
             return maxi(int(max_guard / 2.0), BACK_GUARD_FLOOR)
+        TileDirectionResolver.HitAngle.NONE:
+            ToastManager.show_dev_error("TickCombatRules: unexpected NONE hit angle")
+            return 0
         _:
             ToastManager.show_dev_error("TickCombatRules: unexpected hit angle %d" % angle)
             return 0
 
 
 ## Returns the fraction of base damage that bypasses an unbroken guard at the given angle.
-static func hp_bypass_for(angle: DirectionResolver.HitAngle) -> float:
+static func hp_bypass_for(angle: TileDirectionResolver.HitAngle) -> float:
     match angle:
-        DirectionResolver.HitAngle.FRONT:
+        TileDirectionResolver.HitAngle.FRONT:
             return 0.0
-        DirectionResolver.HitAngle.SIDE:
+        TileDirectionResolver.HitAngle.SIDE:
             return SIDE_HP_BYPASS
-        DirectionResolver.HitAngle.BACK:
+        TileDirectionResolver.HitAngle.BACK:
             return BACK_HP_BYPASS
+        TileDirectionResolver.HitAngle.NONE:
+            ToastManager.show_dev_error("TickCombatRules: unexpected NONE hit angle")
+            return 0.0
         _:
             ToastManager.show_dev_error("TickCombatRules: unexpected hit angle %d" % angle)
             return 0.0
@@ -77,15 +72,15 @@ static func dominant_direction(delta: Vector2i) -> Vector2i:
 
 ## Renders a resolved hit angle as the display label used in HUD feedback messages and preview
 ## badges. Handles NONE for empty outcomes as well as the three real hit angles.
-static func angle_name(angle: DirectionResolver.HitAngle) -> String:
+static func angle_name(angle: TileDirectionResolver.HitAngle) -> String:
     match angle:
-        DirectionResolver.HitAngle.FRONT:
+        TileDirectionResolver.HitAngle.FRONT:
             return "Front"
-        DirectionResolver.HitAngle.SIDE:
+        TileDirectionResolver.HitAngle.SIDE:
             return "Side"
-        DirectionResolver.HitAngle.BACK:
+        TileDirectionResolver.HitAngle.BACK:
             return "BACK"
-        DirectionResolver.HitAngle.NONE:
+        TileDirectionResolver.HitAngle.NONE:
             return "NONE"
         _:
             ToastManager.show_dev_error("TickCombatRules: unexpected hit angle %d" % angle)

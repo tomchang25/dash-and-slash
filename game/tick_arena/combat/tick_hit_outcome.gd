@@ -26,7 +26,7 @@ enum MajorTrigger {
 
 # -- State --
 
-var angle: DirectionResolver.HitAngle = DirectionResolver.HitAngle.NONE
+var angle: TileDirectionResolver.HitAngle = TileDirectionResolver.HitAngle.NONE
 var was_guarded := false
 var staggered := false
 var guard_broken := false

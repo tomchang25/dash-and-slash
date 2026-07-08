@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://nufbmbiveajc"]
 
-[ext_resource type="Script" uid="uid://b86ot480u4o1q" path="res://common/gameplay/components/shield_status_icon.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://bn7ne5tvkeo40" path="res://common/gameplay/components/shield_placeholder_32.svg" id="2_icon"]
+[ext_resource type="Script" uid="uid://b86ot480u4o1q" path="res://common/gameplay/view/shield_status_icon.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://bn7ne5tvkeo40" path="res://common/gameplay/view/shield_placeholder_32.svg" id="2_icon"]
 
 [node name="ShieldStatusIcon" type="Node2D" unique_id=221553864]
 script = ExtResource("1_script")

@@ -159,6 +159,8 @@ func _apply_locked_smash_preview(preview: Dictionary, outcomes: Dictionary) -> v
 
 
 func _mouse_cell() -> Vector2i:
+    if not grid.is_inside_tree():
+        return player.cell + action_controller.get_last_aim()
     return TickActionPlanner.mouse_cell(grid)
 
 

@@ -59,7 +59,6 @@ var _tick_move_tween: Tween
 @export var _state_machine: StateMachine
 @export var _guard: Guard
 @export var _status_bars: EnemyStatusBars
-@export var hurtbox: Hurtbox
 @export var _body: Polygon2D
 @export var _facing_arrow: Polygon2D
 
@@ -75,9 +74,6 @@ func _ready() -> void:
         _grid.register_enemy_entity(self)
         if not _grid.reservation_lost.is_connected(_on_reservation_lost):
             _grid.reservation_lost.connect(_on_reservation_lost)
-
-    if hurtbox != null:
-        hurtbox.hit_received.connect(_on_hit_received)
 
     if health != null:
         health.damaged.connect(_on_damaged)
@@ -191,26 +187,6 @@ func _on_damaged(_amount: float, _source: Node) -> void:
                     _body.modulate = Color.WHITE,
         CONNECT_ONE_SHOT,
     )
-
-
-func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) -> void:
-    if not (source is Node2D):
-        return
-
-    var src_pos := (source as Node2D).global_position
-    var is_dash := guard_damage_profile == Hitbox.GuardDamageProfile.DASH
-    var outcome := _resolve_hit_outcome(src_pos, amount, is_dash)
-    if not is_alive():
-        return
-
-    _apply_hit_feedback(outcome, src_pos)
-
-    if health != null:
-        health.take_damage(outcome.hp_damage, source)
-    if health != null and not health.is_alive():
-        return
-    if _guard != null:
-        _guard.take_guard_damage(outcome.guard_damage)
 
 
 func _on_stagger_started() -> void:
@@ -461,7 +437,7 @@ func finish_attack_into_recovery() -> void:
 
 ## Applies per-wave milestone scaling to this enemy instance: bumps max_health in
 ## place (Health is a per-instance node, safe to mutate), stores a damage
-## multiplier consumed when attacks stamp their hitbox damage, and stores a flat
+## multiplier consumed when tile attacks resolve, and stores a flat
 ## defense value consumed by TickHitResolver.apply_defense(). Guard never scales.
 func apply_wave_scaling(hp_multiplier: float, damage_multiplier: float, defense: float) -> void:
     _damage_multiplier = max(damage_multiplier, 0.0)
@@ -618,8 +594,6 @@ func face_arrow() -> void:
         _facing_arrow.rotation = _facing.angle() - PI / 2.0
     if _body != null:
         _body.rotation = _facing.angle() + PI / 2.0
-    if hurtbox != null:
-        hurtbox.rotation = _facing.angle() + PI / 2.0
 
 
 func register_grid_occupant() -> void:
@@ -641,7 +615,6 @@ func get_guard() -> Guard:
 
 
 func begin_death() -> void:
-    velocity = Vector2.ZERO
     stop_attack_windup_vfx()
     clear_planned_path()
     # Vacate the grid cell immediately so other actors and the player can enter during the death tween.
@@ -652,8 +625,6 @@ func begin_death() -> void:
         _stagger_tween.kill()
     if health != null:
         health.set_enabled(false)
-    if hurtbox != null:
-        hurtbox.set_enabled(false)
 
 
 ## Force-death entry point for boss wave resolution. Zeroes hp through Health,
@@ -762,7 +733,6 @@ func get_charge_landing_cell(tiles: Array[Vector2i]) -> Vector2i:
 
 ## Performs shared setup when an enemy commits to a non-reposition action.
 func begin_committed_action() -> bool:
-    velocity = Vector2.ZERO
     clear_planned_path()
     return true
 
@@ -795,7 +765,7 @@ func clear_stored_charge_cells() -> void:
     pass
 
 
-## Ends the active charge-dash phase (hitbox disable), used as defensive cleanup on guard break and reset.
+## Ends the active charge-dash phase, used as defensive cleanup on guard break and reset.
 ## Enemies without a charge attack need not override this.
 func end_charge_attack() -> void:
     pass
@@ -1070,7 +1040,6 @@ func _resolve_node_references() -> void:
     _state_machine = _fallback_node(_state_machine, "StateMachine") as StateMachine
     _guard = _fallback_node(_guard, "Guard") as Guard
     _status_bars = _fallback_node(_status_bars, "StatusBars") as EnemyStatusBars
-    hurtbox = _fallback_node(hurtbox, "Hurtbox") as Hurtbox
     _body = _fallback_node(_body, "Body") as Polygon2D
     _facing_arrow = _fallback_node(_facing_arrow, "FacingArrow") as Polygon2D
 
@@ -1105,26 +1074,6 @@ func _resolve_detonation_on_player(tiles: Array[Vector2i]) -> void:
 ## Clears the kind's telegraph presentation for a resolved or cancelled attack. Kinds override.
 func _clear_attack_presentation() -> void:
     pass
-
-
-## Legacy physics-hit resolution path. Tick prediction and commits use _resolve_tick_hit_outcome() / TickHitResolver instead.
-func _resolve_hit_outcome(src_pos: Vector2, base_damage: float, is_dash: bool) -> TickHitOutcome:
-    if not is_alive():
-        return TickHitResolver.empty_outcome()
-
-    var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
-    var profile := Hitbox.GuardDamageProfile.DASH if is_dash else Hitbox.GuardDamageProfile.NORMAL
-    var guard_damage := _resolve_guard_damage(angle, profile)
-    var stagger_burst_multiplier := TickCombatRules.STAGGER_MOBILITY_MULTIPLIER if is_dash else TickCombatRules.STAGGER_ATTACK_MULTIPLIER
-    return TickHitResolver.resolve_precomputed(
-        angle,
-        guard_damage,
-        _target_snapshot(),
-        base_damage,
-        false,
-        false,
-        stagger_burst_multiplier,
-    )
 
 
 ## Pure tick-grid hit resolution shared by predict_hit() and take_hit(); this is the authoritative path for previews and committed tick verbs.
@@ -1192,14 +1141,8 @@ func _apply_hit_feedback(outcome: TickHitOutcome, src_pos: Vector2) -> void:
             ToastManager.show_dev_error("GridEnemy: unexpected feedback kind %s" % outcome.feedback_kind)
 
 
-func _resolve_guard_damage(angle: DirectionResolver.HitAngle, guard_damage_profile: int) -> int:
-    if guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
-        return DirectionResolver.dash_guard_damage(angle)
-    return DirectionResolver.normal_guard_damage(angle)
-
-
-func _get_blocked_hit_sfx(angle: DirectionResolver.HitAngle) -> SpatialAudioEvent:
-    return damaged_sfx_event if angle == DirectionResolver.HitAngle.BACK else blocked_sfx_event
+func _get_blocked_hit_sfx(angle: TileDirectionResolver.HitAngle) -> SpatialAudioEvent:
+    return damaged_sfx_event if angle == TileDirectionResolver.HitAngle.BACK else blocked_sfx_event
 
 
 func _start_stagger_vfx() -> void:

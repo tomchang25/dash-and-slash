@@ -55,7 +55,7 @@ func test_cancel_clears_prepared_cells() -> void:
     var grid: GridArena = autofree(GridArena.new())
     var controller: EnemyAttackController = autofree(EnemyAttackController.new())
 
-    controller.setup(grid, null, null)
+    controller.setup(grid, null)
     assert_true(controller.prepare(Vector2i(1, 1), Vector2.RIGHT, attack_data))
     controller.cancel()
 

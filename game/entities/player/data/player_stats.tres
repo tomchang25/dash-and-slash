@@ -1,7 +1,0 @@
-[gd_resource type="Resource" script_class="PlayerStatsData" format=3 uid="uid://ckrjqwqspp1no"]
-
-[ext_resource type="Script" uid="uid://bodrl86q00qha" path="res://data/definitions/player_stats_data.gd" id="1_stats"]
-
-[resource]
-script = ExtResource("1_stats")
-dash_attack_damage = 50.0

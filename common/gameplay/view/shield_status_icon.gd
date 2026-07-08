@@ -1,5 +1,5 @@
 # shield_status_icon.gd
-# Component that displays one guard shield split into four visible quadrants.
+# View widget that displays one guard shield split into four visible quadrants.
 class_name ShieldStatusIcon
 extends Node2D
 

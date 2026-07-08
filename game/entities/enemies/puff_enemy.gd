@@ -27,8 +27,6 @@ var _puff_base_color := Color.WHITE
 var _puff_vfx_tween: Tween
 
 # -- Node references ----------------------------------------------------------
-@onready var _puff_hitbox: Hitbox = %PuffHitbox
-@onready var _point_executor: EnemyPointAttackExecutor = %PointAttackExecutor
 
 # == Lifecycle ================================================================
 
@@ -36,9 +34,6 @@ var _puff_vfx_tween: Tween
 func _ready() -> void:
     super()
     _select_attack_data()
-    _configure_point_executor()
-    if _puff_hitbox != null:
-        _puff_hitbox.set_enabled(false)
 
 # == Common API ================================================================
 
@@ -49,11 +44,6 @@ func get_body() -> Polygon2D:
 
 func is_target_in_puff_range() -> bool:
     return is_target_within_grid_range(get_puff_range())
-
-
-func enable_puff_hitbox(enable: bool) -> void:
-    if _point_executor != null:
-        _point_executor.set_hitbox_enabled(enable)
 
 
 func get_tick_speed() -> int:
@@ -88,19 +78,6 @@ func resolve_detonation() -> void:
         _resolve_detonation_on_player(get_attack_tiles())
         if remaining <= 0:
             _end_puff_zone()
-
-
-## Returns the actual circular puff hitbox radius used by the scene.
-func get_puff_hitbox_radius() -> float:
-    if _puff_hitbox == null:
-        return tile_size() * float(PUFF_RANGE)
-    var collision_shape := _puff_hitbox.collision_shape as CollisionShape2D
-    if collision_shape == null:
-        return tile_size() * float(PUFF_RANGE)
-    var circle := collision_shape.shape as CircleShape2D
-    if circle == null:
-        return tile_size() * float(PUFF_RANGE)
-    return circle.radius
 
 
 func get_current_attack_data() -> EnemyAttackData:
@@ -181,22 +158,20 @@ func _clear_attack_presentation() -> void:
     if _puff_phase != PuffPhase.NONE:
         _puff_phase = PuffPhase.NONE
         _play_puff_vfx(false)
-    enable_puff_hitbox(false)
 
 # == Setup helpers =============================================================
 
 
 func _after_setup_ready() -> void:
     _select_attack_data()
-    _configure_point_executor()
 
 
 func _on_begin_death_extra() -> void:
-    enable_puff_hitbox(false)
+    _clear_attack_presentation()
 
 
 func _reset_extra() -> void:
-    enable_puff_hitbox(false)
+    _clear_attack_presentation()
 
 
 func _select_attack_data() -> void:
@@ -206,13 +181,6 @@ func _select_attack_data() -> void:
                 _attack_data = attack
                 return
     _attack_data = _create_fallback_attack_data()
-
-
-func _configure_point_executor() -> void:
-    if _point_executor == null:
-        return
-    _point_executor.setup(_grid, null, _puff_hitbox, false)
-    _point_executor.configure(get_current_attack_data(), get_damage_multiplier())
 
 
 func _create_fallback_attack_data() -> EnemyAttackData:
@@ -229,14 +197,8 @@ func _create_fallback_attack_data() -> EnemyAttackData:
     return attack_data
 
 
-func _resolve_guard_damage(angle: int, guard_damage_profile: int) -> int:
-    if _is_puffing():
-        return DirectionResolver.normal_guard_damage(DirectionResolver.HitAngle.FRONT)
-    return super(angle, guard_damage_profile)
-
-
-func _get_blocked_hit_sfx(angle: int) -> SpatialAudioEvent:
-    if not _is_puffing() and angle == DirectionResolver.HitAngle.BACK:
+func _get_blocked_hit_sfx(angle: TileDirectionResolver.HitAngle) -> SpatialAudioEvent:
+    if not _is_puffing() and angle == TileDirectionResolver.HitAngle.BACK:
         return damaged_sfx_event
     return blocked_sfx_event
 

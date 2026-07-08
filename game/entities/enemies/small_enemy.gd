@@ -73,7 +73,7 @@ func begin_attack_telegraph() -> bool:
     var attack := get_attack_controller()
     if attack == null or _attack_data == null:
         return false
-    if not attack.prepare(get_grid_pos(), get_facing(), _attack_data, get_damage_multiplier()):
+    if not attack.prepare(get_grid_pos(), get_facing(), _attack_data):
         return false
     attack.show_warning()
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.TILE)
@@ -135,7 +135,7 @@ func _clear_attack_presentation() -> void:
 func _configure_attack_controller() -> void:
     if _attack_controller == null:
         return
-    _attack_controller.setup(_grid, _telegraph, self)
+    _attack_controller.setup(_grid, _telegraph)
 
 
 ## Picks a random attack from enemy data. Falls back to a LINE attack when data

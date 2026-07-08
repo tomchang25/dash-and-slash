@@ -25,10 +25,7 @@ var _current_attack_data: EnemyAttackData
 
 # -- Node references ----------------------------------------------------------
 @onready var _tile_executor: EnemyAttackController = %TileAttackExecutor
-@onready var _point_executor: EnemyPointAttackExecutor = %PointAttackExecutor
 @onready var _telegraph: TileTelegraph = %TileTelegraph
-@onready var _contact_hitbox: Hitbox = %ContactHitbox
-@onready var _puff_hitbox: Hitbox = %PuffHitbox
 
 # == Lifecycle ================================================================
 
@@ -36,7 +33,6 @@ var _current_attack_data: EnemyAttackData
 func _ready() -> void:
     super()
     _configure_executors()
-    _disable_mode_hitboxes()
     _apply_current_mode_color()
 
 # == Signal handlers ==========================================================
@@ -111,7 +107,6 @@ func choose_random_mode() -> void:
     _mode = randi() % MODE_COUNT
     _mode_ready = true
     _current_attack_data = _select_attack_data_for_mode(_mode)
-    _rewire_point_executor()
     _apply_current_mode_color()
 
 
@@ -167,13 +162,13 @@ func prepare_attack() -> bool:
         Mode.TILE:
             if _tile_executor == null:
                 return false
-            return _tile_executor.prepare(_grid_pos, _facing, _tile_attack_data(), get_damage_multiplier())
+            return _tile_executor.prepare(_grid_pos, _facing, _tile_attack_data())
         Mode.CHARGE, Mode.PUFF:
-            if _point_executor == null:
+            if _tile_executor == null:
                 return false
             if _mode == Mode.CHARGE:
-                return _point_executor.prepare_cells(get_unblocked_charge_cells(_grid_pos, _facing, _current_attack_data), _current_attack_data, get_damage_multiplier())
-            return _point_executor.prepare(_grid_pos, _facing, _current_attack_data, get_damage_multiplier())
+                return _tile_executor.prepare_cells(get_unblocked_charge_cells(_grid_pos, _facing, _current_attack_data))
+            return _tile_executor.prepare(_grid_pos, _facing, _current_attack_data)
     return false
 
 
@@ -183,8 +178,8 @@ func show_attack_warning() -> void:
             if _tile_executor != null:
                 _tile_executor.show_warning()
         Mode.CHARGE, Mode.PUFF:
-            if _point_executor != null:
-                _point_executor.show_warning()
+            if _tile_executor != null:
+                _tile_executor.show_warning()
 
 
 func show_attack_charge() -> void:
@@ -193,19 +188,18 @@ func show_attack_charge() -> void:
             if _tile_executor != null:
                 _tile_executor.show_charge()
         Mode.CHARGE, Mode.PUFF:
-            if _point_executor != null:
-                _point_executor.show_charge()
+            if _tile_executor != null:
+                _tile_executor.show_charge()
 
 
 func cancel_attack() -> void:
-    velocity = Vector2.ZERO
     match _mode:
         Mode.TILE:
             if _tile_executor != null:
                 _tile_executor.cancel()
         Mode.CHARGE, Mode.PUFF:
-            if _point_executor != null:
-                _point_executor.cancel()
+            if _tile_executor != null:
+                _tile_executor.cancel()
 
 # == Tick clocking =============================================================
 
@@ -213,9 +207,7 @@ func cancel_attack() -> void:
 ## Tick footprint committed by begin_attack_telegraph(): the current mode's executor cells.
 func get_committed_attack_cells() -> Array[Vector2i]:
     var empty: Array[Vector2i] = []
-    if _mode == Mode.TILE:
-        return _tile_executor.get_cells() if _tile_executor != null else empty
-    return _point_executor.get_cells() if _point_executor != null else empty
+    return _tile_executor.get_cells() if _tile_executor != null else empty
 
 
 ## Tick detonation. CHARGE mode rushes along its line like the charger; TILE/PUFF resolve a single
@@ -253,7 +245,6 @@ func _on_guard_broken_extra() -> void:
 
 func _on_begin_death_extra() -> void:
     cancel_attack()
-    _disable_mode_hitboxes()
 
 
 func _reset_extra() -> void:
@@ -265,15 +256,7 @@ func _reset_extra() -> void:
 
 func _configure_executors() -> void:
     if _tile_executor != null:
-        _tile_executor.setup(_grid, _telegraph, self)
-    _rewire_point_executor()
-
-
-func _rewire_point_executor() -> void:
-    if _point_executor == null:
-        return
-    var hitbox := _puff_hitbox if _mode == Mode.PUFF else _contact_hitbox
-    _point_executor.setup(_grid, _telegraph, hitbox, true)
+        _tile_executor.setup(_grid, _telegraph)
 
 
 ## Returns the attack data driving TILE-mode cell computation, falling back to the
@@ -286,13 +269,6 @@ func _tile_attack_data() -> EnemyAttackData:
     fallback.width = 3
     fallback.depth = 2
     return fallback
-
-
-func _disable_mode_hitboxes() -> void:
-    if _contact_hitbox != null:
-        _contact_hitbox.set_enabled(false)
-    if _puff_hitbox != null:
-        _puff_hitbox.set_enabled(false)
 
 
 func _apply_current_mode_color() -> void:

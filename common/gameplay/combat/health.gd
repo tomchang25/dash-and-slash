@@ -1,7 +1,5 @@
 # health.gd
-# Component: hit points for one entity. Owns its hp state and the only operations
-# that change it. Communicates out via signals; never reaches into siblings.
-# Lifecycle: reset() restores spawn defaults (pool acquire); set_enabled() toggles.
+# Combat health state for one actor. Owns hit points and the only operations that change them.
 class_name Health
 extends Node
 
