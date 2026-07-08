@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://game/tick_arena/tick_arena.gd" id="1_root"]
 [ext_resource type="Script" path="res://common/gameplay/grid/grid_arena.gd" id="2_grid"]
@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://game/tick_arena/combat/tick_action_controller.gd" id="12_action_controller"]
 [ext_resource type="Script" path="res://game/tick_arena/combat/tick_preview_controller.gd" id="13_preview_controller"]
 [ext_resource type="Script" path="res://game/tick_arena/run/tick_run_controller.gd" id="14_run_controller"]
+[ext_resource type="Script" path="res://game/tick_arena/combat/tick_combat_feedback.gd" id="15_combat_feedback"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -73,13 +74,19 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 script = ExtResource("6_player")
 
-[node name="TickActionController" type="Node" parent="." node_paths=PackedStringArray("grid", "view", "engine", "player", "smash_cancel_confirm_panel", "smash_cancel_confirm_button", "smash_cancel_keep_button")]
+[node name="TickCombatFeedback" type="Node" parent="." node_paths=PackedStringArray("player")]
+unique_name_in_owner = true
+script = ExtResource("15_combat_feedback")
+player = NodePath("../Player")
+
+[node name="TickActionController" type="Node" parent="." node_paths=PackedStringArray("grid", "view", "engine", "player", "feedback", "smash_cancel_confirm_panel", "smash_cancel_confirm_button", "smash_cancel_keep_button")]
 unique_name_in_owner = true
 script = ExtResource("12_action_controller")
 grid = NodePath("../GridArena")
 view = NodePath("../GridView")
 engine = NodePath("../TickEngine")
 player = NodePath("../Player")
+feedback = NodePath("../TickCombatFeedback")
 smash_cancel_confirm_panel = NodePath("../HUD/SmashCancelConfirmPanel")
 smash_cancel_confirm_button = NodePath("../HUD/SmashCancelConfirmPanel/MarginContainer/RootVBox/SmashCancelButtonRow/SmashCancelConfirmButton")
 smash_cancel_keep_button = NodePath("../HUD/SmashCancelConfirmPanel/MarginContainer/RootVBox/SmashCancelButtonRow/SmashCancelKeepButton")

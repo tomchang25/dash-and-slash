@@ -1,8 +1,9 @@
 # test_tick_action_controller_verbs.gd
-# Tests TickActionController's mode_set verb handling and message state directly: default aim mode,
-# mode_set toggling between Attack and Mobility, and the set/current message pair. These paths touch
-# no exported scene dependency (grid/view/engine/player), so the controller can be exercised without
-# a scene tree per Phase 6b's ownership split (mode and message are the action controller's own state).
+# Tests TickActionController's mode_set verb handling directly: default aim mode and mode_set toggling
+# between Attack and Mobility. These paths touch no exported scene dependency (grid/view/engine/player),
+# so the controller can be exercised without a scene tree per Phase 6b's ownership split (mode is the
+# action controller's own state). Message-state and outcome-text coverage lives in
+# test_tick_combat_feedback.gd now that TickCombatFeedback owns HUD result presentation.
 extends GutTest
 
 class FakePlayer:
@@ -74,16 +75,6 @@ func test_default_last_aim_is_right() -> void:
     assert_eq(controller.get_last_aim(), Vector2i.RIGHT)
 
 
-func test_message_starts_empty_and_set_message_updates_it() -> void:
-    var controller: TickActionController = autofree(TickActionController.new())
-
-    assert_eq(controller.current_message(), "")
-
-    controller.set_message("Whiff.")
-
-    assert_eq(controller.current_message(), "Whiff.")
-
-
 ## Regression for the death-overlay/wave-banner input lock (Phase 6e): a locked controller must
 ## ignore every verb, including a mode_set that touches no exported node, so combat input can never
 ## sneak through while the death overlay or wave-clear banner is on screen.
@@ -152,11 +143,13 @@ func _make_controller_context() -> Dictionary:
 
     var engine: FakeEngine = autofree(FakeEngine.new())
     var view: FakeView = autofree(FakeView.new())
+    var feedback: TickCombatFeedback = autofree(TickCombatFeedback.new())
     var controller: TickActionController = autofree(TickActionController.new())
     controller.grid = grid
     controller.engine = engine
     controller.player = player
     controller.view = view
+    controller.feedback = feedback
     controller.setup(RunBuild.new())
 
     return {
@@ -165,4 +158,5 @@ func _make_controller_context() -> Dictionary:
         "engine": engine,
         "view": view,
         "grid": grid,
+        "feedback": feedback,
     }

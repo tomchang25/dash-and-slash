@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Tick Arena Combat Feedback And Aim
+
+- 2026-07-08 — [combat] Result presentation (HUD outcome messages, Major-trigger VFX/SFX) moves out of TickActionController into a dedicated TickCombatFeedback, and aim/plan resolution is shared between the action and preview controllers through a TickAimContext instead of two duplicated wrapper sets
+
 ### Tick Arena Fixes
 
 - 2026-07-08 — [combat] Mobility attacks now apply stagger-burst damage consistently for Dash and Smash, and player mobility cooldowns tick on consumed actions even when Speed grants a free action

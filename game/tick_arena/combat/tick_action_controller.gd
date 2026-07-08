@@ -1,10 +1,14 @@
 # tick_action_controller.gd
 # Owns tick-arena verb dispatch (move, confirm/attack, mobility payloads, wait), Speed meter
-# spend/fill, Mobility Free Action refunds, hit application, action feedback messages, and the
-# decision to advance the tick world (tick resolution stage 1); world advancement itself is handed
-# to TickEngine. May mutate TickPlayer, RunBuild, enemy health through the existing hit path, and
-# TickGridView feedback flashes; may request world advancement from TickEngine, but never owns tick
-# count, actor energy, wave state, reward state, spawn queues, or terrain cadence.
+# spend/fill, Mobility Free Action refunds, hit application, and the decision to advance the tick
+# world (tick resolution stage 1); world advancement itself is handed to TickEngine. Result
+# presentation (HUD message text/timer, Major-trigger VFX/SFX) belongs to TickCombatFeedback; this
+# controller forwards set_message/current_message/state_changed to it so external callers keep working
+# unchanged. Aim/plan resolution (mouse cell, aim direction, dash/smash plans) is shared with
+# TickPreviewController through TickAimContext. May mutate TickPlayer, RunBuild, enemy health through
+# the existing hit path, and TickGridView input-driven feedback flashes; may request world advancement
+# from TickEngine, but never owns tick count, actor energy, wave state, reward state, spawn queues, or
+# terrain cadence.
 class_name TickActionController
 extends Node
 
@@ -15,16 +19,13 @@ enum AimMode {
     MOBILITY,
 }
 
-# -- Constants --
-
-const MESSAGE_SEC := 1.6
-
 # -- Exports --
 
 @export var grid: GridArena
 @export var view: TickGridView
 @export var engine: TickEngine
 @export var player: TickPlayer
+@export var feedback: TickCombatFeedback
 @export var smash_cancel_confirm_panel: Control
 @export var smash_cancel_confirm_button: Button
 @export var smash_cancel_keep_button: Button
@@ -32,12 +33,11 @@ const MESSAGE_SEC := 1.6
 # -- State --
 
 var _run_build: RunBuild
+var _aim_context: TickAimContext
 var _aim_mode := AimMode.ATTACK
 var _smash_cancel_confirm_open := false
 var _input_locked := false
 var _last_aim := Vector2i.RIGHT
-var _message := ""
-var _message_time := 0.0
 
 # == Lifecycle ==
 
@@ -45,10 +45,7 @@ var _message_time := 0.0
 func _ready() -> void:
     smash_cancel_confirm_button.pressed.connect(_on_smash_cancel_confirm_pressed)
     smash_cancel_keep_button.pressed.connect(_on_smash_cancel_keep_pressed)
-
-
-func _process(delta: float) -> void:
-    _update_message(delta)
+    feedback.message_changed.connect(_on_feedback_message_changed)
 
 # == Signal handlers ==
 
@@ -56,11 +53,18 @@ func _process(delta: float) -> void:
 func _on_smash_cancel_confirm_pressed() -> void:
     player.disarm_smash()
     _close_smash_cancel_confirm()
-    set_message("Smash windup cancelled.")
+    feedback.set_message("Smash windup cancelled.")
 
 
 func _on_smash_cancel_keep_pressed() -> void:
     _close_smash_cancel_confirm()
+
+
+## A message set or its display timer expiring both change HUD-visible state, so the arena root's
+## existing state_changed -> _refresh_hud/_refresh_danger wiring must fire the same as it does for a
+## free action's meter/cooldown change.
+func _on_feedback_message_changed() -> void:
+    state_changed.emit()
 
 # == Common API ==
 
@@ -69,6 +73,7 @@ func _on_smash_cancel_keep_pressed() -> void:
 ## triggers from; the tick arena root owns and constructs the shared RunBuild instance.
 func setup(run_build: RunBuild) -> void:
     _run_build = run_build
+    _aim_context = TickAimContext.new(grid, engine, player, run_build, func() -> Vector2i: return _last_aim)
 
 
 ## Locks or unlocks verb dispatch; the run controller locks input while the wave-clear banner and
@@ -84,15 +89,14 @@ func reset_for_new_run() -> void:
     _close_smash_cancel_confirm()
 
 
-## Sets the HUD message text and restarts its display timer; exposed publicly so debug controls can
-## post the same feedback real verb resolution uses instead of writing a second message path.
+## Forwards to TickCombatFeedback; exposed here so debug controls and the run controller can post the
+## same feedback real verb resolution uses instead of reaching into the feedback node directly.
 func set_message(text: String) -> void:
-    _message = text
-    _message_time = MESSAGE_SEC
+    feedback.set_message(text)
 
 
 func current_message() -> String:
-    return _message
+    return feedback.current_message()
 
 
 func is_mobility_mode() -> bool:
@@ -116,7 +120,7 @@ func cancel_smash_windup() -> void:
     if player.is_smash_armed():
         player.disarm_smash()
         _close_smash_cancel_confirm()
-        set_message("Windup cancelled.")
+        feedback.set_message("Windup cancelled.")
 
 
 ## While the Smash cancel-confirm popup is open, every arena verb is blocked — only the popup's own
@@ -169,7 +173,7 @@ func _verb_move(dir: Vector2i) -> Dictionary:
     player.move_to(target)
     _fill_speed_meter()
     if free_action:
-        _append_message_suffix("Speed spent — free move!")
+        feedback.append_suffix("Speed spent — free move!")
     return _verb_result(not free_action)
 
 
@@ -191,7 +195,7 @@ func _confirm_is_attack() -> bool:
 ## free. Normal attack is the second Speed-eligible action, accounted for the same way as move.
 func _verb_attack() -> Dictionary:
     cancel_smash_windup()
-    var aim := _aim_direction()
+    var aim := _aim_context.aim_direction()
     _last_aim = aim
     var target := player.cell + aim
     _tick_player_action_upkeep()
@@ -202,7 +206,7 @@ func _verb_attack() -> Dictionary:
         _apply_player_hit(enemy, player.cell, TickCombatProjection.normal_attack_damage(_run_build))
     _fill_speed_meter()
     if free_action:
-        _append_message_suffix("Speed spent — free attack!")
+        feedback.append_suffix("Speed spent — free attack!")
     return _verb_result(not free_action)
 
 
@@ -220,11 +224,11 @@ func _verb_mobility() -> Dictionary:
 
 func _verb_dash() -> Dictionary:
     if player.dash_cooldown > 0:
-        set_message("Dash on cooldown (%d)." % player.dash_cooldown)
+        feedback.set_message("Dash on cooldown (%d)." % player.dash_cooldown)
         return _verb_illegal()
-    var plan := _compute_dash_plan()
+    var plan := _aim_context.compute_dash_plan()
     if not bool(plan["legal"]):
-        view.flash_deny(player.cell + plan["dir"] * TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.DASH_RANGE))
+        view.flash_deny(player.cell + plan["dir"] * _aim_context.dash_range())
         return _verb_illegal()
     _tick_player_action_upkeep()
     var dir: Vector2i = plan["dir"]
@@ -243,13 +247,13 @@ func _verb_dash() -> Dictionary:
             ),
         )
     if outcomes.is_empty():
-        _apply_player_result_message(TickHitResolver.empty_outcome())
+        feedback.set_message(TickCombatFeedback.message_for_outcome(TickHitResolver.empty_outcome()))
     view.flash_swing(plan["path"])
     player.move_to(plan["landing"], true)
     player.dash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.DASH_COOLDOWN_TICKS)
     var refunds := _mobility_action_refunds(outcomes)
     if refunds:
-        _append_message_suffix("Mobility refunded — free!")
+        feedback.append_suffix("Mobility refunded — free!")
     return _verb_result(not refunds)
 
 
@@ -259,9 +263,9 @@ func _verb_dash() -> Dictionary:
 func _verb_smash() -> Dictionary:
     if not player.is_smash_armed():
         if player.smash_cooldown > 0:
-            set_message("Smash on cooldown (%d)." % player.smash_cooldown)
+            feedback.set_message("Smash on cooldown (%d)." % player.smash_cooldown)
             return _verb_illegal()
-        var target := _clamped_smash_target()
+        var target := _aim_context.clamped_smash_target()
         if not engine.is_cell_open_for_player(target):
             view.flash_deny(target)
             return _verb_illegal()
@@ -270,7 +274,7 @@ func _verb_smash() -> Dictionary:
         _close_smash_cancel_confirm()
         SmashFeedbackVFX.play_windup(player.global_position, self)
         AudioManager.play_event(player.smash_windup_sfx_event, player.global_position)
-        set_message("Smash windup...")
+        feedback.set_message("Smash windup...")
         return _verb_result(true)
 
     var landing := player.smash_target
@@ -278,12 +282,12 @@ func _verb_smash() -> Dictionary:
         view.flash_deny(landing)
         return _verb_illegal()
     _tick_player_action_upkeep()
-    view.flash_swing(_smash_area(landing))
+    view.flash_swing(_aim_context.smash_area(landing))
     var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
     var execution := TickCombatProjection.has_mobility_execution(_run_build)
     var outcomes: Array[TickHitOutcome] = []
     for enemy: GridEnemy in engine.actors():
-        if _chebyshev(enemy.get_grid_pos() - landing) <= 1:
+        if _aim_context.chebyshev(enemy.get_grid_pos() - landing) <= 1:
             outcomes.append(
                 _apply_player_hit(
                     enemy,
@@ -295,7 +299,7 @@ func _verb_smash() -> Dictionary:
                 ),
             )
     if outcomes.is_empty():
-        _apply_player_result_message(TickHitResolver.empty_outcome())
+        feedback.set_message(TickCombatFeedback.message_for_outcome(TickHitResolver.empty_outcome()))
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
     AudioManager.play_event(player.smash_impact_sfx_event, grid.cell_center(landing))
     player.move_to(landing, true)
@@ -304,19 +308,19 @@ func _verb_smash() -> Dictionary:
     _close_smash_cancel_confirm()
     var refunds := _mobility_action_refunds(outcomes)
     if refunds:
-        _append_message_suffix("Mobility refunded — free!")
+        feedback.append_suffix("Mobility refunded — free!")
     return _verb_result(not refunds)
 
 
 func _verb_debug_stub_mobility() -> Dictionary:
-    var target := player.cell + _aim_direction()
+    var target := player.cell + _aim_context.aim_direction()
     if not engine.is_cell_open_for_player(target):
         view.flash_deny(target)
         return _verb_illegal()
     _tick_player_action_upkeep()
     view.flash_swing([target])
     player.move_to(target, true)
-    set_message("Debug mobility payload fired.")
+    feedback.set_message("Debug mobility payload fired.")
     return _verb_result(true)
 
 
@@ -366,12 +370,6 @@ func _mobility_action_refunds(outcomes: Array[TickHitOutcome]) -> bool:
     return TickCombatProjection.has_mobility_free_action(_run_build) and TickHitResolver.any_qualifies_for_mobility_free_action(outcomes)
 
 
-## Appends a short suffix to the current HUD message instead of replacing it, so a Speed spend or
-## Mobility Free Action refund note stays visible alongside whatever hit/whiff message the action already set.
-func _append_message_suffix(suffix: String) -> void:
-    set_message("%s (%s)" % [_message, suffix] if _message != "" else suffix)
-
-
 ## Holding Alt selects Mobility Mode; releasing it returns to Attack Mode. Switching never consumes a
 ## tick or disturbs an armed Smash windup, since only an executed verb (move/attack/wait) or an
 ## explicit cancel does that.
@@ -395,7 +393,7 @@ func _try_cancel_smash_windup() -> bool:
         return false
     if not SettingsStore.confirm_smash_cancel:
         player.disarm_smash()
-        set_message("Smash windup cancelled.")
+        feedback.set_message("Smash windup cancelled.")
         return true
     _open_smash_cancel_confirm()
     return false
@@ -425,88 +423,5 @@ func _apply_player_hit(
 ) -> TickHitOutcome:
     var enemy_pos := enemy.global_position
     var result := enemy.take_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
-    _play_major_trigger_feedback(result, enemy_pos)
-    _apply_player_result_message(result)
+    feedback.report_hit_outcome(result, enemy_pos)
     return result
-
-
-## Layers distinct temporary VFX/SFX for a mobility-slot-triggered Major's upgraded result on top of the
-## shared hit feedback GridEnemy already played, so Shredder and Execution read clearly without silencing
-## the fallback guard-break/kill feedback every hit already has.
-func _play_major_trigger_feedback(result: TickHitOutcome, world_pos: Vector2) -> void:
-    if result.major_trigger == TickHitOutcome.MajorTrigger.GUARD_SHREDDER:
-        MajorTriggerFeedbackVFX.play_guard_shredder(world_pos, self)
-        AudioManager.play_event(player.guard_shredder_sfx_event, world_pos)
-    elif result.major_trigger == TickHitOutcome.MajorTrigger.EXECUTION:
-        MajorTriggerFeedbackVFX.play_execution(world_pos, self)
-        AudioManager.play_event(player.execution_sfx_event, world_pos)
-
-
-func _apply_player_result_message(result: TickHitOutcome) -> void:
-    match result.feedback_kind:
-        TickHitOutcome.FeedbackKind.WHIFF:
-            set_message("Whiff.")
-        TickHitOutcome.FeedbackKind.KILL:
-            if result.major_trigger == TickHitOutcome.MajorTrigger.EXECUTION:
-                set_message("EXECUTION!")
-            else:
-                set_message("Enemy destroyed!")
-        TickHitOutcome.FeedbackKind.GUARD_BREAK:
-            if result.major_trigger == TickHitOutcome.MajorTrigger.GUARD_SHREDDER:
-                set_message("GUARD SHREDDER!")
-            else:
-                set_message("%s hit — GUARD BREAK!" % TickCombatRules.angle_name(result.angle))
-        TickHitOutcome.FeedbackKind.STAGGER_BURST:
-            set_message("%s burst hit." % TickCombatRules.angle_name(result.angle))
-        TickHitOutcome.FeedbackKind.BLOCKED:
-            set_message("%s blocked." % TickCombatRules.angle_name(result.angle))
-        TickHitOutcome.FeedbackKind.DAMAGED:
-            set_message("%s hit." % TickCombatRules.angle_name(result.angle))
-        _:
-            ToastManager.show_dev_error("TickActionController: unexpected feedback kind %s" % result.feedback_kind)
-
-# == Aiming and plans ==
-
-
-func _mouse_cell() -> Vector2i:
-    if not grid.is_inside_tree():
-        return player.cell + _last_aim
-    return TickActionPlanner.mouse_cell(grid)
-
-
-func _aim_direction() -> Vector2i:
-    return TickActionPlanner.aim_direction(_mouse_cell(), player.cell, _last_aim)
-
-
-func _compute_dash_plan() -> Dictionary:
-    return TickActionPlanner.compute_dash_plan(
-        grid,
-        engine,
-        _mouse_cell(),
-        player.cell,
-        _last_aim,
-        TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.DASH_RANGE),
-    )
-
-
-func _clamped_smash_target() -> Vector2i:
-    return TickActionPlanner.clamped_smash_target(_mouse_cell(), player.cell, TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.SMASH_RANGE))
-
-
-func _smash_area(center: Vector2i) -> Array[Vector2i]:
-    return TickActionPlanner.smash_area(center)
-
-
-func _chebyshev(delta: Vector2i) -> int:
-    return TickActionPlanner.chebyshev(delta)
-
-# == Messages ==
-
-
-func _update_message(delta: float) -> void:
-    if _message_time <= 0.0:
-        return
-    _message_time -= delta
-    if _message_time <= 0.0:
-        _message = ""
-        state_changed.emit()

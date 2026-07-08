@@ -104,10 +104,6 @@ Later reward-economy work, kept behind the core loop stabilizing. The former ter
 
 - Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
 
-### Entity Layer Legacy Mixing Cleanup
-
-Once `tick_combat_rework_02c_enemy_ownership` step 5 and the cutover closeout land, survey the remaining legacy surface in `game/entities/` and promote a "tick purification" main plan. The investigation, the unclaimed residue (Entity's CharacterBody2D base, the physics hitbox/hurtbox chain, GridEnemy's dual-clock branch, the Enemy thin layer), and the open questions live in `plans/entity_layer_legacy_mixing.probe.md` — deliberately excluded from the tick arena structure consolidation plan to keep its zero-behavior-change guardrail intact.
-
 ### 增加額外障礙物 Grid 替代
 
 凍結每輪隨機增減或搬動地形；太隨機或太碎的地形有可能導致死局或卡手，不適合目前偏半益智型的 tick combat。後續地圖壓力改研究在穩定 10x10 基底上增加額外障礙物 grid，取代每輪碎地形的 run cadence。

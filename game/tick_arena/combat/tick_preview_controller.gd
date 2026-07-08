@@ -1,8 +1,8 @@
 # tick_preview_controller.gd
 # Owns read-only tick-arena preview calculation: mouse cell/aim resolution, dash plan previews,
 # smash previews, and predicted outcome badges. Writes only view payloads to TickGridView and must
-# never mutate player state, enemy state, run-build state, wave state, or world time. Shares pure
-# planning helpers and combat base numbers with TickActionController through TickActionPlanner and
+# never mutate player state, enemy state, run-build state, wave state, or world time. Shares aim/plan
+# resolution with TickActionController through TickAimContext and combat base numbers through
 # TickCombatRules so a preview can never disagree with what a commit resolves; the aim mode and
 # last-aim direction it reads stay the action controller's own truth.
 class_name TickPreviewController
@@ -19,6 +19,7 @@ extends Node
 # -- State --
 
 var _run_build: RunBuild
+var _aim_context: TickAimContext
 
 # == Lifecycle ==
 
@@ -33,6 +34,7 @@ func _process(_delta: float) -> void:
 ## tick arena root owns and constructs the shared RunBuild instance.
 func setup(run_build: RunBuild) -> void:
     _run_build = run_build
+    _aim_context = TickAimContext.new(grid, engine, player, run_build, action_controller.get_last_aim)
 
 # == Preview ==
 
@@ -49,7 +51,7 @@ func _update_preview() -> void:
     elif action_controller.is_mobility_mode():
         _apply_mobility_preview(preview, outcomes)
     else:
-        preview["aim_cell"] = player.cell + _aim_direction()
+        preview["aim_cell"] = player.cell + _aim_context.aim_direction()
         var aim_enemy := engine.enemy_at(preview["aim_cell"])
         if aim_enemy != null:
             outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, player.cell, TickCombatProjection.normal_attack_damage(_run_build))
@@ -64,7 +66,7 @@ func _update_preview() -> void:
 func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
     var payload := _run_build.get_mobility_payload()
     if payload == RunBuild.PAYLOAD_DASH:
-        var plan := _compute_dash_plan()
+        var plan := _aim_context.compute_dash_plan()
         preview["dash_path"] = plan["path"]
         preview["dash_legal"] = plan["legal"]
         if bool(plan["legal"]):
@@ -84,7 +86,7 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
                 )
         return
     if payload == RunBuild.PAYLOAD_SMASH:
-        var target := _clamped_smash_target()
+        var target := _aim_context.clamped_smash_target()
         preview["smash_center"] = target
         preview["smash_legal"] = engine.is_cell_open_for_player(target)
         if bool(preview["smash_legal"]):
@@ -92,7 +94,7 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
             _collect_smash_outcomes(target, outcomes)
         return
     if payload == RunBuild.PAYLOAD_DEBUG_STUB:
-        var target := player.cell + _aim_direction()
+        var target := player.cell + _aim_context.aim_direction()
         preview["dash_path"] = [target]
         preview["dash_legal"] = engine.is_cell_open_for_player(target)
         if bool(preview["dash_legal"]):
@@ -137,7 +139,7 @@ func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
     var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
     var execution := TickCombatProjection.has_mobility_execution(_run_build)
     for enemy: GridEnemy in engine.actors():
-        if _chebyshev(enemy.get_grid_pos() - center) <= 1:
+        if _aim_context.chebyshev(enemy.get_grid_pos() - center) <= 1:
             outcomes[enemy.get_grid_pos()] = _outcome_entry(
                 enemy,
                 center,
@@ -154,34 +156,3 @@ func _apply_locked_smash_preview(preview: Dictionary, outcomes: Dictionary) -> v
     preview["smash_armed_center"] = player.smash_target
     preview["ghost_cell"] = player.smash_target
     _collect_smash_outcomes(player.smash_target, outcomes)
-
-# == Aiming and plans ==
-
-
-func _mouse_cell() -> Vector2i:
-    if not grid.is_inside_tree():
-        return player.cell + action_controller.get_last_aim()
-    return TickActionPlanner.mouse_cell(grid)
-
-
-func _aim_direction() -> Vector2i:
-    return TickActionPlanner.aim_direction(_mouse_cell(), player.cell, action_controller.get_last_aim())
-
-
-func _compute_dash_plan() -> Dictionary:
-    return TickActionPlanner.compute_dash_plan(
-        grid,
-        engine,
-        _mouse_cell(),
-        player.cell,
-        action_controller.get_last_aim(),
-        TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.DASH_RANGE),
-    )
-
-
-func _clamped_smash_target() -> Vector2i:
-    return TickActionPlanner.clamped_smash_target(_mouse_cell(), player.cell, TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.SMASH_RANGE))
-
-
-func _chebyshev(delta: Vector2i) -> int:
-    return TickActionPlanner.chebyshev(delta)
