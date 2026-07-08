@@ -31,4 +31,14 @@
         "editor.detectIndentation": true,
         "editor.tabSize": 4
     },
+    "favorites.resources": [
+        {
+            "filePath": "dev\\docs\\plans",
+            "group": "Default"
+        },
+        {
+            "filePath": "TODO.md",
+            "group": "Default"
+        }
+    ],
 }
