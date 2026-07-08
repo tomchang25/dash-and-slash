@@ -1,20 +1,14 @@
 # wave_reward_choice_controller.gd
-# Scene-scoped coordinator for rolling, showing, and applying wave reward choices.
+# Scene-scoped coordinator for showing, pausing around, and applying one prepared wave reward offer
+# or forced confirmation. Cadence (normal vs. milestone vs. curse) and artifact rolling belong to
+# TickRunController; this controller only knows how to display a prepared WaveRewardChoice set and
+# apply whichever one gets picked or confirmed.
 class_name WaveRewardChoiceController
 extends RefCounted
 
 signal choice_applied
 
-## Which GridArena tile operation the pending automatic per-wave terrain mutation will apply.
-## ADD_LAND is used on milestone waves; MOVE_LAND/REMOVE_LAND are rolled 50/50 on normal waves.
-enum TerrainMutationKind {
-    ADD_LAND,
-    MOVE_LAND,
-    REMOVE_LAND,
-}
-
 var _overlay: WaveRewardOverlay
-var _generator: WaveRewardChoiceGenerator
 var _context: WaveRewardContext
 var _current_offer: Array[WaveRewardChoice] = []
 var _was_paused := false
@@ -22,24 +16,10 @@ var _was_paused := false
 # == Lifecycle ==
 
 
-func _init(
-        overlay: WaveRewardOverlay,
-        generator: WaveRewardChoiceGenerator,
-        context: WaveRewardContext,
-) -> void:
+func _init(overlay: WaveRewardOverlay, context: WaveRewardContext) -> void:
     _overlay = overlay
-    _generator = generator
     _context = context
     _overlay.choice_selected.connect(_on_choice_selected)
-
-# == Common API ==
-
-
-func open_reward_choice(wave_number: int, terrain_mutation_kind: int) -> void:
-    _current_offer = _generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 3, wave_number, _context)
-    _was_paused = _overlay.get_tree().paused
-    _overlay.show_choices(_current_offer, terrain_mutation_kind)
-    _overlay.get_tree().paused = true
 
 # == Signal handlers ==
 
@@ -52,3 +32,36 @@ func _on_choice_selected(choice: WaveRewardChoice) -> void:
     _overlay.hide_choices()
     _overlay.get_tree().paused = _was_paused
     choice_applied.emit()
+
+# == Common API ==
+
+
+## Shows a multi-card reward offer (normal Minor three-choice or milestone three-choice) under the
+## given title. Picking any card applies it and emits choice_applied.
+func show_offer(title: String, choices: Array[WaveRewardChoice]) -> void:
+    _current_offer = choices
+    _pause_tree()
+    _overlay.show_offer(title, choices)
+
+
+## Shows one forced confirmation card (curse reveal or the no-curse fallback) under the given title.
+## Confirming applies it and emits choice_applied.
+func show_confirmation(title: String, choice: WaveRewardChoice) -> void:
+    _current_offer = [choice]
+    _pause_tree()
+    _overlay.show_confirmation(title, choice)
+
+
+## Hides any open offer/confirmation and drops pending choice state without applying anything.
+## Restart and death cleanup call this so a stale offer or confirmation can never reopen or apply
+## after the run resets; restoring the tree's paused state is the caller's own cleanup responsibility.
+func cancel() -> void:
+    _current_offer.clear()
+    _overlay.hide_choices()
+
+# == Pause scope ==
+
+
+func _pause_tree() -> void:
+    _was_paused = _overlay.get_tree().paused
+    _overlay.get_tree().paused = true

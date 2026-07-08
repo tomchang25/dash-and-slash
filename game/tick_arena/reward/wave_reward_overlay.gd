@@ -1,5 +1,7 @@
 # wave_reward_overlay.gd
-# Full-screen overlay that presents three generated wave reward choices.
+# Full-screen overlay that presents a wave reward offer (multiple enabled choice cards) or a single
+# forced confirmation card (curse reveal, or the no-curse fallback), under a title set per request so
+# normal rewards, milestone rewards, and curse reveals read as visibly distinct steps.
 class_name WaveRewardOverlay
 extends Control
 
@@ -11,12 +13,8 @@ var _choices: Array[WaveRewardChoice] = []
 
 # -- Node references --
 
+@onready var _title_label: Label = %TitleLabel
 @onready var _choice_buttons: Array[Button] = [%ChoiceButton1, %ChoiceButton2, %ChoiceButton3]
-## Absent in the tick arena's overlay instance by design (Phase 6e freezes terrain mutation), so this
-## looks the node up tolerantly instead of the strict %-shorthand, which would log a missing-node
-## error every time this overlay enters the tree there.
-# node-ref: allow - optional node absent by design in the tick arena instance; strict %-shorthand would error there
-@onready var _terrain_mutation_note_label: Label = get_node_or_null(^"%TerrainMutationNoteLabel")
 
 # == Lifecycle ==
 
@@ -27,30 +25,6 @@ func _ready() -> void:
         _choice_buttons[i].pressed.connect(_on_choice_button_pressed.bind(i))
     hide_choices()
 
-# == Common API ==
-
-
-## Shows the rolled choices. terrain_mutation_kind (a WaveRewardChoiceController.TerrainMutationKind)
-## adds a note describing the fixed terrain shift that will be applied once a reward is picked.
-func show_choices(choices: Array[WaveRewardChoice], terrain_mutation_kind: int) -> void:
-    _choices = choices.duplicate()
-    for i in _choice_buttons.size():
-        var button := _choice_buttons[i]
-        if i < _choices.size():
-            button.text = _format_choice(_choices[i])
-            button.disabled = false
-        else:
-            button.text = "No reward"
-            button.disabled = true
-    if _terrain_mutation_note_label != null:
-        _terrain_mutation_note_label.visible = true
-        _terrain_mutation_note_label.text = _format_terrain_mutation_note(terrain_mutation_kind)
-    visible = true
-
-
-func hide_choices() -> void:
-    visible = false
-
 # == Signal handlers ==
 
 
@@ -59,22 +33,46 @@ func _on_choice_button_pressed(index: int) -> void:
         return
     choice_selected.emit(_choices[index])
 
+# == Common API ==
+
+
+## Shows a multi-card reward offer: one enabled button per choice (up to the button count), each
+## showing that choice's title and description. Slots beyond the offered choices show a disabled
+## "No reward" card.
+func show_offer(title: String, choices: Array[WaveRewardChoice]) -> void:
+    _title_label.text = title
+    _choices = choices.duplicate()
+    for i in _choice_buttons.size():
+        var button := _choice_buttons[i]
+        button.visible = true
+        if i < _choices.size():
+            button.text = _format_choice(_choices[i])
+            button.disabled = false
+        else:
+            button.text = "No reward"
+            button.disabled = true
+    visible = true
+
+
+## Shows one forced confirmation card in the first button slot and hides the rest; confirming
+## applies it through the same choice_selected path a normal offer pick uses.
+func show_confirmation(title: String, choice: WaveRewardChoice) -> void:
+    _title_label.text = title
+    _choices = [choice]
+    _choice_buttons[0].visible = true
+    _choice_buttons[0].text = _format_choice(choice)
+    _choice_buttons[0].disabled = false
+    for i in range(1, _choice_buttons.size()):
+        _choice_buttons[i].visible = false
+    visible = true
+
+
+func hide_choices() -> void:
+    visible = false
+
 # == Display ==
 
 
 func _format_choice(choice: WaveRewardChoice) -> String:
-    var lines := [choice.artifact.display_name, "", choice.description()]
+    var lines := [choice.title(), "", choice.description()]
     return "\n".join(lines)
-
-
-func _format_terrain_mutation_note(terrain_mutation_kind: int) -> String:
-    match terrain_mutation_kind:
-        WaveRewardChoiceController.TerrainMutationKind.ADD_LAND:
-            return "Terrain Shift: %d land tile(s) will be added" % WaveScaling.EXPAND_LAND_AMOUNT
-        WaveRewardChoiceController.TerrainMutationKind.MOVE_LAND:
-            return "Terrain Shift: %d land tile(s) will relocate" % WaveScaling.WAVE_TERRAIN_MUTATION_RELOCATE_COUNT
-        WaveRewardChoiceController.TerrainMutationKind.REMOVE_LAND:
-            return "Terrain Shift: %d land tile(s) will be removed" % WaveScaling.WAVE_TERRAIN_MUTATION_REMOVE_COUNT
-        _:
-            ToastManager.show_dev_error("WaveRewardOverlay: unknown terrain mutation kind %s" % terrain_mutation_kind)
-            return ""

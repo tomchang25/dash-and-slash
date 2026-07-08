@@ -38,7 +38,7 @@ func roll(kind: RewardKind, count: int, wave_number: int, context: WaveRewardCon
     _shuffle(pool)
     var choices: Array[WaveRewardChoice] = []
     for artifact in pool.slice(0, count):
-        choices.append(WaveRewardChoice.new(artifact, 1))
+        choices.append(WaveRewardChoice.single(artifact, 1))
     return choices
 
 # == Pool Filtering ==
@@ -84,7 +84,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             Artifact.Rarity.COMMON,
             4,
             &"",
-            false,
+            true,
             1,
             1.0,
             [ChannelArtifactEffect.new(RunBuild.CH_FUTURE_ENEMY_COUNT, 1.0)],
@@ -180,7 +180,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             Artifact.Rarity.COMMON,
             3,
             &"",
-            false,
+            true,
             1,
             5.0,
             [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_HEALTH_PRESSURE, 5.0, 0.01)],
@@ -192,7 +192,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             Artifact.Rarity.COMMON,
             3,
             &"",
-            false,
+            true,
             1,
             5.0,
             [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_DAMAGE_PRESSURE, 5.0, 0.01)],
@@ -204,7 +204,7 @@ func _make_default_artifacts() -> Array[Artifact]:
             Artifact.Rarity.COMMON,
             3,
             &"",
-            false,
+            true,
             1,
             3.0,
             [ChannelArtifactEffect.new(RunBuild.CH_ENEMY_DEFENSE_PRESSURE, 3.0)],

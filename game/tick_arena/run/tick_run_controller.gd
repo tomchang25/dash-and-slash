@@ -12,6 +12,15 @@ signal reward_applied
 signal run_reset_finished
 signal spawn_warning_changed(cells: Array[Vector2i], ticks: int)
 
+## Explicit reward-flow state so the choice_applied handler and restart/death cleanup can never
+## misinterpret which step, if any, is pending. NONE means no offer or confirmation is open.
+enum RewardFlowState {
+    NONE,
+    AWAITING_NORMAL_REWARD,
+    AWAITING_MILESTONE_REWARD,
+    AWAITING_CURSE_CONFIRMATION,
+}
+
 # -- Constants --
 
 const REWARD_OPEN_DELAY := 2.0
@@ -37,7 +46,11 @@ var _wave_controller: WaveController
 var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
 var _reward_controller: WaveRewardChoiceController
+var _reward_generator: WaveRewardChoiceGenerator
 var _reward_context: WaveRewardContext
+var _reward_flow_state := RewardFlowState.NONE
+var _completed_wave_number := 0
+var _completed_wave_is_milestone := false
 var _rng := RandomNumberGenerator.new()
 
 # -- Timer / tween handles --
@@ -53,17 +66,27 @@ func _ready() -> void:
 # == Signal handlers ==
 
 
-## Starts the next wave once a reward is applied.
+## Advances the reward-flow state machine once the open offer or confirmation applies: a normal
+## reward or a confirmed curse finishes the flow and starts the next wave, while a milestone reward
+## pick opens the forced curse confirmation instead of finishing immediately.
 func _on_reward_choice_applied() -> void:
-    action_controller.set_input_locked(false)
-    _wave_controller.start_next_wave()
-    action_controller.set_message("Reward applied — wave %d begins." % _wave_controller.get_wave_number())
-    reward_applied.emit()
+    match _reward_flow_state:
+        RewardFlowState.NONE:
+            ToastManager.show_dev_error("TickRunController: reward applied with no pending reward flow")
+        RewardFlowState.AWAITING_NORMAL_REWARD:
+            _finish_reward_flow()
+        RewardFlowState.AWAITING_MILESTONE_REWARD:
+            _open_curse_confirmation()
+        RewardFlowState.AWAITING_CURSE_CONFIRMATION:
+            _finish_reward_flow()
 
 
-## Locks player input and shows the "WAVE END" banner once the wave controller reports every
-## queued and alive enemy is gone; the reward choice only opens once the banner has fully faded out.
-func _on_normal_wave_completed(_wave_number: int, _is_milestone_wave: bool) -> void:
+## Locks player input, stores the completed wave's number and milestone flag for the reward flow
+## that follows, and shows the "WAVE END" banner once the wave controller reports every queued and
+## alive enemy is gone; the reward choice only opens once the banner has fully faded out.
+func _on_normal_wave_completed(wave_number: int, is_milestone_wave: bool) -> void:
+    _completed_wave_number = wave_number
+    _completed_wave_is_milestone = is_milestone_wave
     action_controller.set_input_locked(true)
     _show_wave_banner("WAVE END")
 
@@ -137,14 +160,15 @@ func get_spawn_warning_danger() -> Dictionary:
 # == Death / Restart ==
 
 
-## Kills any in-flight wave-end banner tween and hides the wave banner and reward overlays, unpausing
-## the tree if the reward choice happened to be open — the shared cleanup death and restart both need
-## so neither can leave a stale banner/reward callback able to fire once the store clears.
+## Kills any in-flight wave-end banner tween, hides the wave banner overlay, and cancels any open
+## reward offer or curse confirmation, unpausing the tree — the shared cleanup death and restart
+## both need so neither can leave a stale banner/reward-flow step able to fire once the store clears.
 func _cancel_pending_wave_flow() -> void:
     if _wave_banner_tween != null and _wave_banner_tween.is_valid():
         _wave_banner_tween.kill()
     wave_banner_overlay.visible = false
-    reward_overlay.hide_choices()
+    _reward_controller.cancel()
+    _reward_flow_state = RewardFlowState.NONE
     get_tree().paused = false
 
 # == Wave Controller ==
@@ -170,25 +194,74 @@ func _wire_wave_controller() -> void:
 ## legendary or common — reads and writes RunBuild directly through its effect contributions, so
 ## the context carries only the grid and the run build.
 func _wire_reward_flow() -> void:
-    var reward_generator := WaveRewardChoiceGenerator.new(_rng)
+    _reward_generator = WaveRewardChoiceGenerator.new(_rng)
     _reward_context = WaveRewardContext.new(grid, _run_build)
-    _reward_controller = WaveRewardChoiceController.new(
-        reward_overlay,
-        reward_generator,
-        _reward_context,
-    )
+    _reward_controller = WaveRewardChoiceController.new(reward_overlay, _reward_context)
     _reward_controller.choice_applied.connect(_on_reward_choice_applied)
 
 
-## Opens the reward choice for the wave that was just cleared. This bridge applies no terrain
-## mutation, so the terrain_mutation_kind argument only satisfies the shared controller's signature
-## the tick arena's overlay omits the terrain-mutation note label, so no note is ever shown for it.
+## Opens the reward offer for the wave that was just cleared: a normal Minor three-choice, or a
+## milestone offer with a fixed Minor x2 first slot and per-slot Major-or-Minor x2 fallback.
 func _open_reward_choice() -> void:
-    var wave_number := _wave_controller.get_wave_number()
-    _reward_controller.open_reward_choice(
-        wave_number,
-        WaveRewardChoiceController.TerrainMutationKind.REMOVE_LAND,
-    )
+    if _completed_wave_is_milestone:
+        _reward_flow_state = RewardFlowState.AWAITING_MILESTONE_REWARD
+        _reward_controller.show_offer("Milestone Reward", _build_milestone_offer(_completed_wave_number))
+    else:
+        _reward_flow_state = RewardFlowState.AWAITING_NORMAL_REWARD
+        _reward_controller.show_offer("Choose a Reward", _build_normal_offer(_completed_wave_number))
+
+
+## Rolls the forced post-milestone curse and shows it as a one-card confirmation. A missing curse
+## still shows a confirmation so the sequence cannot stall, but is flagged as a programmer error
+## since the default curse pool should never be fully exhausted.
+func _open_curse_confirmation() -> void:
+    var curses := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.CURSE, 1, _completed_wave_number, _reward_context)
+    var curse_choice: WaveRewardChoice
+    if curses.is_empty():
+        ToastManager.show_dev_error("TickRunController: no eligible curse found for milestone wave %d" % _completed_wave_number)
+        curse_choice = WaveRewardChoice.empty()
+    else:
+        curse_choice = curses[0]
+    _reward_flow_state = RewardFlowState.AWAITING_CURSE_CONFIRMATION
+    _reward_controller.show_confirmation("A Curse Takes Hold", curse_choice)
+
+
+## Ends the current reward flow and starts the next wave — the sole path back to gameplay after a
+## normal reward pick or a completed milestone-plus-curse sequence.
+func _finish_reward_flow() -> void:
+    _reward_flow_state = RewardFlowState.NONE
+    action_controller.set_input_locked(false)
+    _wave_controller.start_next_wave()
+    action_controller.set_message("Reward applied — wave %d begins." % _wave_controller.get_wave_number())
+    reward_applied.emit()
+
+
+func _build_normal_offer(wave_number: int) -> Array[WaveRewardChoice]:
+    return _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 3, wave_number, _reward_context)
+
+
+## Builds the fixed milestone offer shape: slot 1 is always a Minor x2 bundle; slots 2 and 3 use an
+## eligible Major each when available, falling back per slot to another Minor x2 bundle so every
+## milestone offer presents three enabled choices.
+func _build_milestone_offer(wave_number: int) -> Array[WaveRewardChoice]:
+    var offer: Array[WaveRewardChoice] = [_roll_minor_x2_bundle(wave_number)]
+    var majors := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MAJOR, 2, wave_number, _reward_context)
+    for i in 2:
+        if i < majors.size():
+            offer.append(majors[i])
+        else:
+            offer.append(_roll_minor_x2_bundle(wave_number))
+    return offer
+
+
+## Rolls two distinct Minors from the flat Minor pool and bundles them into one choice; if fewer
+## than two are eligible, the bundle holds whatever exists instead of duplicating one artifact.
+func _roll_minor_x2_bundle(wave_number: int) -> WaveRewardChoice:
+    var picks := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.MINOR, 2, wave_number, _reward_context)
+    var artifacts: Array[Artifact] = []
+    for pick in picks:
+        artifacts.append_array(pick.artifacts())
+    return WaveRewardChoice.bundle(artifacts)
 
 # == Wave banner ==
 
