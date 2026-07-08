@@ -89,15 +89,7 @@ func title() -> String:
 func description() -> String:
     if entries.is_empty():
         return "No eligible artifact could be rolled."
-    return _format_effect(entries[0])
-
-# == Description ==
-
-
-func _format_effect(entry: Dictionary) -> String:
+    var entry := entries[0]
     var picked_artifact: Artifact = entry["artifact"]
     var stacks: int = entry["stacks"]
-    var amount := picked_artifact.magnitude * float(stacks)
-    if is_equal_approx(amount, roundf(amount)):
-        return picked_artifact.description_template % int(amount)
-    return picked_artifact.description_template % amount
+    return picked_artifact.format_description(stacks)

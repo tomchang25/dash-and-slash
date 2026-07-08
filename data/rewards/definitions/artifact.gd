@@ -43,3 +43,12 @@ func is_eligible(context: WaveRewardContext) -> bool:
 func apply(context: WaveRewardContext, stacks: int) -> void:
     for effect in effects:
         effect.apply(context.run_build, stacks)
+
+
+## Formats description_template scaled by the given stack count, sharing one magnitude-times-stacks
+## rounding rule between reward-card and build-inspection-panel display text.
+func format_description(stacks: int) -> String:
+    var amount := magnitude * float(stacks)
+    if is_equal_approx(amount, roundf(amount)):
+        return description_template % int(amount)
+    return description_template % amount

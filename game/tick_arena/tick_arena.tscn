@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://game/tick_arena/combat/tick_combat_feedback.gd" id="15_combat_feedback"]
 [ext_resource type="Resource" path="res://data/rewards/default_artifact_registry.tres" id="16_artifact_registry"]
 [ext_resource type="PackedScene" path="res://game/tick_arena/reward/wave_reward_card.tscn" id="17_reward_card"]
+[ext_resource type="PackedScene" path="res://game/tick_arena/reward/build_inspection_panel.tscn" id="18_build_panel"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -193,6 +194,23 @@ layout_mode = 2
 text = "Cancel Attack"
 
 [node name="DebugPanel" parent="HUD" instance=ExtResource("10_debug_panel")]
+unique_name_in_owner = true
+
+[node name="BuildButton" type="Button" parent="HUD"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 44)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -134.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = 60.0
+grow_horizontal = 0
+text = "Build"
+
+[node name="BuildInspectionPanel" parent="HUD" instance=ExtResource("18_build_panel")]
 unique_name_in_owner = true
 
 [node name="WaveBannerOverlay" type="Control" parent="HUD"]

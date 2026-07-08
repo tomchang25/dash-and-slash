@@ -31,6 +31,8 @@ var _execution_button: Button
 @onready var _action_controller: TickActionController = %TickActionController
 @onready var _preview_controller: TickPreviewController = %TickPreviewController
 @onready var _run_controller: TickRunController = %TickRunController
+@onready var _build_button: Button = %BuildButton
+@onready var _build_inspection_panel: BuildInspectionPanel = %BuildInspectionPanel
 
 # == Lifecycle ==
 
@@ -45,12 +47,14 @@ func _ready() -> void:
     _run_controller.reward_applied.connect(_on_reward_applied)
     _run_controller.run_reset_finished.connect(_on_run_reset_finished)
     _run_controller.spawn_warning_changed.connect(_on_spawn_warning_changed)
+    _build_button.pressed.connect(_on_build_button_pressed)
 
     RenderingServer.set_default_clear_color(BACKGROUND_COLOR)
     _player.setup(_grid, _grid.grid_size / 2)
     _action_controller.setup(_run_build)
     _preview_controller.setup(_run_build)
     _run_controller.setup(_run_build)
+    _build_inspection_panel.setup(_run_build)
     _run_controller.start_first_wave()
     _controls_label.text = "WASD step · Hold Alt for Mobility Mode · LMB confirm · RMB cancel · Space wait · R reset"
     _wire_debug_panel()
@@ -78,19 +82,28 @@ func _on_reward_applied() -> void:
     _refresh_debug_payload_buttons()
     _refresh_debug_trigger_buttons()
     _refresh_danger()
+    if _build_inspection_panel.visible:
+        _build_inspection_panel.refresh()
 
 
 ## A fresh run starts with default mobility payload/triggers, so the debug panel's button
-## highlighting must catch up alongside the danger telegraphs and HUD.
+## highlighting must catch up alongside the danger telegraphs and HUD; an open build panel must
+## also drop any stale rows from the previous run.
 func _on_run_reset_finished() -> void:
     _refresh_debug_payload_buttons()
     _refresh_debug_trigger_buttons()
     _refresh_danger()
     _refresh_hud()
+    if _build_inspection_panel.visible:
+        _build_inspection_panel.refresh()
 
 
 func _on_spawn_warning_changed(_cells: Array[Vector2i], _ticks: int) -> void:
     _refresh_danger()
+
+
+func _on_build_button_pressed() -> void:
+    _build_inspection_panel.toggle()
 
 # == Restart ==
 
