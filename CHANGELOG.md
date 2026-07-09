@@ -16,6 +16,66 @@ Rules:
 
 ## [unreleased]
 
+### Debug Panel Tick Arena Actions
+
+- 2026-07-09 — [debug] The tick arena debug panel gains an Instant Kill All Enemies action and mutually exclusive player god modes (Disable / No Damage / Undead), and the panel itself becomes a sectioned, scrollable, viewport-bounded tool grouping controls into Combat, Player, and Build
+
+### Tick Arena HUD Refactor
+
+- 2026-07-09 — [ui] The tick arena's debug text HUD is replaced with a production-style combat HUD: layered HP/Speed resource bars, cooldown chips, a compact owned-artifact strip, and top-right settings access, with Speed-spend/Mobility-refund notices moved to toasts
+
+### Tick Artifact Rewards
+
+- 2026-07-09 — [rewards] Mobility Range replaces the separate attack/dash range artifacts with one flat +1 tile mobility bonus shared by Dash and Smash, and the unused Attack Range channel is removed from rewards and build inspection
+- 2026-07-08 — [rewards] Rewards now ship as Resource-backed artifact cards with distinct flat rolls, milestone Minor x2/Major offers, automatic curse reveals, and an on-demand build inspection panel
+
+### Tick Arena Combat Feedback And Aim
+
+- 2026-07-08 — [combat] Result presentation (HUD outcome messages, Major-trigger VFX/SFX) moves out of TickActionController into a dedicated TickCombatFeedback, and aim/plan resolution is shared between the action and preview controllers through a TickAimContext instead of two duplicated wrapper sets
+
+### Tick Arena Fixes
+
+- 2026-07-08 — [combat] Mobility attacks now apply stagger-burst damage consistently for Dash and Smash, and player mobility cooldowns tick on consumed actions even when Speed grants a free action
+- 2026-07-08 — [waves] Wave spawns now expose player-action countdown warnings and keep spawn danger telegraphs visible through arena danger refreshes
+- 2026-07-08 — [enemy] ChargeEnemy uses a five-cell line charge range without changing ModeEnemy's full-line behavior
+
+### Tick Arena Structure Consolidation
+
+- 2026-07-07 — [combat] Tick arena combat contracts are consolidated around shared planning rules, one run-scoped build store that resets in place, and typed verb/hit-outcome values so preview and committed action paths share the same math without changing player-facing behavior
+
+### Tick Enemy Ownership
+
+- 2026-07-07 — [enemy] Enemy behavior ownership is fully settled onto the tick engine: hit resolution and path planning are shared stateless helpers, each enemy owns a per-enemy tick combat runtime for telegraph/recovery timing, the state machine is narrowed to a decide-only intent layer (plan, step, turn, commit, stagger, dead), and the leftover real-time chase/cooldown code path is deleted now that every production enemy is tick-bound
+
+### Tick Run Loop
+
+- 2026-07-07 — [combat] The tick arena now plays a full player-clocked run loop end to end — waves, reward choice, milestone elites, death, and restart — with automatic per-wave terrain mutation frozen out of the loop
+- 2026-07-07 — [waves] Wave spawning is counted in player actions: spawn warnings count down in ticks, concurrent population stays in the low tick-world range, and overflow enemies queue and drain as kills free space
+- 2026-07-07 — [combat] Tick arena code is promoted into its own feature-root layout (combat, player, wave, reward, view) instead of living as a tangled stage subfolder
+- 2026-07-06 — [combat] Reward effects apply through the run-scoped build store as shared cross-system truth, so the tick player projects damage, range, health, speed, and cooldown from recorded channels instead of legacy real-time player APIs
+- 2026-07-06 — [combat] Action resolution, previews, and run flow are split into scene-scoped controllers, reducing the arena root to composition and signal wiring
+
+### Tick Speed Stats
+
+- 2026-07-06 — [combat] Player speed is now data-driven: a shared Speed meter fills from moves and normal attacks to grant a free action, Mobility Cooldown reduces the active slot's cooldown, and a Mobility Free Action Major refunds mobility strikes that kill, guard-break, or hit from behind
+
+### Tick Mobility, Majors, And Rewards
+
+- 2026-07-06 — [combat] Dash lands on the grid with preview-is-truth targeting — a landing ghost and per-victim angle/result badges computed by the same hit math that resolves the commit — and the mobility slot becomes an ability-override seam
+- 2026-07-06 — [combat] Smash ships as the first slot-replacing Major (a windup leap-and-slam) on that seam, driven by command-style input: hold Alt for mobility mode, click to confirm, arm the windup then release
+- 2026-07-06 — [combat] Guard Shredder and Execution ship as mobility-slot-triggered Majors that fire for whichever payload occupies the slot, with previews showing the upgraded outcome honestly
+- 2026-07-06 — [combat] A minimal tick reward loop (wave clear, three-choice reward, next wave) lets these Majors and the Minor effects be earned in the arena, with debug-panel toggles for every Major ahead of the reward wiring
+
+### Tick Combat Conversion
+
+- 2026-07-05 — [combat] Production enemies now run on the tick engine — telegraph countdowns count player actions, movement snaps one cell per action, and enemy-to-player damage resolves as a cell-membership check at detonation instead of physics overlap
+- 2026-07-05 — [combat] A playable player-clocked tick arena productionizes the prototype's tick scheduler, one-tick player verbs, and input feel, reusing the production terrain and autotile grid presentation instead of grey-box drawing
+
+### Tick Combat Prototype
+
+- 2026-07-05 — [combat] Grey-box prototype validated the player-clocked tick combat direction with a go verdict: grid player with four one-tick verbs, three-stage tick resolution, telegraphed melee and charger enemies, a dash/smash mobility slot with windup grammar, and free mouse aiming that never advances time
+- 2026-07-05 — [combat] Playtest tuning folded in before the verdict: previews extended from geometry-only to resolved outcomes (landing ghost plus per-victim angle/result badges sharing the commit's hit math), and melee pursuit slowed to speed 75 on the energy skeleton so chases leak distance instead of locking on
+
 ### Reward Effect Rework
 
 - 2026-07-04 — [rewards] A reward option can no longer offer the same effect twice, closing a rare duplicate-effect gap in the fallback roll

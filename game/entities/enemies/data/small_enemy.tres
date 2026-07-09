@@ -1,10 +1,11 @@
 [gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://bgjp48injwiyn"]
 
-[ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://data/definitions/enemy_data.gd" id="1_data"]
-[ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://data/definitions/enemy_attack_data.gd" id="2_ad"]
+[ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://data/enemies/definitions/enemy_data.gd" id="1_data"]
+[ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://data/enemies/definitions/enemy_attack_data.gd" id="2_ad"]
 
 [sub_resource type="Resource" id="atk_line"]
 script = ExtResource("2_ad")
+warning_duration = 1
 
 [sub_resource type="Resource" id="atk_wide"]
 script = ExtResource("2_ad")

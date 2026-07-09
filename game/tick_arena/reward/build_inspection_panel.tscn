@@ -1,0 +1,90 @@
+[gd_scene format=3 uid="uid://bij6anlc14ady"]
+
+[ext_resource type="Script" uid="uid://6mm03d7dfdgk" path="res://game/tick_arena/reward/build_inspection_panel.gd" id="1_panel"]
+
+[node name="BuildInspectionPanel" type="PanelContainer" unique_id=1290224412]
+visible = false
+custom_minimum_size = Vector2(520, 640)
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -710.0
+offset_right = 544.0
+offset_bottom = -70.0
+grow_vertical = 0
+script = ExtResource("1_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=606732994]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="RootVBox" type="VBoxContainer" parent="MarginContainer" unique_id=142504046]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HeaderRow" type="HBoxContainer" parent="MarginContainer/RootVBox" unique_id=480928194]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/RootVBox/HeaderRow" unique_id=1473993799]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Heading3Label"
+text = "Build"
+
+[node name="CloseButton" type="Button" parent="MarginContainer/RootVBox/HeaderRow" unique_id=1820951771]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Close"
+
+[node name="HSeparator1" type="HSeparator" parent="MarginContainer/RootVBox" unique_id=1103276115]
+layout_mode = 2
+
+[node name="OwnedLabel" type="Label" parent="MarginContainer/RootVBox" unique_id=277893905]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "Owned Artifacts"
+
+[node name="OwnedEmptyLabel" type="Label" parent="MarginContainer/RootVBox" unique_id=1316400410]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DetailLabel"
+text = "No artifacts yet"
+
+[node name="OwnedScroll" type="ScrollContainer" parent="MarginContainer/RootVBox" unique_id=1998624066]
+custom_minimum_size = Vector2(0, 220)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="OwnedList" type="VBoxContainer" parent="MarginContainer/RootVBox/OwnedScroll" unique_id=1374731444]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="HSeparator2" type="HSeparator" parent="MarginContainer/RootVBox" unique_id=1304019000]
+layout_mode = 2
+
+[node name="TotalsLabel" type="Label" parent="MarginContainer/RootVBox" unique_id=1106476156]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "Build Totals"
+
+[node name="TotalsScroll" type="ScrollContainer" parent="MarginContainer/RootVBox" unique_id=1257723772]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="TotalsList" type="VBoxContainer" parent="MarginContainer/RootVBox/TotalsScroll" unique_id=28363815]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="TotalsPlaceholder" type="Label" parent="MarginContainer/RootVBox/TotalsScroll/TotalsList" unique_id=1965917524]
+layout_mode = 2
+theme_type_variation = &"DetailLabel"
+text = "Totals appear here"

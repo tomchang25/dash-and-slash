@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://nufbmbiveajc"]
+
+[ext_resource type="Script" uid="uid://b86ot480u4o1q" path="res://common/gameplay/view/shield_status_icon.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://bn7ne5tvkeo40" path="res://common/gameplay/view/shield_placeholder_32.svg" id="2_icon"]
+
+[node name="ShieldStatusIcon" type="Node2D" unique_id=221553864]
+script = ExtResource("1_script")
+
+[node name="Empty" type="Sprite2D" parent="." unique_id=1540675383]
+modulate = Color(0.18, 0.18, 0.2, 0.45)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_icon")
+centered = false
+
+[node name="Quarter1" type="Sprite2D" parent="." unique_id=785288358]
+unique_name_in_owner = true
+modulate = Color(1, 0.82, 0.18, 0.95)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_icon")
+centered = false
+region_enabled = true
+region_rect = Rect2(0, 0, 16, 16)
+
+[node name="Quarter2" type="Sprite2D" parent="." unique_id=549690837]
+unique_name_in_owner = true
+modulate = Color(1, 0.82, 0.18, 0.95)
+position = Vector2(0, 8)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_icon")
+centered = false
+region_enabled = true
+region_rect = Rect2(0, 16, 16, 16)
+
+[node name="Quarter3" type="Sprite2D" parent="." unique_id=1402485418]
+unique_name_in_owner = true
+modulate = Color(1, 0.82, 0.18, 0.95)
+position = Vector2(8, 8)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_icon")
+centered = false
+region_enabled = true
+region_rect = Rect2(16, 16, 16, 16)
+
+[node name="Quarter4" type="Sprite2D" parent="." unique_id=837467081]
+unique_name_in_owner = true
+modulate = Color(1, 0.82, 0.18, 0.95)
+position = Vector2(8, 0)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_icon")
+centered = false
+region_enabled = true
+region_rect = Rect2(16, 0, 16, 16)

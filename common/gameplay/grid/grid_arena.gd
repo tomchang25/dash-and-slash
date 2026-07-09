@@ -474,7 +474,8 @@ func set_telegraph(source: Object, tiles: Array[Vector2i], phase: TelegraphPhase
     telegraphs_changed.emit()
 
 
-func clear_telegraph(source: Object, tiles: Array[Vector2i]) -> void:
+## Clears telegraph ownership for a source, including stale freed-object keys held during scene reset cleanup.
+func clear_telegraph(source: Variant, tiles: Array[Vector2i]) -> void:
     for t in tiles:
         if not _telegraphs.has(t):
             continue

@@ -2,6 +2,26 @@
 # Verifies GridEnemy path planning treats temporary blockers as pass-through hints.
 extends GutTest
 
+## Duck-typed stand-in for TickEngine exposing only what GridEnemy's planning path reads
+## (player_cell/enemy_at), since GridEnemy.get_target_cell() now always reads the tick engine.
+class FakeTickEngine:
+    extends RefCounted
+
+    var _target_cell: Vector2i
+
+
+    func _init(target_cell: Vector2i) -> void:
+        _target_cell = target_cell
+
+
+    func player_cell() -> Vector2i:
+        return _target_cell
+
+
+    func enemy_at(_cell: Vector2i) -> GridEnemy:
+        return null
+
+
 class PathEnemy:
     extends GridEnemy
 
@@ -14,13 +34,14 @@ class PathEnemy:
 
 
     func find_path_to(goal_cells: Array[Vector2i]) -> Array[Vector2i]:
-        return _find_path_to_cell(_grid_pos, NO_BLOCKED_CELL, goal_cells, false)
+        return EnemyPathPlanner.find_path_to_cell(_grid, self, _get_movement_directions(), _grid_pos, NO_BLOCKED_CELL, goal_cells, false)
 
 
     func setup_approach_grid(grid: GridArena, start: Vector2i, target: Node2D) -> void:
         _grid = grid
         _grid_pos = start
         _target = target
+        _tick_engine = FakeTickEngine.new(_grid.world_to_grid(target.global_position))
         _grid.register_occupant(self, [start])
         _grid.register_enemy_entity(self)
 

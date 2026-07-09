@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Artifact" format=3 uid="uid://oav0tadqrlbr"]
+
+[ext_resource type="Script" uid="uid://bc8xcmmfdfnkl" path="res://data/rewards/definitions/artifact.gd" id="1_artifact"]
+[ext_resource type="Script" uid="uid://c1wv62xp703q0" path="res://data/rewards/definitions/effects/artifact_effect.gd" id="1_u0lhi"]
+[ext_resource type="Script" uid="uid://bappb0olcgqlm" path="res://data/rewards/definitions/effects/channel_artifact_effect.gd" id="2_effect"]
+[ext_resource type="Texture2D" uid="uid://b4rgvu3023st5" path="res://data/rewards/icons/artifact_placeholder.svg" id="3_icon"]
+
+[sub_resource type="Resource" id="effect"]
+script = ExtResource("2_effect")
+channel = &"mobility_attack_damage"
+amount = 20.0
+
+[resource]
+script = ExtResource("1_artifact")
+id = &"dash_attack_up"
+display_name = "Impact Dash"
+description_template = "+%d dash attack damage"
+max_stacks = 3
+magnitude = 20.0
+effects = Array[ExtResource("1_u0lhi")]([SubResource("effect")])
+icon = ExtResource("3_icon")

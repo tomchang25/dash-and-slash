@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Artifact" format=3 uid="uid://4jy54qpxl5ja"]
+
+[ext_resource type="Script" uid="uid://bc8xcmmfdfnkl" path="res://data/rewards/definitions/artifact.gd" id="1_artifact"]
+[ext_resource type="Script" uid="uid://c1wv62xp703q0" path="res://data/rewards/definitions/effects/artifact_effect.gd" id="1_j3jw3"]
+[ext_resource type="Script" uid="uid://bappb0olcgqlm" path="res://data/rewards/definitions/effects/channel_artifact_effect.gd" id="2_effect"]
+[ext_resource type="Texture2D" uid="uid://b4rgvu3023st5" path="res://data/rewards/icons/artifact_placeholder.svg" id="3_icon"]
+
+[sub_resource type="Resource" id="effect"]
+script = ExtResource("2_effect")
+channel = &"mobility_cooldown"
+amount = 1.0
+
+[resource]
+script = ExtResource("1_artifact")
+id = &"mobility_cooldown_down"
+display_name = "Light Footwork"
+description_template = "-%d mobility cooldown (ticks)"
+max_stacks = 3
+effects = Array[ExtResource("1_j3jw3")]([SubResource("effect")])
+icon = ExtResource("3_icon")

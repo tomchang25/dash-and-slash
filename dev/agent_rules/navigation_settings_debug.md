@@ -21,4 +21,4 @@ Read this before changing scene navigation, the Main Menu, settings UI/storage, 
 
 - The Play button routes to the `arena` route via `SceneRouter.go_to_arena()`.
 - The project entry scene is `game/meta/main_menu/main_menu_scene.tscn`.
-- The arena scene remains `game/scenes/stages/dash_and_slash_arena.tscn` and is registered in `scene_router.tscn`.
+- The `arena` route in `scene_router.tscn` still points at `game/scenes/stages/dash_and_slash_arena.tscn`, which has been deleted (legacy, tick-combat rework cutover pending). The route is broken until the cutover phase rewires it to the tick arena.

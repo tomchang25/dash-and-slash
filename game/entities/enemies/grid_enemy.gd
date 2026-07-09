@@ -1,33 +1,28 @@
 # grid_enemy.gd
 # Shared base for 1x1 grid enemies with target chasing, guard, stagger, and death handling.
+# When bound to a TickEngine (bind_tick_engine), the enemy is clocked by discrete world ticks:
+# the engine calls resolve_detonation() / advance_status() / act_tick() each world advance, movement
+# snaps one cell per action, telegraph and recovery windows count in ticks, enemy-to-player damage
+# resolves as a cell-membership check at detonation, and player-to-enemy damage arrives through
+# take_hit() / predict_hit() instead of physics hurtbox overlap.
 class_name GridEnemy
 extends Enemy
 
-const MOVE_SPEED := 120.0
-const CYCLE_COOLDOWN := 1.0
 const CARDINAL_DIRECTIONS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
-const EIGHT_DIRECTIONS := [
-    Vector2i.RIGHT,
-    Vector2i.LEFT,
-    Vector2i.DOWN,
-    Vector2i.UP,
-    Vector2i(1, 1),
-    Vector2i(1, -1),
-    Vector2i(-1, 1),
-    Vector2i(-1, -1),
-]
 const NO_BLOCKED_CELL := Vector2i(-1, -1)
-const GUARDED_DAMAGE_MULTIPLIER := 0.2
+## Energy-skeleton default: 100 = one action per world tick. Slower kinds skip beats; see get_tick_speed().
+const DEFAULT_TICK_SPEED := 100
+const DEFAULT_WARNING_TICKS := 2
+const DEFAULT_RECOVERY_TICKS := 1
+## Visual-only slide time for a one-cell tick snap; the logical cell moves instantly.
+const TICK_MOVE_TWEEN_SEC := 0.09
 const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
 
-# -- Movement -----------------------------------------------------------------
-var _allow_diagonal_movement: bool = false
-
 
 func _get_movement_directions() -> Array:
-    return EIGHT_DIRECTIONS if _allow_diagonal_movement else CARDINAL_DIRECTIONS
+    return CARDINAL_DIRECTIONS
 
 # -- Exports ------------------------------------------------------------------
 @export var death_sfx_event: SpatialAudioEvent
@@ -49,16 +44,21 @@ var _attack_windup_vfx: Node2D
 var _damage_multiplier := 1.0
 var _defense := 0.0
 
+# -- Tick state ---------------------------------------------------------------
+## Set by bind_tick_engine(); non-null means this enemy is clocked by the tick engine.
+var _tick_engine = null
+## Owns this enemy's clocked combat status: committed attack tiles, detonation countdown, recovery window.
+var _tick_runtime := EnemyTickRuntime.new()
+
 # -- Timer / tween handles ----------------------------------------------------
-var _cooldown_timer: Timer
 var _stagger_tween: Tween
 var _hurt_tween: Tween
+var _tick_move_tween: Tween
 
 # -- Node references ----------------------------------------------------------
 @export var _state_machine: StateMachine
 @export var _guard: Guard
 @export var _status_bars: EnemyStatusBars
-@export var hurtbox: Hurtbox
 @export var _body: Polygon2D
 @export var _facing_arrow: Polygon2D
 
@@ -75,17 +75,9 @@ func _ready() -> void:
         if not _grid.reservation_lost.is_connected(_on_reservation_lost):
             _grid.reservation_lost.connect(_on_reservation_lost)
 
-    if hurtbox != null:
-        hurtbox.hit_received.connect(_on_hit_received)
-
     if health != null:
         health.damaged.connect(_on_damaged)
         _on_health_changed(health.current(), health.max_health)
-
-    _cooldown_timer = Timer.new()
-    _cooldown_timer.one_shot = true
-    # node-src: timer
-    add_child(_cooldown_timer)
 
     if _guard != null:
         _guard.guard_changed.connect(_on_guard_changed)
@@ -98,37 +90,18 @@ func _ready() -> void:
     _init_debug_fsm_state()
 
 
-func _physics_process(_delta: float) -> void:
-    if not is_instance_valid(_target):
-        velocity = Vector2.ZERO
-        move_and_slide()
-        return
-
-    if _grid == null:
-        velocity = global_position.direction_to(_target.global_position) * get_move_speed()
-
-    move_and_slide()
-    queue_redraw()
-
-
 func _draw() -> void:
-    if _grid == null or (not _has_active_path_cell and _planned_path.is_empty()):
+    if _grid == null:
         return
 
-    var previous := Vector2.ZERO
-    if _has_active_path_cell:
-        var active_point := to_local(_grid.cell_center(_active_path_cell))
-        draw_line(previous, active_point, PATH_DEBUG_COLOR, PATH_DEBUG_WIDTH)
-        draw_circle(active_point, PATH_DEBUG_WIDTH * 1.5, PATH_DEBUG_COLOR)
-        previous = active_point
-    else:
-        previous = to_local(_grid.cell_center(_grid_pos))
+    var next_move := _next_debug_move_cell()
+    if next_move == NO_BLOCKED_CELL:
+        return
 
-    for cell in _planned_path:
-        var point := to_local(_grid.cell_center(cell))
-        draw_line(previous, point, PATH_DEBUG_COLOR, PATH_DEBUG_WIDTH)
-        draw_circle(point, PATH_DEBUG_WIDTH * 1.5, PATH_DEBUG_COLOR)
-        previous = point
+    var start_point := to_local(_grid.cell_center(_grid_pos))
+    var next_point := to_local(_grid.cell_center(next_move))
+    draw_line(start_point, next_point, PATH_DEBUG_COLOR, PATH_DEBUG_WIDTH)
+    draw_circle(next_point, PATH_DEBUG_WIDTH * 1.5, PATH_DEBUG_COLOR)
 
 # == Overridden Custom Methods ================================================
 
@@ -173,6 +146,11 @@ func _on_guard_broken() -> void:
     _staggered = true
     stop_attack_windup_vfx()
     clear_planned_path()
+    # A guard break clears any banked action energy and cancels the pending attack, so a
+    # just-recovered enemy can never surprise the player with saved-up movement or a stale telegraph.
+    _tick_engine.clear_energy(self)
+    cancel_tick_attack()
+    _tick_runtime.clear_recovery()
     _on_guard_broken_extra()
     var staggered_state_id := get_staggered_state_id()
     if _state_machine != null and staggered_state_id >= 0:
@@ -211,43 +189,6 @@ func _on_damaged(_amount: float, _source: Node) -> void:
     )
 
 
-func _on_hit_received(amount: float, source: Node, guard_damage_profile: int) -> void:
-    if not (source is Node2D):
-        return
-
-    var src_pos := (source as Node2D).global_position
-    var angle := DirectionResolver.resolve(src_pos, global_position, _facing)
-    var guard_damage := _resolve_guard_damage(angle, guard_damage_profile)
-    var will_break_guard := _guard != null and not _guard.is_staggered() and _guard.current() > 0 and guard_damage >= _guard.current()
-    var full_damage := _guard == null or _guard.is_staggered() or will_break_guard
-    var hp_damage := amount if full_damage else amount * GUARDED_DAMAGE_MULTIPLIER
-    hp_damage = _apply_defense(hp_damage)
-
-    var sfx_event: SpatialAudioEvent = null
-    if full_damage:
-        sfx_event = damaged_sfx_event
-    else:
-        sfx_event = _get_blocked_hit_sfx(angle)
-    if sfx_event != null:
-        AudioManager.play_event(sfx_event, global_position)
-
-    if will_break_guard:
-        CombatFeedbackVFX.play_guard_break(global_position, self)
-    elif full_damage:
-        CombatFeedbackVFX.play_full_damage(global_position, self)
-    else:
-        CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
-
-    if health != null:
-        health.take_damage(hp_damage, source)
-
-    if health != null and not health.is_alive():
-        return
-
-    if _guard != null:
-        _guard.take_guard_damage(guard_damage)
-
-
 func _on_stagger_started() -> void:
     _staggered = true
     if _hurt_tween != null and _hurt_tween.is_valid():
@@ -277,11 +218,227 @@ func setup(grid: GridArena, target: Node2D) -> void:
             _grid.reservation_lost.connect(_on_reservation_lost)
         _after_setup_ready()
 
+# == Tick actor contract =======================================================
+# Called by the TickEngine each world advance. The engine owns the resolution order
+# (detonations first, then status, then energy-funded actions); the enemy owns its
+# own behavior within those hooks.
+
+
+## Binds this enemy to the scene tick engine, switching it from physics/frame clocking to tick clocking.
+func bind_tick_engine(engine) -> void:
+    _tick_engine = engine
+    # Refresh the debug readout each world tick so the telegraph/recovery countdown updates while the
+    # machine sits parked in its deciding state (those windows no longer drive state-change signals).
+    if engine != null and not engine.world_advanced.is_connected(_on_world_advanced_debug):
+        engine.world_advanced.connect(_on_world_advanced_debug)
+
+
+func is_alive() -> bool:
+    return health != null and health.is_alive()
+
+
+## Per-kind energy-skeleton speed read by the engine; 100 = one action per world tick.
+## Slower kinds skip beats so pursuit leaks distance and flanking windows open. Overridden per kind.
+func get_tick_speed() -> int:
+    return DEFAULT_TICK_SPEED
+
+
+## Engine stage-2 hook: counts the committed telegraph down by one player action and detonates at zero.
+func resolve_detonation() -> void:
+    if not _tick_runtime.has_pending_attack():
+        return
+    var remaining := _tick_runtime.step_attack_countdown()
+    if remaining == 1:
+        # Last player action before impact: escalate the telegraph to the charge phase.
+        show_attack_charge()
+    if remaining > 0:
+        return
+    _tick_detonate()
+
+
+## Engine stage-3a hook: counts the stagger and recovery windows down in world ticks. Returns true while the
+## enemy is disabled this tick, so the engine neither funds an action nor lets it bank energy (no banked surprise).
+func advance_status() -> bool:
+    if _guard != null and _guard.is_staggered():
+        _guard.advance_stagger()
+        return true
+    return _tick_runtime.advance_recovery()
+
+
+## Engine stage-3b hook: spends one funded action. A committed telegraph freezes the enemy until it detonates.
+func act_tick() -> void:
+    if _tick_runtime.has_pending_attack():
+        return
+    if _state_machine != null:
+        _state_machine.advance_tick()
+
+
+## Returns the current danger display data ({cells, ticks}), or an empty dictionary when no attack is pending.
+func get_danger() -> Dictionary:
+    return _tick_runtime.danger()
+
+
+## The committed attack's locked footprint tiles (live reference); kinds read this at detonation.
+func get_attack_tiles() -> Array[Vector2i]:
+    return _tick_runtime.attack_tiles()
+
+
+## Predicts one player hit without mutating state, sharing math with take_hit() so a preview
+## can never disagree with the resolved hit. Origin is the attacker's cell (player or dash origin).
+## guard_shredder_trigger and execution_trigger are the mobility-slot-triggered Major hooks; callers
+## pass true only for an actual mobility-slot strike (Dash or Smash) whose run build has that trigger active.
+## Returns a TickHitOutcome with fields angle, was_guarded, stagger_burst, guard_broken, killed, hp_damage, guard_damage, feedback_kind, major_trigger.
+func predict_hit(
+        origin_cell: Vector2i,
+        base_damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+) -> TickHitOutcome:
+    return _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
+
+
+## Applies one player hit from the given origin cell, reusing the established guard/health/feedback
+## seams (damaged/blocked SFX, guard-break/shield/full-damage VFX), and returns the same outcome
+## as predict_hit(). A guard break clears banked energy via _on_guard_broken().
+func take_hit(
+        origin_cell: Vector2i,
+        base_damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+) -> TickHitOutcome:
+    var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
+    var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
+    if not is_alive():
+        return outcome
+    _apply_hit_feedback(outcome, src_pos)
+    if health != null:
+        health.take_damage(outcome.hp_damage, self)
+    if health != null and not health.is_alive():
+        return outcome
+    if _guard != null and outcome.guard_damage > 0:
+        _guard.take_guard_damage(outcome.guard_damage)
+    return outcome
+
+
+## Commits an attack telegraph clocked in ticks: locks the footprint tiles and starts the countdown.
+## Returns false when the kind could not prepare the attack.
+func begin_tick_telegraph() -> bool:
+    if not begin_attack_telegraph():
+        return false
+    var cells := get_committed_attack_cells()
+    if cells.is_empty():
+        return false
+    _tick_runtime.commit_attack(cells, get_warning_tick_count())
+    return true
+
+
+## Number of player actions the telegraph is displayed before detonation.
+func get_warning_tick_count() -> int:
+    var attack := get_current_attack_data()
+    return maxi(int(attack.warning_duration), 1) if attack != null else DEFAULT_WARNING_TICKS
+
+
+## Number of world ticks the enemy recovers (cannot act) after an attack resolves.
+func get_recovery_tick_count() -> int:
+    var attack := get_current_attack_data()
+    return maxi(int(attack.recovery_duration), 0) if attack != null else DEFAULT_RECOVERY_TICKS
+
+
+## Snaps the logical cell immediately and slides the visual there; the flank turn cap is applied
+## separately by tick_turn_toward_cell(). Registers the new occupancy and refreshes reservations.
+func tick_snap_to_cell(target_cell: Vector2i) -> void:
+    _grid_pos = target_cell
+    register_grid_occupant()
+    if _tick_move_tween != null and _tick_move_tween.is_valid():
+        _tick_move_tween.kill()
+    scale = Vector2(1.1, 0.9)
+    _tick_move_tween = create_tween()
+    _tick_move_tween.set_parallel(true)
+    _tick_move_tween.tween_property(self, "global_position", _grid.cell_center(target_cell), TICK_MOVE_TWEEN_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+    _tick_move_tween.tween_property(self, "scale", Vector2.ONE, TICK_MOVE_TWEEN_SEC * 1.5)
+
+
+## Turns capped toward the current target cell. Returns true once aligned (or when there is no target).
+func tick_face_toward_target() -> bool:
+    if not has_target():
+        return true
+    return tick_turn_toward_cell(get_target_cell())
+
+
+## Rotates facing at most 90 degrees toward the target's cardinal direction. Returns true once aligned.
+## The per-tick cap is the flank-depth knob: turning to face a flanker costs actions, opening back hits.
+func tick_turn_toward_cell(target_cell: Vector2i) -> bool:
+    var desired := cardinal_snap(Vector2(target_cell - _grid_pos))
+    if desired == Vector2.ZERO or _facing == desired:
+        return true
+    if _facing == -desired:
+        # A 180-degree reversal takes two actions: step 90 degrees this tick.
+        _facing = Vector2(-_facing.y, _facing.x)
+    else:
+        _facing = desired
+    face_arrow()
+    return _facing == desired
+
+
+## Consumes one reserved cell from the planned path as a tick snap-step. Returns true when a step was taken.
+func tick_step_along_path() -> bool:
+    if _grid == null or _planned_path.is_empty():
+        return false
+    var next := _planned_path[0]
+    if not _grid.is_reserved_by(next, self):
+        # Lost the reservation to a higher-priority claim before stepping; abandon the path this tick.
+        clear_planned_path()
+        return false
+    if not _tick_engine.is_cell_open_for_enemy(next, self):
+        # The player (not a grid occupant) or another actor moved onto the reserved cell since planning.
+        clear_planned_path()
+        return false
+    _planned_path.remove_at(0)
+    _has_active_path_cell = false
+    _facing = cardinal_snap(Vector2(next - _grid_pos))
+    face_arrow()
+    tick_snap_to_cell(next)
+    _refresh_planned_reservations()
+    queue_redraw()
+    return true
+
+
+## Clears a committed but undetonated attack: drops the locked tiles, the countdown, and its telegraph.
+func cancel_tick_attack() -> void:
+    _tick_runtime.clear_attack()
+    _clear_attack_presentation()
+
+
+## The footprint tiles just prepared by begin_attack_telegraph(), stored for detonation and danger display.
+## Kinds override to return their executor/telegraph cells; the base has no footprint.
+func get_committed_attack_cells() -> Array[Vector2i]:
+    var empty: Array[Vector2i] = []
+    return empty
+
+
+## Outgoing per-hit damage this enemy deals to the player at detonation, after wave-scaling.
+func get_attack_hit_damage() -> float:
+    var attack := get_current_attack_data()
+    var base := attack.damage if attack != null else 10.0
+    return base * _damage_multiplier
+
+
+## Ends a resolved attack and opens its recovery window (a disabled status counted in advance_status()).
+## Kinds reuse this from _tick_detonate(). The machine is already parked in Idle (the deciding state
+## returned there on commit), so no transition is needed here. The +1 absorbs the extra hand-off tick
+## the former Recovery state spent transitioning back to Idle, keeping post-attack timing unchanged.
+func finish_attack_into_recovery() -> void:
+    _tick_runtime.clear_attack()
+    _clear_attack_presentation()
+    _tick_runtime.begin_recovery(get_recovery_tick_count() + 1)
+
 
 ## Applies per-wave milestone scaling to this enemy instance: bumps max_health in
 ## place (Health is a per-instance node, safe to mutate), stores a damage
-## multiplier consumed when attacks stamp their hitbox damage, and stores a flat
-## defense value consumed by _apply_defense(). Guard never scales.
+## multiplier consumed when tile attacks resolve, and stores a flat
+## defense value consumed by TickHitResolver.apply_defense(). Guard never scales.
 func apply_wave_scaling(hp_multiplier: float, damage_multiplier: float, defense: float) -> void:
     _damage_multiplier = max(damage_multiplier, 0.0)
     _defense = max(defense, 0.0)
@@ -302,11 +459,12 @@ func get_target() -> Node2D:
     return _target
 
 
-## Returns the target's current grid cell, or NO_BLOCKED_CELL when unavailable.
+## Returns the target's current grid cell, or NO_BLOCKED_CELL when unavailable. Reads the engine's
+## logical player cell so planning never lags the player's move tween by a frame.
 func get_target_cell() -> Vector2i:
     if _grid == null or not has_target():
         return NO_BLOCKED_CELL
-    return _grid.world_to_grid(_target.global_position)
+    return _tick_engine.player_cell()
 
 
 func set_target(target: Node2D) -> void:
@@ -319,19 +477,6 @@ func is_staggered() -> bool:
 
 func set_staggered(value: bool) -> void:
     _staggered = value
-
-
-func cooldown_active() -> bool:
-    return _cooldown_timer != null and _cooldown_timer.time_left > 0.0
-
-
-func get_cycle_cooldown() -> float:
-    return enemy_data.cycle_cooldown if enemy_data != null else CYCLE_COOLDOWN
-
-
-func start_cooldown() -> void:
-    if _cooldown_timer != null:
-        _cooldown_timer.start(get_cycle_cooldown())
 
 
 func tile_size() -> float:
@@ -352,10 +497,6 @@ func set_grid_pos(pos: Vector2i) -> void:
 
 func get_facing() -> Vector2:
     return _facing
-
-
-func set_facing(v: Vector2) -> void:
-    _facing = v
 
 
 func plan_next_action() -> bool:
@@ -380,7 +521,10 @@ func plan_approach_action() -> bool:
         queue_redraw()
         return true
 
-    var path := _find_path_to_best_reachable_cell(
+    var path := EnemyPathPlanner.find_path_to_best_reachable_cell(
+        _grid,
+        self,
+        _get_movement_directions(),
         start,
         target_cell,
         false,
@@ -431,28 +575,18 @@ func consume_next_planned_cell() -> Vector2i:
     return next
 
 
-func face_toward_cell(target_cell: Vector2i) -> void:
-    var step := target_cell - _grid_pos
-    if step == Vector2i.ZERO:
-        return
-    _facing = Vector2(signi(step.x), signi(step.y))
-    face_arrow()
-
-
-func face_target_position() -> void:
-    if not has_target():
-        return
-    var direction := _target.global_position - global_position
-    if direction == Vector2.ZERO:
-        return
-    _facing = cardinal_snap(direction)
-    face_arrow()
-
-
 func cardinal_snap(v: Vector2) -> Vector2:
     if abs(v.x) > abs(v.y):
         return Vector2(sign(v.x), 0.0)
     return Vector2(0.0, sign(v.y))
+
+
+func _next_debug_move_cell() -> Vector2i:
+    if _has_active_path_cell:
+        return _active_path_cell
+    if _planned_path.is_empty():
+        return NO_BLOCKED_CELL
+    return _planned_path[0]
 
 
 func face_arrow() -> void:
@@ -460,8 +594,6 @@ func face_arrow() -> void:
         _facing_arrow.rotation = _facing.angle() - PI / 2.0
     if _body != null:
         _body.rotation = _facing.angle() + PI / 2.0
-    if hurtbox != null:
-        hurtbox.rotation = _facing.angle() + PI / 2.0
 
 
 func register_grid_occupant() -> void:
@@ -483,16 +615,16 @@ func get_guard() -> Guard:
 
 
 func begin_death() -> void:
-    velocity = Vector2.ZERO
     stop_attack_windup_vfx()
     clear_planned_path()
+    # Vacate the grid cell immediately so other actors and the player can enter during the death tween.
+    if _grid != null:
+        _grid.unregister_occupant(self)
     _on_begin_death_extra()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
     if health != null:
         health.set_enabled(false)
-    if hurtbox != null:
-        hurtbox.set_enabled(false)
 
 
 ## Force-death entry point for boss wave resolution. Zeroes hp through Health,
@@ -521,10 +653,6 @@ func get_face_state_id() -> int:
     return EnemyState.EnemyStateId.FACE_TARGET
 
 
-func get_recovery_state_id() -> int:
-    return EnemyState.EnemyStateId.RECOVERY
-
-
 func get_staggered_state_id() -> int:
     return EnemyState.EnemyStateId.STAGGERED
 
@@ -533,16 +661,30 @@ func get_dead_state_id() -> int:
     return EnemyState.EnemyStateId.DEAD
 
 
-func get_after_face_state_id() -> int:
-    return get_idle_state_id()
-
-
-func get_pre_plan_state_id() -> int:
+## Pre-decision state a kind enters before planning movement (e.g. the mode roll), or -1 for none.
+func get_pre_decision_state_id() -> int:
     return -1
 
 
-func get_arrival_override_state_id() -> int:
-    return -1
+## True when the enemy should commit an attack instead of planning movement this decision tick.
+func should_commit_before_plan() -> bool:
+    return false
+
+
+## True when the enemy should commit an attack the moment it arrives at a stepped cell (current facing).
+func should_commit_on_arrival() -> bool:
+    return false
+
+
+## True when the enemy should commit an attack right after turning one capped step toward the target.
+func should_commit_after_face() -> bool:
+    return false
+
+
+## Commits this kind's attack telegraph and starts its tick countdown. Returns false when it could not
+## be prepared. Kinds with a non-telegraph commit (the puff zone windup) override this.
+func try_commit_attack() -> bool:
+    return begin_tick_telegraph()
 
 
 func get_current_attack_data() -> EnemyAttackData:
@@ -564,28 +706,33 @@ func can_charge_target_from_cell(origin_cell: Vector2i) -> bool:
         return false
 
     var facing := cardinal_snap(Vector2(target_cell - origin_cell))
-    var cells := EnemyAttackController.get_attack_cells(origin_cell, facing, attack_data, _grid)
+    var cells := get_unblocked_charge_cells(origin_cell, facing, attack_data)
     return target_cell in cells
 
 
-func get_warning_duration() -> float:
-    var attack := get_current_attack_data()
-    return attack.warning_duration if attack != null else 0.6
+## Returns the terrain-unblocked charge line. Occupied actors are pass-through for the path, but not legal landing cells.
+func get_unblocked_charge_cells(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData) -> Array[Vector2i]:
+    var cells: Array[Vector2i] = []
+    if _grid == null or attack_data == null:
+        return cells
+
+    var raw_cells := EnemyAttackController.get_attack_cells(origin_cell, facing, attack_data, _grid)
+    for cell: Vector2i in raw_cells:
+        cells.append(cell)
+    return cells
 
 
-func get_charge_duration() -> float:
-    var attack := get_current_attack_data()
-    return attack.charge_duration if attack != null else 0.2
-
-
-func get_attack_duration() -> float:
-    var attack := get_current_attack_data()
-    return attack.active_duration if attack != null else 0.2
+## Returns the farthest legal charge landing cell along the path. Player and enemies are pass-through blockers for landing only.
+func get_charge_landing_cell(tiles: Array[Vector2i]) -> Vector2i:
+    var dest := _grid_pos
+    for line_cell: Vector2i in tiles:
+        if _is_charge_landing_cell_open(line_cell):
+            dest = line_cell
+    return dest
 
 
 ## Performs shared setup when an enemy commits to a non-reposition action.
 func begin_committed_action() -> bool:
-    velocity = Vector2.ZERO
     clear_planned_path()
     return true
 
@@ -595,22 +742,8 @@ func begin_attack_telegraph() -> bool:
     return begin_committed_action()
 
 
-func get_attack_state_id() -> int:
-    return EnemyState.EnemyStateId.ATTACK
-
-
 ## Shows the charge telegraph phase. Enemies with telegraphs extend this.
 func show_attack_charge() -> void:
-    pass
-
-
-## Starts the active attack phase. Returns false if attack cannot begin.
-func begin_attack() -> bool:
-    return false
-
-
-## Ends the active attack phase and disables hitboxes.
-func end_attack() -> void:
     pass
 
 
@@ -632,19 +765,8 @@ func clear_stored_charge_cells() -> void:
     pass
 
 
-## Returns the enemy's charge-mode traversal speed.
-func get_charge_speed() -> float:
-    return 0.0
-
-
-## Starts the active charge-dash phase (hitbox enable). Enemies without a
-## charge attack need not override this.
-func begin_charge_attack() -> void:
-    pass
-
-
-## Ends the active charge-dash phase (hitbox disable). Enemies without a
-## charge attack need not override this.
+## Ends the active charge-dash phase, used as defensive cleanup on guard break and reset.
+## Enemies without a charge attack need not override this.
 func end_charge_attack() -> void:
     pass
 
@@ -689,7 +811,7 @@ func plan_charge_origin_action() -> bool:
         queue_redraw()
         return true
 
-    var path := _find_path_to_cell(start, target_cell, charge_origins, false)
+    var path := EnemyPathPlanner.find_path_to_cell(_grid, self, _get_movement_directions(), start, target_cell, charge_origins, false)
     if path.is_empty():
         return plan_approach_action()
 
@@ -699,14 +821,6 @@ func plan_charge_origin_action() -> bool:
         return plan_approach_action()
     queue_redraw()
     return true
-
-
-func get_move_speed() -> float:
-    return enemy_data.move_speed if enemy_data != null else MOVE_SPEED
-
-
-func get_recovery_duration() -> float:
-    return enemy_data.default_recovery_duration if enemy_data != null else 3.0
 
 
 ## Shared cell-origin planning for tile attacks. Computes target-derived origin
@@ -728,7 +842,7 @@ func plan_cell_attack_action(get_cells_for_origin: Callable, get_origins_for_tar
     for origin_cell: Vector2i in candidate_origins:
         if origin_cell == target_cell:
             continue
-        if origin_cell != start and not _can_plan_goal_cell(origin_cell, true):
+        if origin_cell != start and not EnemyPathPlanner.can_plan_goal_cell(_grid, self, origin_cell, true):
             continue
         var facing := cardinal_snap(Vector2(target_cell - origin_cell))
         var cells: Array[Vector2i] = get_cells_for_origin.call(origin_cell, facing)
@@ -744,7 +858,7 @@ func plan_cell_attack_action(get_cells_for_origin: Callable, get_origins_for_tar
         queue_redraw()
         return true
 
-    var path := _find_path_to_cell(start, target_cell, attack_origins, true)
+    var path := EnemyPathPlanner.find_path_to_cell(_grid, self, _get_movement_directions(), start, target_cell, attack_origins, true)
     if path.is_empty():
         return false
 
@@ -770,7 +884,7 @@ func _collect_charge_origin_cells(target_cell: Vector2i, start: Vector2i, attack
     for origin_cell: Vector2i in EnemyAttackController.get_attack_origin_cells(target_cell, attack_data, _grid):
         if origin_cell == target_cell:
             continue
-        if origin_cell != start and not _can_plan_goal_cell(origin_cell, false):
+        if origin_cell != start and not EnemyPathPlanner.can_plan_goal_cell(_grid, self, origin_cell, false):
             continue
         if not can_charge_target_from_cell(origin_cell):
             continue
@@ -787,166 +901,20 @@ func _collect_all_grid_origin_cells() -> Array[Vector2i]:
     return origins
 
 
+func _is_charge_landing_cell_open(cell: Vector2i) -> bool:
+    if _grid == null or not _grid.is_land(cell):
+        return false
+    if _tick_engine.player_cell() == cell:
+        return false
+    var enemy: GridEnemy = _tick_engine.enemy_at(cell)
+    return enemy == null or enemy == self
+
+
 func _update_grid_pos() -> void:
     var new_cell := _grid.world_to_grid(global_position)
     if new_cell != _grid_pos:
         _grid_pos = new_cell
         register_grid_occupant()
-
-
-func _find_path_to_cell(start: Vector2i, blocked_cell: Vector2i, goal_cells: Array[Vector2i], is_attack: bool) -> Array[Vector2i]:
-    var queue: Array[Vector2i] = [start]
-    var came_from: Dictionary = { }
-    var queue_index := 0
-    var goal := Vector2i(-1, -1)
-    came_from[start] = start
-
-    while queue_index < queue.size():
-        var current := queue[queue_index]
-        queue_index += 1
-
-        if current in goal_cells:
-            goal = current
-            break
-
-        for direction: Vector2i in _get_movement_directions():
-            var next := current + direction
-            if came_from.has(next):
-                continue
-            if not _can_path_through(current, next, start, blocked_cell, goal_cells, is_attack):
-                continue
-            came_from[next] = current
-            queue.append(next)
-
-    if goal == Vector2i(-1, -1):
-        var empty_path: Array[Vector2i] = []
-        return empty_path
-
-    var path: Array[Vector2i] = []
-    var path_cell := goal
-    while came_from[path_cell] != path_cell:
-        path.push_front(path_cell)
-        path_cell = came_from[path_cell]
-    return path
-
-
-func _find_path_to_best_reachable_cell(
-        start: Vector2i,
-        blocked_cell: Vector2i,
-        is_attack: bool,
-        is_candidate: Callable,
-        score_candidate: Callable,
-) -> Array[Vector2i]:
-    var queue: Array[Vector2i] = [start]
-    var came_from: Dictionary = { }
-    var distances: Dictionary = { }
-    var queue_index := 0
-    var best_cell := NO_BLOCKED_CELL
-    var best_score := 999999
-    var best_path_length := 999999
-    var endpoint_goals: Array[Vector2i] = []
-    came_from[start] = start
-    distances[start] = 0
-
-    while queue_index < queue.size():
-        var current := queue[queue_index]
-        queue_index += 1
-
-        var path_length: int = distances[current]
-        if _can_end_ranked_path_at(current, start, is_attack) and is_candidate.call(current):
-            var score: int = score_candidate.call(current, path_length)
-            if _is_better_ranked_endpoint(score, path_length, current, best_score, best_path_length, best_cell):
-                best_cell = current
-                best_score = score
-                best_path_length = path_length
-
-        for direction: Vector2i in _get_movement_directions():
-            var next := current + direction
-            if came_from.has(next):
-                continue
-            if not _can_path_through(current, next, start, blocked_cell, endpoint_goals, is_attack):
-                continue
-            came_from[next] = current
-            distances[next] = path_length + 1
-            queue.append(next)
-
-    if best_cell == NO_BLOCKED_CELL or best_cell == start:
-        var empty_path: Array[Vector2i] = []
-        return empty_path
-
-    return _reconstruct_path(came_from, best_cell)
-
-
-func _reconstruct_path(came_from: Dictionary, goal: Vector2i) -> Array[Vector2i]:
-    var path: Array[Vector2i] = []
-    var path_cell := goal
-    while came_from[path_cell] != path_cell:
-        path.push_front(path_cell)
-        path_cell = came_from[path_cell]
-    return path
-
-
-func _can_end_ranked_path_at(cell: Vector2i, start: Vector2i, is_attack: bool) -> bool:
-    return cell == start or _can_plan_goal_cell(cell, is_attack)
-
-
-func _is_better_ranked_endpoint(
-        score: int,
-        path_length: int,
-        cell: Vector2i,
-        best_score: int,
-        best_path_length: int,
-        best_cell: Vector2i,
-) -> bool:
-    if best_cell == NO_BLOCKED_CELL:
-        return true
-    if score != best_score:
-        return score < best_score
-    if path_length != best_path_length:
-        return path_length < best_path_length
-    if cell.y != best_cell.y:
-        return cell.y < best_cell.y
-    return cell.x < best_cell.x
-
-
-func _can_path_through(
-        current: Vector2i,
-        next: Vector2i,
-        start: Vector2i,
-        blocked_cell: Vector2i,
-        goal_cells: Array[Vector2i],
-        is_attack: bool,
-) -> bool:
-    if not _grid.can_move_between(current, next):
-        return false
-    if next == blocked_cell:
-        return false
-    if _needs_committed_path_cell(current, next, start, goal_cells):
-        return _can_claim_committed_path_cell(next, is_attack)
-    return true
-
-
-func _needs_committed_path_cell(
-        current: Vector2i,
-        next: Vector2i,
-        start: Vector2i,
-        goal_cells: Array[Vector2i],
-) -> bool:
-    return current == start or next in goal_cells
-
-
-func _can_claim_committed_path_cell(cell: Vector2i, is_attack: bool) -> bool:
-    if _grid.is_occupied(cell):
-        return false
-    if not _grid.is_reserved(cell):
-        return true
-    return _grid.can_reserve_cell(self, cell, is_attack)
-
-
-func _can_plan_goal_cell(cell: Vector2i, is_attack: bool) -> bool:
-    if not _grid.is_walkable(cell):
-        return false
-    return _can_claim_committed_path_cell(cell, is_attack)
 
 
 func _is_approach_candidate(cell: Vector2i, target_cell: Vector2i) -> bool:
@@ -1039,15 +1007,31 @@ func _ensure_fsm_label() -> void:
 
 
 func _sync_fsm_label() -> void:
-    if _fsm_debug_label == null or _state_machine == null:
+    if _fsm_debug_label == null:
         return
-    if _state_machine.current_state != null:
-        _fsm_debug_label.text = _state_machine.current_state.name
+    _fsm_debug_label.text = _fsm_status_text()
 
 
-func _on_fsm_state_changed(_from: State, to: State) -> void:
+func _on_fsm_state_changed(_from: State, _to: State) -> void:
     if _fsm_debug_label != null:
-        _fsm_debug_label.text = to.name
+        _fsm_debug_label.text = _fsm_status_text()
+
+
+func _on_world_advanced_debug(_tick_count: int) -> void:
+    if _fsm_debug_label != null and _fsm_debug_label.visible:
+        _fsm_debug_label.text = _fsm_status_text()
+
+
+## Debug readout text: the runtime's clocked status (telegraph countdown, then recovery) takes priority
+## over the parked state name, since the machine now sits in its deciding state while those windows run.
+func _fsm_status_text() -> String:
+    if _tick_runtime.has_pending_attack():
+        return "Telegraph(%d)" % _tick_runtime.attack_ticks()
+    if _tick_runtime.recovery_remaining() > 0:
+        return "Recovery(%d)" % _tick_runtime.recovery_remaining()
+    if _state_machine != null and _state_machine.current_state != null:
+        return _state_machine.current_state.name
+    return ""
 
 
 ## Falls back to a by-name lookup for any node reference left unassigned in the
@@ -1056,7 +1040,6 @@ func _resolve_node_references() -> void:
     _state_machine = _fallback_node(_state_machine, "StateMachine") as StateMachine
     _guard = _fallback_node(_guard, "Guard") as Guard
     _status_bars = _fallback_node(_status_bars, "StatusBars") as EnemyStatusBars
-    hurtbox = _fallback_node(hurtbox, "Hurtbox") as Hurtbox
     _body = _fallback_node(_body, "Body") as Polygon2D
     _facing_arrow = _fallback_node(_facing_arrow, "FacingArrow") as Polygon2D
 
@@ -1070,23 +1053,96 @@ func _fallback_node(assigned: Node, node_name: StringName) -> Node:
         ToastManager.show_dev_error("%s: %s not wired to its @export slot; using name-based fallback." % [name, node_name])
     return found
 
-
-func _resolve_guard_damage(angle: int, guard_damage_profile: int) -> int:
-    if guard_damage_profile == Hitbox.GuardDamageProfile.DASH:
-        return DirectionResolver.dash_guard_damage(angle)
-    return DirectionResolver.normal_guard_damage(angle)
+# == Tick combat and detonation ================================================
 
 
-## Reduces incoming hp damage by this enemy's flat wave-scaling defense using
-## effective = amount * (amount / (amount + defense)). No-op at defense 0.
-func _apply_defense(amount: float) -> float:
-    if _defense <= 0.0:
-        return amount
-    return amount * (amount / (amount + _defense))
+## Per-kind detonation when the telegraph countdown reaches zero. The base resolves a single
+## cell-membership check against the player and hands off to recovery. Charge/puff kinds override.
+func _tick_detonate() -> void:
+    _resolve_detonation_on_player(get_attack_tiles())
+    finish_attack_into_recovery()
 
 
-func _get_blocked_hit_sfx(angle: int) -> SpatialAudioEvent:
-    return damaged_sfx_event if angle == DirectionResolver.HitAngle.BACK else blocked_sfx_event
+## Damages the player when their cell is inside the given locked tiles, then notifies presentation.
+## This cell-membership check replaces enemy-side physics hitbox overlap for enemy-to-player damage.
+func _resolve_detonation_on_player(tiles: Array[Vector2i]) -> void:
+    if _tick_engine.player_cell() in tiles:
+        _tick_engine.damage_player(get_attack_hit_damage(), self)
+    _tick_engine.notify_detonation(tiles)
+
+
+## Clears the kind's telegraph presentation for a resolved or cancelled attack. Kinds override.
+func _clear_attack_presentation() -> void:
+    pass
+
+
+## Pure tick-grid hit resolution shared by predict_hit() and take_hit(); this is the authoritative path for previews and committed tick verbs.
+func _resolve_tick_hit_outcome(
+        origin_cell: Vector2i,
+        base_damage: float,
+        guard_shredder_trigger := false,
+        execution_trigger := false,
+        stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+) -> TickHitOutcome:
+    if not is_alive():
+        return TickHitResolver.empty_outcome()
+
+    return TickHitResolver.resolve_hit(
+        origin_cell,
+        _target_snapshot(),
+        base_damage,
+        -1,
+        guard_shredder_trigger,
+        execution_trigger,
+        stagger_burst_multiplier,
+    )
+
+
+func _target_snapshot() -> Dictionary:
+    return {
+        "cell": _grid_pos,
+        "facing": _facing_as_cell_dir(),
+        "has_guard": _guard != null,
+        "guard_current": _guard.current() if _guard != null else 0,
+        "guard_max": _guard.max_guard if _guard != null else 0,
+        "staggered": _guard.is_staggered() if _guard != null else false,
+        "hp": health.current() if health != null else 0.0,
+        "hp_max": health.max_health if health != null else 0.0,
+        "defense": _defense,
+        "alive": is_alive(),
+    }
+
+
+func _facing_as_cell_dir() -> Vector2i:
+    if _facing == Vector2.ZERO:
+        return Vector2i.ZERO
+    return TickCombatRules.dominant_direction(Vector2i(roundi(_facing.x), roundi(_facing.y)))
+
+
+## Plays the established damaged/blocked SFX and guard-break/shield/full-damage VFX for a resolved hit.
+func _apply_hit_feedback(outcome: TickHitOutcome, src_pos: Vector2) -> void:
+    match outcome.feedback_kind:
+        TickHitOutcome.FeedbackKind.WHIFF:
+            return
+        TickHitOutcome.FeedbackKind.BLOCKED:
+            var blocked_event := _get_blocked_hit_sfx(outcome.angle)
+            if blocked_event != null:
+                AudioManager.play_event(blocked_event, global_position)
+            CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
+        TickHitOutcome.FeedbackKind.GUARD_BREAK:
+            if damaged_sfx_event != null:
+                AudioManager.play_event(damaged_sfx_event, global_position)
+            CombatFeedbackVFX.play_guard_break(global_position, self)
+        TickHitOutcome.FeedbackKind.STAGGER_BURST, TickHitOutcome.FeedbackKind.KILL, TickHitOutcome.FeedbackKind.DAMAGED:
+            if damaged_sfx_event != null:
+                AudioManager.play_event(damaged_sfx_event, global_position)
+            CombatFeedbackVFX.play_full_damage(global_position, self)
+        _:
+            ToastManager.show_dev_error("GridEnemy: unexpected feedback kind %s" % outcome.feedback_kind)
+
+
+func _get_blocked_hit_sfx(angle: TileDirectionResolver.HitAngle) -> SpatialAudioEvent:
+    return damaged_sfx_event if angle == TileDirectionResolver.HitAngle.BACK else blocked_sfx_event
 
 
 func _start_stagger_vfx() -> void:

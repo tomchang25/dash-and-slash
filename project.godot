@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Dash & Slash"
-run/main_scene="res://game/scenes/stages/dash_and_slash_arena.tscn"
+run/main_scene="res://game/tick_arena/tick_arena.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -29,7 +29,6 @@ AudioManager="*res://global/autoloads/audio_manager/audio_manager.gd"
 SaveManager="*res://global/autoloads/save_manager.gd"
 SceneRouter="*res://global/autoloads/scene_router/scene_router.tscn"
 NodePool="*res://global/autoloads/node_pool.gd"
-WorldState="*res://global/autoloads/world_state.gd"
 GameManager="*res://global/autoloads/game_manager/game_manager.gd"
 
 [debug]

@@ -119,7 +119,7 @@ func _on_add_random_item_pressed() -> void:
 
 ## Instancing
 
-`dash_and_slash_arena.tscn` pre-places one instance, hidden by default, as a child of `HUD`:
+`tick_arena.tscn` pre-places one instance, hidden by default, as a child of `HUD`:
 
 ```text
 [node name="DebugPanel" parent="HUD" instance=ExtResource("...debug_panel.tscn")]
@@ -128,15 +128,15 @@ unique_name_in_owner = true
 
 ## Registering actions
 
-`dash_and_slash_arena.gd` calls `add_action(label: String, callback: Callable) -> Button` from `_wire_debug_panel()`, itself called at the end of `_ready()`. `DebugPanel` wraps every callback with its own `Debug.enabled` guard before invoking it, so a hidden-but-still-in-tree panel can never fire an action:
+`tick_arena.gd` calls `add_action(label: String, callback: Callable) -> Button` from `_wire_debug_panel()`, itself called at the end of `_ready()`. `DebugPanel` wraps every callback with its own `Debug.enabled` guard before invoking it, so a hidden-but-still-in-tree panel can never fire an action:
 
 ```gdscript
 @onready var _debug_panel: DebugPanel = %DebugPanel
 
 
 func _wire_debug_panel() -> void:
-    _debug_panel.add_action("Instant Dash", _on_debug_instant_dash)
-    _debug_panel.add_action("Kill All Enemies", _on_debug_kill_all_enemies)
+    _dash_payload_button = _debug_panel.add_action("Dash Payload", _on_debug_set_dash_payload)
+    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder)
     _debug_panel.add_action("Add Tile", _on_debug_add_tile)
     _debug_panel.add_action("Remove Tile", _on_debug_remove_tile)
     _debug_panel.add_action("Move Tile", _on_debug_move_tile)

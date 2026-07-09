@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Artifact" format=3 uid="uid://cdgx20y00jfn"]
+
+[ext_resource type="Script" uid="uid://bc8xcmmfdfnkl" path="res://data/rewards/definitions/artifact.gd" id="1_artifact"]
+[ext_resource type="Script" uid="uid://c1wv62xp703q0" path="res://data/rewards/definitions/effects/artifact_effect.gd" id="1_ixcmh"]
+[ext_resource type="Script" uid="uid://brr22e72sh15b" path="res://data/rewards/definitions/effects/trigger_artifact_effect.gd" id="2_effect"]
+[ext_resource type="Texture2D" uid="uid://b4rgvu3023st5" path="res://data/rewards/icons/artifact_placeholder.svg" id="3_icon"]
+
+[sub_resource type="Resource" id="effect"]
+script = ExtResource("2_effect")
+trigger = &"mobility_free_action"
+
+[resource]
+script = ExtResource("1_artifact")
+id = &"mobility_free_action"
+display_name = "Flowing Strike"
+description_template = "Kill, guard-break, or back-angle mobility strikes skip world time (%d)"
+rarity = 1
+min_wave = 2
+effects = Array[ExtResource("1_ixcmh")]([SubResource("effect")])
+icon = ExtResource("3_icon")

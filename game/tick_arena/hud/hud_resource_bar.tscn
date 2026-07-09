@@ -1,0 +1,97 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/tick_arena/hud/hud_resource_bar.gd" id="1_bar"]
+
+[node name="HudResourceBar" type="VBoxContainer"]
+custom_minimum_size = Vector2(280, 42)
+mouse_filter = 2
+theme_override_constants/separation = 4
+script = ExtResource("1_bar")
+
+[node name="HeaderRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AccentSwatch" type="ColorRect" parent="HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(12, 12)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.86, 0.1, 0.12, 1)
+
+[node name="TitleLabel" type="Label" parent="HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(58, 0)
+layout_mode = 2
+theme_type_variation = &"CompactLabel"
+text = "HP"
+vertical_alignment = 1
+
+[node name="ValueLabel" type="Label" parent="HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CompactLabel"
+text = "100 / 100"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="ReadyLabel" type="Label" parent="HeaderRow"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(54, 0)
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+theme_override_colors/font_color = Color(0.32, 0.88, 1, 1)
+text = "READY"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="BarTrack" type="Control" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+clip_contents = true
+mouse_filter = 2
+
+[node name="UnderLayer" type="ColorRect" parent="BarTrack"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.045, 0.045, 0.06, 0.95)
+
+[node name="TrailLayer" type="ColorRect" parent="BarTrack"]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 0.55, 0.18, 1)
+
+[node name="FillLayer" type="ColorRect" parent="BarTrack"]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.86, 0.1, 0.12, 1)
+
+[node name="ReadyOverlay" type="ColorRect" parent="BarTrack"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.32, 0.88, 1, 0.22)

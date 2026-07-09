@@ -4,6 +4,11 @@ extends Node
 signal state_changed(from: State, to: State)
 
 @export var initial_state: State
+
+## When false, _process/_physics_process no longer drive the current state — the owner must call
+## advance_tick() itself. Use for entities clocked by a discrete tick engine instead of frame time.
+@export var frame_driven: bool = true
+
 @onready var target: Node = owner
 
 var current_state: State
@@ -69,7 +74,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-    if current_state == null:
+    if current_state == null or not frame_driven:
         return
 
     if tick_enabled:
@@ -82,7 +87,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-    if current_state == null:
+    if current_state == null or not frame_driven:
         return
 
     if tick_enabled:
@@ -146,6 +151,13 @@ func request_transition(to: int, force: bool = false) -> void:
         return
 
     _do_transition(new_state)
+
+
+## Advances the current state by one external tick. Used when frame_driven is false and the owner
+## is clocked by a discrete tick engine. Transitions still fire synchronously via change_state().
+func advance_tick() -> void:
+    if current_state != null:
+        current_state.advance_tick()
 
 
 func _debug_context() -> String:

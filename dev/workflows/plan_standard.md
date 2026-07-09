@@ -2,7 +2,7 @@
 
 Use this standard to produce a durable, high-level feature plan — the stable design artifact for a feature.
 
-A Plan defines **what** a feature is, **why** it exists, and **how it behaves**. It never specifies **where** (files) or **how it is wired** (functions, classes). A separate Implementation Spec — generated later from codebase exploration — turns a Plan into executable work. Keeping the Plan free of code coordinates is deliberate: it stays valid as the codebase changes, and it forces the spec stage to re-map the design onto the real code every time.
+A Plan defines **what** a feature is, **why** it exists, and **how it behaves**. It never specifies **where** (files) or **how it is wired** (functions, classes). Child sketches (`sketch_standard.md`) are the normal way to explore non-trivial child slices before execution, and implementation specs (`implementation_spec_standard.md`) turn the selected slice into verified executable work. Keeping the Plan free of code coordinates is deliberate: it stays valid as the codebase changes, while the spec stage re-maps the design onto the live code right before implementation.
 
 Use this for:
 
@@ -10,7 +10,7 @@ Use this for:
 - Architecture-level changes that need scope control.
 - Any design whose intent is worth reviewing before code is touched.
 
-Do not use this for small bug fixes, config changes, or narrow refactors — those go straight to a compact implementation note.
+Do not use this for small features or narrow refactors — those go straight from the feature request or actionable probe to a standalone implementation spec (`implementation_spec_standard.md`). Trivial bug fixes and config changes go to a compact implementation note.
 
 ---
 
@@ -51,6 +51,19 @@ Numbered list. Explicit exclusions that keep the implementation boundary tight. 
 Numbered list. Observable, behavioral completion signals: outcomes, compatibility, preserved behavior, fallback behavior.
 
 Avoid test names, file paths, and function names.
+
+---
+
+## Child Decomposition
+
+When a plan is too large to land as one reviewable change, decompose it into child slices:
+
+- Each non-trivial child normally starts as a sketch next to the plan, named `<parent_scope>_<NN>_<slug>.sketch.md`, so implementation-facing shape can be discussed without freezing a verified handoff too early.
+- Skip the sketch only for a child whose implementation boundary is already small and obvious enough to go directly to a codebase-verified spec.
+- Each child becomes executable only through an implementation spec named `<parent_scope>_<NN>_<slug>.implementation_spec.md`, written when that child is next to implement. This lazy spec step keeps every child mapped against the codebase as it exists after earlier children shipped.
+- The plan carries a child overview table (child number, focus, current document form) plus a recommended landing order, typically inside Design. Children are pointed to only from this table; they get no separate `TODO.md` lines.
+- Requirements live only in the plan; child sketches and specs never duplicate them.
+- Forward-only: when a child ships, cut it from the overview table and archive the child spec in the same commit. Archive or delete any earlier sketch for that child if it still exists.
 
 ---
 

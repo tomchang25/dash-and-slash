@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://cdy5835u4sn6b" path="res://global/autoloads/scene_router/scene_router.gd" id="1_router"]
 [ext_resource type="Script" uid="uid://das_scene_registry" path="res://global/autoloads/scene_router/scene_registry.gd" id="2_registry"]
 [ext_resource type="PackedScene" path="res://game/meta/main_menu/main_menu_scene.tscn" id="3_menu"]
-[ext_resource type="PackedScene" uid="uid://dkv135mbdb8px" path="res://game/scenes/stages/dash_and_slash_arena.tscn" id="4_arena"]
+[ext_resource type="PackedScene" path="res://game/tick_arena/tick_arena.tscn" id="4_arena"]
 [ext_resource type="PackedScene" uid="uid://test_runner_scene" path="res://test/test_runner.tscn" id="5_test"]
 
 [sub_resource type="Resource" id="Resource_scenes"]

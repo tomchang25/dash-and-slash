@@ -1,0 +1,105 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://game/tick_arena/hud/artifact_strip_item.gd" id="1_item"]
+[ext_resource type="Texture2D" path="res://data/rewards/icons/artifact_placeholder.svg" id="2_icon"]
+
+[sub_resource type="StyleBoxFlat" id="artifact_item_panel"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.07, 0.074, 0.084, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.42, 0.43, 0.46, 0.64)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.26)
+shadow_size = 3
+shadow_offset = Vector2(0, 1)
+
+[sub_resource type="StyleBoxFlat" id="stack_badge_panel"]
+content_margin_left = 5.0
+content_margin_top = 0.0
+content_margin_right = 5.0
+content_margin_bottom = 0.0
+bg_color = Color(0.27, 0.2, 0.05, 0.78)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.98, 0.82, 0.24, 0.95)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+shadow_color = Color(1, 0.86, 0.28, 0.28)
+shadow_size = 3
+
+[node name="ArtifactStripItem" type="PanelContainer"]
+custom_minimum_size = Vector2(64, 64)
+clip_contents = true
+theme_override_styles/panel = SubResource("artifact_item_panel")
+script = ExtResource("1_item")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 10
+
+[node name="IconContainer" type="CenterContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="IconTexture" type="TextureRect" parent="MarginContainer/IconContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+texture = ExtResource("2_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="RarityBar" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -4.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.55, 0.55, 0.62, 1)
+
+[node name="StackOverlay" type="Control" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="StackBadge" type="PanelContainer" parent="StackOverlay"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -30.0
+offset_top = 2.0
+offset_right = -4.0
+offset_bottom = 19.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("stack_badge_panel")
+
+[node name="StackBadgeLabel" type="Label" parent="StackOverlay/StackBadge"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+theme_override_colors/font_color = Color(1, 0.94, 0.64, 1)
+text = "x2"
+horizontal_alignment = 1

@@ -1,13 +1,11 @@
 # small_enemy.gd
-# 1x1 grid actor enemy with pattern-based telegraphed tile attacks.
+# 1x1 grid actor enemy with pattern-based telegraphed tile attacks, clocked by the tick engine.
 class_name SmallEnemy
 extends GridEnemy
 
-const ATTACK_RANGE := 1.5
-const WARNING_DURATION := 0.6
-const CHARGE_DURATION := 0.2
-const ATTACK_DURATION := 0.2
-const RECOVERY_DURATION := 0.4
+## Playtest tuning: 75 = three actions per four world ticks, so flat running leaks pursuit distance
+## and flanking windows open naturally instead of the chase locking on forever.
+const TICK_SPEED := 75
 
 # -- Node references ----------------------------------------------------------
 @onready var _attack_controller: EnemyAttackController = %AttackController
@@ -21,52 +19,61 @@ var _attack_data: EnemyAttackData
 
 func _ready() -> void:
     super()
-    _allow_diagonal_movement = true
     _configure_attack_controller()
     _select_attack_data()
 
 # == Common API ================================================================
 
 
+## Reports an attack only when the enemy already faces the direction whose footprint covers the target.
+## Turning to face a flanker is capped per tick (see tick_turn_toward_cell), so a back attacker gets a window.
 func can_attack() -> bool:
     if _grid == null or _attack_controller == null or not has_target() or _attack_data == null:
         return false
     var target_cell := get_target_cell()
-    var dir_to_target := Vector2(target_cell - _grid_pos)
-    if dir_to_target == Vector2.ZERO:
+    if target_cell == _grid_pos or _facing == Vector2.ZERO:
         return false
-    return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, cardinal_snap(dir_to_target), _attack_data, _grid)
+    return target_cell in EnemyAttackController.get_attack_cells(_grid_pos, _facing, _attack_data, _grid)
+
+
+func get_tick_speed() -> int:
+    return TICK_SPEED
 
 
 func get_current_attack_data() -> EnemyAttackData:
     return _attack_data
 
 
+## Tick footprint committed by begin_attack_telegraph(): the tile cells the controller just prepared.
+func get_committed_attack_cells() -> Array[Vector2i]:
+    if _attack_controller == null:
+        var empty: Array[Vector2i] = []
+        return empty
+    return _attack_controller.get_cells()
+
+
 func get_attack_controller() -> EnemyAttackController:
     return _attack_controller
 
 
-func get_pre_plan_state_id() -> int:
-    if can_attack():
-        return EnemyState.EnemyStateId.TELEGRAPH
-    return -1
+## Commits before planning when already facing a footprint that covers the target, and after a capped
+## turn brings that footprint onto the target — the two decision points a tile attack can open from.
+func should_commit_before_plan() -> bool:
+    return can_attack()
 
 
-func get_after_face_state_id() -> int:
-    if can_attack():
-        return EnemyState.EnemyStateId.TELEGRAPH
-    return EnemyState.EnemyStateId.IDLE
+func should_commit_after_face() -> bool:
+    return can_attack()
 
 
-## Clears movement planning and prepares the attack telegraph.
+## Clears movement planning and prepares the attack telegraph for the enemy's current (capped) facing.
 func begin_attack_telegraph() -> bool:
     if not begin_committed_action():
         return false
-    face_target_position()
     var attack := get_attack_controller()
     if attack == null or _attack_data == null:
         return false
-    if not attack.prepare(get_grid_pos(), get_facing(), _attack_data, get_damage_multiplier()):
+    if not attack.prepare(get_grid_pos(), get_facing(), _attack_data):
         return false
     attack.show_warning()
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.TILE)
@@ -78,22 +85,6 @@ func show_attack_charge() -> void:
     var attack := get_attack_controller()
     if attack != null:
         attack.show_charge()
-
-
-func begin_attack() -> bool:
-    var attack := get_attack_controller()
-    if attack == null:
-        return false
-    stop_attack_windup_vfx()
-    attack.begin_attack()
-    return true
-
-
-func end_attack() -> void:
-    stop_attack_windup_vfx()
-    var attack := get_attack_controller()
-    if attack != null:
-        attack.end_attack()
 
 
 func plan_next_action() -> bool:
@@ -136,10 +127,15 @@ func _cancel_attack() -> void:
         _attack_controller.cancel()
 
 
+## Tick hook: clears the tile telegraph and windup when an attack resolves or is cancelled.
+func _clear_attack_presentation() -> void:
+    _cancel_attack()
+
+
 func _configure_attack_controller() -> void:
     if _attack_controller == null:
         return
-    _attack_controller.setup(_grid, _telegraph, self)
+    _attack_controller.setup(_grid, _telegraph)
 
 
 ## Picks a random attack from enemy data. Falls back to a LINE attack when data

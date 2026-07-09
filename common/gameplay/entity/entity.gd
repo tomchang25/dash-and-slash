@@ -1,8 +1,7 @@
 # entity.gd
-# Base for composed world bodies. Capabilities live on Component children; this
-# base only fans reset() / set_enabled() to those children for pooling.
+# Base for composed world actors. This base only fans reset() / set_enabled() to children for pooling.
 class_name Entity
-extends CharacterBody2D
+extends Node2D
 
 # == Lifecycle ================================================================
 

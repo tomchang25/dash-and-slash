@@ -1,30 +1,22 @@
 [gd_scene format=3 uid="uid://dk4e80quaedoa"]
 
 [ext_resource type="Script" uid="uid://ban3bcx4qlkbr" path="res://game/entities/enemies/charge_enemy.gd" id="1_enemy"]
-[ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/components/health.gd" id="2_health"]
-[ext_resource type="Script" uid="uid://cp2srbhn2qgpw" path="res://common/gameplay/components/hurtbox.gd" id="3_hurtbox"]
-[ext_resource type="Script" uid="uid://b38x6ajqwstiu" path="res://common/gameplay/components/hitbox.gd" id="4_hitbox"]
-[ext_resource type="Script" uid="uid://cbjfefnqiava6" path="res://common/gameplay/components/guard.gd" id="5_guard"]
+[ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/combat/health.gd" id="2_health"]
+[ext_resource type="Script" uid="uid://cbjfefnqiava6" path="res://common/gameplay/combat/guard.gd" id="5_guard"]
 [ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="6_sm"]
 [ext_resource type="Script" uid="uid://v830nt1qxe7u" path="res://game/entities/enemies/states/enemy_idle_state.gd" id="7_idle"]
 [ext_resource type="Script" uid="uid://ck22jjn6ueb2b" path="res://game/entities/enemies/states/enemy_reposition_state.gd" id="8_reposition"]
 [ext_resource type="Script" uid="uid://bwg432ox13y5p" path="res://game/entities/enemies/states/enemy_face_once_state.gd" id="9_face"]
 [ext_resource type="Script" uid="uid://kso7t1372ljp" path="res://game/entities/enemies/states/enemy_staggered_state.gd" id="10_staggered"]
 [ext_resource type="Script" uid="uid://barkfgyuqruhw" path="res://game/entities/enemies/states/enemy_dead_state.gd" id="11_dead"]
-[ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/components/enemy_status_bars.tscn" id="12_status_bars"]
+[ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/view/enemy_status_bars.tscn" id="12_status_bars"]
 [ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="13_telegraph"]
-[ext_resource type="Script" path="res://game/entities/enemies/states/enemy_telegraph_state.gd" id="14_charge_telegraph"]
-[ext_resource type="Script" uid="uid://djp3xq2tgkt8y" path="res://game/entities/enemies/states/enemy_charge_attack_state.gd" id="15_charge_attack"]
-[ext_resource type="Script" uid="uid://dnge4qadd37k6" path="res://game/entities/enemies/states/enemy_recovery_state.gd" id="16_recovery"]
 [ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="17_died_audio"]
 [ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="18_damaged_audio"]
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
 [ext_resource type="Resource" path="res://game/entities/enemies/data/charge_enemy.tres" id="20_enemy_data"]
-[ext_resource type="Script" uid="uid://cho503ltqjhuq" path="res://game/entities/enemies/enemy_point_attack_executor.gd" id="21_point_executor"]
 
-[node name="Enemy" type="CharacterBody2D" unique_id=1436900450 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "hurtbox", "_body")]
-collision_layer = 0
-collision_mask = 0
+[node name="Enemy" type="Node2D" unique_id=1436900450 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "_body")]
 script = ExtResource("1_enemy")
 death_sfx_event = ExtResource("17_died_audio")
 damaged_sfx_event = ExtResource("18_damaged_audio")
@@ -34,7 +26,6 @@ health = NodePath("Health")
 _state_machine = NodePath("StateMachine")
 _guard = NodePath("Guard")
 _status_bars = NodePath("StatusBars")
-hurtbox = NodePath("Hurtbox")
 _body = NodePath("Body")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=2079355181]
@@ -47,26 +38,6 @@ unique_name_in_owner = true
 script = ExtResource("2_health")
 max_health = 150.0
 
-[node name="Hurtbox" type="Area2D" parent="." unique_id=811675199]
-unique_name_in_owner = true
-collision_layer = 2
-collision_mask = 0
-script = ExtResource("3_hurtbox")
-
-[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Hurtbox" unique_id=304733513]
-polygon = PackedVector2Array(0, -60, -59, -22, -47, 60, 47, 60, 59, -22)
-
-[node name="ContactHitbox" type="Area2D" parent="." unique_id=891038711 node_paths=PackedStringArray("collision_shape")]
-unique_name_in_owner = true
-collision_layer = 0
-script = ExtResource("4_hitbox")
-damage = 8.0
-damage_interval = 0.6
-collision_shape = NodePath("CollisionPolygon2D")
-
-[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="ContactHitbox" unique_id=1437237617]
-polygon = PackedVector2Array(0, -55, -53, -19, -42, 55, 42, 55, 53, -19)
-
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
 unique_name_in_owner = true
 script = ExtResource("5_guard")
@@ -76,15 +47,12 @@ max_guard = 32
 unique_name_in_owner = true
 script = ExtResource("13_telegraph")
 
-[node name="PointAttackExecutor" type="Node" parent="." unique_id=1234567894]
-unique_name_in_owner = true
-script = ExtResource("21_point_executor")
-
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
 unique_name_in_owner = true
 script = ExtResource("6_sm")
 initial_state = NodePath("Idle")
 tick_enabled = false
+frame_driven = false
 
 [node name="Idle" type="Node" parent="StateMachine" unique_id=200186374]
 script = ExtResource("7_idle")
@@ -94,15 +62,6 @@ script = ExtResource("8_reposition")
 
 [node name="FaceOnce" type="Node" parent="StateMachine" unique_id=1246309414]
 script = ExtResource("9_face")
-
-[node name="ChargeTelegraph" type="Node" parent="StateMachine" unique_id=1234567891]
-script = ExtResource("14_charge_telegraph")
-
-[node name="ChargeAttack" type="Node" parent="StateMachine" unique_id=1234567892]
-script = ExtResource("15_charge_attack")
-
-[node name="Recovery" type="Node" parent="StateMachine" unique_id=1234567893]
-script = ExtResource("16_recovery")
 
 [node name="Staggered" type="Node" parent="StateMachine" unique_id=1988416278]
 script = ExtResource("10_staggered")
