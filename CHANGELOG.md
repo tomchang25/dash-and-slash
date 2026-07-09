@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Tick Arena HUD Refactor
+
+- 2026-07-09 — [ui] The tick arena's debug text HUD is replaced with a production-style combat HUD: layered HP/Speed resource bars, cooldown chips, a compact owned-artifact strip, and top-right settings access, with Speed-spend/Mobility-refund notices moved to toasts
+
 ### Tick Artifact Rewards
 
 - 2026-07-08 — [rewards] Rewards now ship as Resource-backed artifact cards with distinct flat rolls, milestone Minor x2/Major offers, automatic curse reveals, and an on-demand build inspection panel

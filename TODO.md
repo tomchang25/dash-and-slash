@@ -30,7 +30,6 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-- [ui] Tick arena HUD refactor: single combat-info layer plus run-build summary — [ref plans/tick_arena_hud_refactor.implementation_spec.md]
 - [visual_identity] Tick arena visual readability and identity: establish readable ninja-grid combat language through enemy state sprites, pattern identity, and class silhouettes — [ref plans/tick_arena_visual_readability_and_identity.md]
 
 ---
