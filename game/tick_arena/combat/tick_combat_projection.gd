@@ -15,9 +15,9 @@ static func mobility_attack_damage(run_build: RunBuild, base_damage: float) -> f
     return TickCombatRules.mobility_attack_damage(base_damage, run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE))
 
 
-## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility Range percent bonus.
+## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's flat Mobility Range cell bonus.
 static func mobility_range_cells(run_build: RunBuild, base_range: int) -> int:
-    return TickCombatRules.mobility_range_cells(base_range, run_build.total(RunBuild.CH_MOBILITY_RANGE), TickCombatRules.MAX_MOBILITY_RANGE_BONUS_PERCENT)
+    return TickCombatRules.mobility_range_cells(base_range, run_build.total(RunBuild.CH_MOBILITY_RANGE))
 
 
 ## Projects a mobility-slot payload's base cooldown through the run's Mobility Cooldown reduction, floored at 1 tick.

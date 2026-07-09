@@ -42,12 +42,12 @@ func aim_direction() -> Vector2i:
     return TickActionPlanner.aim_direction(mouse_cell(), _player.cell, _last_aim())
 
 
-## Computes the dash plan shared by the preview and the verb, ranged through the run's Mobility Range bonus.
+## Computes the dash plan shared by the preview and the verb, ranged through the run's Mobility Range cell bonus.
 func compute_dash_plan() -> Dictionary:
     return TickActionPlanner.compute_dash_plan(_grid, _engine, mouse_cell(), _player.cell, _last_aim(), dash_range())
 
 
-## Clamps the mouse-aimed Smash target, ranged through the run's Mobility Range bonus.
+## Clamps the mouse-aimed Smash target, ranged through the run's Mobility Range cell bonus.
 func clamped_smash_target() -> Vector2i:
     return TickActionPlanner.clamped_smash_target(mouse_cell(), _player.cell, smash_range())
 
@@ -60,12 +60,12 @@ func chebyshev(delta: Vector2i) -> int:
     return TickActionPlanner.chebyshev(delta)
 
 
-## Dash's base range projected through the run's Mobility Range bonus.
+## Dash's base range projected through the run's Mobility Range cell bonus.
 func dash_range() -> int:
     return TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.DASH_RANGE)
 
 
-## Smash's base range projected through the run's Mobility Range bonus.
+## Smash's base range projected through the run's Mobility Range cell bonus.
 func smash_range() -> int:
     return TickCombatProjection.mobility_range_cells(_run_build, TickCombatRules.SMASH_RANGE)
 

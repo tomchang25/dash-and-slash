@@ -7,8 +7,7 @@
 [ext_resource type="Resource" uid="uid://jppkmsjrxmot" path="res://data/rewards/artifacts/speed_up.tres" id="art_speed_up"]
 [ext_resource type="Resource" uid="uid://oavzs9dqrlbr" path="res://data/rewards/artifacts/dash_attack_up.tres" id="art_dash_attack_up"]
 [ext_resource type="Resource" uid="uid://4jy54qpxl5i9" path="res://data/rewards/artifacts/mobility_cooldown_down.tres" id="art_mobility_cooldown_down"]
-[ext_resource type="Resource" uid="uid://zxro70zgrp8o" path="res://data/rewards/artifacts/attack_range_up.tres" id="art_attack_range_up"]
-[ext_resource type="Resource" uid="uid://kt8mh7ow7j0p" path="res://data/rewards/artifacts/dash_range_up.tres" id="art_dash_range_up"]
+[ext_resource type="Resource" uid="uid://kt8mh7ow7j0p" path="res://data/rewards/artifacts/mobility_range_up.tres" id="art_mobility_range_up"]
 [ext_resource type="Resource" uid="uid://flwiwmroojy4" path="res://data/rewards/artifacts/max_health_up.tres" id="art_max_health_up"]
 [ext_resource type="Resource" uid="uid://oia446zb405h" path="res://data/rewards/artifacts/enemy_health_pressure.tres" id="art_enemy_health_pressure"]
 [ext_resource type="Resource" uid="uid://a8sx1jdlwexr" path="res://data/rewards/artifacts/enemy_damage_pressure.tres" id="art_enemy_damage_pressure"]
@@ -20,4 +19,4 @@
 
 [resource]
 script = ExtResource("1_registry")
-artifacts = Array[ExtResource("2_artifact")]([ExtResource("art_future_enemy"), ExtResource("art_attack_up"), ExtResource("art_speed_up"), ExtResource("art_dash_attack_up"), ExtResource("art_mobility_cooldown_down"), ExtResource("art_attack_range_up"), ExtResource("art_dash_range_up"), ExtResource("art_max_health_up"), ExtResource("art_enemy_health_pressure"), ExtResource("art_enemy_damage_pressure"), ExtResource("art_enemy_defense_pressure"), ExtResource("art_smash"), ExtResource("art_guard_shredder"), ExtResource("art_execution"), ExtResource("art_mobility_free_action")])
+artifacts = Array[ExtResource("2_artifact")]([ExtResource("art_future_enemy"), ExtResource("art_attack_up"), ExtResource("art_speed_up"), ExtResource("art_dash_attack_up"), ExtResource("art_mobility_cooldown_down"), ExtResource("art_mobility_range_up"), ExtResource("art_max_health_up"), ExtResource("art_enemy_health_pressure"), ExtResource("art_enemy_damage_pressure"), ExtResource("art_enemy_defense_pressure"), ExtResource("art_smash"), ExtResource("art_guard_shredder"), ExtResource("art_execution"), ExtResource("art_mobility_free_action")])

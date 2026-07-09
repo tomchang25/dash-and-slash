@@ -9,7 +9,6 @@ extends RefCounted
 ## How a channel's raw RunBuild.total() value maps to display text.
 enum ChannelUnit {
     FLAT,
-    PERCENT_RAW,
     PERCENT_FRACTION,
 }
 
@@ -21,7 +20,6 @@ const _CHANNEL_ORDER: Array[StringName] = [
     RunBuild.CH_NORMAL_ATTACK_COOLDOWN,
     RunBuild.CH_MOBILITY_ATTACK_DAMAGE,
     RunBuild.CH_DASH_COOLDOWN,
-    RunBuild.CH_ATTACK_RANGE,
     RunBuild.CH_MOBILITY_RANGE,
     RunBuild.CH_MAX_HEALTH,
     RunBuild.CH_SPEED,
@@ -37,7 +35,6 @@ const _CHANNEL_LABELS := {
     RunBuild.CH_NORMAL_ATTACK_COOLDOWN: "Normal Attack Cooldown",
     RunBuild.CH_MOBILITY_ATTACK_DAMAGE: "Mobility Damage",
     RunBuild.CH_DASH_COOLDOWN: "Dash Cooldown",
-    RunBuild.CH_ATTACK_RANGE: "Attack Range",
     RunBuild.CH_MOBILITY_RANGE: "Mobility Range",
     RunBuild.CH_MAX_HEALTH: "Max Health",
     RunBuild.CH_SPEED: "Speed Energy",
@@ -48,15 +45,13 @@ const _CHANNEL_LABELS := {
     RunBuild.CH_ENEMY_DEFENSE_PRESSURE: "Enemy Defense",
 }
 
-# attack_range/mobility_range are authored as percentage points stored directly (unit_scale 1.0)
 # enemy_health/damage_pressure are authored as 0-1 fractions (unit_scale 0.01) and need *100.
 const _CHANNEL_UNITS := {
     RunBuild.CH_NORMAL_ATTACK_DAMAGE: ChannelUnit.FLAT,
     RunBuild.CH_NORMAL_ATTACK_COOLDOWN: ChannelUnit.FLAT,
     RunBuild.CH_MOBILITY_ATTACK_DAMAGE: ChannelUnit.FLAT,
     RunBuild.CH_DASH_COOLDOWN: ChannelUnit.FLAT,
-    RunBuild.CH_ATTACK_RANGE: ChannelUnit.PERCENT_RAW,
-    RunBuild.CH_MOBILITY_RANGE: ChannelUnit.PERCENT_RAW,
+    RunBuild.CH_MOBILITY_RANGE: ChannelUnit.FLAT,
     RunBuild.CH_MAX_HEALTH: ChannelUnit.FLAT,
     RunBuild.CH_SPEED: ChannelUnit.FLAT,
     RunBuild.CH_MOBILITY_COOLDOWN: ChannelUnit.FLAT,
@@ -136,8 +131,8 @@ static func build_artifact_rows(run_build: RunBuild) -> Array[Dictionary]:
     return rows
 
 
-## Formats one channel's raw total per its authored unit: signed flat number, signed raw
-## percentage points, or a stored fraction scaled to percentage points.
+## Formats one channel's raw total per its authored unit: signed flat number or a stored fraction
+## scaled to percentage points.
 static func format_channel_value(channel: StringName, total: float) -> String:
     if not _CHANNEL_UNITS.has(channel):
         ToastManager.show_dev_error("BuildInspectionFormatter: unknown channel '%s'" % channel)
@@ -145,8 +140,6 @@ static func format_channel_value(channel: StringName, total: float) -> String:
     match _CHANNEL_UNITS[channel]:
         ChannelUnit.FLAT:
             return _format_signed_number(total)
-        ChannelUnit.PERCENT_RAW:
-            return "%s%%" % _format_signed_number(total)
         ChannelUnit.PERCENT_FRACTION:
             return "%s%%" % _format_signed_number(total * 100.0)
         _:

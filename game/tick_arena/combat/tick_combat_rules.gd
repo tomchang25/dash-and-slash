@@ -15,7 +15,6 @@ const DASH_RANGE := 5
 const DASH_COOLDOWN_TICKS := 4
 const SMASH_RANGE := 3
 const SMASH_COOLDOWN_TICKS := 6
-const MAX_MOBILITY_RANGE_BONUS_PERCENT := 200.0
 const STAGGER_ATTACK_MULTIPLIER := 1.0
 const STAGGER_MOBILITY_MULTIPLIER := 2.0
 
@@ -93,12 +92,11 @@ static func mobility_cooldown_ticks(base_ticks: int, reduction_stacks: int) -> i
     return maxi(base_ticks - reduction_stacks, 1)
 
 
-## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's Mobility
-## Range percent bonus, capped at the given max bonus percent and floored at 1 cell so a reward can
-## never collapse the mobility slot's reach to nothing.
-static func mobility_range_cells(base_range: int, bonus_percent: float, max_bonus_percent: float) -> int:
-    var capped_percent := minf(bonus_percent, max_bonus_percent)
-    return maxi(int(round(float(base_range) * (1.0 + capped_percent / 100.0))), 1)
+## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's flat
+## Mobility Range cell bonus, floored at 1 cell so a reward can never collapse the mobility slot's
+## reach to nothing.
+static func mobility_range_cells(base_range: int, bonus_cells: float) -> int:
+    return maxi(base_range + int(roundf(bonus_cells)), 1)
 
 
 ## Projects normal attack's base damage through the run's Normal Attack Damage bonus total.

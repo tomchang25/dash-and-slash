@@ -16,11 +16,11 @@ func test_projects_mobility_attack_damage_from_run_build() -> void:
     assert_eq(TickCombatProjection.mobility_attack_damage(run_build, TickCombatRules.PLAYER_DASH_DAMAGE), TickCombatRules.PLAYER_DASH_DAMAGE + 20.0)
 
 
-func test_projects_mobility_range_with_cap() -> void:
+func test_projects_mobility_range_from_run_build() -> void:
     var run_build := RunBuild.new()
-    run_build.record(RunBuild.CH_MOBILITY_RANGE, 999.0)
+    run_build.record(RunBuild.CH_MOBILITY_RANGE, 2.0)
 
-    assert_eq(TickCombatProjection.mobility_range_cells(run_build, 3), 9)
+    assert_eq(TickCombatProjection.mobility_range_cells(run_build, 3), 5)
 
 
 func test_projects_mobility_cooldown_floor() -> void:

@@ -1,6 +1,6 @@
 # test_run_build_reward_channels.gd
 # Tests channel artifacts covering Normal Attack Damage, Mobility (Dash) Attack Damage, Mobility
-# (Dash) Range, and Max Health. All four must be eligible and apply with no grid in context,
+# Range, and Max Health. All four must be eligible and apply with no grid in context,
 # recording their stacked contribution to RunBuild's dedicated channel, the same pattern Speed and
 # Mobility Cooldown already use.
 extends GutTest
@@ -39,21 +39,21 @@ func test_dash_attack_damage_artifact_records_to_mobility_attack_damage_channel(
     assert_eq(run_build.total(RunBuild.CH_MOBILITY_ATTACK_DAMAGE), 20.0)
 
 
-func test_dash_range_artifact_is_eligible_without_grid() -> void:
-    var artifact := _make_dash_range_artifact()
+func test_mobility_range_artifact_is_eligible_without_grid() -> void:
+    var artifact := _make_mobility_range_artifact()
     var context := WaveRewardContext.new(null, RunBuild.new())
 
     assert_true(artifact.is_eligible(context))
 
 
-func test_dash_range_artifact_records_to_mobility_range_channel() -> void:
+func test_mobility_range_artifact_records_to_mobility_range_channel() -> void:
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, run_build)
-    var artifact := _make_dash_range_artifact()
+    var artifact := _make_mobility_range_artifact()
 
     artifact.apply(context, 1)
 
-    assert_eq(run_build.total(RunBuild.CH_MOBILITY_RANGE), 10.0)
+    assert_eq(run_build.total(RunBuild.CH_MOBILITY_RANGE), 1.0)
 
 
 func test_max_health_artifact_is_eligible_without_grid() -> void:
@@ -81,8 +81,8 @@ func _make_dash_attack_damage_artifact() -> Artifact:
     return _make_channel_artifact(&"dash_attack_up", "Impact Dash", "+%d dash attack damage", 3, RunBuild.CH_MOBILITY_ATTACK_DAMAGE, 20.0)
 
 
-func _make_dash_range_artifact() -> Artifact:
-    return _make_channel_artifact(&"dash_range_up", "Longer Dash", "+%d%% dash range", 3, RunBuild.CH_MOBILITY_RANGE, 10.0)
+func _make_mobility_range_artifact() -> Artifact:
+    return _make_channel_artifact(&"mobility_range_up", "Extended Mobility", "+%d Mobility Range", 3, RunBuild.CH_MOBILITY_RANGE, 1.0)
 
 
 func _make_max_health_artifact() -> Artifact:

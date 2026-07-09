@@ -25,11 +25,11 @@ func test_flat_channel_formats_with_explicit_sign() -> void:
     assert_eq(BuildInspectionFormatter.format_channel_value(RunBuild.CH_MOBILITY_COOLDOWN, run_build.total(RunBuild.CH_MOBILITY_COOLDOWN)), "-1")
 
 
-func test_percent_raw_channel_displays_stored_total_as_percentage_points() -> void:
+func test_mobility_range_channel_displays_flat_cell_bonus() -> void:
     var run_build := RunBuild.new()
-    run_build.record(RunBuild.CH_ATTACK_RANGE, 10.0)
+    run_build.record(RunBuild.CH_MOBILITY_RANGE, 1.0)
 
-    assert_eq(BuildInspectionFormatter.format_channel_value(RunBuild.CH_ATTACK_RANGE, run_build.total(RunBuild.CH_ATTACK_RANGE)), "+10%")
+    assert_eq(BuildInspectionFormatter.format_channel_value(RunBuild.CH_MOBILITY_RANGE, run_build.total(RunBuild.CH_MOBILITY_RANGE)), "+1")
 
 
 func test_percent_fraction_channel_scales_stored_fraction_by_100() -> void:
