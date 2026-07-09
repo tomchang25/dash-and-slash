@@ -2,8 +2,7 @@
 # Tests TickActionController's mode_set verb handling directly: default aim mode and mode_set toggling
 # between Attack and Mobility. These paths touch no exported scene dependency (grid/view/engine/player),
 # so the controller can be exercised without a scene tree per Phase 6b's ownership split (mode is the
-# action controller's own state). Message-state and outcome-text coverage lives in
-# test_tick_combat_feedback.gd now that TickCombatFeedback owns HUD result presentation.
+# action controller's own state).
 extends GutTest
 
 class FakePlayer:
@@ -53,7 +52,6 @@ class FakeView:
 func test_default_aim_mode_is_attack() -> void:
     var controller: TickActionController = autofree(TickActionController.new())
 
-    assert_eq(controller.aim_mode_name(), "ATTACK")
     assert_false(controller.is_mobility_mode())
 
 
@@ -61,11 +59,9 @@ func test_mode_set_verb_switches_to_mobility_and_back() -> void:
     var controller: TickActionController = autofree(TickActionController.new())
 
     controller.handle_verb(TickVerb.mode_set(true))
-    assert_eq(controller.aim_mode_name(), "MOBILITY")
     assert_true(controller.is_mobility_mode())
 
     controller.handle_verb(TickVerb.mode_set(false))
-    assert_eq(controller.aim_mode_name(), "ATTACK")
     assert_false(controller.is_mobility_mode())
 
 
@@ -83,11 +79,11 @@ func test_input_locked_blocks_verb_dispatch() -> void:
 
     controller.set_input_locked(true)
     controller.handle_verb(TickVerb.mode_set(true))
-    assert_eq(controller.aim_mode_name(), "ATTACK", "a locked controller must ignore even a mode_set verb")
+    assert_false(controller.is_mobility_mode(), "a locked controller must ignore even a mode_set verb")
 
     controller.set_input_locked(false)
     controller.handle_verb(TickVerb.mode_set(true))
-    assert_eq(controller.aim_mode_name(), "MOBILITY", "unlocking should let verbs dispatch again")
+    assert_true(controller.is_mobility_mode(), "unlocking should let verbs dispatch again")
 
 
 func test_speed_free_move_ticks_player_cooldown_without_advancing_world() -> void:

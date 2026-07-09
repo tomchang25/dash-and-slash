@@ -64,7 +64,7 @@ func _unhandled_input(event: InputEvent) -> void:
     # Player-facing run-reset shortcut; stays ungated regardless of HUD state.
     if event is InputEventKey and event.pressed and not event.echo:
         if event.physical_keycode == KEY_R:
-            _restart_run("Run reset.")
+            _restart_run()
 
 # == Signal handlers ==
 
@@ -74,12 +74,14 @@ func _on_world_advanced(_tick_count: int) -> void:
     _refresh_hud()
 
 
-## A reward may have changed the run build's mobility payload or triggers, so the debug panel's
-## button highlighting must catch up alongside the new wave's danger telegraphs.
+## A reward may have changed the run build's mobility payload, triggers, or artifact stacks, so the
+## debug panel's button highlighting and the HUD's artifact strip must catch up alongside the new
+## wave's danger telegraphs instead of waiting for the next action or world advance to refresh them.
 func _on_reward_applied() -> void:
     _refresh_debug_payload_buttons()
     _refresh_debug_trigger_buttons()
     _refresh_danger()
+    _refresh_hud()
     if _build_inspection_panel.visible:
         _build_inspection_panel.refresh()
 
@@ -114,8 +116,8 @@ func _on_settings_button_pressed() -> void:
 
 ## Delegates to the run controller's in-place reset; the arena root constructs RunBuild once per
 ## scene and never rebuilds or re-wires it, so every collaborator keeps its original reference.
-func _restart_run(reason: String) -> void:
-    _run_controller.reset_run(reason)
+func _restart_run() -> void:
+    _run_controller.reset_run()
 
 # == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 
@@ -146,13 +148,13 @@ func _on_debug_set_smash_payload() -> void:
 func _on_debug_toggle_guard_shredder() -> void:
     if not Debug.enabled:
         return
-    _toggle_debug_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER, "Guard Shredder")
+    _toggle_debug_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
 
 
 func _on_debug_toggle_execution() -> void:
     if not Debug.enabled:
         return
-    _toggle_debug_mobility_trigger(RunBuild.TRIGGER_EXECUTION, "Execution")
+    _toggle_debug_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
 
 
 ## Writes through the same RunBuild override real Major effects use, so debug behavior stays
@@ -160,7 +162,6 @@ func _on_debug_toggle_execution() -> void:
 func _set_debug_mobility_payload(payload: StringName) -> void:
     _action_controller.cancel_smash_windup()
     _run_build.set_mobility_payload_override(payload)
-    _action_controller.set_message("Mobility slot: %s" % _mobility_mode_name())
     _refresh_debug_payload_buttons()
     _refresh_hud()
 
@@ -168,10 +169,9 @@ func _set_debug_mobility_payload(payload: StringName) -> void:
 ## Flips one mobility-slot-triggered Major through the same RunBuild store real Major effects write to.
 ## Guard Shredder and Execution toggle independently so both can be tested alone, together, and
 ## alongside either mobility payload before reward-loop acquisition exists.
-func _toggle_debug_mobility_trigger(trigger_id: StringName, display_name: String) -> void:
+func _toggle_debug_mobility_trigger(trigger_id: StringName) -> void:
     var next_active := not _run_build.has_mobility_trigger(trigger_id)
     _run_build.set_mobility_trigger(trigger_id, next_active)
-    _action_controller.set_message("%s: %s" % [display_name, "ON" if next_active else "OFF"])
     _refresh_debug_trigger_buttons()
 
 
@@ -240,14 +240,3 @@ func _refresh_hud() -> void:
             "artifact_rows": BuildInspectionFormatter.build_artifact_rows(_run_build),
         },
     )
-
-
-func _mobility_mode_name() -> String:
-    var payload := _run_build.get_mobility_payload()
-    if payload == RunBuild.PAYLOAD_DASH:
-        return "DASH"
-    if payload == RunBuild.PAYLOAD_SMASH:
-        return "SMASH"
-    if payload == RunBuild.PAYLOAD_DEBUG_STUB:
-        return "DEBUG STUB"
-    return "UNKNOWN"

@@ -69,8 +69,8 @@ color = Color(0.045, 0.045, 0.06, 0.95)
 [node name="TrailLayer" type="ColorRect" parent="BarTrack"]
 unique_name_in_owner = true
 layout_mode = 1
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = 280.0
 grow_vertical = 2
 mouse_filter = 2
 color = Color(1, 0.55, 0.18, 1)
@@ -78,8 +78,8 @@ color = Color(1, 0.55, 0.18, 1)
 [node name="FillLayer" type="ColorRect" parent="BarTrack"]
 unique_name_in_owner = true
 layout_mode = 1
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = 280.0
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0.86, 0.1, 0.12, 1)

@@ -2,8 +2,7 @@
 # Owns tick-arena verb dispatch (move, confirm/attack, mobility payloads, wait), Speed meter
 # spend/fill, Mobility Free Action refunds, hit application, and the decision to advance the tick
 # world (tick resolution stage 1); world advancement itself is handed to TickEngine. Result
-# presentation (debug info text plus Major-trigger VFX/SFX) belongs to TickCombatFeedback; this
-# controller forwards set_message to it so debug controls and run reset code keep one feedback path.
+# presentation (Major-trigger VFX/SFX) belongs to TickCombatFeedback.
 # Aim/plan resolution (mouse cell, aim direction, dash/smash plans) is shared with TickPreviewController
 # through TickAimContext. May mutate TickPlayer, RunBuild, enemy health through the existing hit path,
 # and TickGridView input-driven feedback flashes; may request world advancement from TickEngine, but
@@ -51,7 +50,6 @@ func _ready() -> void:
 func _on_smash_cancel_confirm_pressed() -> void:
     player.disarm_smash()
     _close_smash_cancel_confirm()
-    feedback.set_message("Smash windup cancelled.")
 
 
 func _on_smash_cancel_keep_pressed() -> void:
@@ -80,12 +78,6 @@ func reset_for_new_run() -> void:
     _close_smash_cancel_confirm()
 
 
-## Forwards to TickCombatFeedback; exposed here so debug controls and the run controller can post
-## optional debug info through the same presentation path real verb resolution uses.
-func set_message(text: String) -> void:
-    feedback.set_message(text)
-
-
 func is_mobility_mode() -> bool:
     return _aim_mode == AimMode.MOBILITY
 
@@ -103,7 +95,6 @@ func cancel_smash_windup() -> void:
     if player.is_smash_armed():
         player.disarm_smash()
         _close_smash_cancel_confirm()
-        feedback.set_message("Windup cancelled.")
 
 
 ## While the Smash cancel-confirm popup is open, every arena verb is blocked — only the popup's own
@@ -155,8 +146,6 @@ func _verb_move(dir: Vector2i) -> Dictionary:
     var free_action := _spend_speed_if_full()
     player.move_to(target)
     _fill_speed_meter()
-    if free_action:
-        ToastManager.show_info("Speed spent: free move.")
     return _verb_result(not free_action)
 
 
@@ -188,8 +177,6 @@ func _verb_attack() -> Dictionary:
     if enemy != null:
         _apply_player_hit(enemy, player.cell, TickCombatProjection.normal_attack_damage(_run_build))
     _fill_speed_meter()
-    if free_action:
-        ToastManager.show_info("Speed spent: free attack.")
     return _verb_result(not free_action)
 
 
@@ -207,7 +194,6 @@ func _verb_mobility() -> Dictionary:
 
 func _verb_dash() -> Dictionary:
     if player.dash_cooldown > 0:
-        feedback.set_message("Dash on cooldown (%d)." % player.dash_cooldown)
         return _verb_illegal()
     var plan := _aim_context.compute_dash_plan()
     if not bool(plan["legal"]):
@@ -229,14 +215,10 @@ func _verb_dash() -> Dictionary:
                 TickCombatProjection.mobility_stagger_burst_multiplier(),
             ),
         )
-    if outcomes.is_empty():
-        feedback.set_message(TickCombatFeedback.message_for_outcome(TickHitResolver.empty_outcome()))
     view.flash_swing(plan["path"])
     player.move_to(plan["landing"], true)
     player.dash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.DASH_COOLDOWN_TICKS)
     var refunds := _mobility_action_refunds(outcomes)
-    if refunds:
-        ToastManager.show_info("Mobility refunded: free action.")
     return _verb_result(not refunds)
 
 
@@ -246,7 +228,6 @@ func _verb_dash() -> Dictionary:
 func _verb_smash() -> Dictionary:
     if not player.is_smash_armed():
         if player.smash_cooldown > 0:
-            feedback.set_message("Smash on cooldown (%d)." % player.smash_cooldown)
             return _verb_illegal()
         var target := _aim_context.clamped_smash_target()
         if not engine.is_cell_open_for_player(target):
@@ -257,7 +238,6 @@ func _verb_smash() -> Dictionary:
         _close_smash_cancel_confirm()
         SmashFeedbackVFX.play_windup(player.global_position, self)
         AudioManager.play_event(player.smash_windup_sfx_event, player.global_position)
-        feedback.set_message("Smash windup...")
         return _verb_result(true)
 
     var landing := player.smash_target
@@ -281,8 +261,6 @@ func _verb_smash() -> Dictionary:
                     TickCombatProjection.mobility_stagger_burst_multiplier(),
                 ),
             )
-    if outcomes.is_empty():
-        feedback.set_message(TickCombatFeedback.message_for_outcome(TickHitResolver.empty_outcome()))
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
     AudioManager.play_event(player.smash_impact_sfx_event, grid.cell_center(landing))
     player.move_to(landing, true)
@@ -290,8 +268,6 @@ func _verb_smash() -> Dictionary:
     player.smash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.SMASH_COOLDOWN_TICKS)
     _close_smash_cancel_confirm()
     var refunds := _mobility_action_refunds(outcomes)
-    if refunds:
-        ToastManager.show_info("Mobility refunded: free action.")
     return _verb_result(not refunds)
 
 
@@ -303,7 +279,6 @@ func _verb_debug_stub_mobility() -> Dictionary:
     _tick_player_action_upkeep()
     view.flash_swing([target])
     player.move_to(target, true)
-    feedback.set_message("Debug mobility payload fired.")
     return _verb_result(true)
 
 
@@ -376,7 +351,6 @@ func _try_cancel_smash_windup() -> bool:
         return false
     if not SettingsStore.confirm_smash_cancel:
         player.disarm_smash()
-        feedback.set_message("Smash windup cancelled.")
         return true
     _open_smash_cancel_confirm()
     return false

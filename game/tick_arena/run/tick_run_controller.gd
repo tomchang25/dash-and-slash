@@ -95,7 +95,7 @@ func _on_normal_wave_completed(wave_number: int, is_milestone_wave: bool) -> voi
 ## The death overlay's only recovery path; resets this controller's own injected RunBuild in place
 ## instead of asking the arena root to build a replacement.
 func _on_restart_button_pressed() -> void:
-    reset_run("Run reset.")
+    reset_run()
 
 
 func _on_spawn_warning_changed(cells: Array[Vector2i], ticks: int) -> void:
@@ -135,7 +135,7 @@ func handle_player_died() -> void:
 ## banner countdown or an open reward choice can never let that stale flow reopen or reapply after the
 ## run has already reset. Clears the run's own RunBuild in place instead of replacing it, so the
 ## reward context and wave controller keep the same reference they were injected with at setup.
-func reset_run(reason: String) -> void:
+func reset_run() -> void:
     _cancel_pending_wave_flow()
     death_overlay.visible = false
     action_controller.set_input_locked(false)
@@ -148,7 +148,6 @@ func reset_run(reason: String) -> void:
     action_controller.reset_for_new_run()
     _wave_controller.reset()
     _wave_controller.start_next_wave()
-    action_controller.set_message(reason)
     run_reset_finished.emit()
 
 
@@ -245,7 +244,6 @@ func _finish_reward_flow() -> void:
     _reward_flow_state = RewardFlowState.NONE
     action_controller.set_input_locked(false)
     _wave_controller.start_next_wave()
-    action_controller.set_message("Reward applied — wave %d begins." % _wave_controller.get_wave_number())
     reward_applied.emit()
 
 

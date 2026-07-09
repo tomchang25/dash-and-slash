@@ -169,9 +169,8 @@ func _sync_layers() -> void:
     if not is_node_ready():
         return
     _apply_text_and_state()
-    var track_width := _bar_track.size.x
-    _fill_layer.size.x = track_width * _fill_value / _maximum_value
-    _trail_layer.size.x = track_width * _trail_value / _maximum_value
+    _fill_layer.anchor_right = _fill_value / _maximum_value
+    _trail_layer.anchor_right = _trail_value / _maximum_value
 
 
 func _stop_tweens() -> void:

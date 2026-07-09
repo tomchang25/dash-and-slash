@@ -1,8 +1,5 @@
 # tick_combat_feedback.gd
-# Owns tick-arena result presentation: debug-only info text and the major-trigger VFX/SFX for a
-# resolved player hit outcome. TickActionController forwards set_message calls here through a thin
-# facade so its own external callers (TickRunController, tick_arena.gd debug controls) keep working
-# without reintroducing a persistent HUD message lane.
+# Owns tick-arena result presentation: the major-trigger VFX/SFX for a resolved player hit outcome.
 class_name TickCombatFeedback
 extends Node
 
@@ -13,44 +10,11 @@ extends Node
 # == Common API ==
 
 
-## Posts debug-only info text. Runtime-readable state stays with the caller; this presenter never owns
-## HUD state and never shows persistent combat text in production.
-func set_message(text: String) -> void:
-    ToastManager.show_info(text)
-
-
 ## Reports one committed player hit outcome: layers Major-trigger VFX/SFX over the fallback hit
-## feedback, then posts debug-only outcome text. Callers with no meaningful hit position (a mobility
-## strike with no victims) should call set_message(message_for_outcome(...)) directly instead, since
-## an empty outcome carries no Major trigger and no VFX should fire.
+## feedback. Callers with no meaningful hit position (a mobility strike with no victims) should skip
+## this call entirely, since an empty outcome carries no Major trigger and no VFX should fire.
 func report_hit_outcome(result: TickHitOutcome, world_pos: Vector2) -> void:
     _play_major_trigger_feedback(result, world_pos)
-    set_message(message_for_outcome(result))
-
-
-## Renders one hit outcome as debug info text: whiff, kill/execution, guard break/shredder, stagger
-## burst, blocked, or a plain angle-named hit. Pure so it can be unit-tested without a scene tree.
-static func message_for_outcome(result: TickHitOutcome) -> String:
-    match result.feedback_kind:
-        TickHitOutcome.FeedbackKind.WHIFF:
-            return "Whiff."
-        TickHitOutcome.FeedbackKind.KILL:
-            if result.major_trigger == TickHitOutcome.MajorTrigger.EXECUTION:
-                return "EXECUTION!"
-            return "Enemy destroyed!"
-        TickHitOutcome.FeedbackKind.GUARD_BREAK:
-            if result.major_trigger == TickHitOutcome.MajorTrigger.GUARD_SHREDDER:
-                return "GUARD SHREDDER!"
-            return "%s hit — GUARD BREAK!" % TickCombatRules.angle_name(result.angle)
-        TickHitOutcome.FeedbackKind.STAGGER_BURST:
-            return "%s burst hit." % TickCombatRules.angle_name(result.angle)
-        TickHitOutcome.FeedbackKind.BLOCKED:
-            return "%s blocked." % TickCombatRules.angle_name(result.angle)
-        TickHitOutcome.FeedbackKind.DAMAGED:
-            return "%s hit." % TickCombatRules.angle_name(result.angle)
-        _:
-            ToastManager.show_dev_error("TickCombatFeedback: unexpected feedback kind %s" % result.feedback_kind)
-            return ""
 
 # == Major trigger VFX/SFX ==
 
