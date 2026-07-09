@@ -16,7 +16,7 @@ enum VisualState {
     IDLE,
     MOVE,
     PREPARE_ATTACK,
-    ATTACK,
+    COMMIT_CUE,
 }
 
 # -- Constants --
@@ -27,7 +27,7 @@ const FRAME_ROW_BY_STATE := {
     VisualState.IDLE: 0,
     VisualState.MOVE: 1,
     VisualState.PREPARE_ATTACK: 2,
-    VisualState.ATTACK: 3,
+    VisualState.COMMIT_CUE: 3,
 }
 ## Column-per-direction mapping for the current Kappa scaffold sheet.
 const FRAME_COLUMN_BY_DIRECTION := {

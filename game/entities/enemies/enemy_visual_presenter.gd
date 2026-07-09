@@ -70,8 +70,10 @@ func show_prepare_attack() -> void:
     _frame_view.set_visual_state(DirectionalSpriteFrameView.VisualState.PREPARE_ATTACK)
 
 
-func show_attack() -> void:
-    _frame_view.set_visual_state(DirectionalSpriteFrameView.VisualState.ATTACK)
+## Shows the final pre-impact commit cue. This is presentation only; attack timing,
+## damage, movement, recovery, and telegraph cleanup remain owned by enemy gameplay code.
+func show_attack_commit() -> void:
+    _frame_view.set_visual_state(DirectionalSpriteFrameView.VisualState.COMMIT_CUE)
 
 
 ## Non-authoritative damage feedback: flashes white/red, then settles back into stagger

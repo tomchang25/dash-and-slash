@@ -90,7 +90,7 @@ func show_attack_charge() -> void:
     if attack != null:
         attack.show_charge()
     if _visual_presenter != null:
-        _visual_presenter.show_attack()
+        _visual_presenter.show_attack_commit()
 
 
 func plan_next_action() -> bool:
