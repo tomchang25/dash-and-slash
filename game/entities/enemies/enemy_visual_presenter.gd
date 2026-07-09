@@ -1,7 +1,5 @@
 # enemy_visual_presenter.gd
-# Maps enemy visual-state and facing intent onto a DirectionalSpriteFrameView, plus cheap
-# non-authoritative feedback (damage flash, stagger tint). Never decides when an enemy acts,
-# attacks, recovers, or dies; it only displays what GridEnemy and its kinds already report.
+# Base semantic presenter for enemy frame state, facing, shared feedback, and action-cue interruption.
 class_name EnemyVisualPresenter
 extends Node2D
 
@@ -18,9 +16,12 @@ const STAGGER_CLEAR_SEC := 0.3
 # -- State --
 
 var _is_staggered := false
+var _visual_state: DirectionalSpriteFrameView.VisualState = DirectionalSpriteFrameView.VisualState.IDLE
+var _facing := Vector2.DOWN
 
 # -- Timer / tween handles --
 
+var _action_tween: Tween
 var _flash_tween: Tween
 var _tint_tween: Tween
 
@@ -54,26 +55,35 @@ func has_valid_texture() -> bool:
     return _frame_view != null and _frame_view.texture != null
 
 
+## Updates the presented direction without becoming an authoritative facing source.
 func set_facing(facing: Vector2) -> void:
+    _facing = facing
     _frame_view.set_direction(_direction_from_facing(facing))
 
 
+## Clears action feedback and returns the sprite to its neutral idle pose.
 func show_idle() -> void:
-    _frame_view.set_visual_state(DirectionalSpriteFrameView.VisualState.IDLE)
+    _clear_action_feedback()
+    _set_visual_state(DirectionalSpriteFrameView.VisualState.IDLE)
 
 
+## Shows movement intent and lets concrete presenters add their own movement cue.
 func show_move() -> void:
-    _frame_view.set_visual_state(DirectionalSpriteFrameView.VisualState.MOVE)
+    _begin_action_feedback(DirectionalSpriteFrameView.VisualState.MOVE)
+    _play_move_feedback()
 
 
+## Shows attack windup intent and lets concrete presenters add their own prepare cue.
 func show_prepare_attack() -> void:
-    _frame_view.set_visual_state(DirectionalSpriteFrameView.VisualState.PREPARE_ATTACK)
+    _begin_action_feedback(DirectionalSpriteFrameView.VisualState.PREPARE_ATTACK)
+    _play_prepare_attack_feedback()
 
 
 ## Shows the final pre-impact commit cue. This is presentation only; attack timing,
 ## damage, movement, recovery, and telegraph cleanup remain owned by enemy gameplay code.
 func show_attack_commit() -> void:
-    _frame_view.set_visual_state(DirectionalSpriteFrameView.VisualState.COMMIT_CUE)
+    _begin_action_feedback(DirectionalSpriteFrameView.VisualState.COMMIT_CUE)
+    _play_attack_commit_feedback()
 
 
 ## Non-authoritative damage feedback: flashes white/red, then settles back into stagger
@@ -92,6 +102,8 @@ func flash_damage() -> void:
 ## Tints toward stagger color when active, or clears back to white when it ends.
 func set_staggered(active: bool) -> void:
     _is_staggered = active
+    if active:
+        _clear_action_feedback()
     if _tint_tween != null and is_instance_valid(_tint_tween):
         _tint_tween.kill()
 
@@ -105,12 +117,57 @@ func set_staggered(active: bool) -> void:
 ## Resets visuals to a clean idle/white state, e.g. on enemy pool reuse.
 func reset_visuals() -> void:
     _is_staggered = false
+    _clear_action_feedback()
     if _flash_tween != null and is_instance_valid(_flash_tween):
         _flash_tween.kill()
     if _tint_tween != null and is_instance_valid(_tint_tween):
         _tint_tween.kill()
     _frame_view.modulate = Color.WHITE
-    show_idle()
+    _set_visual_state(DirectionalSpriteFrameView.VisualState.IDLE)
+
+# == Feature: action feedback ==
+
+
+func _begin_action_feedback(state: DirectionalSpriteFrameView.VisualState) -> void:
+    _clear_action_feedback()
+    _set_visual_state(state)
+
+
+func _set_visual_state(state: DirectionalSpriteFrameView.VisualState) -> void:
+    _visual_state = state
+    _frame_view.set_visual_state(state)
+
+
+func _clear_action_feedback() -> void:
+    if _action_tween != null and is_instance_valid(_action_tween):
+        _action_tween.kill()
+    _action_tween = null
+    _reset_action_transform()
+
+
+func _create_action_tween() -> Tween:
+    if _action_tween != null and is_instance_valid(_action_tween):
+        _action_tween.kill()
+    _action_tween = create_tween()
+    return _action_tween
+
+
+func _reset_action_transform() -> void:
+    position = Vector2.ZERO
+    rotation = 0.0
+    scale = Vector2.ONE
+
+
+func _play_move_feedback() -> void:
+    pass
+
+
+func _play_prepare_attack_feedback() -> void:
+    pass
+
+
+func _play_attack_commit_feedback() -> void:
+    pass
 
 # == Feature: facing ==
 

@@ -101,6 +101,8 @@ func show_attack_charge() -> void:
     var telegraph := get_telegraph()
     if telegraph != null:
         telegraph.show_charge(get_stored_charge_cells())
+    if _visual_presenter != null:
+        _visual_presenter.show_attack_commit()
 
 
 ## Clears movement planning and prepares the charge telegraph along the enemy's current (capped) facing.
@@ -120,6 +122,8 @@ func begin_attack_telegraph() -> bool:
         telegraph.show_warning(cells)
 
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.CHARGE)
+    if _visual_presenter != null:
+        _visual_presenter.show_prepare_attack()
     return true
 
 
@@ -140,6 +144,7 @@ func _clear_attack_presentation() -> void:
         _telegraph.clear()
     stop_attack_windup_vfx()
     clear_stored_charge_cells()
+    _clear_charge_visual()
 
 
 func plan_next_action() -> bool:
@@ -162,16 +167,19 @@ func _on_guard_broken_extra() -> void:
     if _telegraph != null:
         _telegraph.clear()
     end_charge_attack()
+    _clear_charge_visual()
 
 
 func _on_begin_death_extra() -> void:
     if _telegraph != null:
         _telegraph.clear()
+    _clear_charge_visual()
 
 
 func _reset_extra() -> void:
     _charge_cells.clear()
     end_charge_attack()
+    _clear_charge_visual()
 
 
 func _select_attack_data() -> void:
@@ -181,6 +189,11 @@ func _select_attack_data() -> void:
                 _attack_data = attack
                 return
     _attack_data = _create_fallback_attack_data()
+
+
+func _clear_charge_visual() -> void:
+    if _visual_presenter != null:
+        _visual_presenter.show_idle()
 
 
 func _create_fallback_attack_data() -> EnemyAttackData:
