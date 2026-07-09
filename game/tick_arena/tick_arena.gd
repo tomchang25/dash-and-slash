@@ -17,6 +17,10 @@ var _dash_payload_button: Button
 var _smash_payload_button: Button
 var _guard_shredder_button: Button
 var _execution_button: Button
+var _kill_all_enemies_button: Button
+var _god_mode_disable_button: Button
+var _god_mode_no_damage_button: Button
+var _god_mode_undead_button: Button
 
 # -- Node references --
 
@@ -86,12 +90,13 @@ func _on_reward_applied() -> void:
         _build_inspection_panel.refresh()
 
 
-## A fresh run starts with default mobility payload/triggers, so the debug panel's button
-## highlighting must catch up alongside the danger telegraphs and HUD; an open build panel must
-## also drop any stale rows from the previous run.
+## A fresh run starts with default mobility payload/triggers and god mode cleared (TickPlayer.reset()),
+## so the debug panel's button highlighting must catch up alongside the danger telegraphs and HUD; an
+## open build panel must also drop any stale rows from the previous run.
 func _on_run_reset_finished() -> void:
     _refresh_debug_payload_buttons()
     _refresh_debug_trigger_buttons()
+    _refresh_debug_god_mode_buttons()
     _refresh_danger()
     _refresh_hud()
     if _build_inspection_panel.visible:
@@ -122,15 +127,46 @@ func _restart_run() -> void:
 # == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 
 
-## Registers the Major-effect debug controls: the mobility-payload buttons from Phase 04a, plus the
-## Guard Shredder and Execution toggles this phase adds through that same extension point.
+## Registers every tick-arena debug control, grouped into Combat (enemy kill), Player (god mode), and
+## Build (the mobility-payload/trigger Major-effect overrides) sections.
 func _wire_debug_panel() -> void:
-    _dash_payload_button = _debug_panel.add_action("Dash Payload", _on_debug_set_dash_payload)
-    _smash_payload_button = _debug_panel.add_action("Smash Payload", _on_debug_set_smash_payload)
+    _kill_all_enemies_button = _debug_panel.add_action("Instant Kill All Enemies", _on_debug_kill_all_enemies, "Combat")
+
+    _god_mode_disable_button = _debug_panel.add_action("God Mode - Disable", _on_debug_set_god_mode_disable, "Player")
+    _god_mode_no_damage_button = _debug_panel.add_action("God Mode - No Damage", _on_debug_set_god_mode_no_damage, "Player")
+    _god_mode_undead_button = _debug_panel.add_action("God Mode - Undead", _on_debug_set_god_mode_undead, "Player")
+    _refresh_debug_god_mode_buttons()
+
+    _dash_payload_button = _debug_panel.add_action("Dash Payload", _on_debug_set_dash_payload, "Build")
+    _smash_payload_button = _debug_panel.add_action("Smash Payload", _on_debug_set_smash_payload, "Build")
     _refresh_debug_payload_buttons()
-    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder)
-    _execution_button = _debug_panel.add_action("Execution", _on_debug_toggle_execution)
+    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder, "Build")
+    _execution_button = _debug_panel.add_action("Execution", _on_debug_toggle_execution, "Build")
     _refresh_debug_trigger_buttons()
+
+
+func _on_debug_kill_all_enemies() -> void:
+    if not Debug.enabled:
+        return
+    _run_controller.debug_kill_all_enemies()
+
+
+func _on_debug_set_god_mode_disable() -> void:
+    if not Debug.enabled:
+        return
+    _set_debug_god_mode(TickPlayer.GodMode.OFF)
+
+
+func _on_debug_set_god_mode_no_damage() -> void:
+    if not Debug.enabled:
+        return
+    _set_debug_god_mode(TickPlayer.GodMode.NO_DAMAGE)
+
+
+func _on_debug_set_god_mode_undead() -> void:
+    if not Debug.enabled:
+        return
+    _set_debug_god_mode(TickPlayer.GodMode.UNDEAD)
 
 
 func _on_debug_set_dash_payload() -> void:
@@ -155,6 +191,12 @@ func _on_debug_toggle_execution() -> void:
     if not Debug.enabled:
         return
     _toggle_debug_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
+
+
+## Applies the picked god mode to the player and refreshes the mutually-exclusive button styling.
+func _set_debug_god_mode(mode: TickPlayer.GodMode) -> void:
+    _player.set_god_mode(mode)
+    _refresh_debug_god_mode_buttons()
 
 
 ## Writes through the same RunBuild override real Major effects use, so debug behavior stays
@@ -190,6 +232,15 @@ func _refresh_debug_trigger_buttons() -> void:
     var execution_active := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
     _guard_shredder_button.text = "Guard Shredder%s" % (" (Active)" if guard_shredder_active else "")
     _execution_button.text = "Execution%s" % (" (Active)" if execution_active else "")
+
+
+## Highlights whichever god-mode button matches the player's current god mode through the panel's
+## generic active-state styling helper instead of appended button text.
+func _refresh_debug_god_mode_buttons() -> void:
+    var mode := _player.god_mode
+    _debug_panel.set_action_active(_god_mode_disable_button, mode == TickPlayer.GodMode.OFF)
+    _debug_panel.set_action_active(_god_mode_no_damage_button, mode == TickPlayer.GodMode.NO_DAMAGE)
+    _debug_panel.set_action_active(_god_mode_undead_button, mode == TickPlayer.GodMode.UNDEAD)
 
 # == View and HUD ==
 

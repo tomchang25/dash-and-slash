@@ -4,6 +4,15 @@
 class_name TickPlayer
 extends Node2D
 
+## Debug-only damage-handling override for TickPlayer.take_damage(); see dev/standards/debug_standard.md.
+## OFF is normal damage/death behavior. NO_DAMAGE leaves hp unchanged. UNDEAD applies damage but floors
+## hp at 1 so death can never trigger.
+enum GodMode {
+    OFF,
+    NO_DAMAGE,
+    UNDEAD,
+}
+
 # -- Constants --
 
 const MAX_HP := 100.0
@@ -39,6 +48,7 @@ var dash_cooldown := 0
 var smash_cooldown := 0
 var smash_target := Vector2i.ZERO
 var speed_meter := 0
+var god_mode := GodMode.OFF
 
 var _smash_armed := false
 var _grid: GridArena = null
@@ -81,15 +91,32 @@ func move_to(target_cell: Vector2i, leap := false) -> void:
     _move_tween.tween_property(self, "scale", Vector2.ONE, duration * 1.5)
 
 
-## Applies damage with a red flash; returns true when the player died.
+## Applies damage with a red flash, honoring the active debug god mode; returns true when the player
+## died. NO_DAMAGE and UNDEAD still flash so debug hit feedback stays visible, but never report death.
 func take_damage(amount: float) -> bool:
-    hp = maxf(hp - amount, 0.0)
+    var died := false
+    match god_mode:
+        GodMode.OFF:
+            hp = maxf(hp - amount, 0.0)
+            died = hp <= 0.0
+        GodMode.NO_DAMAGE:
+            pass
+        GodMode.UNDEAD:
+            hp = maxf(hp - amount, 1.0)
+        _:
+            ToastManager.show_dev_error("TickPlayer: unhandled god mode %s in take_damage()" % god_mode)
     if _flash_tween != null:
         _flash_tween.kill()
     modulate = Color(1.0, 0.35, 0.35)
     _flash_tween = create_tween()
     _flash_tween.tween_property(self, "modulate", Color.WHITE, DAMAGE_FLASH_SEC)
-    return hp <= 0.0
+    return died
+
+
+## Debug-only: sets the god-mode override applied inside take_damage(). Callers must guard with
+## Debug.enabled (see dev/standards/debug_standard.md).
+func set_god_mode(mode: GodMode) -> void:
+    god_mode = mode
 
 
 ## Returns the effective max hp: the base value plus every recorded Max Health reward bonus, floored
@@ -100,12 +127,14 @@ func max_hp(bonus_total: float) -> float:
 
 
 ## Restores spawn defaults and snaps back to the given cell, healing to the max hp projected from the
-## given Max Health reward bonus total so a run's earned max health survives a death/reset.
+## given Max Health reward bonus total so a run's earned max health survives a death/reset. Also clears
+## any debug god mode so a fresh run starts under normal damage/death rules.
 func reset(start_cell: Vector2i, max_health_bonus := 0.0) -> void:
     hp = max_hp(max_health_bonus)
     dash_cooldown = 0
     smash_cooldown = 0
     speed_meter = 0
+    god_mode = GodMode.OFF
     disarm_smash()
     cell = start_cell
     if _move_tween != null:

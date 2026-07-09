@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Debug Panel Tick Arena Actions
+
+- 2026-07-09 — [debug] The tick arena debug panel gains an Instant Kill All Enemies action and mutually exclusive player god modes (Disable / No Damage / Undead), and the panel itself becomes a sectioned, scrollable, viewport-bounded tool grouping controls into Combat, Player, and Build
+
 ### Tick Arena HUD Refactor
 
 - 2026-07-09 — [ui] The tick arena's debug text HUD is replaced with a production-style combat HUD: layered HP/Speed resource bars, cooldown chips, a compact owned-artifact strip, and top-right settings access, with Speed-spend/Mobility-refund notices moved to toasts

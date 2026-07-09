@@ -165,6 +165,20 @@ func get_wave_display_text() -> String:
         return ""
     return _wave_controller.get_wave_display_text()
 
+# == Debug (see dev/standards/debug_standard.md §4a/§5) ==
+
+
+## Debug-only: force-kills every currently alive enemy through the wave controller's existing
+## force-kill path, so wave bookkeeping, grid occupancy cleanup, and completion signals still fire
+## exactly as if the enemies died normally. The arena root calls this instead of reaching through
+## to the owned WaveController directly.
+func debug_kill_all_enemies() -> void:
+    if not Debug.enabled:
+        return
+    if _wave_controller == null:
+        return
+    _wave_controller.force_kill_all_enemies()
+
 # == Death / Restart ==
 
 
