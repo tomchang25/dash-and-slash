@@ -20,17 +20,21 @@ class FakeEngine:
     extends TickEngine
 
     var advance_world_count := 0
+    var blocked_cell: Vector2i = Vector2i(-999, -999)
+    var enemy_at_blocked_cell: GridEnemy = null
 
 
     func advance_world() -> void:
         advance_world_count += 1
 
 
-    func is_cell_open_for_player(_target_cell: Vector2i) -> bool:
-        return true
+    func is_cell_open_for_player(target_cell: Vector2i) -> bool:
+        return target_cell != blocked_cell
 
 
-    func enemy_at(_target_cell: Vector2i) -> GridEnemy:
+    func enemy_at(target_cell: Vector2i) -> GridEnemy:
+        if target_cell == blocked_cell:
+            return enemy_at_blocked_cell
         return null
 
 
@@ -126,6 +130,49 @@ func test_dash_sets_fresh_cooldown_after_player_action_upkeep() -> void:
     assert_eq(player.dash_cooldown, TickCombatRules.DASH_COOLDOWN_TICKS, "the Dash used this action should not immediately tick down")
     assert_eq(player.smash_cooldown, 1, "existing cooldowns still tick before the Dash resolves")
     assert_eq(engine.advance_world_count, 1)
+
+
+## Regression for the auto-attack-on-move handling: with the SettingsStore preference on, walking
+## into an enemy's cell swings at it instead of just denying the move.
+func test_move_into_enemy_attacks_when_auto_attack_on_move_enabled() -> void:
+    var prior_setting := SettingsStore.auto_attack_on_move
+    SettingsStore.auto_attack_on_move = true
+    var context := _make_controller_context()
+    var controller: TickActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+    var engine: FakeEngine = context["engine"]
+    var view: FakeView = context["view"]
+    var target := player.cell + Vector2i.RIGHT
+    engine.blocked_cell = target
+    engine.enemy_at_blocked_cell = autofree(GridEnemy.new())
+
+    controller.handle_verb(TickVerb.move(Vector2i.RIGHT))
+
+    assert_true(view.swung_cells.has(target), "auto-attack should swing at the blocking enemy's cell")
+    assert_false(view.denied_cells.has(target), "auto-attack should not also flash a deny on the same cell")
+    assert_true(player.moved_to.is_empty(), "swinging at the enemy should not move the player into its cell")
+    SettingsStore.auto_attack_on_move = prior_setting
+
+
+## Counterpart to the enabled case above: with the preference off, walking into an enemy still just
+## denies the move, matching pre-auto-attack behavior.
+func test_move_into_enemy_denies_when_auto_attack_on_move_disabled() -> void:
+    var prior_setting := SettingsStore.auto_attack_on_move
+    SettingsStore.auto_attack_on_move = false
+    var context := _make_controller_context()
+    var player: FakePlayer = context["player"]
+    var engine: FakeEngine = context["engine"]
+    var view: FakeView = context["view"]
+    var controller: TickActionController = context["controller"]
+    var target := player.cell + Vector2i.RIGHT
+    engine.blocked_cell = target
+    engine.enemy_at_blocked_cell = autofree(GridEnemy.new())
+
+    controller.handle_verb(TickVerb.move(Vector2i.RIGHT))
+
+    assert_true(view.denied_cells.has(target), "move into an enemy should deny when the setting is off")
+    assert_true(view.swung_cells.is_empty(), "no auto-attack swing should fire when the setting is off")
+    SettingsStore.auto_attack_on_move = prior_setting
 
 
 func _make_controller_context() -> Dictionary:

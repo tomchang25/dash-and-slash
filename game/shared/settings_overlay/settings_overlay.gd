@@ -17,6 +17,7 @@ const MAIN_MENU_PATH := "res://game/meta/main_menu/main_menu_scene.tscn"
 @onready var _fullscreen_check: CheckBox = %FullscreenCheck
 @onready var _dash_direction_option: OptionButton = %DashDirectionOption
 @onready var _confirm_smash_cancel_check: CheckBox = %ConfirmSmashCancelCheck
+@onready var _auto_attack_on_move_check: CheckBox = %AutoAttackOnMoveCheck
 @onready var _debug_check: CheckBox = %DebugCheck
 @onready var _close_btn: Button = %CloseButton
 @onready var _main_menu_btn: Button = %MainMenuButton
@@ -34,6 +35,7 @@ func _ready() -> void:
     _fullscreen_check.toggled.connect(_on_fullscreen_toggled)
     _dash_direction_option.item_selected.connect(_on_dash_direction_selected)
     _confirm_smash_cancel_check.toggled.connect(_on_confirm_smash_cancel_toggled)
+    _auto_attack_on_move_check.toggled.connect(_on_auto_attack_on_move_toggled)
     _debug_check.toggled.connect(_on_debug_toggled)
     _close_btn.pressed.connect(_on_close_pressed)
     _main_menu_btn.pressed.connect(_on_main_menu_pressed)
@@ -83,6 +85,11 @@ func _on_confirm_smash_cancel_toggled(pressed: bool) -> void:
     SettingsStore.save_settings()
 
 
+func _on_auto_attack_on_move_toggled(pressed: bool) -> void:
+    SettingsStore.auto_attack_on_move = pressed
+    SettingsStore.save_settings()
+
+
 func _on_debug_toggled(pressed: bool) -> void:
     Debug.set_debug_mode(pressed)
 
@@ -108,6 +115,7 @@ func _apply() -> void:
     _fullscreen_check.set_pressed_no_signal(SettingsStore.fullscreen)
     _select_dash_direction_option()
     _confirm_smash_cancel_check.set_pressed_no_signal(SettingsStore.confirm_smash_cancel)
+    _auto_attack_on_move_check.set_pressed_no_signal(SettingsStore.auto_attack_on_move)
     _debug_check.set_pressed_no_signal(SettingsStore.debug_mode)
 
 

@@ -135,11 +135,15 @@ func handle_verb(verb: TickVerb) -> void:
 ## Movement requires confirmation to cancel an armed Smash windup, same as an explicit right-click
 ## cancel; the move itself is withheld this tick while the confirmation popup is pending. Move is one
 ## of the two Speed-eligible actions: a full meter spends here and lets this step skip world advancement.
+## When the SettingsStore auto-attack-on-move preference is on and Attack Mode is active with no Smash
+## armed, walking into an enemy's cell swings at it instead of just denying the move.
 func _verb_move(dir: Vector2i) -> Dictionary:
     if not _try_cancel_smash_windup():
         return _verb_illegal()
     var target := player.cell + dir
     if not engine.is_cell_open_for_player(target):
+        if SettingsStore.auto_attack_on_move and _confirm_is_attack() and engine.enemy_at(target) != null:
+            return _resolve_attack(dir)
         view.flash_deny(target)
         return _verb_illegal()
     _tick_player_action_upkeep()
@@ -167,7 +171,12 @@ func _confirm_is_attack() -> bool:
 ## free. Normal attack is the second Speed-eligible action, accounted for the same way as move.
 func _verb_attack() -> Dictionary:
     cancel_smash_windup()
-    var aim := _aim_context.aim_direction()
+    return _resolve_attack(_aim_context.aim_direction())
+
+
+## Shared normal-attack resolution for the mouse-aim confirm and the move-into-enemy auto-attack:
+## both swing at the given adjacent direction and consume the tick the same way, whiff or hit.
+func _resolve_attack(aim: Vector2i) -> Dictionary:
     _last_aim = aim
     var target := player.cell + aim
     _tick_player_action_upkeep()
