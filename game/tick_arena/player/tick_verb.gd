@@ -33,16 +33,16 @@ func _init(init_kind: Kind, init_dir := Vector2i.ZERO, init_mobility := false, i
 # == Common API ==
 
 
-static func move(dir: Vector2i) -> TickVerb:
-    return TickVerb.new(Kind.MOVE, dir)
+static func move(move_dir: Vector2i) -> TickVerb:
+    return TickVerb.new(Kind.MOVE, move_dir)
 
 
-static func confirm(repeat := false) -> TickVerb:
-    return TickVerb.new(Kind.CONFIRM, Vector2i.ZERO, false, repeat)
+static func confirm(is_repeat := false) -> TickVerb:
+    return TickVerb.new(Kind.CONFIRM, Vector2i.ZERO, false, is_repeat)
 
 
-static func mode_set(mobility: bool) -> TickVerb:
-    return TickVerb.new(Kind.MODE_SET, Vector2i.ZERO, mobility)
+static func mode_set(is_mobility: bool) -> TickVerb:
+    return TickVerb.new(Kind.MODE_SET, Vector2i.ZERO, is_mobility)
 
 
 static func cancel() -> TickVerb:

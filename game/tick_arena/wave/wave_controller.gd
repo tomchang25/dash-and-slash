@@ -315,7 +315,8 @@ func _resolve_pending_batch() -> void:
 
     _schedule_next_warning_batch()
     if _pending_batch.is_empty():
-        spawn_warning_changed.emit([], 0)
+        var empty_cells: Array[Vector2i] = []
+        spawn_warning_changed.emit(empty_cells, 0)
 
 
 func _spawn_one(entry: Dictionary) -> void:
@@ -357,7 +358,8 @@ func _clear_spawn_queue_telegraphs() -> void:
         _grid.clear_telegraph(self, cells)
         _pending_batch.clear()
     _spawn_queue.clear()
-    spawn_warning_changed.emit([], 0)
+    var empty_cells: Array[Vector2i] = []
+    spawn_warning_changed.emit(empty_cells, 0)
 
 
 func _pending_batch_cells() -> Array[Vector2i]:
