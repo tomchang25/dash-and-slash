@@ -18,31 +18,32 @@ Visual north star: miniature ninja duel board. The board can borrow from dojo, s
 
 Enemy readability hierarchy:
 
-| Priority | Meaning |
-| --- | --- |
-| State | Idle, moving, preparing, attacking, staggered, and dead should read without relying on text. |
-| Facing | The player must know which side is front, side, and back because guard/flank payoff depends on it. |
-| Attack intent | Telegraphs and body pose should agree so danger tiles feel authored, not arbitrary. |
-| Pattern identity | Color/mark/weapon variants can multiply content only after state and facing read cleanly. |
+| Priority         | Meaning                                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| State            | Idle, moving, preparing, attacking, staggered, and dead should read without relying on text.       |
+| Facing           | The player must know which side is front, side, and back because guard/flank payoff depends on it. |
+| Attack intent    | Telegraphs and body pose should agree so danger tiles feel authored, not arbitrary.                |
+| Pattern identity | Color/mark/weapon variants can multiply content only after state and facing read cleanly.          |
 
 Player/class identity hierarchy:
 
-| Priority | Meaning |
-| --- | --- |
-| Aim marker | The tick player has no combat facing, so the visible weapon/marker points at current aim rather than body direction. |
-| Mobility fantasy | Each class should make one main mobility style feel intentional, such as fast chain dash, counter dash, or heavy smash. |
-| Normal attack shape | Class attack shape should change tactical questions, not merely damage numbers. |
-| Perk | A class-locked perk should reinforce the mobility fantasy and avoid general roguelite soup. |
+| Priority            | Meaning                                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Aim marker          | The tick player has no combat facing, so the visible weapon/marker points at current aim rather than body direction.    |
+| Mobility fantasy    | Each class should make one main mobility style feel intentional, such as fast chain dash, counter dash, or heavy smash. |
+| Normal attack shape | Class attack shape should change tactical questions, not merely damage numbers.                                         |
+| Perk                | A class-locked perk should reinforce the mobility fantasy and avoid general roguelite soup.                             |
 
 Child overview:
 
-| Child | Focus | Current document |
-| --- | --- | --- |
-| 01 | Enemy Sprite Readability Scaffold | `tick_arena_visual_readability_01_enemy_sprite_readability_scaffold.sketch.md` |
-| 02 | Small Enemy Pattern Director | `tick_arena_visual_readability_02_small_enemy_pattern_director.sketch.md` |
-| 03 | Character Classes | `tick_arena_visual_readability_03_character_classes.sketch.md` |
+| Child | Focus                         | Current document                                                                |
+| ----- | ----------------------------- | ------------------------------------------------------------------------------- |
+| 01    | Enemy Visual Runtime Scaffold | `tick_arena_visual_readability_01_enemy_visual_runtime_scaffold.implementation_spec.md` |
+| 02    | SmallEnemy Baseline Pose Sheet | `tick_arena_visual_readability_02_small_enemy_baseline_pose_sheet.sketch.md`   |
+| 03    | Small Enemy Pattern Director  | `tick_arena_visual_readability_03_small_enemy_pattern_director.sketch.md`       |
+| 04    | Character Classes             | `tick_arena_visual_readability_04_character_classes.sketch.md`                  |
 
-Recommended landing order: first prove the enemy state-sprite scaffold on the baseline small enemy body, then expand that body into pattern variants, then add character classes once enemies and telegraphs can support differentiated player kits.
+Recommended landing order: first prove the enemy visual runtime scaffold on the baseline small enemy body with Ninja Adventure-style 16x16 source sprites rendered at integer scale, then author or adapt the baseline SmallEnemy pose sheet, then expand that body into pattern variants, then add character classes once enemies and telegraphs can support differentiated player kits.
 
 ## Non-Goals
 

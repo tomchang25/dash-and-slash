@@ -1,16 +1,18 @@
-# Tick Arena Visual Readability 03: Character Classes
+# Tick Arena Visual Readability 04: Character Classes
 
 Parent Plan: `tick_arena_visual_readability_and_identity.md`
 
 ## Goal
 
-Explore character classes as bundled starting identities for tick verbs: each class should define Speed feel, normal attack shape, default mobility payload, a class-locked perk, and a clear weapon/aim marker.
+Explore character classes as bundled starting identities for tick verbs after enemy readability has a stable visual runtime and baseline enemy body language: each class should define Speed feel, normal attack shape, default mobility payload, a class-locked perk, and a clear weapon/aim marker.
 
 ## Summary
 
 Character classes should not revive the old weapon-class idea as hitbox variants alone. A class is a starting combat identity centered on one main mobility fantasy. The first candidate set remains kunai/ninja, katana/samurai, and heavy axe, but the later spec should verify combat data seams before freezing names or numbers.
 
 Codebase context gathered so far suggests the tick player has no combat facing, Speed meter is an explicit player-owned meter, normal and mobility damage/range/cooldown are projected from run build channels, and mobility payload already supports Dash versus Smash replacement. That means classes should probably configure starting values and default verbs without adding hidden variable action costs.
+
+The player visual contract should not be copied directly from enemy visuals. Player presentation can reuse a low-level sprite-frame animator if child 01 creates one, but the player needs an aim marker rather than combat-facing body direction.
 
 ## Sketch
 
