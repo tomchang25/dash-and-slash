@@ -61,6 +61,8 @@ var _tick_move_tween: Tween
 @export var _status_bars: EnemyStatusBars
 @export var _body: Polygon2D
 @export var _facing_arrow: Polygon2D
+## Optional sprite-based presenter; when wired, feedback prefers it over _body/_facing_arrow.
+@export var _visual_presenter: EnemyVisualPresenter
 
 # == Lifecycle ================================================================
 
@@ -112,6 +114,8 @@ func reset() -> void:
     stop_attack_windup_vfx()
     if _body != null:
         _body.modulate = Color.WHITE
+    if _visual_presenter != null:
+        _visual_presenter.reset_visuals()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
     clear_planned_path()
@@ -162,6 +166,16 @@ func _on_guard_changed(current: int, maximum: int) -> void:
         _status_bars.set_guard(current, maximum)
 
 
+## Restores the idle visual after a tick-move slide finishes, unless a higher-priority
+## state (a committed attack, stagger, or death) took over while the slide was playing.
+func _on_tick_move_finished_visual() -> void:
+    if _visual_presenter == null:
+        return
+    if _tick_runtime.has_pending_attack() or _staggered or not is_alive():
+        return
+    _visual_presenter.show_idle()
+
+
 func _on_health_changed(current: float, maximum: float) -> void:
     super(current, maximum)
     if _status_bars != null:
@@ -169,6 +183,9 @@ func _on_health_changed(current: float, maximum: float) -> void:
 
 
 func _on_damaged(_amount: float, _source: Node) -> void:
+    if _visual_presenter != null:
+        _visual_presenter.flash_damage()
+        return
     if _body == null:
         return
     if _hurt_tween != null and _hurt_tween.is_valid():
@@ -191,6 +208,9 @@ func _on_damaged(_amount: float, _source: Node) -> void:
 
 func _on_stagger_started() -> void:
     _staggered = true
+    if _visual_presenter != null:
+        _visual_presenter.set_staggered(true)
+        return
     if _hurt_tween != null and _hurt_tween.is_valid():
         return
     _start_stagger_vfx()
@@ -198,6 +218,9 @@ func _on_stagger_started() -> void:
 
 func _on_stagger_ended() -> void:
     _staggered = false
+    if _visual_presenter != null:
+        _visual_presenter.set_staggered(false)
+        return
     if _body != null:
         if _stagger_tween != null and is_instance_valid(_stagger_tween):
             _stagger_tween.kill()
@@ -358,6 +381,9 @@ func tick_snap_to_cell(target_cell: Vector2i) -> void:
     _tick_move_tween.set_parallel(true)
     _tick_move_tween.tween_property(self, "global_position", _grid.cell_center(target_cell), TICK_MOVE_TWEEN_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
     _tick_move_tween.tween_property(self, "scale", Vector2.ONE, TICK_MOVE_TWEEN_SEC * 1.5)
+    if _visual_presenter != null:
+        _visual_presenter.show_move()
+        _tick_move_tween.finished.connect(_on_tick_move_finished_visual, CONNECT_ONE_SHOT)
 
 
 ## Turns capped toward the current target cell. Returns true once aligned (or when there is no target).
@@ -594,6 +620,8 @@ func face_arrow() -> void:
         _facing_arrow.rotation = _facing.angle() - PI / 2.0
     if _body != null:
         _body.rotation = _facing.angle() + PI / 2.0
+    if _visual_presenter != null:
+        _visual_presenter.set_facing(_facing)
 
 
 func register_grid_occupant() -> void:
@@ -1042,6 +1070,13 @@ func _resolve_node_references() -> void:
     _status_bars = _fallback_node(_status_bars, "StatusBars") as EnemyStatusBars
     _body = _fallback_node(_body, "Body") as Polygon2D
     _facing_arrow = _fallback_node(_facing_arrow, "FacingArrow") as Polygon2D
+    _visual_presenter = _fallback_node(_visual_presenter, "VisualPresenter") as EnemyVisualPresenter
+    if _visual_presenter != null and not _visual_presenter.has_valid_texture():
+        # The presenter already reported the missing texture; degrade to the legacy body instead
+        # of presenting a blank sprite.
+        _visual_presenter = null
+        if _body != null:
+            _body.visible = true
 
 
 func _fallback_node(assigned: Node, node_name: StringName) -> Node:
