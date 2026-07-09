@@ -26,6 +26,7 @@ Rules:
 
 ### Tick Artifact Rewards
 
+- 2026-07-09 — [rewards] Mobility Range replaces the separate attack/dash range artifacts with one flat +1 tile mobility bonus shared by Dash and Smash, and the unused Attack Range channel is removed from rewards and build inspection
 - 2026-07-08 — [rewards] Rewards now ship as Resource-backed artifact cards with distinct flat rolls, milestone Minor x2/Major offers, automatic curse reveals, and an on-demand build inspection panel
 
 ### Tick Arena Combat Feedback And Aim
