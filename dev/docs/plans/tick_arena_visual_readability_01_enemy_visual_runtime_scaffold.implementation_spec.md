@@ -65,7 +65,7 @@ The landed result should make SmallEnemy render through a sprite presenter inste
 
 ## Implementation Notes
 
-- `EnemyVisualPresenter` should expose coarse methods such as `show_idle()`, `show_move()`, `show_prepare_attack()`, `show_attack()`, `set_facing(facing: Vector2)`, `flash_damage()`, `set_staggered(active: bool)`, and `reset_visuals()`. Keep frame-row details private.
+- `EnemyVisualPresenter` should expose coarse methods such as `show_idle()`, `show_move()`, `show_prepare_attack()`, `show_attack_commit()`, `set_facing(facing: Vector2)`, `flash_damage()`, `set_staggered(active: bool)`, and `reset_visuals()`. Keep frame-row details private.
 - `DirectionalSpriteFrameView` should be data-light for this scaffold. A hard-coded placeholder mapping is acceptable if it is isolated behind named visual states and can be replaced by child 02's pose-sheet contract.
 - Use explicit enums for `VisualState` and `Direction`. Do not pass raw animation names, node names, or StringName state labels from gameplay code into the frame view.
 - Phase 1 frame selection is static per visual intent. Do not implement looping idle/walk animation, frame timers, elapsed-time counters, or tween callbacks that advance `frame_coords`.

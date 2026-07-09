@@ -36,14 +36,14 @@ Player/class identity hierarchy:
 
 Child overview:
 
-| Child | Focus                         | Current document                                                                |
-| ----- | ----------------------------- | ------------------------------------------------------------------------------- |
-| 01    | Enemy Visual Runtime Scaffold | `tick_arena_visual_readability_01_enemy_visual_runtime_scaffold.implementation_spec.md` |
-| 02    | SmallEnemy Baseline Pose Sheet | `tick_arena_visual_readability_02_small_enemy_baseline_pose_sheet.sketch.md`   |
-| 03    | Small Enemy Pattern Director  | `tick_arena_visual_readability_03_small_enemy_pattern_director.sketch.md`       |
-| 04    | Character Classes             | `tick_arena_visual_readability_04_character_classes.sketch.md`                  |
+| Child | Focus                                  | Current document                                                                                 |
+| ----- | -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 01    | Enemy Visual Runtime Scaffold          | `tick_arena_visual_readability_01_enemy_visual_runtime_scaffold.implementation_spec.md`          |
+| 02    | Enemy-Specific Visual Presenters | `tick_arena_visual_readability_02_enemy_specific_visual_presenters.implementation_spec.md` |
+| 03    | Small Enemy Pattern Director           | `tick_arena_visual_readability_03_small_enemy_pattern_director.sketch.md`                        |
+| 04    | Character Classes                      | `tick_arena_visual_readability_04_character_classes.sketch.md`                                   |
 
-Recommended landing order: first prove the enemy visual runtime scaffold on the baseline small enemy body with Ninja Adventure-style 16x16 source sprites rendered at integer scale, then author or adapt the baseline SmallEnemy pose sheet, then expand that body into pattern variants, then add character classes once enemies and telegraphs can support differentiated player kits.
+Recommended landing order: first prove the enemy visual runtime scaffold on the baseline small enemy body with Ninja Adventure-style 16x16 source sprites rendered at integer scale, then turn the scaffold into a shared semantic presenter contract with enemy-specific presenter implementations, then expand the small-body language into pattern variants, then add character classes once enemies and telegraphs can support differentiated player kits. The baseline enemy path should prioritize one readable representative pose per state plus short semantic tween/VFX cues; multi-frame animation is reserved for long windups, player identity, bosses, or special bodies that need custom presentation.
 
 ## Non-Goals
 
