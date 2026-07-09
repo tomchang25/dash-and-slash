@@ -8,7 +8,8 @@
 class_name EnemyTickRuntime
 extends RefCounted
 
-# -- State --------------------------------------------------------------------
+# -- State --
+
 ## The committed attack's locked footprint, checked against the player's cell at detonation.
 var _attack_tiles: Array[Vector2i] = []
 ## Player-actions remaining until the committed attack detonates; -1 when no attack is pending.
@@ -16,7 +17,7 @@ var _attack_ticks := -1
 ## World ticks the enemy stays disabled in its post-attack recovery window.
 var _recovery_ticks := 0
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## Locks a committed attack: stores its footprint tiles and starts the player-action countdown.

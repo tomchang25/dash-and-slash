@@ -19,7 +19,8 @@ enum VisualState {
     ATTACK,
 }
 
-# -- Constants ------------------------------------------------------------------
+# -- Constants --
+
 ## Placeholder column-per-state mapping for the scaffold sheet; child 02's pose-sheet
 ## contract may replace this layout.
 const FRAME_COLUMN_BY_STATE := {
@@ -36,17 +37,18 @@ const FRAME_ROW_BY_DIRECTION := {
     Direction.UP: 3,
 }
 
-# -- State --------------------------------------------------------------------
+# -- State --
+
 var _state: VisualState = VisualState.IDLE
 var _direction: Direction = Direction.DOWN
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
     _apply_frame_coords()
 
-# == Common API ================================================================
+# == Common API ==
 
 
 func set_visual_state(state: VisualState) -> void:
@@ -58,7 +60,7 @@ func set_direction(direction: Direction) -> void:
     _direction = direction
     _apply_frame_coords()
 
-# == Frame selection ============================================================
+# == Frame selection ==
 
 
 func _apply_frame_coords() -> void:

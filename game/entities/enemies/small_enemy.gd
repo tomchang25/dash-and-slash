@@ -7,14 +7,16 @@ extends GridEnemy
 ## and flanking windows open naturally instead of the chase locking on forever.
 const TICK_SPEED := 75
 
-# -- Node references ----------------------------------------------------------
+# -- State --
+
+var _attack_data: EnemyAttackData
+
+# -- Node references --
+
 @onready var _attack_controller: EnemyAttackController = %AttackController
 @onready var _telegraph: TileTelegraph = %TileTelegraph
 
-# -- State --------------------------------------------------------------------
-var _attack_data: EnemyAttackData
-
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -22,7 +24,7 @@ func _ready() -> void:
     _configure_attack_controller()
     _select_attack_data()
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## Reports an attack only when the enemy already faces the direction whose footprint covers the target.
@@ -105,7 +107,7 @@ func plan_next_action() -> bool:
 
     return plan_approach_action()
 
-# == Setup helpers =============================================================
+# == Setup helpers ==
 
 
 func _after_setup_ready() -> void:

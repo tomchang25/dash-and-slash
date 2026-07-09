@@ -87,6 +87,8 @@ Variable groups at the top of the file use the single-line format.
 
 ```gdscript
 # -- Group name --
+
+var _example_state := false
 ```
 
 Use a consistent label from the table below.
@@ -101,6 +103,10 @@ Use a consistent label from the table below.
 
 Only include groups that have at least one variable. Do not create custom group names unless no standard label fits.
 
+Do not pad variable block headers to a fixed width. Legacy padded headers may remain in untouched old files, but any touched header must use the exact single-line shape above.
+
+Leave whitespace after a variable block header so the header reads as a section label rather than a comment on the first declaration. Let `gdscript-formatter` normalize the exact blank-line count.
+
 ---
 
 # 4. Function Section Headers
@@ -109,9 +115,16 @@ Function groups use the double-line format.
 
 ```gdscript
 # == Section name ==
+
+func example() -> void:
+    pass
 ```
 
 Use ASCII `=` and `-` header characters. Do not pad headers to a fixed column. Legacy padded or Unicode headers may remain in old files; update touched headers opportunistically rather than performing bulk-only rewrites.
+
+Padded function section headers are violations in touched files. Do not copy legacy fixed-width headers into new or edited scripts.
+
+Leave whitespace after a function section header so the header reads as a section label rather than a comment on the first function. Let `gdscript-formatter` normalize the exact blank-line count.
 
 ---
 

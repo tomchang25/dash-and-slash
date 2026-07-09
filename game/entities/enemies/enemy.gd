@@ -6,10 +6,11 @@ extends Entity
 signal died(entity: Entity)
 signal health_changed(current: float, maximum: float)
 
-# -- Exports ------------------------------------------------------------------
+# -- Exports --
+
 @export var health: Health
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -19,7 +20,7 @@ func _ready() -> void:
         health.health_changed.connect(_on_health_changed)
         emit_health_snapshot()
 
-# == Signal handlers ==========================================================
+# == Signal handlers ==
 
 
 func _on_health_died() -> void:
@@ -30,14 +31,14 @@ func _on_health_died() -> void:
 func _on_health_changed(current: float, maximum: float) -> void:
     health_changed.emit(current, maximum)
 
-# == Common API ================================================================
+# == Common API ==
 
 
 func emit_health_snapshot() -> void:
     if health != null:
         health_changed.emit(health.current(), health.max_health)
 
-# == Death =====================================================================
+# == Death ==
 
 
 ## Override point for the single shared death trigger. Combat damage reaching

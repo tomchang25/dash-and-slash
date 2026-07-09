@@ -5,7 +5,8 @@
 class_name EnemyVisualPresenter
 extends Node2D
 
-# -- Constants ------------------------------------------------------------------
+# -- Constants --
+
 const DAMAGE_FLASH_COLOR := Color(0.8, 0.2, 0.2, 1.0)
 const STAGGER_TINT_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const FLASH_IN_SEC := 0.03
@@ -14,24 +15,27 @@ const FLASH_OUT_SEC := 0.08
 const STAGGER_TINT_SEC := 0.2
 const STAGGER_CLEAR_SEC := 0.3
 
-# -- State --------------------------------------------------------------------
+# -- State --
+
 var _is_staggered := false
 
-# -- Timer / tween handles ------------------------------------------------------
+# -- Timer / tween handles --
+
 var _flash_tween: Tween
 var _tint_tween: Tween
 
-# -- Node references ------------------------------------------------------------
+# -- Node references --
+
 @onready var _frame_view: DirectionalSpriteFrameView = %Sprite
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
     if not has_valid_texture():
         ToastManager.show_dev_error("%s: EnemyVisualPresenter has no placeholder texture assigned to its Sprite." % name)
 
-# == Signal handlers ==========================================================
+# == Signal handlers ==
 
 
 func _on_flash_finished() -> void:
@@ -41,7 +45,7 @@ func _on_flash_finished() -> void:
     else:
         _frame_view.modulate = Color.WHITE
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## True once the frame view has a texture assigned; GridEnemy falls back to its legacy
@@ -106,7 +110,7 @@ func reset_visuals() -> void:
     _frame_view.modulate = Color.WHITE
     show_idle()
 
-# == Feature: facing ============================================================
+# == Feature: facing ==
 
 
 func _direction_from_facing(facing: Vector2) -> DirectionalSpriteFrameView.Direction:

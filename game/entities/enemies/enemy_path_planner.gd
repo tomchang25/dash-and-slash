@@ -7,7 +7,7 @@ extends RefCounted
 
 const NO_CELL := Vector2i(-1, -1)
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## BFS from start to the nearest cell in goal_cells, treating blocked_cell as impassable. The start
@@ -111,7 +111,7 @@ static func can_plan_goal_cell(grid: GridArena, asker: Object, cell: Vector2i, i
         return false
     return _can_claim_committed_path_cell(grid, asker, cell, is_attack)
 
-# == Search internals ==========================================================
+# == Search internals ==
 
 
 static func _reconstruct_path(came_from: Dictionary, goal: Vector2i) -> Array[Vector2i]:

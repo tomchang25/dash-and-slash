@@ -20,17 +20,15 @@ const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
 
+# -- Exports --
 
-func _get_movement_directions() -> Array:
-    return CARDINAL_DIRECTIONS
-
-# -- Exports ------------------------------------------------------------------
 @export var death_sfx_event: SpatialAudioEvent
 @export var damaged_sfx_event: SpatialAudioEvent
 @export var blocked_sfx_event: SpatialAudioEvent
 @export var enemy_data: EnemyData
 
-# -- State --------------------------------------------------------------------
+# -- State --
+
 var _grid: GridArena
 var _target: Node2D
 var _grid_pos: Vector2i
@@ -43,19 +41,23 @@ var _reservation_is_attack: bool = false
 var _attack_windup_vfx: Node2D
 var _damage_multiplier := 1.0
 var _defense := 0.0
+var _fsm_debug_label: Label
 
-# -- Tick state ---------------------------------------------------------------
+# -- Tick state --
+
 ## Set by bind_tick_engine(); non-null means this enemy is clocked by the tick engine.
 var _tick_engine = null
 ## Owns this enemy's clocked combat status: committed attack tiles, detonation countdown, recovery window.
 var _tick_runtime := EnemyTickRuntime.new()
 
-# -- Timer / tween handles ----------------------------------------------------
+# -- Timer / tween handles --
+
 var _stagger_tween: Tween
 var _hurt_tween: Tween
 var _tick_move_tween: Tween
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
+
 @export var _state_machine: StateMachine
 @export var _guard: Guard
 @export var _status_bars: EnemyStatusBars
@@ -64,7 +66,7 @@ var _tick_move_tween: Tween
 ## Optional sprite-based presenter; when wired, feedback prefers it over _body/_facing_arrow.
 @export var _visual_presenter: EnemyVisualPresenter
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -105,7 +107,7 @@ func _draw() -> void:
     draw_line(start_point, next_point, PATH_DEBUG_COLOR, PATH_DEBUG_WIDTH)
     draw_circle(next_point, PATH_DEBUG_WIDTH * 1.5, PATH_DEBUG_COLOR)
 
-# == Overridden Custom Methods ================================================
+# == Overridden Custom Methods ==
 
 
 func reset() -> void:
@@ -128,7 +130,7 @@ func reset() -> void:
         _on_guard_changed(_guard.current(), _guard.max_guard)
     _reset_extra()
 
-# == Signal handlers ==========================================================
+# == Signal handlers ==
 
 
 ## Clears planned movement when a higher-priority claim takes our reservation.
@@ -227,7 +229,7 @@ func _on_stagger_ended() -> void:
         _stagger_tween = create_tween()
         _stagger_tween.tween_property(_body, "modulate", Color.WHITE, 0.3)
 
-# == Common API ================================================================
+# == Common API ==
 
 
 func setup(grid: GridArena, target: Node2D) -> void:
@@ -241,7 +243,8 @@ func setup(grid: GridArena, target: Node2D) -> void:
             _grid.reservation_lost.connect(_on_reservation_lost)
         _after_setup_ready()
 
-# == Tick actor contract =======================================================
+# == Tick actor contract ==
+
 # Called by the TickEngine each world advance. The engine owns the resolution order
 # (detonations first, then status, then energy-funded actions); the enemy owns its
 # own behavior within those hooks.
@@ -897,7 +900,11 @@ func plan_cell_attack_action(get_cells_for_origin: Callable, get_origins_for_tar
     queue_redraw()
     return true
 
-# == Grid helpers ==============================================================
+# == Grid helpers ==
+
+
+func _get_movement_directions() -> Array:
+    return CARDINAL_DIRECTIONS
 
 
 func _collect_attack_origin_candidates(target_cell: Vector2i, get_origins_for_target: Callable) -> Array[Vector2i]:
@@ -994,9 +1001,7 @@ func _refresh_planned_reservations() -> bool:
 
     return _grid.reserve_cells_with_active_steps(self, reserved_cells, _reservation_is_attack, active_cells)
 
-# == Setup helpers =============================================================
-
-var _fsm_debug_label: Label
+# == Setup helpers ==
 
 
 func _init_debug_fsm_state() -> void:
@@ -1088,7 +1093,7 @@ func _fallback_node(assigned: Node, node_name: StringName) -> Node:
         ToastManager.show_dev_error("%s: %s not wired to its @export slot; using name-based fallback." % [name, node_name])
     return found
 
-# == Tick combat and detonation ================================================
+# == Tick combat and detonation ==
 
 
 ## Per-kind detonation when the telegraph countdown reaches zero. The base resolves a single

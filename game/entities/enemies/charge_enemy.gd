@@ -8,25 +8,23 @@ const CHARGE_RANGE := 5
 ## Baseline tick speed: the charger's threat is bursty and self-paces via align/turn/telegraph/recovery.
 const TICK_SPEED := 100
 
-# -- State --------------------------------------------------------------------
+# -- State --
 var _attack_data: EnemyAttackData
 var _charge_cells: Array[Vector2i] = []
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 @onready var _telegraph: TileTelegraph = %TileTelegraph
 
-# == Lifecycle ================================================================
 
-
+# == Lifecycle ==
 func _ready() -> void:
     super()
     _select_attack_data()
     if _telegraph != null:
         _telegraph.setup(_grid)
 
-# == Common API ================================================================
 
-
+# == Common API ==
 func get_charge_cells_from_pos(from: Vector2i, facing: Vector2) -> Array[Vector2i]:
     var attack_data := get_current_attack_data()
     if attack_data != null:
@@ -152,9 +150,8 @@ func plan_next_action() -> bool:
 func end_charge_attack() -> void:
     stop_attack_windup_vfx()
 
-# == Setup helpers =============================================================
 
-
+# == Setup helpers ==
 func _after_setup_ready() -> void:
     _select_attack_data()
     if _telegraph != null:

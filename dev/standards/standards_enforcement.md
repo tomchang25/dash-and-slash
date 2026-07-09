@@ -37,6 +37,11 @@ when it's actually been violated enough to be worth automating.
 
 Only what `lint_standards.py` enforces today:
 
+- **GDScript header shape and declaration placement** (`gdscript_structure_standard.md` §2-§5).
+  Variable block headers must use the unpadded `# -- Group name --` shape, and function section headers must use the unpadded `# == Section name ==` shape. The check accepts custom group/section names; it only rejects padded or malformed header syntax.
+
+  The same check also enforces the standard declaration block flow where it is syntactic: recognized variable blocks appear in declaration order (`Constants`, `Exports`, `State`, `Timer / tween handles`, `Node references`), and top-level declarations such as `const`, `var`, `@export var`, `@onready var`, `signal`, and `enum` must not appear after function sections have begun.
+
 - **Node-source rule** (`scene_node_source_standard.md` §5). A machine
   can't tell whether a node is persistent, so the convention makes intent
   syntactic: every runtime `add_child` that is _not_ a `.instantiate()`'d packed

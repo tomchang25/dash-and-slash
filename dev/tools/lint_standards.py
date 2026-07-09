@@ -65,6 +65,20 @@ NODE_REF_ALLOW_RE = re.compile(r"#\s*node-ref:\s*allow\b")
 INSTANTIATE_ASSIGN_RE = re.compile(
     r"^[ \t]*(?:var[ \t]+)?(\w+)[ \t]*(?::[ \t]*[\w\[\], ]+)?:?=[ \t]*[\w.\[\]()]*\.instantiate\(\)"
 )
+VARIABLE_BLOCK_HEADER_RE = re.compile(r"^# -- .+ --$")
+FUNCTION_SECTION_HEADER_RE = re.compile(r"^# == .+ ==$")
+GDSCRIPT_HEADER_PREFIX_RE = re.compile(r"^# (?:--|==) ")
+TOP_LEVEL_DECL_RE = re.compile(
+    r"^(?:@export[ \t]+var|@onready[ \t]+var|var|const|signal|enum)\b"
+)
+TOP_LEVEL_FUNC_RE = re.compile(r"^func[ \t]+")
+VARIABLE_BLOCK_ORDER = {
+    "# -- Constants --": 0,
+    "# -- Exports --": 1,
+    "# -- State --": 2,
+    "# -- Timer / tween handles --": 3,
+    "# -- Node references --": 4,
+}
 
 
 # ── Result type ──────────────────────────────────────────────────────────────
@@ -216,6 +230,89 @@ def check_node_lookup(path: str, text: str) -> list[Violation]:
     return violations
 
 
+# ── Tier 1: GDScript structure headers and declaration order ─────────────────
+
+
+def check_gdscript_structure(path: str, text: str) -> list[Violation]:
+    """Top-level variable block headers use `# -- Name --`; function section
+    headers use `# == Name ==`; and declarations stay above function sections."""
+    violations: list[Violation] = []
+    lines = text.splitlines()
+    highest_seen_variable_block = -1
+    function_section_started = False
+
+    for i, line in enumerate(lines, start=1):
+        stripped = line.strip()
+
+        if GDSCRIPT_HEADER_PREFIX_RE.match(stripped):
+            if stripped.startswith("# -- "):
+                if VARIABLE_BLOCK_HEADER_RE.match(stripped) is None:
+                    violations.append(
+                        Violation(
+                            path,
+                            i,
+                            "gdscript-structure",
+                            "gdscript_structure §3",
+                            "variable block headers must use the single-line "
+                            "format `# -- Group name --`; padded headers are "
+                            "not allowed in touched files.",
+                        )
+                    )
+                block_order = VARIABLE_BLOCK_ORDER.get(stripped)
+                if block_order is not None:
+                    if block_order < highest_seen_variable_block:
+                        violations.append(
+                            Violation(
+                                path,
+                                i,
+                                "gdscript-structure",
+                                "gdscript_structure §2/§3",
+                                "variable block headers are out of declaration "
+                                "order. Use Constants, Exports, State, "
+                                "Timer / tween handles, then Node references.",
+                            )
+                        )
+                    highest_seen_variable_block = max(
+                        highest_seen_variable_block, block_order
+                    )
+            elif stripped.startswith("# == "):
+                function_section_started = True
+                if FUNCTION_SECTION_HEADER_RE.match(stripped) is None:
+                    violations.append(
+                        Violation(
+                            path,
+                            i,
+                            "gdscript-structure",
+                            "gdscript_structure §4",
+                            "function section headers must use the double-line "
+                            "format `# == Section name ==`; padded headers are "
+                            "not allowed in touched files.",
+                        )
+                    )
+            continue
+
+        if TOP_LEVEL_FUNC_RE.match(line):
+            function_section_started = True
+            continue
+
+        if not function_section_started or line != line.lstrip():
+            continue
+
+        if TOP_LEVEL_DECL_RE.match(line):
+            violations.append(
+                Violation(
+                    path,
+                    i,
+                    "gdscript-structure",
+                    "gdscript_structure §2/§5",
+                    "top-level declarations must stay in the declaration block "
+                    "above function sections.",
+                )
+            )
+
+    return violations
+
+
 # ── Tier 1: signal connections live in code, not the .tscn (scene §Signal) ───
 
 
@@ -331,7 +428,7 @@ def check_bare_push_warning(path: str, text: str) -> list[Violation]:
 
 # (suffix, check fn) pairs. Add new checks here as more rules graduate from the
 # manifest into machine enforcement.
-GD_CHECKS = (check_node_source, check_node_lookup)
+GD_CHECKS = (check_gdscript_structure, check_node_source, check_node_lookup)
 GD_ERROR_GUARD_CHECKS = (check_bare_push_error, check_bare_push_warning)
 TSCN_CHECKS = (check_tscn_connections,)
 

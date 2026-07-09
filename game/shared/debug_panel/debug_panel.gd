@@ -19,14 +19,14 @@ var _sections: Dictionary = { }
 @onready var _title_label: Label = %DebugPanelTitle
 @onready var _section_list: VBoxContainer = %DebugPanelSectionList
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
     visible = Debug.enabled
     Debug.toggled.connect(_on_debug_toggled)
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## Registers one debug action button under the given section, creating the section's header and
@@ -64,7 +64,7 @@ func set_action_active(button: Button, active: bool) -> void:
     else:
         button.remove_theme_color_override("font_color")
 
-# == Signal handlers ===========================================================
+# == Signal handlers ==
 
 
 func _on_debug_toggled(is_enabled: bool) -> void:
@@ -77,7 +77,7 @@ func _on_action_pressed(callback: Callable) -> void:
     if callback.is_valid():
         callback.call()
 
-# == Sections ==================================================================
+# == Sections ==
 
 
 ## Returns the button list for the given section, creating the section (and its header label, when

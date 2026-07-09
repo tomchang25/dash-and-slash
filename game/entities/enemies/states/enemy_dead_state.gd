@@ -3,14 +3,22 @@
 class_name EnemyDeadState
 extends EnemyState
 
-func _init() -> void:
-    state_id = EnemyStateId.DEAD
-
+# -- Constants --
 
 const DEATH_DURATION := 0.5
 const DEATH_ROTATION_RADIANS := TAU
 
+# -- State --
+
 var _death_tween: Tween
+
+# == Lifecycle ==
+
+
+func _init() -> void:
+    state_id = EnemyStateId.DEAD
+
+# == Overridden Custom Methods ==
 
 
 func _enter() -> void:
