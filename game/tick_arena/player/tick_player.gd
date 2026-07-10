@@ -36,7 +36,6 @@ const SPEED_FILL_CAP := 75
 @export var smash_impact_sfx_event: SpatialAudioEvent
 @export var guard_shredder_sfx_event: SpatialAudioEvent
 @export var execution_sfx_event: SpatialAudioEvent
-@export var visual_presenter: TickPlayerVisualPresenter
 
 # -- State --
 
@@ -56,6 +55,10 @@ var _character_class: CharacterClassData
 
 var _move_tween: Tween = null
 var _flash_tween: Tween = null
+
+# -- Node references --
+
+@onready var visual_presenter: TickPlayerVisualPresenter = %VisualPresenter
 
 # == Lifecycle ==
 

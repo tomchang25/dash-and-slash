@@ -57,6 +57,15 @@ func test_class_rows_report_authored_class_and_fixed_mobility() -> void:
     assert_eq(rows[1]["value"], "Smash")
 
 
+func test_class_rows_report_unknown_for_a_missing_character_class() -> void:
+    var rows := BuildInspectionFormatter.build_class_rows(null)
+
+    assert_eq(rows[0]["label"], "Class")
+    assert_eq(rows[0]["value"], "Unknown")
+    assert_eq(rows[1]["label"], "Mobility")
+    assert_eq(rows[1]["value"], "Unknown")
+
+
 func test_trigger_rows_report_none_when_no_trigger_is_active() -> void:
     var run_build := RunBuild.new()
 

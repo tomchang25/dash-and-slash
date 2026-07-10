@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://okamu2owrwh8" path="res://data/rewards/definitions/artifact_registry.gd" id="1_registry"]
 [ext_resource type="Script" uid="uid://bc8xcmmfdfnkl" path="res://data/rewards/definitions/artifact.gd" id="2_artifact"]
 [ext_resource type="Resource" uid="uid://2fk0ol45s6be" path="res://data/rewards/artifacts/attack_up.tres" id="art_attack_up"]
-[ext_resource type="Resource" path="res://data/rewards/artifacts/chain_dash.tres" id="art_chain_dash"]
+[ext_resource type="Resource" uid="uid://byw4vqvypadol" path="res://data/rewards/artifacts/chain_dash.tres" id="art_chain_dash"]
 [ext_resource type="Resource" uid="uid://oav0tadqrlbr" path="res://data/rewards/artifacts/dash_attack_up.tres" id="art_dash_attack_up"]
 [ext_resource type="Resource" uid="uid://8sx1jdlwexr" path="res://data/rewards/artifacts/enemy_damage_pressure.tres" id="art_enemy_damage_pressure"]
 [ext_resource type="Resource" uid="uid://rsn7fhk0n2wc" path="res://data/rewards/artifacts/enemy_defense_pressure.tres" id="art_enemy_defense_pressure"]

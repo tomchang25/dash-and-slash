@@ -43,17 +43,3 @@ func _play_attack_commit_feedback() -> void:
     var tween := _create_action_tween()
     tween.tween_property(self, "scale", COMMIT_SCALE, COMMIT_POP_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
     tween.tween_property(self, "scale", Vector2.ONE, COMMIT_SETTLE_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-
-
-func _display_forward() -> Vector2:
-    if _facing == Vector2.ZERO:
-        return Vector2.DOWN
-    return _facing.normalized()
-
-
-func _side_rotation(amount: float) -> float:
-    if _facing == Vector2.LEFT:
-        return -amount
-    if _facing == Vector2.RIGHT:
-        return amount
-    return 0.0

@@ -95,6 +95,8 @@ func show_attack_commit() -> void:
 func flash_damage() -> void:
     if _flash_tween != null and _flash_tween.is_valid():
         _flash_tween.kill()
+    if _tint_tween != null and is_instance_valid(_tint_tween):
+        _tint_tween.kill()
 
     _flash_tween = create_tween()
     _flash_tween.tween_property(_frame_view, "modulate", Color.WHITE, FLASH_IN_SEC)
@@ -103,11 +105,15 @@ func flash_damage() -> void:
     _flash_tween.finished.connect(_on_flash_finished, CONNECT_ONE_SHOT)
 
 
-## Tints toward stagger color when active, or clears back to base tint when it ends.
+## Tints toward stagger color when active, or clears back to base tint when it ends. Defers to an
+## in-flight damage flash instead of racing it for modulate; _on_flash_finished() re-checks
+## _is_staggered when the flash completes, so the correct resting tint still applies.
 func set_staggered(active: bool) -> void:
     _is_staggered = active
     if active:
         _clear_action_feedback()
+    if _flash_tween != null and _flash_tween.is_valid():
+        return
     if _tint_tween != null and is_instance_valid(_tint_tween):
         _tint_tween.kill()
 
@@ -184,3 +190,19 @@ func _direction_from_facing(facing: Vector2) -> DirectionalSpriteFrameView.Direc
     if facing == Vector2.RIGHT:
         return DirectionalSpriteFrameView.Direction.RIGHT
     return DirectionalSpriteFrameView.Direction.DOWN
+
+
+## Shared action-feedback direction helpers: forward vector for lean/lunge offsets, and a
+## signed rotation that only leans for the horizontal facings concrete presenters use.
+func _display_forward() -> Vector2:
+    if _facing == Vector2.ZERO:
+        return Vector2.DOWN
+    return _facing.normalized()
+
+
+func _side_rotation(amount: float) -> float:
+    if _facing == Vector2.LEFT:
+        return -amount
+    if _facing == Vector2.RIGHT:
+        return amount
+    return 0.0

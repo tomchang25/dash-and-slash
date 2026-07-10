@@ -52,10 +52,6 @@ func clear_stored_charge_cells() -> void:
     _charge_cells.clear()
 
 
-func face_arrow() -> void:
-    super()
-
-
 ## Commits the charge both before planning and on arrival, whenever the enemy is aligned and already
 ## facing the charge direction so its line footprint covers the target.
 func should_commit_before_plan() -> bool:
@@ -128,14 +124,18 @@ func begin_attack_telegraph() -> bool:
 
 
 ## Tick detonation: damages the player if their cell is on the charge line, then rushes to the farthest open landing cell along it.
+## Recovery cleanup runs before the landing move starts so its idle reset does not clobber the
+## move-lean tween tick_snap_to_cell() just kicked off; _on_tick_move_finished_visual() restores
+## idle again once the landing slide actually finishes.
 func _tick_detonate() -> void:
     var tiles := get_attack_tiles()
     _resolve_detonation_on_player(tiles)
     var dest := get_charge_landing_cell(tiles)
-    if dest != _grid_pos:
+    var will_move := dest != _grid_pos
+    finish_attack_into_recovery()
+    if will_move:
         CombatFeedbackVFX.play_charge_start(global_position, _facing, self)
         tick_snap_to_cell(dest)
-    finish_attack_into_recovery()
 
 
 ## Tick hook: clears the charge telegraph, windup, and stored line when the charge resolves or cancels.

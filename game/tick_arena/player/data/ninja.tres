@@ -9,5 +9,6 @@ script = ExtResource("1_class")
 id = &"ninja"
 display_name = "Ninja"
 base_speed_fill = 20
+mobility_id = &"dash"
 body_texture = ExtResource("2_body")
 weapon_texture = ExtResource("3_weapon")

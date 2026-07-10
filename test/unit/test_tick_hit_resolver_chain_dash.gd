@@ -2,7 +2,6 @@
 # Tests Chain Dash qualification and multi-victim single-refund folding on typed hit outcomes.
 extends GutTest
 
-
 func test_kill_outcome_qualifies() -> void:
     var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.FRONT, 0, _snapshot(10.0, 0, false, false), 100.0)
 
@@ -46,6 +45,20 @@ func test_any_qualifies_folds_multiple_victims_into_one_flag() -> void:
     var outcomes: Array[TickHitOutcome] = [ordinary, staggered]
 
     assert_true(TickHitResolver.any_qualifies_for_chain_dash(outcomes))
+
+
+func test_any_qualifies_returns_false_for_empty_outcomes() -> void:
+    var outcomes: Array[TickHitOutcome] = []
+
+    assert_false(TickHitResolver.any_qualifies_for_chain_dash(outcomes))
+
+
+func test_any_qualifies_returns_false_when_no_victim_qualifies() -> void:
+    var ordinary_a := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.FRONT, 5, _snapshot(1000.0, 20, false, true), 10.0)
+    var ordinary_b := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.FRONT, 8, _snapshot(1000.0, 20, false, true), 10.0)
+    var outcomes: Array[TickHitOutcome] = [ordinary_a, ordinary_b]
+
+    assert_false(TickHitResolver.any_qualifies_for_chain_dash(outcomes))
 
 
 func _snapshot(hp: float, guard_current: int, staggered: bool, has_guard: bool) -> Dictionary:

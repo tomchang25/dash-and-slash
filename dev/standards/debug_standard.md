@@ -137,8 +137,8 @@ unique_name_in_owner = true
 func _wire_debug_panel() -> void:
     _ninja_class_button = _debug_panel.add_action("Class - Ninja", _on_debug_set_ninja_class, "Player")
     _viking_class_button = _debug_panel.add_action("Class - Viking", _on_debug_set_viking_class, "Player")
-    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder)
-    _chain_dash_button = _debug_panel.add_action("Chain Dash", _on_debug_toggle_chain_dash)
+    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder, "Build")
+    _chain_dash_button = _debug_panel.add_action("Chain Dash", _on_debug_toggle_chain_dash, "Build")
 
 
 func _on_debug_set_ninja_class() -> void:
