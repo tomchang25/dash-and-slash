@@ -12,11 +12,10 @@
 [ext_resource type="Resource" uid="uid://oia446zb405h" path="res://data/rewards/artifacts/enemy_health_pressure.tres" id="art_enemy_health_pressure"]
 [ext_resource type="Resource" uid="uid://a8sx1jdlwexr" path="res://data/rewards/artifacts/enemy_damage_pressure.tres" id="art_enemy_damage_pressure"]
 [ext_resource type="Resource" uid="uid://rsn7fhk0n2wc" path="res://data/rewards/artifacts/enemy_defense_pressure.tres" id="art_enemy_defense_pressure"]
-[ext_resource type="Resource" uid="uid://vcvs1v1u143n" path="res://data/rewards/artifacts/smash.tres" id="art_smash"]
 [ext_resource type="Resource" uid="uid://yh0lcj4542z0" path="res://data/rewards/artifacts/guard_shredder.tres" id="art_guard_shredder"]
 [ext_resource type="Resource" uid="uid://tqdp8g4womhx" path="res://data/rewards/artifacts/execution.tres" id="art_execution"]
-[ext_resource type="Resource" uid="uid://cdgx20yzzjfn" path="res://data/rewards/artifacts/mobility_free_action.tres" id="art_mobility_free_action"]
+[ext_resource type="Resource" path="res://data/rewards/artifacts/chain_dash.tres" id="art_chain_dash"]
 
 [resource]
 script = ExtResource("1_registry")
-artifacts = Array[ExtResource("2_artifact")]([ExtResource("art_future_enemy"), ExtResource("art_attack_up"), ExtResource("art_speed_up"), ExtResource("art_dash_attack_up"), ExtResource("art_mobility_cooldown_down"), ExtResource("art_mobility_range_up"), ExtResource("art_max_health_up"), ExtResource("art_enemy_health_pressure"), ExtResource("art_enemy_damage_pressure"), ExtResource("art_enemy_defense_pressure"), ExtResource("art_smash"), ExtResource("art_guard_shredder"), ExtResource("art_execution"), ExtResource("art_mobility_free_action")])
+artifacts = Array[ExtResource("2_artifact")]([ExtResource("art_future_enemy"), ExtResource("art_attack_up"), ExtResource("art_speed_up"), ExtResource("art_dash_attack_up"), ExtResource("art_mobility_cooldown_down"), ExtResource("art_mobility_range_up"), ExtResource("art_max_health_up"), ExtResource("art_enemy_health_pressure"), ExtResource("art_enemy_damage_pressure"), ExtResource("art_enemy_defense_pressure"), ExtResource("art_guard_shredder"), ExtResource("art_execution"), ExtResource("art_chain_dash")])

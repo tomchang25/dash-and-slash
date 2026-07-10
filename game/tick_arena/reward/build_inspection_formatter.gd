@@ -1,6 +1,6 @@
 # build_inspection_formatter.gd
 # Stateless formatting/data-assembly for the build inspection panel: stable channel display order
-# and labels, flat/percent value formatting, mobility payload and trigger labels, and owned-artifact
+# and labels, flat/percent value formatting, class/Mobility and trigger labels, and owned-artifact
 # row assembly from RunBuild's read API. Kept free of any Control/scene reference so it can be
 # unit-tested without instancing the panel.
 class_name BuildInspectionFormatter
@@ -61,22 +61,16 @@ const _CHANNEL_UNITS := {
     RunBuild.CH_ENEMY_DEFENSE_PRESSURE: ChannelUnit.FLAT,
 }
 
-const _PAYLOAD_LABELS := {
-    RunBuild.PAYLOAD_DASH: "Dash",
-    RunBuild.PAYLOAD_SMASH: "Smash",
-    RunBuild.PAYLOAD_DEBUG_STUB: "Debug Stub",
-}
-
 const _TRIGGER_ORDER: Array[StringName] = [
     RunBuild.TRIGGER_GUARD_SHREDDER,
     RunBuild.TRIGGER_EXECUTION,
-    RunBuild.TRIGGER_MOBILITY_FREE_ACTION,
+    RunBuild.TRIGGER_CHAIN_DASH,
 ]
 
 const _TRIGGER_LABELS := {
     RunBuild.TRIGGER_GUARD_SHREDDER: "Guard Shredder",
     RunBuild.TRIGGER_EXECUTION: "Execution",
-    RunBuild.TRIGGER_MOBILITY_FREE_ACTION: "Flowing Strike",
+    RunBuild.TRIGGER_CHAIN_DASH: "Chain Dash",
 }
 
 # == Common API ==
@@ -94,14 +88,18 @@ static func build_channel_rows(run_build: RunBuild) -> Array[Dictionary]:
     return rows
 
 
-## Returns the single active-mobility-payload summary row, always present.
-static func build_payload_row(run_build: RunBuild) -> Dictionary:
-    var payload := run_build.get_mobility_payload()
-    var value: String = _PAYLOAD_LABELS.get(payload, "")
-    if value == "":
-        ToastManager.show_dev_error("BuildInspectionFormatter: unknown mobility payload '%s'" % payload)
-        value = "Unknown"
-    return { "label": "Mobility Payload", "value": value, "style": ROW_STYLE_SUMMARY }
+## Returns always-present class and fixed-Mobility summary rows.
+static func build_class_rows(character_class: CharacterClassData) -> Array[Dictionary]:
+    if character_class == null:
+        ToastManager.show_dev_error("BuildInspectionFormatter: missing CharacterClassData")
+        return [
+            { "label": "Class", "value": "Unknown", "style": ROW_STYLE_SUMMARY },
+            { "label": "Mobility", "value": "Unknown", "style": ROW_STYLE_SUMMARY },
+        ]
+    return [
+        { "label": "Class", "value": character_class.display_name, "style": ROW_STYLE_SUMMARY },
+        { "label": "Mobility", "value": character_class.mobility_display_name(), "style": ROW_STYLE_SUMMARY },
+    ]
 
 
 ## Returns one row per active mobility trigger, or a single explicit "None" row when no trigger is

@@ -1,8 +1,7 @@
 # build_inspection_panel.gd
-# Toggleable, read-only view over the run's shared RunBuild: owned-artifact rows and aggregate
-# build-total rows (channels, mobility payload, mobility triggers). Rebuilds its row children from
-# BuildInspectionFormatter on open, reward application, and run reset; keeps no authoritative copy
-# of owned artifacts or totals between refreshes.
+# Toggleable, read-only view over the active class and shared RunBuild: owned artifacts and totals.
+# Rebuilds through BuildInspectionFormatter on open, reward application, and run reset; keeps no
+# authoritative copy of owned artifacts or totals between refreshes.
 class_name BuildInspectionPanel
 extends PanelContainer
 
@@ -14,6 +13,7 @@ const TotalRowScene: PackedScene = preload("res://game/tick_arena/reward/build_i
 # -- State --
 
 var _run_build: RunBuild = null
+var _character_class: CharacterClassData
 
 # -- Node references --
 
@@ -42,9 +42,17 @@ func _on_close_pressed() -> void:
 
 ## Stores the shared run-scoped RunBuild this panel reads from. TickArena owns and injects this
 ## reference; the panel never constructs or replaces it.
-func setup(run_build: RunBuild) -> void:
+func setup(run_build: RunBuild, character_class: CharacterClassData) -> void:
     _run_build = run_build
+    _character_class = character_class
     if is_node_ready():
+        _apply()
+
+
+## Replaces the active class summary at the run-reset boundary.
+func set_character_class(character_class: CharacterClassData) -> void:
+    _character_class = character_class
+    if is_node_ready() and visible:
         _apply()
 
 
@@ -97,7 +105,7 @@ func _apply_totals() -> void:
     _clear_children(_totals_list)
     var rows: Array[Dictionary] = []
     rows.append_array(BuildInspectionFormatter.build_channel_rows(_run_build))
-    rows.append(BuildInspectionFormatter.build_payload_row(_run_build))
+    rows.append_array(BuildInspectionFormatter.build_class_rows(_character_class))
     rows.append_array(BuildInspectionFormatter.build_trigger_rows(_run_build))
     for row_data in rows:
         var row: BuildInspectionTotalRow = TotalRowScene.instantiate()

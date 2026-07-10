@@ -53,6 +53,13 @@ class FakeView:
         swung_cells.append_array(cells)
 
 
+class TestActionController:
+    extends TickActionController
+
+    func chain_dash_refunds(outcomes: Array[TickHitOutcome]) -> bool:
+        return _chain_dash_refunds(outcomes)
+
+
 func test_default_aim_mode_is_attack() -> void:
     var controller: TickActionController = autofree(TickActionController.new())
 
@@ -132,6 +139,30 @@ func test_dash_sets_fresh_cooldown_after_player_action_upkeep() -> void:
     assert_eq(engine.advance_world_count, 1)
 
 
+func test_viking_dispatches_smash_instead_of_dash() -> void:
+    var context := _make_controller_context(CharacterClassData.MOBILITY_SMASH)
+    var controller: TickActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+
+    controller.handle_verb(TickVerb.mode_set(true))
+    controller.handle_verb(TickVerb.confirm())
+
+    assert_true(player.is_smash_armed())
+    assert_eq(player.dash_cooldown, 0)
+
+
+func test_chain_dash_trigger_refunds_qualifying_dash_once() -> void:
+    var context := _make_controller_context()
+    var controller: TestActionController = context["controller"]
+    var run_build: RunBuild = context["run_build"]
+    var outcome := TickHitOutcome.new()
+    outcome.staggered = true
+    var outcomes: Array[TickHitOutcome] = [outcome]
+    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
+
+    assert_true(controller.chain_dash_refunds(outcomes))
+
+
 ## Regression for the auto-attack-on-move handling: with the SettingsStore preference on, walking
 ## into an enemy's cell swings at it instead of just denying the move.
 func test_move_into_enemy_attacks_when_auto_attack_on_move_enabled() -> void:
@@ -175,7 +206,7 @@ func test_move_into_enemy_denies_when_auto_attack_on_move_disabled() -> void:
     SettingsStore.auto_attack_on_move = prior_setting
 
 
-func _make_controller_context() -> Dictionary:
+func _make_controller_context(mobility_id := CharacterClassData.MOBILITY_DASH) -> Dictionary:
     var grid: GridArena = autofree(GridArena.new())
     grid.grid_size = Vector2i(8, 8)
     grid.starting_land_size = Vector2i(8, 8)
@@ -183,17 +214,25 @@ func _make_controller_context() -> Dictionary:
 
     var player: FakePlayer = autofree(FakePlayer.new())
     player.cell = Vector2i(4, 4)
+    var character_class := CharacterClassData.new()
+    character_class.id = &"test_class"
+    character_class.display_name = "Test Class"
+    character_class.base_speed_fill = 20
+    character_class.mobility_id = mobility_id
+    player.set_character_class(character_class)
 
     var engine: FakeEngine = autofree(FakeEngine.new())
     var view: FakeView = autofree(FakeView.new())
     var feedback: TickCombatFeedback = autofree(TickCombatFeedback.new())
-    var controller: TickActionController = autofree(TickActionController.new())
+    var controller: TestActionController = autofree(TestActionController.new())
     controller.grid = grid
     controller.engine = engine
     controller.player = player
     controller.view = view
     controller.feedback = feedback
-    controller.setup(RunBuild.new())
+    controller.smash_cancel_confirm_panel = autofree(Control.new())
+    var run_build := RunBuild.new()
+    controller.setup(run_build, character_class)
 
     return {
         "controller": controller,
@@ -202,4 +241,5 @@ func _make_controller_context() -> Dictionary:
         "view": view,
         "grid": grid,
         "feedback": feedback,
+        "run_build": run_build,
     }

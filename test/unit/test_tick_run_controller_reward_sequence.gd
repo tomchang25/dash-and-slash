@@ -58,7 +58,7 @@ func test_milestone_offer_first_slot_is_one_eligible_minor_at_two_stacks() -> vo
 
 
 func test_milestone_offer_uses_eligible_majors_when_available() -> void:
-    var context := WaveRewardContext.new(null, RunBuild.new())
+    var context := WaveRewardContext.new(null, RunBuild.new(), CharacterClassData.MOBILITY_DASH)
     var controller: TestTickRunController = autofree(TestTickRunController.new())
     controller.inject_reward_flow(WaveRewardChoiceGenerator.new(_load_default_registry()), context)
 
@@ -73,9 +73,22 @@ func test_milestone_offer_uses_eligible_majors_when_available() -> void:
     assert_eq(major_count, 2, "with an empty build, both fallback slots should fill with eligible Majors")
 
 
+func test_viking_milestone_offer_falls_back_to_minor_x2() -> void:
+    var context := WaveRewardContext.new(null, RunBuild.new(), CharacterClassData.MOBILITY_SMASH)
+    var controller: TestTickRunController = autofree(TestTickRunController.new())
+    controller.inject_reward_flow(WaveRewardChoiceGenerator.new(_load_default_registry()), context)
+
+    var offer := controller.build_milestone_offer(5)
+
+    assert_eq(offer.size(), 3)
+    for choice in offer:
+        assert_eq(choice.artifact().rarity, Artifact.Rarity.COMMON)
+        assert_eq(choice.stack_count(), 2)
+
+
 func test_milestone_offer_fills_missing_major_slots_with_minor_x2() -> void:
     var run_build := RunBuild.new()
-    var context := WaveRewardContext.new(null, run_build)
+    var context := WaveRewardContext.new(null, run_build, CharacterClassData.MOBILITY_DASH)
     var controller: TestTickRunController = autofree(TestTickRunController.new())
     controller.inject_reward_flow(WaveRewardChoiceGenerator.new(_load_default_registry()), context)
 

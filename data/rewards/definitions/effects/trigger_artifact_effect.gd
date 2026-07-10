@@ -1,7 +1,7 @@
 # trigger_artifact_effect.gd
-# Artifact effect that activates one mobility-slot trigger (Guard Shredder, Execution, Flowing
-# Strike). The active mobility strike's resolution reads the trigger from RunBuild directly, so
-# this effect only needs to flip it on.
+# Artifact effect that activates one class-Mobility trigger (Guard Shredder, Execution, or Chain
+# Dash). The active Dash resolution reads the trigger from RunBuild directly, so this effect only
+# needs to flip it on.
 class_name TriggerArtifactEffect
 extends ArtifactEffect
 

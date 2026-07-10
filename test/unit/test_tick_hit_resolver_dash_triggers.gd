@@ -2,9 +2,9 @@
 # Tests the Guard Shredder and Execution mobility-slot-trigger seam on TickHitResolver's pure
 # resolution math, independent of RunBuild or the arena scene: the same resolve_precomputed()/
 # resolve_hit() paths previews and commits both call, so a passing test here guarantees preview/commit
-# honesty for both effects regardless of whether Dash or Smash is the active mobility payload.
+# honesty for both effects when the Ninja's fixed Dash Mobility is active.
 # The resolve_hit() tests below use a Smash-shaped call (a landing cell as attacker_origin_cell, not
-# adjacent to the victim's own travel path) to prove the angle-from-origin math is payload-agnostic.
+# adjacent to the victim's own travel path) to prove the angle-from-origin math is action-agnostic.
 extends GutTest
 
 func test_guard_shredder_zeroes_guard_and_staggers_on_back_hit() -> void:

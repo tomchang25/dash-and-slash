@@ -1,7 +1,7 @@
 # test_artifact_registry.gd
 # Tests ArtifactRegistry as the read-only reward-artifact catalog: id lookup, validation of null
-# entries, empty ids, and duplicate ids, and that the production default registry loads a clean,
-# fully-migrated catalog.
+# entries, empty/duplicate ids, and invalid Mobility requirements, and that the production default
+# registry loads a clean, fully migrated catalog.
 extends GutTest
 
 const DEFAULT_REGISTRY_PATH := "res://data/rewards/default_artifact_registry.tres"
@@ -62,6 +62,16 @@ func test_validate_fails_on_duplicate_id() -> void:
     assert_push_error("duplicate artifact id 'dup'")
 
 
+func test_validate_fails_on_unknown_required_mobility() -> void:
+    var registry := ArtifactRegistry.new()
+    var artifact := _make_artifact(&"invalid_mobility")
+    artifact.required_mobility = &"teleport"
+    registry.artifacts = [artifact]
+
+    assert_false(registry.validate())
+    assert_push_error("requires unknown Mobility 'teleport'")
+
+
 func test_production_default_registry_is_valid() -> void:
     var registry := _load_default_registry()
 
@@ -81,10 +91,9 @@ func test_production_default_registry_contains_every_migrated_artifact() -> void
         &"enemy_health_pressure",
         &"enemy_damage_pressure",
         &"enemy_defense_pressure",
-        &"smash",
         &"guard_shredder",
         &"execution",
-        &"mobility_free_action",
+        &"chain_dash",
     ]
 
     assert_eq(registry.get_artifacts().size(), expected_ids.size(), "the production catalog must carry every migrated artifact and no extras")

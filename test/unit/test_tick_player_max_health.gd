@@ -25,7 +25,7 @@ func test_max_hp_floors_a_negative_bonus_total_at_the_base() -> void:
 func test_reset_heals_to_the_projected_max_hp_bonus() -> void:
     var grid: GridArena = autofree(GridArena.new())
     var player: TickPlayer = autofree(TickPlayer.new())
-    player.setup(grid, Vector2i.ZERO)
+    player.setup(grid, Vector2i.ZERO, CharacterClassData.new())
     player.take_damage(90.0)
 
     player.reset(Vector2i.ZERO, 40.0)
@@ -36,7 +36,7 @@ func test_reset_heals_to_the_projected_max_hp_bonus() -> void:
 func test_reset_with_no_bonus_argument_heals_to_the_base() -> void:
     var grid: GridArena = autofree(GridArena.new())
     var player: TickPlayer = autofree(TickPlayer.new())
-    player.setup(grid, Vector2i.ZERO)
+    player.setup(grid, Vector2i.ZERO, CharacterClassData.new())
     player.take_damage(50.0)
 
     player.reset(Vector2i.ZERO)

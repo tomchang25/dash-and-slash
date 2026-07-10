@@ -1,6 +1,6 @@
 # build_inspection_total_row.gd
 # Compact label/value row for one build-inspection totals entry: a channel total, the mobility
-# payload summary, or a mobility trigger line. Visual formatting only.
+# class Mobility summary or a Mobility trigger line. Visual formatting only.
 class_name BuildInspectionTotalRow
 extends HBoxContainer
 

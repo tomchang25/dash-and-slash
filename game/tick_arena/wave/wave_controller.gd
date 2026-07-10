@@ -50,7 +50,7 @@ var _run_over := false
 
 
 ## Counts a pending spawn-warning batch down by one player-action world tick and resolves it at
-## zero. Free actions (a Speed-spent move/attack, a Mobility Free Action refund) never call
+## zero. Free actions (a Speed-spent move/attack or a Chain Dash refund) never call
 ## advance_world(), so they never emit world_advanced and never count down.
 func _on_world_advanced(_tick_count: int) -> void:
     if _run_over or _pending_batch.is_empty():

@@ -1,6 +1,5 @@
 # tick_player.gd
-# Tick-arena player actor: grid cell, hp, tick-based dash cooldown, smash windup state, the shared
-# Speed meter, and grey-box drawing. The player has no combat facing — mouse aim is a free verb parameter.
+# Tick-arena player actor: grid cell, hp, cooldowns, Smash windup, class-backed Speed, and presentation hooks.
 class_name TickPlayer
 extends Node2D
 
@@ -25,8 +24,6 @@ const SMASH_ARMED_OUTLINE_COLOR := Color(0.3, 0.9, 1.0, 1.0)
 
 ## Full meter: the next eligible move or normal attack skips world advancement and spends the charge.
 const SPEED_METER_MAX := 100
-## Meter gained by one eligible action before Speed stacks, so baseline play earns one free action every four eligible actions.
-const SPEED_BASE_FILL := 25
 ## Meter gained per Speed stack for one eligible action.
 const SPEED_FILL_PER_STACK := 10
 ## Overall per-action fill ceiling (baseline plus stack bonus), so no stack count can more than
@@ -39,6 +36,7 @@ const SPEED_FILL_CAP := 75
 @export var smash_impact_sfx_event: SpatialAudioEvent
 @export var guard_shredder_sfx_event: SpatialAudioEvent
 @export var execution_sfx_event: SpatialAudioEvent
+@export var visual_presenter: TickPlayerVisualPresenter
 
 # -- State --
 
@@ -52,6 +50,7 @@ var god_mode := GodMode.OFF
 
 var _smash_armed := false
 var _grid: GridArena = null
+var _character_class: CharacterClassData
 
 # -- Timer / tween handles --
 
@@ -62,7 +61,8 @@ var _flash_tween: Tween = null
 
 
 func _draw() -> void:
-    draw_circle(Vector2.ZERO, BODY_RADIUS, Color(0.93, 0.96, 1.0))
+    if visual_presenter == null or not visual_presenter.has_valid_body_texture():
+        draw_circle(Vector2.ZERO, BODY_RADIUS, Color(0.93, 0.96, 1.0))
     if is_speed_meter_full():
         draw_arc(Vector2.ZERO, BODY_RADIUS + 8.0, 0.0, TAU, 36, SPEED_READY_OUTLINE_COLOR, 6.0)
     if _smash_armed:
@@ -71,11 +71,37 @@ func _draw() -> void:
 # == Common API ==
 
 
-## Binds the player to the grid and snaps it onto its starting cell.
-func setup(grid: GridArena, start_cell: Vector2i) -> void:
+## Binds the player to the grid and active class, then snaps it onto its starting cell.
+func setup(grid: GridArena, start_cell: Vector2i, character_class: CharacterClassData) -> void:
     _grid = grid
+    set_character_class(character_class)
     cell = start_cell
     position = grid.cell_center(start_cell)
+
+
+## Applies the authored baseline class without touching live hp, cooldowns, or Speed state.
+func set_character_class(character_class: CharacterClassData) -> void:
+    _character_class = character_class
+    if visual_presenter != null:
+        visual_presenter.setup(character_class)
+    queue_redraw()
+
+
+## Returns the active immutable class resource shared by arena collaborators.
+func get_character_class() -> CharacterClassData:
+    return _character_class
+
+
+## Forwards the shared resolved cardinal aim to the presentation-only weapon marker.
+func set_visual_aim_direction(direction: Vector2i) -> void:
+    if visual_presenter != null:
+        visual_presenter.set_aim_direction(direction)
+
+
+## Plays the active class's presentation-only normal-attack weapon cue.
+func play_normal_attack_visual(direction: Vector2i) -> void:
+    if visual_presenter != null:
+        visual_presenter.play_normal_attack(direction)
 
 
 ## Moves the logical cell immediately and tweens the visual position; leap uses the slower smash arc timing.
@@ -139,6 +165,8 @@ func reset(start_cell: Vector2i, max_health_bonus := 0.0) -> void:
     cell = start_cell
     if _move_tween != null:
         _move_tween.kill()
+    if visual_presenter != null:
+        visual_presenter.reset_transients()
     position = _grid.cell_center(start_cell)
     scale = Vector2.ONE
     queue_redraw()
@@ -172,7 +200,10 @@ func fill_speed_meter(speed_stacks: float) -> void:
 
 ## Returns the meter energy gained by one eligible move or normal attack at the given Speed stack total.
 func speed_meter_fill_for(speed_stacks: float) -> int:
-    return mini(SPEED_BASE_FILL + int(speed_stacks) * SPEED_FILL_PER_STACK, SPEED_FILL_CAP)
+    if _character_class == null:
+        ToastManager.show_dev_error("TickPlayer: missing CharacterClassData while projecting Speed fill")
+        return 0
+    return mini(_character_class.base_speed_fill + int(speed_stacks) * SPEED_FILL_PER_STACK, SPEED_FILL_CAP)
 
 
 ## Arms the smash windup on a locked landing cell.

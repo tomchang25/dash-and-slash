@@ -19,6 +19,9 @@
 [ext_resource type="PackedScene" path="res://game/tick_arena/reward/wave_reward_card.tscn" id="17_reward_card"]
 [ext_resource type="PackedScene" uid="uid://bij6anlc14ady" path="res://game/tick_arena/reward/build_inspection_panel.tscn" id="18_build_panel"]
 [ext_resource type="PackedScene" uid="uid://bhyxtcpg1okc6" path="res://game/tick_arena/hud/tick_arena_hud.tscn" id="19_arena_hud"]
+[ext_resource type="Resource" path="res://game/tick_arena/player/data/ninja.tres" id="20_ninja_class"]
+[ext_resource type="Resource" path="res://game/tick_arena/player/data/viking.tres" id="21_viking_class"]
+[ext_resource type="Script" path="res://game/tick_arena/player/tick_player_visual_presenter.gd" id="22_player_presenter"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -34,6 +37,8 @@ corner_radius_bottom_left = 8
 
 [node name="TickArena" type="Node2D" unique_id=85850302]
 script = ExtResource("1_root")
+ninja_class = ExtResource("20_ninja_class")
+viking_class = ExtResource("21_viking_class")
 
 [node name="GridArena" type="Node2D" parent="." unique_id=1826211232]
 unique_name_in_owner = true
@@ -78,9 +83,28 @@ script = ExtResource("5_input")
 [node name="Enemies" type="Node2D" parent="." unique_id=973317209]
 unique_name_in_owner = true
 
-[node name="Player" type="Node2D" parent="." unique_id=1622788001]
+[node name="Player" type="Node2D" parent="." unique_id=1622788001 node_paths=PackedStringArray("visual_presenter")]
 unique_name_in_owner = true
 script = ExtResource("6_player")
+visual_presenter = NodePath("VisualPresenter")
+
+[node name="VisualPresenter" type="Node2D" parent="Player" unique_id=1359000101]
+script = ExtResource("22_player_presenter")
+
+[node name="PlayerBodySprite" type="Sprite2D" parent="Player/VisualPresenter" unique_id=1359000102]
+unique_name_in_owner = true
+texture_filter = 1
+scale = Vector2(5, 5)
+hframes = 4
+vframes = 7
+
+[node name="PlayerWeaponSprite" type="Sprite2D" parent="Player/VisualPresenter" unique_id=1359000103]
+unique_name_in_owner = true
+texture_filter = 1
+z_index = 1
+scale = Vector2(5, 5)
+hframes = 4
+vframes = 4
 
 [node name="TickCombatFeedback" type="Node" parent="." unique_id=1915679964 node_paths=PackedStringArray("player")]
 unique_name_in_owner = true

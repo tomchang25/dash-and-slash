@@ -1,7 +1,5 @@
 # test_run_build_dash_triggers.gd
-# Tests RunBuild's mobility-slot-triggered Major seam (Guard Shredder, Execution, Mobility Free
-# Action) directly: activation, independent toggling, and reset on clear(). The same trigger fires
-# whichever payload (Dash or Smash) occupies the mobility slot; RunBuild itself is payload-agnostic.
+# Tests RunBuild's Dash Major triggers directly: activation, independent toggling, and reset.
 extends GutTest
 
 func test_mobility_triggers_default_inactive() -> void:
@@ -9,7 +7,7 @@ func test_mobility_triggers_default_inactive() -> void:
 
     assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER))
     assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION))
-    assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION))
+    assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH))
 
 
 func test_mobility_triggers_activate_independently() -> void:
@@ -19,36 +17,36 @@ func test_mobility_triggers_activate_independently() -> void:
 
     assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER))
     assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION))
-    assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION))
+    assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH))
 
     run_build.set_mobility_trigger(RunBuild.TRIGGER_EXECUTION, true)
 
     assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER))
     assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION))
-    assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION))
+    assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH))
 
-    run_build.set_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION, true)
+    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
 
-    assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION))
+    assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH))
 
     run_build.set_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER, false)
 
     assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER))
     assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION))
-    assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION))
+    assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH))
 
 
 func test_clear_resets_mobility_triggers() -> void:
     var run_build := RunBuild.new()
     run_build.set_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER, true)
     run_build.set_mobility_trigger(RunBuild.TRIGGER_EXECUTION, true)
-    run_build.set_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION, true)
+    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
 
     run_build.clear()
 
     assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER))
     assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION))
-    assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION))
+    assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH))
 
 
 func test_unknown_mobility_trigger_is_rejected() -> void:

@@ -1,11 +1,11 @@
 # test_execution_major_effect.gd
 # Tests the Execution artifact wire: applying it registers the artifact and activates the run's
-# Execution mobility trigger without touching the mobility payload or the Guard Shredder trigger.
+# Dash-only Execution trigger without touching the Guard Shredder trigger.
 extends GutTest
 
 func test_execution_apply_registers_artifact_and_activates_trigger() -> void:
     var run_build := RunBuild.new()
-    var context := WaveRewardContext.new(null, run_build)
+    var context := WaveRewardContext.new(null, run_build, CharacterClassData.MOBILITY_DASH)
     var execution := _make_execution()
 
     assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION))
@@ -16,12 +16,11 @@ func test_execution_apply_registers_artifact_and_activates_trigger() -> void:
     assert_eq(run_build.legendary_count(), 1)
     assert_true(run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION))
     assert_false(run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER))
-    assert_eq(run_build.get_mobility_payload(), RunBuild.PAYLOAD_DASH)
 
 
 func test_execution_cannot_be_offered_or_acquired_again_once_owned() -> void:
     var run_build := RunBuild.new()
-    var context := WaveRewardContext.new(null, run_build)
+    var context := WaveRewardContext.new(null, run_build, CharacterClassData.MOBILITY_DASH)
     var first := _make_execution()
     var second := _make_execution()
 
@@ -37,7 +36,7 @@ func test_execution_cannot_be_offered_or_acquired_again_once_owned() -> void:
 
 func test_execution_still_respects_the_legendary_cap() -> void:
     var run_build := RunBuild.new()
-    var context := WaveRewardContext.new(null, run_build)
+    var context := WaveRewardContext.new(null, run_build, CharacterClassData.MOBILITY_DASH)
 
     for i in RunBuild.LEGENDARY_CAP:
         var filler := _make_legendary("major_%d" % i, "")
@@ -62,6 +61,7 @@ func _make_execution() -> Artifact:
     artifact.max_stacks = 1
     artifact.min_wave = 2
     artifact.magnitude = 1.0
+    artifact.required_mobility = CharacterClassData.MOBILITY_DASH
     artifact.effects = [effect]
     return artifact
 
