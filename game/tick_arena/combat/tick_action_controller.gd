@@ -4,9 +4,13 @@
 # world (tick resolution stage 1); world advancement itself is handed to TickEngine. Result
 # presentation (Major-trigger VFX/SFX) belongs to TickCombatFeedback.
 # Aim/plan resolution (mouse cell, aim direction, dash/smash plans) is shared with TickPreviewController
-# through TickAimContext. May mutate TickPlayer, RunBuild, enemy health through the existing hit path,
-# and TickGridView input-driven feedback flashes; may request world advancement from TickEngine, but
-# never owns tick count, actor energy, wave state, reward state, spawn queues, or terrain cadence.
+# through TickAimContext; the presentation-only facing direction is owned here too and read by
+# TickPreviewController each frame. Facing only ever changes on a discrete input event (keyboard move,
+# a click that resolves attack/Dash/Smash, or the mouse hovering into a new aim cell) — never recomputed
+# continuously from a stationary cursor — so it cannot drift out from under the player between events.
+# May mutate TickPlayer, RunBuild, enemy health through the existing hit path, and TickGridView
+# input-driven feedback flashes; may request world advancement from TickEngine, but never owns tick
+# count, actor energy, wave state, reward state, spawn queues, or terrain cadence.
 class_name TickActionController
 extends Node
 
@@ -37,6 +41,7 @@ var _aim_mode := AimMode.ATTACK
 var _smash_cancel_confirm_open := false
 var _input_locked := false
 var _last_aim := Vector2i.RIGHT
+var _facing_direction := Vector2i.RIGHT
 
 # == Lifecycle ==
 
@@ -81,6 +86,7 @@ func set_input_locked(locked: bool) -> void:
 ## controller's reset seam before it respawns enemies.
 func reset_for_new_run() -> void:
     _aim_mode = AimMode.ATTACK
+    _facing_direction = Vector2i.RIGHT
     _close_smash_cancel_confirm()
 
 
@@ -92,6 +98,20 @@ func is_mobility_mode() -> bool:
 ## preview can never disagree with what a confirm would actually resolve.
 func get_last_aim() -> Vector2i:
     return _last_aim
+
+
+## Returns the presentation-only facing direction, shared read-only with the preview controller so the
+## body/weapon marker only ever reflects a discrete input event (see class doc), never a continuously
+## recomputed cursor delta.
+func get_facing_direction() -> Vector2i:
+    return _facing_direction
+
+
+## Reports the mouse hovering into a new aim cell — called by TickPreviewController only on the frame
+## the resolved mouse cell actually changes, so idle cursor presence never touches facing.
+func report_cursor_hover(direction: Vector2i) -> void:
+    if direction != Vector2i.ZERO:
+        _facing_direction = direction
 
 
 ## Cancels an armed Smash unconditionally through the shared cleanup path.
@@ -142,6 +162,7 @@ func handle_verb(verb: TickVerb) -> void:
 ## When the SettingsStore auto-attack-on-move preference is on and Attack Mode is active with no Smash
 ## armed, walking into an enemy's cell swings at it instead of just denying the move.
 func _verb_move(dir: Vector2i) -> Dictionary:
+    _facing_direction = dir
     if not _try_cancel_smash_windup():
         return _verb_illegal()
     var target := player.cell + dir
@@ -172,10 +193,13 @@ func _confirm_is_attack() -> bool:
 
 
 ## Swings at the mouse-aimed adjacent cell; a whiff still consumes the tick, only illegal inputs are
-## free. Normal attack is the second Speed-eligible action, accounted for the same way as move.
+## free. Normal attack is the second Speed-eligible action, accounted for the same way as move. The
+## click resolving this counts as a facing event, same as a keyboard move.
 func _verb_attack() -> Dictionary:
     cancel_smash_windup()
-    return _resolve_attack(_aim_context.aim_direction())
+    var aim := _aim_context.aim_direction()
+    _facing_direction = aim
+    return _resolve_attack(aim)
 
 
 ## Shared normal-attack resolution for the mouse-aim confirm and the move-into-enemy auto-attack:
@@ -210,6 +234,7 @@ func _verb_dash() -> Dictionary:
     if player.dash_cooldown > 0:
         return _verb_illegal()
     var plan := _aim_context.compute_dash_plan()
+    _facing_direction = plan["dir"]
     if not bool(plan["legal"]):
         view.flash_deny(player.cell + plan["dir"] * _aim_context.dash_range())
         return _verb_illegal()
@@ -238,12 +263,14 @@ func _verb_dash() -> Dictionary:
 
 ## First confirm arms the windup on a locked landing cell (costs one tick, enemies act one beat)
 ## the next confirm releases the leap and 3x3 hit regardless of where the mouse is now aimed. Arming
-## has no attack outcome and neither phase can inherit Dash-only Major refunds.
+## has no attack outcome and neither phase can inherit Dash-only Major refunds. The arming click also
+## sets the presentation-only facing direction toward the locked target, same as a Dash confirm.
 func _verb_smash() -> Dictionary:
     if not player.is_smash_armed():
         if player.smash_cooldown > 0:
             return _verb_illegal()
         var target := _aim_context.clamped_smash_target()
+        _facing_direction = _aim_context.aim_direction()
         if not engine.is_cell_open_for_player(target):
             view.flash_deny(target)
             return _verb_illegal()

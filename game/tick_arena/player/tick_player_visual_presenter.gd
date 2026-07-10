@@ -6,7 +6,7 @@ extends Node2D
 # -- Constants --
 
 const ATTACK_FRAME_SEC := 0.045
-const BODY_IDLE_FRAME := Vector2i(0, 0)
+const BODY_ROW := 0
 const WEAPON_IDLE_ROW := 0
 const WEAPON_ATTACK_ROWS: Array[int] = [1, 2, 3]
 
@@ -49,12 +49,15 @@ func has_valid_body_texture() -> bool:
     return _body_sprite != null and _body_sprite.texture != null
 
 
-## Updates the persistent weapon marker from the same resolved cardinal direction preview uses.
+## Updates the body facing and persistent weapon marker from the same resolved cardinal direction preview uses.
 func set_aim_direction(direction: Vector2i) -> void:
     if direction == Vector2i.ZERO:
         return
     _aim_direction = direction
-    if not _attack_active and is_node_ready():
+    if not is_node_ready():
+        return
+    _apply_body_frame(_aim_direction)
+    if not _attack_active:
         _apply_weapon_frame(WEAPON_IDLE_ROW, _aim_direction)
 
 
@@ -79,7 +82,11 @@ func reset_transients() -> void:
         _attack_tween.kill()
     _attack_tween = null
     _attack_active = false
-    if is_node_ready() and _weapon_sprite.texture != null:
+    if not is_node_ready():
+        return
+    if _body_sprite.texture != null:
+        _apply_body_frame(_aim_direction)
+    if _weapon_sprite.texture != null:
         _apply_weapon_frame(WEAPON_IDLE_ROW, _aim_direction)
 
 # == View ==
@@ -92,9 +99,13 @@ func _apply_class() -> void:
         _weapon_sprite.texture = null
         return
     _body_sprite.texture = _character_class.body_texture
-    _body_sprite.frame_coords = BODY_IDLE_FRAME
+    _apply_body_frame(_aim_direction)
     _weapon_sprite.texture = _character_class.weapon_texture
     _apply_weapon_frame(WEAPON_IDLE_ROW, _aim_direction)
+
+
+func _apply_body_frame(direction: Vector2i) -> void:
+    _body_sprite.frame_coords = Vector2i(_direction_column(direction), BODY_ROW)
 
 
 func _apply_weapon_frame(row: int, direction: Vector2i) -> void:

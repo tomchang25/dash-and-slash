@@ -4,7 +4,9 @@
 # never mutate player state, enemy state, run-build state, wave state, or world time. Shares aim/plan
 # resolution with TickActionController through TickAimContext and combat base numbers through
 # TickCombatRules so a preview can never disagree with what a commit resolves; the aim mode and
-# last-aim direction it reads stay the action controller's own truth.
+# last-aim direction it reads stay the action controller's own truth. It also reports every genuine
+# mouse-cell change (cursor hovering a new aim cell) to the action controller as a facing event and
+# reads back the resolved facing direction each frame, but owns none of that state itself.
 class_name TickPreviewController
 extends Node
 
@@ -21,6 +23,7 @@ extends Node
 var _run_build: RunBuild
 var _character_class: CharacterClassData
 var _aim_context: TickAimContext
+var _last_mouse_cell := Vector2i(1 << 20, 1 << 20)
 
 # == Lifecycle ==
 
@@ -47,12 +50,20 @@ func set_character_class(character_class: CharacterClassData) -> void:
 
 ## Recomputes the free aiming previews every frame; aiming never consumes a tick.
 ## Previews carry resolved outcomes (landing ghost, per-victim angle/result badges) computed by the
-## same predict_hit math that resolves the commit, so the display can never lie.
+## same predict_hit math that resolves the commit, so the display can never lie. Targeting/legality
+## always reads the live mouse-resolved aim. The presented facing direction is different: it only
+## reports a hover event to the action controller when the mouse cell itself actually changed this
+## frame, then reads back whatever facing that (or a keyboard move, or a click) last resolved to — so
+## it never continuously snaps to the cursor while the player or the world is what actually moved.
 func _update_preview() -> void:
     var outcomes := { }
     var preview := { }
+    var mouse_cell := _aim_context.mouse_cell()
+    if mouse_cell != _last_mouse_cell:
+        _last_mouse_cell = mouse_cell
+        action_controller.report_cursor_hover(_aim_context.aim_direction())
     var resolved_aim := _aim_context.aim_direction()
-    player.set_visual_aim_direction(resolved_aim)
+    player.set_visual_aim_direction(action_controller.get_facing_direction())
 
     if player.is_smash_armed():
         _apply_locked_smash_preview(preview, outcomes)
