@@ -107,6 +107,13 @@ Later reward-economy work, kept behind the core loop stabilizing. The former ter
 
 - Corrupt Land（已自 tick rework 流程退役）是此方向的第一個候選危險格機制——spec 保留在 `archived/tick_combat_rework_06a_corrupt_land.implementation_spec.md`，撿起時先對照 codebase 修訂。
 
+### Player Action State Ownership
+
+Player movement, Smash windup ("prepare attack"), and normal attack are all resolved inline inside `TickActionController.handle_verb()`'s verb match/dispatch, not through the project's `StateMachine`/`State` delegation pattern. Smash's two-phase prepare/release is tracked with a single `_smash_armed` bool on `TickPlayer` (`arm_smash`/`disarm_smash`/`is_smash_armed`) rather than a real state object, and normal attack has no windup phase at all.
+
+- Revisit whether this should move onto the shared `StateMachine`/`State` framework once more multi-phase player actions exist (e.g. a future Samurai guard/counter verb, see Samurai Character Class above).
+- Until then, treat `TickActionController` verb dispatch plus the `_smash_armed` flag as the intentional lightweight shape — do not add more ad hoc bools for new multi-phase actions without reconsidering this.
+
 ### Defensive Terrain And Tower Reward Cards
 
 Later reward cards that add player-owned board pressure, re-anchored to the stable-base obstacle-grid direction (see 增加額外障礙物 Grid 替代) now that per-wave terrain mutation is frozen.
