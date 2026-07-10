@@ -31,6 +31,7 @@ Nothing currently in progress.
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
 - [visual_identity] Tick arena visual readability and identity: establish readable ninja-grid combat language through enemy state sprites, pattern identity, and class silhouettes — [ref plans/tick_arena_visual_readability_and_identity.md]
+- [enemy_mobility] Rework committed enemy mobility around ChargeEnemy collision displacement and a new DashEnemy backline ambush — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
 
 ---
 
@@ -54,12 +55,28 @@ One-line, no reasoning, no backing doc.
 
 Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
 
-### Future Major Effects
+### Future Mobility-Specific Major Effects
 
-Later Major content. The override and triggered-effect seams these need are shipped (Smash proves the payload override; Guard Shredder, Execution, and Mobility Free Action prove the trigger seam), so these are ready to build whenever content volume is wanted.
+Character classes use fixed, non-shared Mobility identities, so future Majors extend the active Mobility instead of replacing it. Major eligibility should be filtered by required Mobility: Dash effects belong to the Ninja pool, Smash effects belong to the Viking pool, and a class never rolls another Mobility's exclusive effects.
 
-- Chain Dash should use the same artifact exclusivity group as `data/rewards/artifacts/smash.tres` (`mobility_slot_replacement`) and apply through `PayloadArtifactEffect` / `RunBuild.set_mobility_payload_override()`.
-- Shockwave Dash and other mobility-slot-triggered Majors should reuse `RunBuild.set_mobility_trigger()` / `has_mobility_trigger()` (the seam Guard Shredder and Execution use, payload-agnostic across Dash and Smash) instead of forking either payload's resolution.
+- Expand Dash and Smash with additional Mobility-specific effects after the initial class slice proves the eligibility and runtime seams.
+- Keep Mobility execution behavior owned by the active payload while artifacts contribute named modifiers or triggers; do not restore payload-replacement artifacts.
+- If future classes ever share a Mobility, revisit whether required-Mobility filtering also needs an explicit class restriction instead of making those classes share every Major automatically.
+
+### Normal Attack Variants
+
+Normal attack shape variants are frozen while the first character classes establish identity through fixed Mobility and Mobility-specific Majors. Every initial class keeps the current one-cell cardinal normal attack.
+
+- Revisit line, arc, wide, or other footprints only after Ninja and Viking have been playtested as distinct Mobility identities.
+- Any future variant pass must resolve one shared footprint for preview, committed hits, and auto-attack-on-move so the displayed cells cannot disagree with the executed attack.
+- Define penetration, obstacle blocking, multi-target order, and any windup or recovery trade-off before allowing a larger footprint to ship.
+
+### Samurai Character Class
+
+Samurai is deferred until Ninja and Viking prove the fixed-Mobility class model. Because different classes do not share Mobility in the current direction, Samurai needs its own Mobility identity rather than reusing Dash.
+
+- Decide whether guard and counter timing deserve a new player combat verb/state or whether Samurai should use a different mobility-centered fantasy.
+- Keep Samurai out of the initial class data, selection surface, sprite work, and Major eligibility pools.
 
 ### Enemy Spawn Ratio Data Drive
 
