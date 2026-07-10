@@ -49,6 +49,34 @@ func test_wide_profile_starts_one_cell_forward() -> void:
     )
 
 
+func test_adjacent_ring_profile_excludes_origin_cell() -> void:
+    var attack_data := EnemyAttackData.new()
+    attack_data.cell_shape = EnemyAttackData.CellShape.ADJACENT_RING
+    attack_data.radius = 1
+    var grid: GridArena = autofree(GridArena.new())
+
+    var cells := EnemyAttackController.get_attack_cells(Vector2i(2, 2), Vector2.DOWN, attack_data, grid)
+
+    assert_eq(cells.size(), 8)
+    assert_false(Vector2i(2, 2) in cells)
+    assert_true(Vector2i(1, 1) in cells)
+    assert_true(Vector2i(3, 3) in cells)
+
+
+func test_adjacent_ring_origin_cells_exclude_target_cell() -> void:
+    var attack_data := EnemyAttackData.new()
+    attack_data.cell_shape = EnemyAttackData.CellShape.ADJACENT_RING
+    attack_data.radius = 1
+    var grid: GridArena = autofree(GridArena.new())
+
+    var origins := EnemyAttackController.get_attack_origin_cells(Vector2i(2, 2), attack_data, grid)
+
+    assert_eq(origins.size(), 8)
+    assert_false(Vector2i(2, 2) in origins)
+    assert_true(Vector2i(1, 1) in origins)
+    assert_true(Vector2i(3, 3) in origins)
+
+
 func test_cancel_clears_prepared_cells() -> void:
     var attack_data := EnemyAttackData.new()
     attack_data.cell_shape = EnemyAttackData.CellShape.LINE

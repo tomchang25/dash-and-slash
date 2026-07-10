@@ -43,6 +43,20 @@ static func square(origin_cell: Vector2i, radius: int, grid: GridArena = null, r
     return cells
 
 
+## Returns the ring of cells adjacent to the origin cell, excluding the origin itself.
+static func adjacent_ring(origin_cell: Vector2i, radius: int, grid: GridArena = null, require_grid: bool = false) -> Array[Vector2i]:
+    var cells: Array[Vector2i] = []
+    if radius < 0:
+        return cells
+
+    for x_offset in range(-radius, radius + 1):
+        for y_offset in range(-radius, radius + 1):
+            if x_offset == 0 and y_offset == 0:
+                continue
+            append_if_in_bounds(cells, origin_cell + Vector2i(x_offset, y_offset), grid, require_grid)
+    return cells
+
+
 ## Appends a unique cell when it is in-bounds for the provided grid.
 static func append_if_in_bounds(cells: Array[Vector2i], cell: Vector2i, grid: GridArena = null, require_grid: bool = false) -> void:
     if require_grid and grid == null:

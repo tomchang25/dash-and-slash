@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://dgpyfmh1ojixq"]
+
+[ext_resource type="PackedScene" uid="uid://dssmenemy01" path="res://game/entities/enemies/small_enemy.tscn" id="1_base"]
+[ext_resource type="Resource" uid="uid://n0k04oo6gtfgj" path="res://game/entities/enemies/data/small_enemy_burst.tres" id="2_data"]
+
+[node name="SmallEnemyBurst" instance=ExtResource("1_base")]
+enemy_data = ExtResource("2_data")
+
+[node name="Sprite" parent="VisualPresenter" index="0"]
+modulate = Color(0.65, 0.35, 0.9, 1)

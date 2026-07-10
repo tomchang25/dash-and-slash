@@ -34,6 +34,8 @@ static func get_attack_cells(origin_cell: Vector2i, facing: Vector2, attack_data
             return AttackCellShapes.square(origin_cell, attack_data.radius, grid, true)
         EnemyAttackData.CellShape.FULL_LINE:
             return _full_line_cells(origin_cell, facing_cell, grid)
+        EnemyAttackData.CellShape.ADJACENT_RING:
+            return AttackCellShapes.adjacent_ring(origin_cell, attack_data.radius, grid, true)
     return []
 
 
@@ -52,6 +54,8 @@ static func get_attack_origin_cells(target_cell: Vector2i, attack_data: EnemyAtt
             _append_square_origin_cells(origins, target_cell, attack_data.radius, grid)
         EnemyAttackData.CellShape.FULL_LINE:
             _append_line_origin_cells(origins, target_cell, _max_grid_axis_length(grid), grid)
+        EnemyAttackData.CellShape.ADJACENT_RING:
+            _append_adjacent_ring_origin_cells(origins, target_cell, attack_data.radius, grid)
     return origins
 
 
@@ -162,6 +166,16 @@ static func _append_square_origin_cells(origins: Array[Vector2i], target_cell: V
         return
     for x_offset in range(-radius, radius + 1):
         for y_offset in range(-radius, radius + 1):
+            _append_origin_cell(origins, target_cell - Vector2i(x_offset, y_offset), grid)
+
+
+static func _append_adjacent_ring_origin_cells(origins: Array[Vector2i], target_cell: Vector2i, radius: int, grid: GridArena = null) -> void:
+    if radius < 0:
+        return
+    for x_offset in range(-radius, radius + 1):
+        for y_offset in range(-radius, radius + 1):
+            if x_offset == 0 and y_offset == 0:
+                continue
             _append_origin_cell(origins, target_cell - Vector2i(x_offset, y_offset), grid)
 
 

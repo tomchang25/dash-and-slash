@@ -16,6 +16,7 @@ enum CellShape {
     WIDE,
     SQUARE,
     FULL_LINE,
+    ADJACENT_RING,
 }
 
 @export var attack_id := ""

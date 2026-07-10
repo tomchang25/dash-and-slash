@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://bgp2ax5kfo8c6"]
+
+[ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://data/enemies/definitions/enemy_data.gd" id="1_data"]
+[ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://data/enemies/definitions/enemy_attack_data.gd" id="2_ad"]
+
+[sub_resource type="Resource" id="atk_sweep"]
+script = ExtResource("2_ad")
+attack_id = "sweep"
+cell_shape = 1
+depth = 1
+width = 3
+
+[resource]
+script = ExtResource("1_data")
+enemy_id = "small_enemy_sweep"
+display_name = "Small Enemy (Sweep)"
+attacks = Array[ExtResource("2_ad")]([SubResource("atk_sweep")])

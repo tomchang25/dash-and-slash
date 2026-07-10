@@ -18,6 +18,8 @@ const STAGGER_CLEAR_SEC := 0.3
 var _is_staggered := false
 var _visual_state: DirectionalSpriteFrameView.VisualState = DirectionalSpriteFrameView.VisualState.IDLE
 var _facing := Vector2.DOWN
+## Scene-authored sprite tint captured at ready; feedback settles back to this instead of hard-coded white.
+var _base_tint := Color.WHITE
 
 # -- Timer / tween handles --
 
@@ -33,6 +35,8 @@ var _tint_tween: Tween
 
 
 func _ready() -> void:
+    if _frame_view != null:
+        _base_tint = _frame_view.modulate
     if not has_valid_texture():
         ToastManager.show_dev_error("%s: EnemyVisualPresenter has no placeholder texture assigned to its Sprite." % name)
 
@@ -44,7 +48,7 @@ func _on_flash_finished() -> void:
         _tint_tween = create_tween()
         _tint_tween.tween_property(_frame_view, "modulate", STAGGER_TINT_COLOR, STAGGER_TINT_SEC)
     else:
-        _frame_view.modulate = Color.WHITE
+        _frame_view.modulate = _base_tint
 
 # == Common API ==
 
@@ -95,7 +99,7 @@ func flash_damage() -> void:
     _flash_tween = create_tween()
     _flash_tween.tween_property(_frame_view, "modulate", Color.WHITE, FLASH_IN_SEC)
     _flash_tween.tween_property(_frame_view, "modulate", DAMAGE_FLASH_COLOR, FLASH_HOLD_SEC)
-    _flash_tween.tween_property(_frame_view, "modulate", Color.WHITE, FLASH_OUT_SEC)
+    _flash_tween.tween_property(_frame_view, "modulate", _base_tint, FLASH_OUT_SEC)
     _flash_tween.finished.connect(_on_flash_finished, CONNECT_ONE_SHOT)
 
 
@@ -111,7 +115,7 @@ func set_staggered(active: bool) -> void:
     if active:
         _tint_tween.tween_property(_frame_view, "modulate", STAGGER_TINT_COLOR, STAGGER_TINT_SEC)
     else:
-        _tint_tween.tween_property(_frame_view, "modulate", Color.WHITE, STAGGER_CLEAR_SEC)
+        _tint_tween.tween_property(_frame_view, "modulate", _base_tint, STAGGER_CLEAR_SEC)
 
 
 ## Resets visuals to a clean idle/white state, e.g. on enemy pool reuse.
@@ -122,7 +126,7 @@ func reset_visuals() -> void:
         _flash_tween.kill()
     if _tint_tween != null and is_instance_valid(_tint_tween):
         _tint_tween.kill()
-    _frame_view.modulate = Color.WHITE
+    _frame_view.modulate = _base_tint
     _set_visual_state(DirectionalSpriteFrameView.VisualState.IDLE)
 
 # == Feature: action feedback ==
