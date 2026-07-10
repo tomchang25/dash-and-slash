@@ -8,7 +8,7 @@ extends Resource
 @export var test_route: StringName = &"test_runner"
 @export var routes: Dictionary = { }
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## Returns true when [param key] resolves to a PackedScene route.

@@ -25,7 +25,7 @@ func _register_entity(entity: Object, cell: Vector2i) -> void:
     _grid.register_occupant(entity, [cell])
     _grid.register_enemy_entity(entity)
 
-# == Ordinary vs Ordinary =======================================================
+# == Ordinary vs Ordinary ==
 
 
 func test_ordinary_distance_decides_when_same_attack_intent() -> void:
@@ -72,7 +72,7 @@ func test_ordinary_lower_registration_loses_when_equal_distance() -> void:
     assert_true(early_ok, "earlier index should win at equal distance")
     assert_false(late_ok, "later index should lose at equal distance")
 
-# == Attack vs Ordinary =========================================================
+# == Attack vs Ordinary ==
 
 
 func test_attack_beats_ordinary_for_same_cell() -> void:
@@ -82,7 +82,6 @@ func test_attack_beats_ordinary_for_same_cell() -> void:
     _register_entity(ordinary, Vector2i(4, 5))
     var target_cell := Vector2i(4, 4)
 
-    var ordinary_ok := _grid.reserve_cells(ordinary, [target_cell], false)
     var attack_ok := _grid.reserve_cells(attacker, [target_cell], true)
 
     assert_true(attack_ok, "attack-priority should replace ordinary reservation")
@@ -131,7 +130,7 @@ func test_ordinary_does_not_replace_attack_reservation() -> void:
 
     assert_true(_grid.is_reserved_by(target, attacker), "attacker should still own after ordinary attempt")
 
-# == Signal emission ============================================================
+# == Signal emission ==
 
 
 func test_reservation_lost_emitted_when_replaced_by_higher_priority() -> void:
@@ -168,7 +167,7 @@ func test_no_signal_when_lower_priority_loses() -> void:
     assert_false(_grid.reserve_cells(second, [target], false))
     assert_true(lost_entities.is_empty(), "no signal when lower-priority claim is rejected")
 
-# == Reservation preview ========================================================
+# == Reservation preview ==
 
 
 func test_can_reserve_reports_attack_takeover_without_mutating() -> void:
@@ -194,7 +193,7 @@ func test_can_reserve_rejects_lower_priority_without_mutating() -> void:
     assert_false(_grid.can_reserve_cells(second, [target], false), "lower priority should not be claimable")
     assert_true(_grid.is_reserved_by(target, first), "preview should not mutate current owner")
 
-# == Registration Index =========================================================
+# == Registration Index ==
 
 
 func test_registration_index_deterministic_across_cycles() -> void:
@@ -228,7 +227,7 @@ func test_unregister_removes_registration_index() -> void:
 
     assert_eq(_grid.get_registration_index(enemy), -1, "unregistered enemy should not keep stale registration")
 
-# == Multiple cells =============================================================
+# == Multiple cells ==
 
 
 func test_reservation_for_multiple_cells_all_or_nothing() -> void:
@@ -250,7 +249,7 @@ func test_reservation_for_multiple_cells_all_or_nothing() -> void:
     assert_true(_grid.is_reserved_by(Vector2i(3, 4), first))
     assert_true(_grid.is_reserved_by(Vector2i(4, 4), first))
 
-# == Player occupancy for reference =============================================
+# == Player occupancy for reference ==
 
 
 ## Minimal object used only to occupy the player cell for distance computations.

@@ -33,14 +33,14 @@ var _generated := false
 var _registration_counter := 0
 var _entity_registration_indices: Dictionary = { }
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
     if not _generated:
         generate_grid()
 
-# == Terrain Generation =======================================================
+# == Terrain Generation ==
 
 
 ## Regenerates gameplay terrain with a centered starting LAND footprint.
@@ -69,7 +69,7 @@ func _ensure_spawn_land() -> void:
     if is_in_bounds(center) and not is_land(center):
         _terrain[_terrain_index(center)] = TerrainTile.LAND
 
-# == Terrain Queries ==========================================================
+# == Terrain Queries ==
 
 
 ## Returns true when the cell is in bounds and generated as LAND.
@@ -142,7 +142,7 @@ func get_cell_and_neighbors(cell: Vector2i) -> Array[Vector2i]:
                 cells.append(neighbor)
     return cells
 
-# == Terrain Mutation =========================================================
+# == Terrain Mutation ==
 
 
 ## Creates LAND at the cell when it is inside grid bounds.
@@ -212,7 +212,7 @@ func can_remove_land(cell: Vector2i) -> bool:
 func can_remove_connected_land(cell: Vector2i) -> bool:
     return can_remove_land(cell) and _would_land_remain_connected_without(cell)
 
-# == Coordinate Conversion ====================================================
+# == Coordinate Conversion ==
 
 
 func _top_left() -> Vector2:
@@ -237,7 +237,7 @@ func cell_center(cell: Vector2i) -> Vector2:
 func is_in_bounds(cell: Vector2i) -> bool:
     return cell.x >= 0 and cell.y >= 0 and cell.x < grid_size.x and cell.y < grid_size.y
 
-# == Occupancy ================================================================
+# == Occupancy ==
 
 
 func is_occupied(cell: Vector2i) -> bool:
@@ -463,7 +463,7 @@ func nearest_empty_cell(near: Vector2) -> Vector2i:
                     best = c
     return best
 
-# == Telegraph =================================================================
+# == Telegraph ==
 
 
 func set_telegraph(source: Object, tiles: Array[Vector2i], phase: TelegraphPhase) -> void:
@@ -506,7 +506,7 @@ func get_telegraphed_cells() -> Array[Vector2i]:
         cells.append(cell)
     return cells
 
-# == Terrain Helpers ==========================================================
+# == Terrain Helpers ==
 
 
 func _terrain_index(cell: Vector2i) -> int:

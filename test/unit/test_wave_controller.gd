@@ -64,7 +64,7 @@ class TestWaveController:
     func pending_batch_count() -> int:
         return _pending_batch.size()
 
-# == WaveScaling formulas ========================================================
+# == WaveScaling formulas ==
 
 
 func test_support_count_formula() -> void:
@@ -114,7 +114,7 @@ func test_defense_per_tier() -> void:
     assert_almost_eq(WaveScaling.get_defense(5), 6.0, 0.001)
     assert_almost_eq(WaveScaling.get_defense(10), 12.0, 0.001)
 
-# == EnemySpawnPlanner revalidation ===============================================
+# == EnemySpawnPlanner revalidation ==
 
 
 func test_is_spawn_cell_still_valid_rejects_occupied_cell() -> void:
@@ -164,7 +164,7 @@ func test_find_valid_spawn_replacement_finds_open_cell() -> void:
     var replacement := planner.find_valid_spawn_replacement(0, 1, [])
     assert_eq(replacement, Vector2i(0, 1), "the only open, non-player cell should be chosen")
 
-# == WaveController progression ==================================================
+# == WaveController progression ==
 
 
 func test_initial_state_has_no_wave() -> void:
@@ -236,7 +236,7 @@ func test_set_run_build_swaps_to_a_new_instance_not_just_clearing_the_old_one() 
     wc.set_run_build(fresh_run_build)
     assert_eq(wc.get_support_spawn_count(), WaveScaling.get_support_count(1), "swapping to a fresh RunBuild must drop the previous run's pressure entirely")
 
-# == Support / elite spawn counts =================================================
+# == Support / elite spawn counts ==
 
 
 func test_support_count_matches_formula() -> void:
@@ -288,7 +288,7 @@ func test_pressure_does_not_affect_elite_count() -> void:
         wc.advance_wave()
     assert_eq(wc.get_elite_spawn_count(), 1, "pressure does not add extra elites")
 
-# == Enemy-toughness pressure =====================================================
+# == Enemy-toughness pressure ==
 
 
 func test_health_pressure_raises_hp_multiplier() -> void:
@@ -330,7 +330,7 @@ func test_negative_toughness_pressure_is_clamped() -> void:
     assert_almost_eq(wc.get_damage_multiplier(), WaveScaling.get_damage_multiplier(1), 0.001, "negative damage pressure is clamped to zero")
     assert_almost_eq(wc.get_defense(), WaveScaling.get_defense(1), 0.001, "negative defense pressure is clamped to zero")
 
-# == Display text =================================================================
+# == Display text ==
 
 
 func test_wave_display_text_for_normal_wave() -> void:
@@ -345,7 +345,7 @@ func test_wave_display_text_for_milestone_wave() -> void:
         wc.advance_wave()
     assert_eq(wc.get_wave_display_text(), "Wave 5: ELITE")
 
-# == Population cap + spawn-warning queueing =====================================
+# == Population cap + spawn-warning queueing ==
 #
 # These drive the world-advanced countdown directly through TestWaveController's wrapper instead
 # of a live TickEngine, since headless unit tests don't tick a real engine and this test suite

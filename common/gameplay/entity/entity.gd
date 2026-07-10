@@ -3,12 +3,12 @@
 class_name Entity
 extends Node2D
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 func _ready() -> void:
     pass
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## Restores every component child to spawn defaults. Called on pool acquire.

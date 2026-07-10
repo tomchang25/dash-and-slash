@@ -30,13 +30,22 @@ from pathlib import Path
 
 # ── Scope ──────────────────────────────────────────────────────────────────────
 #
-# The scene architecture standard applies to block scene scripts, testbed
-# scenes, and reusable UI component scripts. It explicitly does NOT apply to
-# autoloads / global managers, resource definitions under data/, or common
-# framework scripts. We approximate that scope by directory.
+# The scene architecture standard (node-source, node-lookup) applies to block
+# scene scripts, testbed scenes, and reusable UI component scripts. It
+# explicitly does NOT apply to autoloads / global managers, resource
+# definitions under data/, or common framework scripts. We approximate that
+# scope by directory.
+#
+# The GDScript structure standard (header shape, declaration order) is scoped
+# much wider: it documents itself as applying to scene scripts, reusable UI
+# components, autoloads, data resources, gameplay components, services,
+# managers, and tests (gdscript_structure_standard.md), so it gets its own,
+# broader directory scope below instead of reusing the scene-architecture one.
 
 SCANNED_DIRS = ("game",)
 EXCLUDED_PARTS = (".godot", "data", "global", "addons")
+STRUCTURE_SCANNED_DIRS = ("game", "common", "global", "data", "test")
+STRUCTURE_EXCLUDED_PARTS = (".godot", "addons")
 ERROR_GUARD_DIRS = ("common", "data", "game", "global", "stage")
 ERROR_GUARD_EXCLUDED_PARTS = (".godot", "addons")
 
@@ -428,7 +437,8 @@ def check_bare_push_warning(path: str, text: str) -> list[Violation]:
 
 # (suffix, check fn) pairs. Add new checks here as more rules graduate from the
 # manifest into machine enforcement.
-GD_CHECKS = (check_gdscript_structure, check_node_source, check_node_lookup)
+GD_SCENE_CHECKS = (check_node_source, check_node_lookup)
+GD_STRUCTURE_CHECKS = (check_gdscript_structure,)
 GD_ERROR_GUARD_CHECKS = (check_bare_push_error, check_bare_push_warning)
 TSCN_CHECKS = (check_tscn_connections,)
 
@@ -444,7 +454,11 @@ def lint_file(path: Path, repo_root: Path) -> list[Violation]:
     if path.suffix == ".gd":
         violations: list[Violation] = []
         if _in_scope(path, repo_root):
-            violations.extend(v for chk in GD_CHECKS for v in chk(rel, text))
+            violations.extend(v for chk in GD_SCENE_CHECKS for v in chk(rel, text))
+        if _in_structure_scope(path, repo_root):
+            violations.extend(
+                v for chk in GD_STRUCTURE_CHECKS for v in chk(rel, text)
+            )
         if _in_error_guard_scope(path, repo_root):
             violations.extend(
                 v for chk in GD_ERROR_GUARD_CHECKS for v in chk(rel, text)
@@ -474,6 +488,16 @@ def _in_scope(path: Path, repo_root: Path) -> bool:
     return not any(part in EXCLUDED_PARTS for part in parts)
 
 
+def _in_structure_scope(path: Path, repo_root: Path) -> bool:
+    """True if the file falls under gdscript_structure_standard.md's documented
+    scope: game/, common/, global/, data/, and test/, excluding .godot/addons."""
+    rel = _rel(path, repo_root)
+    parts = rel.split("/")
+    if parts[0] not in STRUCTURE_SCANNED_DIRS:
+        return False
+    return not any(part in STRUCTURE_EXCLUDED_PARTS for part in parts)
+
+
 def _in_error_guard_scope(path: Path, repo_root: Path) -> bool:
     """True if the file is project GDScript covered by error guard rules."""
     rel = _rel(path, repo_root)
@@ -491,6 +515,11 @@ def _collect_tree(repo_root: Path) -> list[Path]:
             continue
         files.extend(base.rglob("*.gd"))
         files.extend(base.rglob("*.tscn"))
+    for d in STRUCTURE_SCANNED_DIRS:
+        base = repo_root / d
+        if not base.is_dir():
+            continue
+        files.extend(base.rglob("*.gd"))
     for d in ERROR_GUARD_DIRS:
         base = repo_root / d
         if not base.is_dir():
@@ -499,7 +528,9 @@ def _collect_tree(repo_root: Path) -> list[Path]:
     return [
         f
         for f in files
-        if _in_scope(f, repo_root) or _in_error_guard_scope(f, repo_root)
+        if _in_scope(f, repo_root)
+        or _in_structure_scope(f, repo_root)
+        or _in_error_guard_scope(f, repo_root)
     ]
 
 
@@ -529,7 +560,11 @@ def main() -> None:
         targets = [
             f
             for f in targets
-            if (_in_scope(f, repo_root) or _in_error_guard_scope(f, repo_root))
+            if (
+                _in_scope(f, repo_root)
+                or _in_structure_scope(f, repo_root)
+                or _in_error_guard_scope(f, repo_root)
+            )
             and f.is_file()
         ]
     else:
