@@ -15,11 +15,12 @@ signal elite_cleared
 signal spawn_warning_changed(cells: Array[Vector2i], ticks: int)
 
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
-const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const EliteScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 
-const SUPPORT_ENEMY_SCENES := [SmallEnemyScene, PuffEnemyScene, ChargeEnemyScene]
+## PuffEnemy is intentionally excluded: it is a parked special-enemy prototype, not part of the
+## normal support pool. See tick_arena_visual_readability_03a_support_pool_identity_cleanup.
+const SUPPORT_ENEMY_SCENES := [SmallEnemyScene, ChargeEnemyScene]
 ## Player-action world ticks a spawn-warning batch telegraphs before it resolves.
 const SPAWN_WARNING_TICKS := 2
 
