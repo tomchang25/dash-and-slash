@@ -16,6 +16,12 @@ Rules:
 
 ## [unreleased]
 
+### Tick Arena Visual Readability And Identity
+
+- 2026-07-10 — [visual] Tick arena enemies render through sprite-based visual presenters with facing, prepare/commit telegraph cues, damage flash, and stagger tint instead of colored prototype squares, covering SmallEnemy and ChargeEnemy while other enemy kinds keep their legacy fallback
+- 2026-07-10 — [visual] SmallEnemy becomes four color-coded variants (Line, Sweep, Pierce, Burst) with pattern identity authored as explicit local cell offsets and palette-swapped sprite tinting, PuffEnemy is frozen out of normal support spawns, and ChargeEnemy moves to a Skull body
+- 2026-07-10 — [gameplay] The tick arena adds Ninja and Viking as fixed run-start character classes with class-specific Speed fill, sprite body/weapon presentation, and Mobility-locked Major reward eligibility, replacing the generic Mobility Free Action reward with the Dash-only Chain Dash effect
+
 ### Debug Panel Tick Arena Actions
 
 - 2026-07-09 — [debug] The tick arena debug panel gains an Instant Kill All Enemies action and mutually exclusive player god modes (Disable / No Damage / Undead), and the panel itself becomes a sectioned, scrollable, viewport-bounded tool grouping controls into Combat, Player, and Build
