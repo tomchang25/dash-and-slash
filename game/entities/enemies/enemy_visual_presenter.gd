@@ -91,7 +91,7 @@ func show_attack_commit() -> void:
 
 
 ## Non-authoritative damage feedback: flashes white/red, then settles back into stagger
-## tint if still staggered, or full white otherwise. Mirrors the legacy _body hurt flash.
+## tint if still staggered, or base tint otherwise. Mirrors the legacy _body hurt flash.
 func flash_damage() -> void:
     if _flash_tween != null and _flash_tween.is_valid():
         _flash_tween.kill()
@@ -103,7 +103,7 @@ func flash_damage() -> void:
     _flash_tween.finished.connect(_on_flash_finished, CONNECT_ONE_SHOT)
 
 
-## Tints toward stagger color when active, or clears back to white when it ends.
+## Tints toward stagger color when active, or clears back to base tint when it ends.
 func set_staggered(active: bool) -> void:
     _is_staggered = active
     if active:
@@ -118,7 +118,7 @@ func set_staggered(active: bool) -> void:
         _tint_tween.tween_property(_frame_view, "modulate", _base_tint, STAGGER_CLEAR_SEC)
 
 
-## Resets visuals to a clean idle/white state, e.g. on enemy pool reuse.
+## Resets visuals to a clean idle/base-tint state, e.g. on enemy pool reuse.
 func reset_visuals() -> void:
     _is_staggered = false
     _clear_action_feedback()

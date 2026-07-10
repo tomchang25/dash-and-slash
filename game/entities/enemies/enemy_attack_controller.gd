@@ -21,22 +21,23 @@ func setup(grid: GridArena, telegraph: TileTelegraph) -> void:
 
 ## Computes attack cells for the given origin, facing, and attack data without side effects.
 static func get_attack_cells(origin_cell: Vector2i, facing: Vector2, attack_data: EnemyAttackData, grid: GridArena = null) -> Array[Vector2i]:
+    if attack_data == null:
+        return []
+
     var facing_cell := Vector2i(int(facing.x), int(facing.y))
     if facing_cell == Vector2i.ZERO:
         return []
 
-    match attack_data.cell_shape:
-        EnemyAttackData.CellShape.LINE:
-            return AttackCellShapes.line(origin_cell, facing_cell, attack_data.line_length, grid, true)
-        EnemyAttackData.CellShape.WIDE:
-            return AttackCellShapes.wide(origin_cell, facing_cell, attack_data.depth, attack_data.width, grid, true)
-        EnemyAttackData.CellShape.SQUARE:
-            return AttackCellShapes.square(origin_cell, attack_data.radius, grid, true)
-        EnemyAttackData.CellShape.FULL_LINE:
-            return _full_line_cells(origin_cell, facing_cell, grid)
-        EnemyAttackData.CellShape.ADJACENT_RING:
-            return AttackCellShapes.adjacent_ring(origin_cell, attack_data.radius, grid, true)
-    return []
+    if attack_data.cell_shape == EnemyAttackData.CellShape.FULL_LINE:
+        return _full_line_cells(origin_cell, facing_cell, grid)
+
+    return AttackCellShapes.cells_from_local_offsets(
+        origin_cell,
+        facing_cell,
+        AttackCellShapes.local_offsets_for(attack_data),
+        grid,
+        true,
+    )
 
 
 ## Computes the origin cells that could include target_cell in the attack footprint.
@@ -45,17 +46,13 @@ static func get_attack_origin_cells(target_cell: Vector2i, attack_data: EnemyAtt
     if attack_data == null:
         return origins
 
-    match attack_data.cell_shape:
-        EnemyAttackData.CellShape.LINE:
-            _append_line_origin_cells(origins, target_cell, attack_data.line_length, grid)
-        EnemyAttackData.CellShape.WIDE:
-            _append_wide_origin_cells(origins, target_cell, attack_data.depth, attack_data.width, grid)
-        EnemyAttackData.CellShape.SQUARE:
-            _append_square_origin_cells(origins, target_cell, attack_data.radius, grid)
-        EnemyAttackData.CellShape.FULL_LINE:
-            _append_line_origin_cells(origins, target_cell, _max_grid_axis_length(grid), grid)
-        EnemyAttackData.CellShape.ADJACENT_RING:
-            _append_adjacent_ring_origin_cells(origins, target_cell, attack_data.radius, grid)
+    var local_offsets: Array[Vector2i] = []
+    if attack_data.cell_shape == EnemyAttackData.CellShape.FULL_LINE:
+        local_offsets = AttackCellShapes.line_offsets(_max_grid_axis_length(grid))
+    else:
+        local_offsets = AttackCellShapes.local_offsets_for(attack_data)
+
+    _append_offset_origin_cells(origins, target_cell, local_offsets, grid)
     return origins
 
 
@@ -129,54 +126,33 @@ func clear_cell(cell: Vector2i) -> void:
 ## Computes a full line from the cell adjacent to origin to the grid boundary in the facing direction.
 static func _full_line_cells(origin_cell: Vector2i, facing_cell: Vector2i, grid: GridArena) -> Array[Vector2i]:
     var cells: Array[Vector2i] = []
-    var cell := origin_cell + facing_cell
-    while grid != null and grid.is_in_bounds(cell) and grid.is_land(cell):
+    if grid == null:
+        return cells
+
+    var distance := 1
+    while true:
+        var cell := AttackCellShapes.local_offset_to_cell(origin_cell, facing_cell, Vector2i(distance, 0))
+        if not grid.is_in_bounds(cell) or not grid.is_land(cell):
+            break
         cells.append(cell)
-        cell += facing_cell
+        distance += 1
     return cells
 
 
-static func _append_line_origin_cells(origins: Array[Vector2i], target_cell: Vector2i, length: int, grid: GridArena = null) -> void:
-    if length <= 0:
-        return
-    for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
-        for distance in range(1, length + 1):
-            _append_origin_cell(origins, target_cell - facing_cell * distance, grid)
-
-
-static func _append_wide_origin_cells(
+## Appends every in-bounds origin that can place target_cell at one local footprint offset.
+static func _append_offset_origin_cells(
         origins: Array[Vector2i],
         target_cell: Vector2i,
-        depth: int,
-        width: int,
+        local_offsets: Array[Vector2i],
         grid: GridArena = null,
 ) -> void:
-    if depth <= 0 or width <= 0:
+    if local_offsets.is_empty():
         return
+
     for facing_cell: Vector2i in CARDINAL_DIRECTIONS:
-        var right_cell := Vector2i(facing_cell.y, -facing_cell.x)
-        var half_width := int(width / 2)
-        for row in range(1, depth + 1):
-            for offset in range(-half_width, width - half_width):
-                _append_origin_cell(origins, target_cell - facing_cell * row - right_cell * offset, grid)
-
-
-static func _append_square_origin_cells(origins: Array[Vector2i], target_cell: Vector2i, radius: int, grid: GridArena = null) -> void:
-    if radius < 0:
-        return
-    for x_offset in range(-radius, radius + 1):
-        for y_offset in range(-radius, radius + 1):
-            _append_origin_cell(origins, target_cell - Vector2i(x_offset, y_offset), grid)
-
-
-static func _append_adjacent_ring_origin_cells(origins: Array[Vector2i], target_cell: Vector2i, radius: int, grid: GridArena = null) -> void:
-    if radius < 0:
-        return
-    for x_offset in range(-radius, radius + 1):
-        for y_offset in range(-radius, radius + 1):
-            if x_offset == 0 and y_offset == 0:
-                continue
-            _append_origin_cell(origins, target_cell - Vector2i(x_offset, y_offset), grid)
+        for local_offset: Vector2i in local_offsets:
+            var offset_cell := AttackCellShapes.local_offset_to_cell(Vector2i.ZERO, facing_cell, local_offset)
+            _append_origin_cell(origins, target_cell - offset_cell, grid)
 
 
 static func _append_origin_cell(origins: Array[Vector2i], origin_cell: Vector2i, grid: GridArena = null) -> void:

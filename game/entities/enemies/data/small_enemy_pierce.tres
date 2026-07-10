@@ -6,9 +6,10 @@
 [sub_resource type="Resource" id="atk_pierce"]
 script = ExtResource("2_ad")
 attack_id = "pierce"
+cell_shape = 5
 damage = 18.0
 recovery_duration = 2
-line_length = 1
+cell_offsets = Array[Vector2i]([Vector2i(1, 0)])
 
 [resource]
 script = ExtResource("1_data")

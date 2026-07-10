@@ -17,6 +17,7 @@ enum CellShape {
     SQUARE,
     FULL_LINE,
     ADJACENT_RING,
+    CUSTOM_OFFSETS,
 }
 
 @export var attack_id := ""
@@ -38,4 +39,6 @@ enum CellShape {
 @export var width := 3
 @export var depth := 2
 @export var radius := 1
+## Local footprint cells where x is forward and y is left relative to the enemy's facing.
+@export var cell_offsets: Array[Vector2i] = []
 @export var charge_speed := 480.0

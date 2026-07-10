@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://game/entities/enemies/enemy_palette_swap.gdshader" id="1_shader"]
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/target_color_0 = Color(1, 0.8, 0.08, 1)
+shader_parameter/target_color_1 = Color(0.88, 0.48, 0.03, 1)
+shader_parameter/target_color_2 = Color(0.64, 0.25, 0.02, 1)
+shader_parameter/target_color_3 = Color(1, 0.95, 0.58, 1)
+shader_parameter/threshold = 0.03

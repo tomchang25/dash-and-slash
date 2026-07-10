@@ -6,7 +6,9 @@
 [sub_resource type="Resource" id="atk_line"]
 script = ExtResource("2_ad")
 attack_id = "line"
+cell_shape = 5
 warning_duration = 1
+cell_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)])
 
 [resource]
 script = ExtResource("1_data")

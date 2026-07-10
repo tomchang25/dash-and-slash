@@ -6,9 +6,8 @@
 [sub_resource type="Resource" id="atk_sweep"]
 script = ExtResource("2_ad")
 attack_id = "sweep"
-cell_shape = 1
-depth = 1
-width = 3
+cell_shape = 5
+cell_offsets = Array[Vector2i]([Vector2i(1, -1), Vector2i(1, 0), Vector2i(1, 1)])
 
 [resource]
 script = ExtResource("1_data")
