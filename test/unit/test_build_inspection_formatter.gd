@@ -64,6 +64,7 @@ func test_class_rows_report_unknown_for_a_missing_character_class() -> void:
     assert_eq(rows[0]["value"], "Unknown")
     assert_eq(rows[1]["label"], "Mobility")
     assert_eq(rows[1]["value"], "Unknown")
+    assert_push_error("missing CharacterClassData")
 
 
 func test_trigger_rows_report_none_when_no_trigger_is_active() -> void:
