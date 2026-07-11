@@ -326,6 +326,7 @@ def check_gdscript_structure(path: str, text: str) -> list[Violation]:
 
 
 CONNECTION_RE = re.compile(r"^\[connection\b")
+ROOT_ASSET_PATH_RE = re.compile(r'\bpath="res://assets/')
 
 
 def check_tscn_connections(path: str, text: str) -> list[Violation]:
@@ -343,6 +344,29 @@ def check_tscn_connections(path: str, text: str) -> list[Violation]:
                     "scene §Signal connections",
                     "signal connection stored in .tscn. Connect it in _ready() "
                     "instead so the full wiring surface is visible in code.",
+                )
+            )
+    return violations
+
+
+# ── Tier 1: feature scenes do not depend on ignored root assets ──────────────
+
+
+def check_tscn_root_asset_paths(path: str, text: str) -> list[Violation]:
+    """Feature scenes must reference an owned or shared asset, never the
+    ignored root assets/ vendor/reference directory."""
+    violations: list[Violation] = []
+    for i, line in enumerate(text.splitlines(), start=1):
+        if ROOT_ASSET_PATH_RE.search(line):
+            violations.append(
+                Violation(
+                    path,
+                    i,
+                    "feature-asset-ownership",
+                    "asset_ownership §2",
+                    "scene resources must not reference res://assets/. Copy the "
+                    "source asset into the owning feature's assets/ folder, or "
+                    "use an intentional shared asset under game/shared/assets/.",
                 )
             )
     return violations
@@ -440,7 +464,7 @@ def check_bare_push_warning(path: str, text: str) -> list[Violation]:
 GD_SCENE_CHECKS = (check_node_source, check_node_lookup)
 GD_STRUCTURE_CHECKS = (check_gdscript_structure,)
 GD_ERROR_GUARD_CHECKS = (check_bare_push_error, check_bare_push_warning)
-TSCN_CHECKS = (check_tscn_connections,)
+TSCN_CHECKS = (check_tscn_connections, check_tscn_root_asset_paths)
 
 
 def lint_file(path: Path, repo_root: Path) -> list[Violation]:
