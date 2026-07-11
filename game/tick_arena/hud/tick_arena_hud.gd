@@ -15,8 +15,6 @@ signal settings_pressed
 
 const ArtifactStripItemScene: PackedScene = preload("res://game/tick_arena/hud/artifact_strip_item.tscn")
 
-const PAYLOAD_DASH := &"dash"
-const PAYLOAD_SMASH := &"smash"
 const READY_TEXT := "READY"
 const COOLDOWN_TEXT := "%dT"
 const READY_TEXT_COLOR := Color(0.57, 0.98, 0.86, 1.0)
@@ -30,6 +28,7 @@ const COOLDOWN_TEXT_COLOR := Color(1.0, 0.76, 0.42, 1.0)
 @onready var _dash_cooldown_label: Label = %DashCooldownLabel
 @onready var _smash_chip: Control = %SmashChip
 @onready var _smash_cooldown_label: Label = %SmashCooldownLabel
+@onready var _class_label: Label = %ClassLabel
 @onready var _tick_count_label: Label = %TickCountLabel
 @onready var _wave_label: Label = %WaveLabel
 @onready var _artifact_strip: HBoxContainer = %ArtifactStrip
@@ -58,7 +57,7 @@ func _on_settings_button_pressed() -> void:
 
 
 ## Renders the full HUD from a plain-data snapshot the arena root builds every refresh. Expected
-## keys: hp, max_hp, mobility_payload, dash_cooldown, smash_cooldown, speed_meter, speed_meter_max,
+## keys: hp, max_hp, class_name, mobility_id, dash_cooldown, smash_cooldown, speed_meter, speed_meter_max,
 ## speed_meter_ready, tick_count, wave_display_text, artifact_rows
 ## (BuildInspectionFormatter.build_artifact_rows() shape).
 func render(snapshot: Dictionary) -> void:
@@ -79,19 +78,20 @@ func _apply_combat_state(snapshot: Dictionary) -> void:
     _speed_bar.render_value(speed_meter, speed_meter_max, speed_ready)
 
     _apply_mobility_chip(snapshot)
+    _class_label.text = String(snapshot.get("class_name", "Unknown"))
     _tick_count_label.text = "Tick %d" % int(snapshot.get("tick_count", 0))
 
 
 func _apply_mobility_chip(snapshot: Dictionary) -> void:
-    var mobility_payload: StringName = snapshot.get("mobility_payload", PAYLOAD_DASH)
-    _dash_chip.visible = mobility_payload == PAYLOAD_DASH
-    _smash_chip.visible = mobility_payload == PAYLOAD_SMASH
-    if mobility_payload == PAYLOAD_DASH:
+    var mobility_id: StringName = snapshot.get("mobility_id", CharacterClassData.MOBILITY_DASH)
+    _dash_chip.visible = mobility_id == CharacterClassData.MOBILITY_DASH
+    _smash_chip.visible = mobility_id == CharacterClassData.MOBILITY_SMASH
+    if mobility_id == CharacterClassData.MOBILITY_DASH:
         _set_cooldown_label(_dash_cooldown_label, "Dash", int(snapshot.get("dash_cooldown", 0)))
-    elif mobility_payload == PAYLOAD_SMASH:
+    elif mobility_id == CharacterClassData.MOBILITY_SMASH:
         _set_cooldown_label(_smash_cooldown_label, "Smash", int(snapshot.get("smash_cooldown", 0)))
     else:
-        ToastManager.show_dev_error("TickArenaHud: unknown mobility payload %s" % mobility_payload)
+        ToastManager.show_dev_error("TickArenaHud: unknown class Mobility %s" % mobility_id)
 
 
 func _set_cooldown_label(target_label: Label, label_text: String, cooldown: int) -> void:

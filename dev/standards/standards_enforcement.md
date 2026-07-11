@@ -37,6 +37,11 @@ when it's actually been violated enough to be worth automating.
 
 Only what `lint_standards.py` enforces today:
 
+- **GDScript header shape and declaration placement** (`gdscript_structure_standard.md` §2-§5).
+  Variable block headers must use the unpadded `# -- Group name --` shape, and function section headers must use the unpadded `# == Section name ==` shape. The check accepts custom group/section names; it only rejects padded or malformed header syntax.
+
+  The same check also enforces the standard declaration block flow where it is syntactic: recognized variable blocks appear in declaration order (`Constants`, `Exports`, `State`, `Timer / tween handles`, `Node references`), and top-level declarations such as `const`, `var`, `@export var`, `@onready var`, `signal`, and `enum` must not appear after function sections have begun.
+
 - **Node-source rule** (`scene_node_source_standard.md` §5). A machine
   can't tell whether a node is persistent, so the convention makes intent
   syntactic: every runtime `add_child` that is _not_ a `.instantiate()`'d packed
@@ -62,6 +67,8 @@ Only what `lint_standards.py` enforces today:
 - **No signal connections in `.tscn`** (`gdscript_structure_standard.md`, Signal connections).
   Any `[connection]` block in a scene file fails; connect signals in `_ready()`
   so the full wiring surface is visible in code.
+
+- **Feature scene assets are feature-owned** (`asset_ownership_standard.md` §2). A scene under `game/` cannot reference `res://assets/`; its resource must live with the owning feature or be an intentional shared asset.
 
 - **No fragile direct node lookup** (`scene_node_source_standard.md`, Node Reference Style).
   Direct `get_node(...)`, `get_node_or_null(...)`, and `find_child(...)` calls fail unless the immediately preceding line carries `# node-ref: allow - <reason>`. Fixed scene nodes should be referenced with `%UniqueName` `@onready` variables, and cross-boundary access should go through a narrow API or signal.

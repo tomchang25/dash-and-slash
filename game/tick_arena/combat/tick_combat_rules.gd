@@ -86,13 +86,13 @@ static func angle_name(angle: TileDirectionResolver.HitAngle) -> String:
             return "?"
 
 
-## Projects a mobility-slot payload's base cooldown (Dash or Smash) through the run's Mobility
+## Projects a class Mobility's base cooldown (Dash or Smash) through the run's Mobility
 ## Cooldown reduction stacks, floored at 1 tick so the mobility slot is never truly free through this Minor.
 static func mobility_cooldown_ticks(base_ticks: int, reduction_stacks: int) -> int:
     return maxi(base_ticks - reduction_stacks, 1)
 
 
-## Projects a mobility-slot payload's base range (in cells, Dash or Smash) through the run's flat
+## Projects a class Mobility's base range (in cells, Dash or Smash) through the run's flat
 ## Mobility Range cell bonus, floored at 1 cell so a reward can never collapse the mobility slot's
 ## reach to nothing.
 static func mobility_range_cells(base_range: int, bonus_cells: float) -> int:
@@ -104,7 +104,7 @@ static func normal_attack_damage(bonus_total: float) -> float:
     return PLAYER_ATTACK_DAMAGE + bonus_total
 
 
-## Projects a mobility-slot payload's base damage (Dash or Smash) through the run's Mobility Attack
+## Projects a class Mobility's base damage (Dash or Smash) through the run's Mobility Attack
 ## Damage bonus total.
 static func mobility_attack_damage(base_damage: float, bonus_total: float) -> float:
     return base_damage + bonus_total

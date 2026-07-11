@@ -16,6 +16,5 @@ id = &"mobility_range_up"
 display_name = "Extended Mobility"
 description_template = "+%d Mobility Range"
 max_stacks = 3
-magnitude = 1.0
 effects = Array[ExtResource("1_6loun")]([SubResource("effect")])
 icon = ExtResource("3_icon")

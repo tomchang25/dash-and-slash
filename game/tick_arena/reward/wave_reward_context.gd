@@ -6,10 +6,12 @@ extends RefCounted
 
 var grid: GridArena
 var run_build: RunBuild
+var mobility_id: StringName
 
 # == Lifecycle ==
 
 
-func _init(init_grid: GridArena, init_run_build: RunBuild) -> void:
+func _init(init_grid: GridArena, init_run_build: RunBuild, init_mobility_id := &"") -> void:
     grid = init_grid
     run_build = init_run_build
+    mobility_id = init_mobility_id

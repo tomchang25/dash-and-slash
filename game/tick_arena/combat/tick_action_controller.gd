@@ -1,12 +1,16 @@
 # tick_action_controller.gd
-# Owns tick-arena verb dispatch (move, confirm/attack, mobility payloads, wait), Speed meter
-# spend/fill, Mobility Free Action refunds, hit application, and the decision to advance the tick
+# Owns tick-arena verb dispatch (move, confirm/attack, class Mobility, wait), Speed meter
+# spend/fill, Chain Dash refunds, hit application, and the decision to advance the tick
 # world (tick resolution stage 1); world advancement itself is handed to TickEngine. Result
 # presentation (Major-trigger VFX/SFX) belongs to TickCombatFeedback.
 # Aim/plan resolution (mouse cell, aim direction, dash/smash plans) is shared with TickPreviewController
-# through TickAimContext. May mutate TickPlayer, RunBuild, enemy health through the existing hit path,
-# and TickGridView input-driven feedback flashes; may request world advancement from TickEngine, but
-# never owns tick count, actor energy, wave state, reward state, spawn queues, or terrain cadence.
+# through TickAimContext; the presentation-only facing direction is owned here too and read by
+# TickPreviewController each frame. Facing only ever changes on a discrete input event (keyboard move,
+# a click that resolves attack/Dash/Smash, or the mouse hovering into a new aim cell) — never recomputed
+# continuously from a stationary cursor — so it cannot drift out from under the player between events.
+# May mutate TickPlayer, RunBuild, enemy health through the existing hit path, and TickGridView
+# input-driven feedback flashes; may request world advancement from TickEngine, but never owns tick
+# count, actor energy, wave state, reward state, spawn queues, or terrain cadence.
 class_name TickActionController
 extends Node
 
@@ -31,11 +35,13 @@ enum AimMode {
 # -- State --
 
 var _run_build: RunBuild
+var _character_class: CharacterClassData
 var _aim_context: TickAimContext
 var _aim_mode := AimMode.ATTACK
 var _smash_cancel_confirm_open := false
 var _input_locked := false
 var _last_aim := Vector2i.RIGHT
+var _facing_direction := Vector2i.RIGHT
 
 # == Lifecycle ==
 
@@ -58,11 +64,16 @@ func _on_smash_cancel_keep_pressed() -> void:
 # == Common API ==
 
 
-## Stores the run build this controller reads Speed stacks, mobility payload, and mobility
-## triggers from; the tick arena root owns and constructs the shared RunBuild instance.
-func setup(run_build: RunBuild) -> void:
+## Stores the run build and immutable active class distributed by the tick arena root.
+func setup(run_build: RunBuild, character_class: CharacterClassData) -> void:
     _run_build = run_build
+    _character_class = character_class
     _aim_context = TickAimContext.new(grid, engine, player, run_build, func() -> Vector2i: return _last_aim)
+
+
+## Replaces the active class only at the arena's run-reset boundary.
+func set_character_class(character_class: CharacterClassData) -> void:
+    _character_class = character_class
 
 
 ## Locks or unlocks verb dispatch; the run controller locks input while the wave-clear banner and
@@ -75,6 +86,7 @@ func set_input_locked(locked: bool) -> void:
 ## controller's reset seam before it respawns enemies.
 func reset_for_new_run() -> void:
     _aim_mode = AimMode.ATTACK
+    _facing_direction = Vector2i.RIGHT
     _close_smash_cancel_confirm()
 
 
@@ -88,9 +100,21 @@ func get_last_aim() -> Vector2i:
     return _last_aim
 
 
-## Cancels an armed smash unconditionally, the same behavior Attack/Wait verbs use; exposed publicly
-## so a debug mobility-payload switch can cancel a pending windup through this one path instead of
-## duplicating the behavior.
+## Returns the presentation-only facing direction, shared read-only with the preview controller so the
+## body/weapon marker only ever reflects a discrete input event (see class doc), never a continuously
+## recomputed cursor delta.
+func get_facing_direction() -> Vector2i:
+    return _facing_direction
+
+
+## Reports the mouse hovering into a new aim cell — called by TickPreviewController only on the frame
+## the resolved mouse cell actually changes, so idle cursor presence never touches facing.
+func report_cursor_hover(direction: Vector2i) -> void:
+    if direction != Vector2i.ZERO:
+        _facing_direction = direction
+
+
+## Cancels an armed Smash unconditionally through the shared cleanup path.
 func cancel_smash_windup() -> void:
     if player.is_smash_armed():
         player.disarm_smash()
@@ -101,7 +125,7 @@ func cancel_smash_windup() -> void:
 ## buttons (Do Nothing / Cancel Attack) can resolve it, so a stray click or key press can never sneak
 ## past it and act on the game underneath.
 ## Verbs return an action result (`{ "consumed": bool, "advances_world": bool }`) instead of a bare
-## bool: a consumed verb only advances the world when it was not a Speed-meter or Mobility Free
+## bool: a consumed verb only advances the world when it was not a Speed-meter or Chain Dash
 ## Action Major free action, and illegal inputs stay consumed false per the shared verb-result contract.
 ## The tick arena root connects TickInput's verb_requested signal directly to this method.
 func handle_verb(verb: TickVerb) -> void:
@@ -125,7 +149,7 @@ func handle_verb(verb: TickVerb) -> void:
     if bool(result.get("advances_world", false)):
         engine.advance_world()
     elif bool(result.get("consumed", false)):
-        # A free action (Speed spend or Mobility Free Action refund) still changed HUD-visible state
+        # A free action (Speed spend or Chain Dash refund) still changed HUD-visible state
         # (the meter, a cooldown) even though the world did not advance, so the HUD must refresh here too.
         state_changed.emit()
 
@@ -138,6 +162,7 @@ func handle_verb(verb: TickVerb) -> void:
 ## When the SettingsStore auto-attack-on-move preference is on and Attack Mode is active with no Smash
 ## armed, walking into an enemy's cell swings at it instead of just denying the move.
 func _verb_move(dir: Vector2i) -> Dictionary:
+    _facing_direction = dir
     if not _try_cancel_smash_windup():
         return _verb_illegal()
     var target := player.cell + dir
@@ -168,10 +193,13 @@ func _confirm_is_attack() -> bool:
 
 
 ## Swings at the mouse-aimed adjacent cell; a whiff still consumes the tick, only illegal inputs are
-## free. Normal attack is the second Speed-eligible action, accounted for the same way as move.
+## free. Normal attack is the second Speed-eligible action, accounted for the same way as move. The
+## click resolving this counts as a facing event, same as a keyboard move.
 func _verb_attack() -> Dictionary:
     cancel_smash_windup()
-    return _resolve_attack(_aim_context.aim_direction())
+    var aim := _aim_context.aim_direction()
+    _facing_direction = aim
+    return _resolve_attack(aim)
 
 
 ## Shared normal-attack resolution for the mouse-aim confirm and the move-into-enemy auto-attack:
@@ -181,6 +209,7 @@ func _resolve_attack(aim: Vector2i) -> Dictionary:
     var target := player.cell + aim
     _tick_player_action_upkeep()
     view.flash_swing([target])
+    player.play_normal_attack_visual(aim)
     var free_action := _spend_speed_if_full()
     var enemy := engine.enemy_at(target)
     if enemy != null:
@@ -190,14 +219,14 @@ func _resolve_attack(aim: Vector2i) -> Dictionary:
 
 
 func _verb_mobility() -> Dictionary:
-    var payload := _run_build.get_mobility_payload()
-    if payload == RunBuild.PAYLOAD_DASH:
+    if _character_class == null:
+        ToastManager.show_dev_error("TickActionController: missing CharacterClassData")
+        return _verb_illegal()
+    if _character_class.mobility_id == CharacterClassData.MOBILITY_DASH:
         return _verb_dash()
-    if payload == RunBuild.PAYLOAD_SMASH:
+    if _character_class.mobility_id == CharacterClassData.MOBILITY_SMASH:
         return _verb_smash()
-    if payload == RunBuild.PAYLOAD_DEBUG_STUB:
-        return _verb_debug_stub_mobility()
-    ToastManager.show_dev_error("TickActionController: unknown mobility payload %s" % payload)
+    ToastManager.show_dev_error("TickActionController: unknown class Mobility %s" % _character_class.mobility_id)
     return _verb_illegal()
 
 
@@ -205,13 +234,14 @@ func _verb_dash() -> Dictionary:
     if player.dash_cooldown > 0:
         return _verb_illegal()
     var plan := _aim_context.compute_dash_plan()
+    _facing_direction = plan["dir"]
     if not bool(plan["legal"]):
         view.flash_deny(player.cell + plan["dir"] * _aim_context.dash_range())
         return _verb_illegal()
     _tick_player_action_upkeep()
     var dir: Vector2i = plan["dir"]
-    var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
-    var execution := TickCombatProjection.has_mobility_execution(_run_build)
+    var guard_shredder := TickCombatProjection.has_dash_guard_shredder(_run_build)
+    var execution := TickCombatProjection.has_dash_execution(_run_build)
     var outcomes: Array[TickHitOutcome] = []
     for victim: GridEnemy in plan["victims"]:
         outcomes.append(
@@ -227,18 +257,20 @@ func _verb_dash() -> Dictionary:
     view.flash_swing(plan["path"])
     player.move_to(plan["landing"], true)
     player.dash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.DASH_COOLDOWN_TICKS)
-    var refunds := _mobility_action_refunds(outcomes)
+    var refunds := _chain_dash_refunds(outcomes)
     return _verb_result(not refunds)
 
 
 ## First confirm arms the windup on a locked landing cell (costs one tick, enemies act one beat)
 ## the next confirm releases the leap and 3x3 hit regardless of where the mouse is now aimed. Arming
-## has no attack outcome and can never refund; only the release can.
+## has no attack outcome and neither phase can inherit Dash-only Major refunds. The arming click also
+## sets the presentation-only facing direction toward the locked target, same as a Dash confirm.
 func _verb_smash() -> Dictionary:
     if not player.is_smash_armed():
         if player.smash_cooldown > 0:
             return _verb_illegal()
         var target := _aim_context.clamped_smash_target()
+        _facing_direction = _aim_context.aim_direction()
         if not engine.is_cell_open_for_player(target):
             view.flash_deny(target)
             return _verb_illegal()
@@ -255,20 +287,15 @@ func _verb_smash() -> Dictionary:
         return _verb_illegal()
     _tick_player_action_upkeep()
     view.flash_swing(_aim_context.smash_area(landing))
-    var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
-    var execution := TickCombatProjection.has_mobility_execution(_run_build)
-    var outcomes: Array[TickHitOutcome] = []
     for enemy: GridEnemy in engine.actors():
         if _aim_context.chebyshev(enemy.get_grid_pos() - landing) <= 1:
-            outcomes.append(
-                _apply_player_hit(
-                    enemy,
-                    landing,
-                    TickCombatProjection.mobility_attack_damage(_run_build, TickCombatRules.PLAYER_SMASH_DAMAGE),
-                    guard_shredder,
-                    execution,
-                    TickCombatProjection.mobility_stagger_burst_multiplier(),
-                ),
+            _apply_player_hit(
+                enemy,
+                landing,
+                TickCombatProjection.mobility_attack_damage(_run_build, TickCombatRules.PLAYER_SMASH_DAMAGE),
+                false,
+                false,
+                TickCombatProjection.mobility_stagger_burst_multiplier(),
             )
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
     AudioManager.play_event(player.smash_impact_sfx_event, grid.cell_center(landing))
@@ -276,18 +303,6 @@ func _verb_smash() -> Dictionary:
     player.disarm_smash()
     player.smash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.SMASH_COOLDOWN_TICKS)
     _close_smash_cancel_confirm()
-    var refunds := _mobility_action_refunds(outcomes)
-    return _verb_result(not refunds)
-
-
-func _verb_debug_stub_mobility() -> Dictionary:
-    var target := player.cell + _aim_context.aim_direction()
-    if not engine.is_cell_open_for_player(target):
-        view.flash_deny(target)
-        return _verb_illegal()
-    _tick_player_action_upkeep()
-    view.flash_swing([target])
-    player.move_to(target, true)
     return _verb_result(true)
 
 
@@ -298,7 +313,7 @@ func _verb_wait() -> Dictionary:
 
 
 ## Shared verb-result shape for a consumed verb: consumed is always true, advances_world is false only
-## for a Speed-meter free move/attack or a Mobility Free Action Major refund.
+## for a Speed-meter free move/attack or a Chain Dash refund.
 func _verb_result(advances_world: bool) -> Dictionary:
     return { "consumed": true, "advances_world": advances_world }
 
@@ -330,11 +345,9 @@ func _fill_speed_meter() -> void:
     player.fill_speed_meter(_run_build.total(RunBuild.CH_SPEED))
 
 
-## Whether a mobility-slot strike's collected hit outcomes refund this action's world advancement:
-## the Mobility Free Action Major must be active, and at least one outcome must be a kill, guard
-## break, or back-angle hit. A strike with several qualifying victims still refunds at most once.
-func _mobility_action_refunds(outcomes: Array[TickHitOutcome]) -> bool:
-    return TickCombatProjection.has_mobility_free_action(_run_build) and TickHitResolver.any_qualifies_for_mobility_free_action(outcomes)
+## Whether Chain Dash refunds this Dash's world advancement; several qualifying victims still refund once.
+func _chain_dash_refunds(outcomes: Array[TickHitOutcome]) -> bool:
+    return TickCombatProjection.has_chain_dash(_run_build) and TickHitResolver.any_qualifies_for_chain_dash(outcomes)
 
 
 ## Holding Alt selects Mobility Mode; releasing it returns to Attack Mode. Switching never consumes a
@@ -376,7 +389,7 @@ func _close_smash_cancel_confirm() -> void:
 
 
 ## Resolves one committed player hit and returns the resolver outcome so mobility strike loops can
-## collect it for the Mobility Free Action Major's refund check instead of losing it. A kill needs
+## collect it for Chain Dash's refund check instead of losing it. A kill needs
 ## no explicit removal here: take_hit() synchronously fires the enemy's died signal, which the wave
 ## controller (via the spawner's died_callback) already uses to drop it from alive-count tracking.
 func _apply_player_hit(

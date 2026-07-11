@@ -135,17 +135,16 @@ unique_name_in_owner = true
 
 
 func _wire_debug_panel() -> void:
-    _dash_payload_button = _debug_panel.add_action("Dash Payload", _on_debug_set_dash_payload)
-    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder)
-    _debug_panel.add_action("Add Tile", _on_debug_add_tile)
-    _debug_panel.add_action("Remove Tile", _on_debug_remove_tile)
-    _debug_panel.add_action("Move Tile", _on_debug_move_tile)
+    _ninja_class_button = _debug_panel.add_action("Class - Ninja", _on_debug_set_ninja_class, "Player")
+    _viking_class_button = _debug_panel.add_action("Class - Viking", _on_debug_set_viking_class, "Player")
+    _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder, "Build")
+    _chain_dash_button = _debug_panel.add_action("Chain Dash", _on_debug_toggle_chain_dash, "Build")
 
 
-func _on_debug_instant_dash() -> void:
+func _on_debug_set_ninja_class() -> void:
     if not Debug.enabled:
         return
-    _player.debug_force_dash_ready()
+    _set_debug_character_class(ninja_class)
 ```
 
 The handler still guards with `if not Debug.enabled: return` per §4a — belt-and-suspenders in case the handler is ever called from another path. Do not extend `debug_panel.gd` itself with project-specific actions; keep the component generic and let the owning scene call `add_action()` for its own shortcuts.

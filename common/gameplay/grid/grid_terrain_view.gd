@@ -17,7 +17,7 @@ const WALL_THICKNESS := 128.0
 
 var _arena_collision: Node2D
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -38,7 +38,7 @@ func _draw() -> void:
     _draw_grid_lines()
     _draw_telegraphs()
 
-# == Signal Handlers ==========================================================
+# == Signal Handlers ==
 
 
 func _on_terrain_generated() -> void:
@@ -52,7 +52,7 @@ func _on_terrain_cells_changed(cells: Array[Vector2i]) -> void:
 func _on_telegraphs_changed() -> void:
     queue_redraw()
 
-# == Common API ===============================================================
+# == Common API ==
 
 
 ## Redraws all presentation state from the current GridArena truth.
@@ -83,7 +83,7 @@ func redraw_cells(cells: Array[Vector2i]) -> void:
 
     queue_redraw()
 
-# == Tile Layers ==============================================================
+# == Tile Layers ==
 
 
 func _position_tile_layers() -> void:
@@ -135,7 +135,7 @@ func _gameplay_cell_to_visual_cells(cell: Vector2i) -> Array[Vector2i]:
             visual_cells.append(visual_origin + Vector2i(vx, vy))
     return visual_cells
 
-# == Arena Bounds =============================================================
+# == Arena Bounds ==
 
 
 func _rebuild_arena_collision() -> void:
@@ -170,7 +170,7 @@ func _add_wall(wall_name: String, size: Vector2, wall_position: Vector2) -> void
     # node-src: ephemeral - rebuilt from grid configuration
     _arena_collision.add_child(body)
 
-# == Overlay Drawing ==========================================================
+# == Overlay Drawing ==
 
 
 func _draw_grid_lines() -> void:
@@ -215,7 +215,7 @@ func _telegraph_color(phase: int) -> Color:
             ToastManager.show_dev_error("Unexpected telegraph phase: %d" % phase)
             return Color.TRANSPARENT
 
-# == Geometry =================================================================
+# == Geometry ==
 
 
 func _top_left() -> Vector2:

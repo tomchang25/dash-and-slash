@@ -20,17 +20,15 @@ const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
 
+# -- Exports --
 
-func _get_movement_directions() -> Array:
-    return CARDINAL_DIRECTIONS
-
-# -- Exports ------------------------------------------------------------------
 @export var death_sfx_event: SpatialAudioEvent
 @export var damaged_sfx_event: SpatialAudioEvent
 @export var blocked_sfx_event: SpatialAudioEvent
 @export var enemy_data: EnemyData
 
-# -- State --------------------------------------------------------------------
+# -- State --
+
 var _grid: GridArena
 var _target: Node2D
 var _grid_pos: Vector2i
@@ -43,26 +41,32 @@ var _reservation_is_attack: bool = false
 var _attack_windup_vfx: Node2D
 var _damage_multiplier := 1.0
 var _defense := 0.0
+var _fsm_debug_label: Label
 
-# -- Tick state ---------------------------------------------------------------
+# -- Tick state --
+
 ## Set by bind_tick_engine(); non-null means this enemy is clocked by the tick engine.
 var _tick_engine = null
 ## Owns this enemy's clocked combat status: committed attack tiles, detonation countdown, recovery window.
 var _tick_runtime := EnemyTickRuntime.new()
 
-# -- Timer / tween handles ----------------------------------------------------
+# -- Timer / tween handles --
+
 var _stagger_tween: Tween
 var _hurt_tween: Tween
 var _tick_move_tween: Tween
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
+
 @export var _state_machine: StateMachine
 @export var _guard: Guard
 @export var _status_bars: EnemyStatusBars
 @export var _body: Polygon2D
 @export var _facing_arrow: Polygon2D
+## Optional sprite-based presenter; when wired, feedback prefers it over _body/_facing_arrow.
+@export var _visual_presenter: EnemyVisualPresenter
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -103,7 +107,7 @@ func _draw() -> void:
     draw_line(start_point, next_point, PATH_DEBUG_COLOR, PATH_DEBUG_WIDTH)
     draw_circle(next_point, PATH_DEBUG_WIDTH * 1.5, PATH_DEBUG_COLOR)
 
-# == Overridden Custom Methods ================================================
+# == Overridden Custom Methods ==
 
 
 func reset() -> void:
@@ -112,6 +116,8 @@ func reset() -> void:
     stop_attack_windup_vfx()
     if _body != null:
         _body.modulate = Color.WHITE
+    if _visual_presenter != null:
+        _visual_presenter.reset_visuals()
     if _stagger_tween != null and is_instance_valid(_stagger_tween):
         _stagger_tween.kill()
     clear_planned_path()
@@ -124,7 +130,7 @@ func reset() -> void:
         _on_guard_changed(_guard.current(), _guard.max_guard)
     _reset_extra()
 
-# == Signal handlers ==========================================================
+# == Signal handlers ==
 
 
 ## Clears planned movement when a higher-priority claim takes our reservation.
@@ -162,6 +168,16 @@ func _on_guard_changed(current: int, maximum: int) -> void:
         _status_bars.set_guard(current, maximum)
 
 
+## Restores the idle visual after a tick-move slide finishes, unless a higher-priority
+## state (a committed attack, stagger, or death) took over while the slide was playing.
+func _on_tick_move_finished_visual() -> void:
+    if _visual_presenter == null:
+        return
+    if _tick_runtime.has_pending_attack() or _staggered or not is_alive():
+        return
+    _visual_presenter.show_idle()
+
+
 func _on_health_changed(current: float, maximum: float) -> void:
     super(current, maximum)
     if _status_bars != null:
@@ -169,6 +185,9 @@ func _on_health_changed(current: float, maximum: float) -> void:
 
 
 func _on_damaged(_amount: float, _source: Node) -> void:
+    if _visual_presenter != null:
+        _visual_presenter.flash_damage()
+        return
     if _body == null:
         return
     if _hurt_tween != null and _hurt_tween.is_valid():
@@ -191,6 +210,9 @@ func _on_damaged(_amount: float, _source: Node) -> void:
 
 func _on_stagger_started() -> void:
     _staggered = true
+    if _visual_presenter != null:
+        _visual_presenter.set_staggered(true)
+        return
     if _hurt_tween != null and _hurt_tween.is_valid():
         return
     _start_stagger_vfx()
@@ -198,13 +220,16 @@ func _on_stagger_started() -> void:
 
 func _on_stagger_ended() -> void:
     _staggered = false
+    if _visual_presenter != null:
+        _visual_presenter.set_staggered(false)
+        return
     if _body != null:
         if _stagger_tween != null and is_instance_valid(_stagger_tween):
             _stagger_tween.kill()
         _stagger_tween = create_tween()
         _stagger_tween.tween_property(_body, "modulate", Color.WHITE, 0.3)
 
-# == Common API ================================================================
+# == Common API ==
 
 
 func setup(grid: GridArena, target: Node2D) -> void:
@@ -218,7 +243,8 @@ func setup(grid: GridArena, target: Node2D) -> void:
             _grid.reservation_lost.connect(_on_reservation_lost)
         _after_setup_ready()
 
-# == Tick actor contract =======================================================
+# == Tick actor contract ==
+
 # Called by the TickEngine each world advance. The engine owns the resolution order
 # (detonations first, then status, then energy-funded actions); the enemy owns its
 # own behavior within those hooks.
@@ -358,6 +384,9 @@ func tick_snap_to_cell(target_cell: Vector2i) -> void:
     _tick_move_tween.set_parallel(true)
     _tick_move_tween.tween_property(self, "global_position", _grid.cell_center(target_cell), TICK_MOVE_TWEEN_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
     _tick_move_tween.tween_property(self, "scale", Vector2.ONE, TICK_MOVE_TWEEN_SEC * 1.5)
+    if _visual_presenter != null:
+        _visual_presenter.show_move()
+        _tick_move_tween.finished.connect(_on_tick_move_finished_visual, CONNECT_ONE_SHOT)
 
 
 ## Turns capped toward the current target cell. Returns true once aligned (or when there is no target).
@@ -594,6 +623,8 @@ func face_arrow() -> void:
         _facing_arrow.rotation = _facing.angle() - PI / 2.0
     if _body != null:
         _body.rotation = _facing.angle() + PI / 2.0
+    if _visual_presenter != null:
+        _visual_presenter.set_facing(_facing)
 
 
 func register_grid_occupant() -> void:
@@ -869,7 +900,11 @@ func plan_cell_attack_action(get_cells_for_origin: Callable, get_origins_for_tar
     queue_redraw()
     return true
 
-# == Grid helpers ==============================================================
+# == Grid helpers ==
+
+
+func _get_movement_directions() -> Array:
+    return CARDINAL_DIRECTIONS
 
 
 func _collect_attack_origin_candidates(target_cell: Vector2i, get_origins_for_target: Callable) -> Array[Vector2i]:
@@ -966,9 +1001,7 @@ func _refresh_planned_reservations() -> bool:
 
     return _grid.reserve_cells_with_active_steps(self, reserved_cells, _reservation_is_attack, active_cells)
 
-# == Setup helpers =============================================================
-
-var _fsm_debug_label: Label
+# == Setup helpers ==
 
 
 func _init_debug_fsm_state() -> void:
@@ -1042,6 +1075,13 @@ func _resolve_node_references() -> void:
     _status_bars = _fallback_node(_status_bars, "StatusBars") as EnemyStatusBars
     _body = _fallback_node(_body, "Body") as Polygon2D
     _facing_arrow = _fallback_node(_facing_arrow, "FacingArrow") as Polygon2D
+    _visual_presenter = _fallback_node(_visual_presenter, "VisualPresenter") as EnemyVisualPresenter
+    if _visual_presenter != null and not _visual_presenter.has_valid_texture():
+        # The presenter already reported the missing texture; degrade to the legacy body instead
+        # of presenting a blank sprite.
+        _visual_presenter = null
+        if _body != null:
+            _body.visible = true
 
 
 func _fallback_node(assigned: Node, node_name: StringName) -> Node:
@@ -1053,7 +1093,7 @@ func _fallback_node(assigned: Node, node_name: StringName) -> Node:
         ToastManager.show_dev_error("%s: %s not wired to its @export slot; using name-based fallback." % [name, node_name])
     return found
 
-# == Tick combat and detonation ================================================
+# == Tick combat and detonation ==
 
 
 ## Per-kind detonation when the telegraph countdown reaches zero. The base resolves a single

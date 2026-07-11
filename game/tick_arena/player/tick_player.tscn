@@ -1,0 +1,39 @@
+[gd_scene format=3 uid="uid://ed2xyqi8fhjr"]
+
+[ext_resource type="Script" uid="uid://dtv51ypkvuvdb" path="res://game/tick_arena/player/tick_player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://cdge53vkkt0lc" path="res://game/tick_arena/player/tick_player_visual_presenter.gd" id="2_presenter"]
+[ext_resource type="Texture2D" uid="uid://b7uax6v2bcni4" path="res://game/tick_arena/player/assets/ninja/body_sprite_sheet.png" id="3_body_default"]
+[ext_resource type="Texture2D" uid="uid://cslagv32di70y" path="res://game/tick_arena/player/assets/ninja/weapon_sprite_sheet.png" id="4_weapon_default"]
+[ext_resource type="Resource" path="res://game/tick_arena/player/audio/smash_windup.tres" id="5_smash_windup"]
+[ext_resource type="Resource" path="res://game/tick_arena/player/audio/smash_impact.tres" id="6_smash_impact"]
+[ext_resource type="Resource" path="res://game/tick_arena/player/audio/guard_shredder.tres" id="7_guard_shredder"]
+[ext_resource type="Resource" path="res://game/tick_arena/player/audio/execution.tres" id="8_execution"]
+
+[node name="TickPlayer" type="Node2D" unique_id=2010431315]
+script = ExtResource("1_player")
+smash_windup_sfx_event = ExtResource("5_smash_windup")
+smash_impact_sfx_event = ExtResource("6_smash_impact")
+guard_shredder_sfx_event = ExtResource("7_guard_shredder")
+execution_sfx_event = ExtResource("8_execution")
+
+[node name="VisualPresenter" type="Node2D" parent="." unique_id=2069990317]
+unique_name_in_owner = true
+script = ExtResource("2_presenter")
+
+[node name="PlayerBodySprite" type="Sprite2D" parent="VisualPresenter" unique_id=704633673]
+unique_name_in_owner = true
+texture_filter = 1
+scale = Vector2(5, 5)
+texture = ExtResource("3_body_default")
+hframes = 4
+vframes = 7
+
+[node name="PlayerWeaponSprite" type="Sprite2D" parent="VisualPresenter" unique_id=406096296]
+unique_name_in_owner = true
+z_index = 1
+texture_filter = 1
+scale = Vector2(5, 5)
+texture = ExtResource("4_weapon_default")
+hframes = 4
+vframes = 4
+frame = 3

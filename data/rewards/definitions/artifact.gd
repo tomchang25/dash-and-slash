@@ -21,6 +21,7 @@ enum Rarity {
 @export var is_curse := false
 @export var min_wave := 1
 @export var magnitude := 1.0
+@export var required_mobility := &""
 @export var effects: Array[ArtifactEffect] = []
 @export var icon: Texture2D
 
@@ -33,6 +34,8 @@ enum Rarity {
 ## WaveRewardChoiceGenerator already uses for every candidate.
 func is_eligible(context: WaveRewardContext) -> bool:
     if context.run_build == null:
+        return false
+    if required_mobility != &"" and required_mobility != context.mobility_id:
         return false
     if max_stacks <= 1 and context.run_build.has_artifact(id):
         return false

@@ -106,9 +106,12 @@ All game feature content. Organise by feature; add subdirectories as features gr
 ```
 game/
   <feature>/    → Your game features go here
+    assets/     → Source assets owned exclusively by this feature
 ```
 
 Each feature folder contains scene roots, UI component sub-scenes, and logic scripts. Do not split logic and scene files into sub-folders unless the flat layout becomes hard to navigate.
+
+Feature-owned source art, audio, and other imported assets live in the owning feature's `assets/` folder. When one feature contains several independently owned entities or components, group their source assets by consumer, such as `game/entities/enemies/assets/small_enemy/`. Root `assets/` is an ignored vendor/reference area, not a runtime dependency location. See `asset_ownership_standard.md` for dependency and sharing rules.
 
 **Shared UI components** used by more than one feature live in `game/shared/`. Move to `shared/` only when a second feature actually needs it — do not pre-emptively place things there.
 

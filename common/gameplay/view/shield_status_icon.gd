@@ -5,17 +5,17 @@ extends Node2D
 
 const MAX_POINTS := 4
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 
 @onready var _quarters: Array[CanvasItem] = [%Quarter1, %Quarter2, %Quarter3, %Quarter4]
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
     set_points(MAX_POINTS)
 
-# == Common API ================================================================
+# == Common API ==
 
 
 func set_points(points: int) -> void:

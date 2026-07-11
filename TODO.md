@@ -30,7 +30,7 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-- [visual_identity] Tick arena visual readability and identity: establish readable ninja-grid combat language through enemy state sprites, pattern identity, and class silhouettes — [ref plans/tick_arena_visual_readability_and_identity.md]
+- [enemy_mobility] Rework committed enemy mobility around ChargeEnemy collision displacement and a new DashEnemy backline ambush — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
 
 ---
 
@@ -54,12 +54,28 @@ One-line, no reasoning, no backing doc.
 
 Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
 
-### Future Major Effects
+### Future Mobility-Specific Major Effects
 
-Later Major content. The override and triggered-effect seams these need are shipped (Smash proves the payload override; Guard Shredder, Execution, and Mobility Free Action prove the trigger seam), so these are ready to build whenever content volume is wanted.
+Character classes use fixed, non-shared Mobility identities, so future Majors extend the active Mobility instead of replacing it. Major eligibility should be filtered by required Mobility: Dash effects belong to the Ninja pool, Smash effects belong to the Viking pool, and a class never rolls another Mobility's exclusive effects.
 
-- Chain Dash should use the same artifact exclusivity group as `data/rewards/artifacts/smash.tres` (`mobility_slot_replacement`) and apply through `PayloadArtifactEffect` / `RunBuild.set_mobility_payload_override()`.
-- Shockwave Dash and other mobility-slot-triggered Majors should reuse `RunBuild.set_mobility_trigger()` / `has_mobility_trigger()` (the seam Guard Shredder and Execution use, payload-agnostic across Dash and Smash) instead of forking either payload's resolution.
+- Expand Dash and Smash with additional Mobility-specific effects after the initial class slice proves the eligibility and runtime seams.
+- Keep Mobility execution behavior owned by the active payload while artifacts contribute named modifiers or triggers; do not restore payload-replacement artifacts.
+- If future classes ever share a Mobility, revisit whether required-Mobility filtering also needs an explicit class restriction instead of making those classes share every Major automatically.
+
+### Normal Attack Variants
+
+Normal attack shape variants are frozen while the first character classes establish identity through fixed Mobility and Mobility-specific Majors. Every initial class keeps the current one-cell cardinal normal attack.
+
+- Revisit line, arc, wide, or other footprints only after Ninja and Viking have been playtested as distinct Mobility identities.
+- Any future variant pass must resolve one shared footprint for preview, committed hits, and auto-attack-on-move so the displayed cells cannot disagree with the executed attack.
+- Define penetration, obstacle blocking, multi-target order, and any windup or recovery trade-off before allowing a larger footprint to ship.
+
+### Samurai Character Class
+
+Samurai is deferred until Ninja and Viking prove the fixed-Mobility class model. Because different classes do not share Mobility in the current direction, Samurai needs its own Mobility identity rather than reusing Dash.
+
+- Decide whether guard and counter timing deserve a new player combat verb/state or whether Samurai should use a different mobility-centered fantasy.
+- Keep Samurai out of the initial class data, selection surface, sprite work, and Major eligibility pools.
 
 ### Enemy Spawn Ratio Data Drive
 
@@ -89,6 +105,13 @@ Later reward-economy work, kept behind the core loop stabilizing. The former ter
 凍結每輪隨機增減或搬動地形；太隨機或太碎的地形有可能導致死局或卡手，不適合目前偏半益智型的 tick combat。後續地圖壓力改研究在穩定 10x10 基底上增加額外障礙物 grid，取代每輪碎地形的 run cadence。
 
 - Corrupt Land（已自 tick rework 流程退役）是此方向的第一個候選危險格機制——spec 保留在 `archived/tick_combat_rework_06a_corrupt_land.implementation_spec.md`，撿起時先對照 codebase 修訂。
+
+### Player Action State Ownership
+
+Player movement, Smash windup ("prepare attack"), and normal attack are all resolved inline inside `TickActionController.handle_verb()`'s verb match/dispatch, not through the project's `StateMachine`/`State` delegation pattern. Smash's two-phase prepare/release is tracked with a single `_smash_armed` bool on `TickPlayer` (`arm_smash`/`disarm_smash`/`is_smash_armed`) rather than a real state object, and normal attack has no windup phase at all.
+
+- Revisit whether this should move onto the shared `StateMachine`/`State` framework once more multi-phase player actions exist (e.g. a future Samurai guard/counter verb, see Samurai Character Class above).
+- Until then, treat `TickActionController` verb dispatch plus the `_smash_armed` flag as the intentional lightweight shape — do not add more ad hoc bools for new multi-phase actions without reconsidering this.
 
 ### Defensive Terrain And Tower Reward Cards
 

@@ -8,25 +8,23 @@ const CHARGE_RANGE := 5
 ## Baseline tick speed: the charger's threat is bursty and self-paces via align/turn/telegraph/recovery.
 const TICK_SPEED := 100
 
-# -- State --------------------------------------------------------------------
+# -- State --
 var _attack_data: EnemyAttackData
 var _charge_cells: Array[Vector2i] = []
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 @onready var _telegraph: TileTelegraph = %TileTelegraph
 
-# == Lifecycle ================================================================
 
-
+# == Lifecycle ==
 func _ready() -> void:
     super()
     _select_attack_data()
     if _telegraph != null:
         _telegraph.setup(_grid)
 
-# == Common API ================================================================
 
-
+# == Common API ==
 func get_charge_cells_from_pos(from: Vector2i, facing: Vector2) -> Array[Vector2i]:
     var attack_data := get_current_attack_data()
     if attack_data != null:
@@ -52,10 +50,6 @@ func set_stored_charge_cells(cells: Array[Vector2i]) -> void:
 
 func clear_stored_charge_cells() -> void:
     _charge_cells.clear()
-
-
-func face_arrow() -> void:
-    super()
 
 
 ## Commits the charge both before planning and on arrival, whenever the enemy is aligned and already
@@ -103,6 +97,8 @@ func show_attack_charge() -> void:
     var telegraph := get_telegraph()
     if telegraph != null:
         telegraph.show_charge(get_stored_charge_cells())
+    if _visual_presenter != null:
+        _visual_presenter.show_attack_commit()
 
 
 ## Clears movement planning and prepares the charge telegraph along the enemy's current (capped) facing.
@@ -122,18 +118,24 @@ func begin_attack_telegraph() -> bool:
         telegraph.show_warning(cells)
 
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.CHARGE)
+    if _visual_presenter != null:
+        _visual_presenter.show_prepare_attack()
     return true
 
 
 ## Tick detonation: damages the player if their cell is on the charge line, then rushes to the farthest open landing cell along it.
+## Recovery cleanup runs before the landing move starts so its idle reset does not clobber the
+## move-lean tween tick_snap_to_cell() just kicked off; _on_tick_move_finished_visual() restores
+## idle again once the landing slide actually finishes.
 func _tick_detonate() -> void:
     var tiles := get_attack_tiles()
     _resolve_detonation_on_player(tiles)
     var dest := get_charge_landing_cell(tiles)
-    if dest != _grid_pos:
+    var will_move := dest != _grid_pos
+    finish_attack_into_recovery()
+    if will_move:
         CombatFeedbackVFX.play_charge_start(global_position, _facing, self)
         tick_snap_to_cell(dest)
-    finish_attack_into_recovery()
 
 
 ## Tick hook: clears the charge telegraph, windup, and stored line when the charge resolves or cancels.
@@ -142,6 +144,7 @@ func _clear_attack_presentation() -> void:
         _telegraph.clear()
     stop_attack_windup_vfx()
     clear_stored_charge_cells()
+    _clear_charge_visual()
 
 
 func plan_next_action() -> bool:
@@ -152,9 +155,8 @@ func plan_next_action() -> bool:
 func end_charge_attack() -> void:
     stop_attack_windup_vfx()
 
-# == Setup helpers =============================================================
 
-
+# == Setup helpers ==
 func _after_setup_ready() -> void:
     _select_attack_data()
     if _telegraph != null:
@@ -165,16 +167,19 @@ func _on_guard_broken_extra() -> void:
     if _telegraph != null:
         _telegraph.clear()
     end_charge_attack()
+    _clear_charge_visual()
 
 
 func _on_begin_death_extra() -> void:
     if _telegraph != null:
         _telegraph.clear()
+    _clear_charge_visual()
 
 
 func _reset_extra() -> void:
     _charge_cells.clear()
     end_charge_attack()
+    _clear_charge_visual()
 
 
 func _select_attack_data() -> void:
@@ -184,6 +189,11 @@ func _select_attack_data() -> void:
                 _attack_data = attack
                 return
     _attack_data = _create_fallback_attack_data()
+
+
+func _clear_charge_visual() -> void:
+    if _visual_presenter != null:
+        _visual_presenter.show_idle()
 
 
 func _create_fallback_attack_data() -> EnemyAttackData:

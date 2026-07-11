@@ -6,7 +6,7 @@ signal closed
 
 const MAIN_MENU_PATH := "res://game/meta/main_menu/main_menu_scene.tscn"
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 
 @onready var _master_slider: HSlider = %MasterSlider
 @onready var _master_value_label: Label = %MasterValueLabel
@@ -22,7 +22,7 @@ const MAIN_MENU_PATH := "res://game/meta/main_menu/main_menu_scene.tscn"
 @onready var _close_btn: Button = %CloseButton
 @onready var _main_menu_btn: Button = %MainMenuButton
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -43,7 +43,7 @@ func _ready() -> void:
     _main_menu_btn.visible = get_tree().current_scene == null or get_tree().current_scene.scene_file_path != MAIN_MENU_PATH
     _apply()
 
-# == Signal handlers ===========================================================
+# == Signal handlers ==
 
 
 func _on_master_changed(value: float) -> void:
@@ -102,7 +102,7 @@ func _on_main_menu_pressed() -> void:
     closed.emit()
     SceneRouter.go_to_main_menu()
 
-# == View =====================================================================
+# == View ==
 
 
 func _apply() -> void:

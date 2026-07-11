@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://c4ivsbokn03k6" path="res://game/tick_arena/view/tick_grid_view.gd" id="3_view"]
 [ext_resource type="Script" uid="uid://dovrkg04a5on6" path="res://game/tick_arena/combat/tick_engine.gd" id="4_engine"]
 [ext_resource type="Script" uid="uid://ue0cwoso4ti" path="res://game/tick_arena/player/tick_input.gd" id="5_input"]
-[ext_resource type="Script" uid="uid://dtv51ypkvuvdb" path="res://game/tick_arena/player/tick_player.gd" id="6_player"]
+[ext_resource type="PackedScene" path="res://game/tick_arena/player/tick_player.tscn" id="6_player_scene"]
 [ext_resource type="Script" uid="uid://bq7n4p3yat6ra" path="res://common/gameplay/grid/grid_terrain_view.gd" id="7_terrain"]
 [ext_resource type="TileSet" uid="uid://sh8hcrywmwqe" path="res://common/gameplay/grid/land_tileset.tres" id="8_land_ts"]
 [ext_resource type="TileSet" uid="uid://bamrv60h1jhhc" path="res://common/gameplay/grid/water_tileset.tres" id="9_water_ts"]
@@ -19,6 +19,8 @@
 [ext_resource type="PackedScene" path="res://game/tick_arena/reward/wave_reward_card.tscn" id="17_reward_card"]
 [ext_resource type="PackedScene" uid="uid://bij6anlc14ady" path="res://game/tick_arena/reward/build_inspection_panel.tscn" id="18_build_panel"]
 [ext_resource type="PackedScene" uid="uid://bhyxtcpg1okc6" path="res://game/tick_arena/hud/tick_arena_hud.tscn" id="19_arena_hud"]
+[ext_resource type="Resource" path="res://game/tick_arena/player/data/ninja.tres" id="20_ninja_class"]
+[ext_resource type="Resource" path="res://game/tick_arena/player/data/viking.tres" id="21_viking_class"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -34,6 +36,8 @@ corner_radius_bottom_left = 8
 
 [node name="TickArena" type="Node2D" unique_id=85850302]
 script = ExtResource("1_root")
+ninja_class = ExtResource("20_ninja_class")
+viking_class = ExtResource("21_viking_class")
 
 [node name="GridArena" type="Node2D" parent="." unique_id=1826211232]
 unique_name_in_owner = true
@@ -78,9 +82,8 @@ script = ExtResource("5_input")
 [node name="Enemies" type="Node2D" parent="." unique_id=973317209]
 unique_name_in_owner = true
 
-[node name="Player" type="Node2D" parent="." unique_id=1622788001]
+[node name="Player" parent="." unique_id=1622788001 instance=ExtResource("6_player_scene")]
 unique_name_in_owner = true
-script = ExtResource("6_player")
 
 [node name="TickCombatFeedback" type="Node" parent="." unique_id=1915679964 node_paths=PackedStringArray("player")]
 unique_name_in_owner = true

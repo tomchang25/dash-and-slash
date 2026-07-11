@@ -43,6 +43,7 @@ const WAVE_BANNER_FADE := 0.35
 # -- State --
 
 var _run_build: RunBuild
+var _character_class: CharacterClassData
 var _wave_controller: WaveController
 var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
@@ -107,11 +108,19 @@ func _on_spawn_warning_changed(cells: Array[Vector2i], ticks: int) -> void:
 ## Stores the run build the reward flow and wave controller apply effects onto/read pressure from,
 ## seeds the spawn/reward RNG, and wires the reward choice and wave flow; the tick arena root owns
 ## and constructs the shared RunBuild instance.
-func setup(run_build: RunBuild) -> void:
+func setup(run_build: RunBuild, character_class: CharacterClassData) -> void:
     _run_build = run_build
+    _character_class = character_class
     _rng.randomize()
     _wire_reward_flow()
     _wire_wave_controller()
+
+
+## Updates the class carried by reward eligibility at the run-reset boundary.
+func set_character_class(character_class: CharacterClassData) -> void:
+    _character_class = character_class
+    if _reward_context != null:
+        _reward_context.mobility_id = character_class.mobility_id if character_class != null else &""
 
 
 ## Starts the first wave. Called once the arena root has finished setting up the player, since
@@ -213,15 +222,16 @@ func _wire_wave_controller() -> void:
 
 ## Wires the shared reward generator/context/controller and overlay flow against this arena's own
 ## RunBuild, so a picked artifact writes through the same store tick verbs read. Every artifact —
-## legendary or common — reads and writes RunBuild directly through its effect contributions, so
-## the context carries only the grid and the run build. The arena scene injects the production
-## artifact registry explicitly, matching the other required scene dependencies.
+## legendary or common — reads and writes RunBuild directly through its effect contributions, while
+## the context also carries the class-owned Mobility used only for offer eligibility. The arena
+## scene injects the production artifact registry explicitly.
 func _wire_reward_flow() -> void:
     if artifact_registry == null:
         ToastManager.show_dev_error("TickRunController: missing artifact registry")
         artifact_registry = ArtifactRegistry.new()
     _reward_generator = WaveRewardChoiceGenerator.new(artifact_registry, _rng)
-    _reward_context = WaveRewardContext.new(grid, _run_build)
+    var mobility_id := _character_class.mobility_id if _character_class != null else &""
+    _reward_context = WaveRewardContext.new(grid, _run_build, mobility_id)
     _reward_controller = WaveRewardChoiceController.new(reward_overlay, _reward_context)
     _reward_controller.choice_applied.connect(_on_reward_choice_applied)
 

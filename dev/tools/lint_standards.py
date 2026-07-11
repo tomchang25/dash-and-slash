@@ -30,13 +30,22 @@ from pathlib import Path
 
 # ── Scope ──────────────────────────────────────────────────────────────────────
 #
-# The scene architecture standard applies to block scene scripts, testbed
-# scenes, and reusable UI component scripts. It explicitly does NOT apply to
-# autoloads / global managers, resource definitions under data/, or common
-# framework scripts. We approximate that scope by directory.
+# The scene architecture standard (node-source, node-lookup) applies to block
+# scene scripts, testbed scenes, and reusable UI component scripts. It
+# explicitly does NOT apply to autoloads / global managers, resource
+# definitions under data/, or common framework scripts. We approximate that
+# scope by directory.
+#
+# The GDScript structure standard (header shape, declaration order) is scoped
+# much wider: it documents itself as applying to scene scripts, reusable UI
+# components, autoloads, data resources, gameplay components, services,
+# managers, and tests (gdscript_structure_standard.md), so it gets its own,
+# broader directory scope below instead of reusing the scene-architecture one.
 
 SCANNED_DIRS = ("game",)
 EXCLUDED_PARTS = (".godot", "data", "global", "addons")
+STRUCTURE_SCANNED_DIRS = ("game", "common", "global", "data", "test")
+STRUCTURE_EXCLUDED_PARTS = (".godot", "addons")
 ERROR_GUARD_DIRS = ("common", "data", "game", "global", "stage")
 ERROR_GUARD_EXCLUDED_PARTS = (".godot", "addons")
 
@@ -65,6 +74,20 @@ NODE_REF_ALLOW_RE = re.compile(r"#\s*node-ref:\s*allow\b")
 INSTANTIATE_ASSIGN_RE = re.compile(
     r"^[ \t]*(?:var[ \t]+)?(\w+)[ \t]*(?::[ \t]*[\w\[\], ]+)?:?=[ \t]*[\w.\[\]()]*\.instantiate\(\)"
 )
+VARIABLE_BLOCK_HEADER_RE = re.compile(r"^# -- .+ --$")
+FUNCTION_SECTION_HEADER_RE = re.compile(r"^# == .+ ==$")
+GDSCRIPT_HEADER_PREFIX_RE = re.compile(r"^# (?:--|==) ")
+TOP_LEVEL_DECL_RE = re.compile(
+    r"^(?:@export[ \t]+var|@onready[ \t]+var|var|const|signal|enum)\b"
+)
+TOP_LEVEL_FUNC_RE = re.compile(r"^func[ \t]+")
+VARIABLE_BLOCK_ORDER = {
+    "# -- Constants --": 0,
+    "# -- Exports --": 1,
+    "# -- State --": 2,
+    "# -- Timer / tween handles --": 3,
+    "# -- Node references --": 4,
+}
 
 
 # ── Result type ──────────────────────────────────────────────────────────────
@@ -216,10 +239,94 @@ def check_node_lookup(path: str, text: str) -> list[Violation]:
     return violations
 
 
+# ── Tier 1: GDScript structure headers and declaration order ─────────────────
+
+
+def check_gdscript_structure(path: str, text: str) -> list[Violation]:
+    """Top-level variable block headers use `# -- Name --`; function section
+    headers use `# == Name ==`; and declarations stay above function sections."""
+    violations: list[Violation] = []
+    lines = text.splitlines()
+    highest_seen_variable_block = -1
+    function_section_started = False
+
+    for i, line in enumerate(lines, start=1):
+        stripped = line.strip()
+
+        if GDSCRIPT_HEADER_PREFIX_RE.match(stripped):
+            if stripped.startswith("# -- "):
+                if VARIABLE_BLOCK_HEADER_RE.match(stripped) is None:
+                    violations.append(
+                        Violation(
+                            path,
+                            i,
+                            "gdscript-structure",
+                            "gdscript_structure §3",
+                            "variable block headers must use the single-line "
+                            "format `# -- Group name --`; padded headers are "
+                            "not allowed in touched files.",
+                        )
+                    )
+                block_order = VARIABLE_BLOCK_ORDER.get(stripped)
+                if block_order is not None:
+                    if block_order < highest_seen_variable_block:
+                        violations.append(
+                            Violation(
+                                path,
+                                i,
+                                "gdscript-structure",
+                                "gdscript_structure §2/§3",
+                                "variable block headers are out of declaration "
+                                "order. Use Constants, Exports, State, "
+                                "Timer / tween handles, then Node references.",
+                            )
+                        )
+                    highest_seen_variable_block = max(
+                        highest_seen_variable_block, block_order
+                    )
+            elif stripped.startswith("# == "):
+                function_section_started = True
+                if FUNCTION_SECTION_HEADER_RE.match(stripped) is None:
+                    violations.append(
+                        Violation(
+                            path,
+                            i,
+                            "gdscript-structure",
+                            "gdscript_structure §4",
+                            "function section headers must use the double-line "
+                            "format `# == Section name ==`; padded headers are "
+                            "not allowed in touched files.",
+                        )
+                    )
+            continue
+
+        if TOP_LEVEL_FUNC_RE.match(line):
+            function_section_started = True
+            continue
+
+        if not function_section_started or line != line.lstrip():
+            continue
+
+        if TOP_LEVEL_DECL_RE.match(line):
+            violations.append(
+                Violation(
+                    path,
+                    i,
+                    "gdscript-structure",
+                    "gdscript_structure §2/§5",
+                    "top-level declarations must stay in the declaration block "
+                    "above function sections.",
+                )
+            )
+
+    return violations
+
+
 # ── Tier 1: signal connections live in code, not the .tscn (scene §Signal) ───
 
 
 CONNECTION_RE = re.compile(r"^\[connection\b")
+ROOT_ASSET_PATH_RE = re.compile(r'\bpath="res://assets/')
 
 
 def check_tscn_connections(path: str, text: str) -> list[Violation]:
@@ -237,6 +344,29 @@ def check_tscn_connections(path: str, text: str) -> list[Violation]:
                     "scene §Signal connections",
                     "signal connection stored in .tscn. Connect it in _ready() "
                     "instead so the full wiring surface is visible in code.",
+                )
+            )
+    return violations
+
+
+# ── Tier 1: feature scenes do not depend on ignored root assets ──────────────
+
+
+def check_tscn_root_asset_paths(path: str, text: str) -> list[Violation]:
+    """Feature scenes must reference an owned or shared asset, never the
+    ignored root assets/ vendor/reference directory."""
+    violations: list[Violation] = []
+    for i, line in enumerate(text.splitlines(), start=1):
+        if ROOT_ASSET_PATH_RE.search(line):
+            violations.append(
+                Violation(
+                    path,
+                    i,
+                    "feature-asset-ownership",
+                    "asset_ownership §2",
+                    "scene resources must not reference res://assets/. Copy the "
+                    "source asset into the owning feature's assets/ folder, or "
+                    "use an intentional shared asset under game/shared/assets/.",
                 )
             )
     return violations
@@ -331,9 +461,10 @@ def check_bare_push_warning(path: str, text: str) -> list[Violation]:
 
 # (suffix, check fn) pairs. Add new checks here as more rules graduate from the
 # manifest into machine enforcement.
-GD_CHECKS = (check_node_source, check_node_lookup)
+GD_SCENE_CHECKS = (check_node_source, check_node_lookup)
+GD_STRUCTURE_CHECKS = (check_gdscript_structure,)
 GD_ERROR_GUARD_CHECKS = (check_bare_push_error, check_bare_push_warning)
-TSCN_CHECKS = (check_tscn_connections,)
+TSCN_CHECKS = (check_tscn_connections, check_tscn_root_asset_paths)
 
 
 def lint_file(path: Path, repo_root: Path) -> list[Violation]:
@@ -347,7 +478,11 @@ def lint_file(path: Path, repo_root: Path) -> list[Violation]:
     if path.suffix == ".gd":
         violations: list[Violation] = []
         if _in_scope(path, repo_root):
-            violations.extend(v for chk in GD_CHECKS for v in chk(rel, text))
+            violations.extend(v for chk in GD_SCENE_CHECKS for v in chk(rel, text))
+        if _in_structure_scope(path, repo_root):
+            violations.extend(
+                v for chk in GD_STRUCTURE_CHECKS for v in chk(rel, text)
+            )
         if _in_error_guard_scope(path, repo_root):
             violations.extend(
                 v for chk in GD_ERROR_GUARD_CHECKS for v in chk(rel, text)
@@ -377,6 +512,16 @@ def _in_scope(path: Path, repo_root: Path) -> bool:
     return not any(part in EXCLUDED_PARTS for part in parts)
 
 
+def _in_structure_scope(path: Path, repo_root: Path) -> bool:
+    """True if the file falls under gdscript_structure_standard.md's documented
+    scope: game/, common/, global/, data/, and test/, excluding .godot/addons."""
+    rel = _rel(path, repo_root)
+    parts = rel.split("/")
+    if parts[0] not in STRUCTURE_SCANNED_DIRS:
+        return False
+    return not any(part in STRUCTURE_EXCLUDED_PARTS for part in parts)
+
+
 def _in_error_guard_scope(path: Path, repo_root: Path) -> bool:
     """True if the file is project GDScript covered by error guard rules."""
     rel = _rel(path, repo_root)
@@ -394,6 +539,11 @@ def _collect_tree(repo_root: Path) -> list[Path]:
             continue
         files.extend(base.rglob("*.gd"))
         files.extend(base.rglob("*.tscn"))
+    for d in STRUCTURE_SCANNED_DIRS:
+        base = repo_root / d
+        if not base.is_dir():
+            continue
+        files.extend(base.rglob("*.gd"))
     for d in ERROR_GUARD_DIRS:
         base = repo_root / d
         if not base.is_dir():
@@ -402,7 +552,9 @@ def _collect_tree(repo_root: Path) -> list[Path]:
     return [
         f
         for f in files
-        if _in_scope(f, repo_root) or _in_error_guard_scope(f, repo_root)
+        if _in_scope(f, repo_root)
+        or _in_structure_scope(f, repo_root)
+        or _in_error_guard_scope(f, repo_root)
     ]
 
 
@@ -432,7 +584,11 @@ def main() -> None:
         targets = [
             f
             for f in targets
-            if (_in_scope(f, repo_root) or _in_error_guard_scope(f, repo_root))
+            if (
+                _in_scope(f, repo_root)
+                or _in_structure_scope(f, repo_root)
+                or _in_error_guard_scope(f, repo_root)
+            )
             and f.is_file()
         ]
     else:

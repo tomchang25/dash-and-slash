@@ -2,13 +2,13 @@
 # Main menu with Play, Settings, and Quit actions.
 extends Control
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 
 @onready var _play_btn: Button = %PlayButton
 @onready var _settings_btn: Button = %SettingsButton
 @onready var _quit_btn: Button = %QuitButton
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -16,7 +16,7 @@ func _ready() -> void:
     _settings_btn.pressed.connect(_on_settings_pressed)
     _quit_btn.pressed.connect(_on_quit_pressed)
 
-# == Signal handlers ===========================================================
+# == Signal handlers ==
 
 
 func _on_play_pressed() -> void:

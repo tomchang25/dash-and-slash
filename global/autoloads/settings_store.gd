@@ -28,7 +28,7 @@ var debug_mode: bool = false:
 var _overlay_instance: CanvasLayer = null
 var _was_paused := false
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -43,7 +43,7 @@ func _unhandled_input(event: InputEvent) -> void:
         toggle_overlay()
         get_viewport().set_input_as_handled()
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## Writes project-wide settings to user://settings.json.
@@ -121,7 +121,7 @@ func toggle_overlay() -> void:
     else:
         _open_overlay()
 
-# == Overlay lifecycle =========================================================
+# == Overlay lifecycle ==
 
 
 func _open_overlay() -> void:
@@ -141,7 +141,7 @@ func _close_overlay() -> void:
     _overlay_instance = null
     get_tree().paused = _was_paused
 
-# == Internals =================================================================
+# == Internals ==
 
 
 func _set_bus_volume(bus_name: String, linear: float) -> void:

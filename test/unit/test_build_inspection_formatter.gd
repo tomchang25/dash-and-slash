@@ -1,6 +1,6 @@
 # test_build_inspection_formatter.gd
 # Tests BuildInspectionFormatter's channel filtering/ordering, flat/percent value formatting,
-# mobility payload/trigger summaries, and owned-artifact row assembly, all without instancing the
+# class/Mobility and trigger summaries, and owned-artifact row assembly, all without instancing the
 # build inspection panel scene.
 extends GutTest
 
@@ -44,13 +44,27 @@ func test_unknown_channel_reports_unknown_instead_of_crashing() -> void:
     assert_push_error("unknown channel 'not_a_real_channel'")
 
 
-func test_payload_row_reports_active_payload_label() -> void:
-    var run_build := RunBuild.new()
+func test_class_rows_report_authored_class_and_fixed_mobility() -> void:
+    var character_class := CharacterClassData.new()
+    character_class.display_name = "Viking"
+    character_class.mobility_id = CharacterClassData.MOBILITY_SMASH
 
-    assert_eq(BuildInspectionFormatter.build_payload_row(run_build)["value"], "Dash", "Dash is the default mobility payload")
+    var rows := BuildInspectionFormatter.build_class_rows(character_class)
 
-    run_build.set_mobility_payload_override(RunBuild.PAYLOAD_SMASH)
-    assert_eq(BuildInspectionFormatter.build_payload_row(run_build)["value"], "Smash")
+    assert_eq(rows[0]["label"], "Class")
+    assert_eq(rows[0]["value"], "Viking")
+    assert_eq(rows[1]["label"], "Mobility")
+    assert_eq(rows[1]["value"], "Smash")
+
+
+func test_class_rows_report_unknown_for_a_missing_character_class() -> void:
+    var rows := BuildInspectionFormatter.build_class_rows(null)
+
+    assert_eq(rows[0]["label"], "Class")
+    assert_eq(rows[0]["value"], "Unknown")
+    assert_eq(rows[1]["label"], "Mobility")
+    assert_eq(rows[1]["value"], "Unknown")
+    assert_push_error("missing CharacterClassData")
 
 
 func test_trigger_rows_report_none_when_no_trigger_is_active() -> void:
@@ -67,12 +81,14 @@ func test_trigger_rows_list_each_active_trigger_in_stable_order() -> void:
     var run_build := RunBuild.new()
     run_build.set_mobility_trigger(RunBuild.TRIGGER_EXECUTION, true)
     run_build.set_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER, true)
+    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
 
     var rows := BuildInspectionFormatter.build_trigger_rows(run_build)
 
-    assert_eq(rows.size(), 2)
+    assert_eq(rows.size(), 3)
     assert_eq(rows[0]["label"], "Guard Shredder", "Guard Shredder precedes Execution in the stable trigger order")
     assert_eq(rows[1]["label"], "Execution")
+    assert_eq(rows[2]["label"], "Chain Dash")
 
 
 func test_artifact_rows_include_stack_scaled_description() -> void:

@@ -9,14 +9,21 @@ extends Node2D
 
 const BACKGROUND_COLOR := Color(0.09, 0.1, 0.12)
 
+# -- Exports --
+
+@export var ninja_class: CharacterClassData
+@export var viking_class: CharacterClassData
+
 # -- State --
 
 var _run_build := RunBuild.new()
+var _active_class: CharacterClassData
 var _danger_telegraph_cells_by_source: Dictionary = { }
-var _dash_payload_button: Button
-var _smash_payload_button: Button
+var _ninja_class_button: Button
+var _viking_class_button: Button
 var _guard_shredder_button: Button
 var _execution_button: Button
+var _chain_dash_button: Button
 var _kill_all_enemies_button: Button
 var _god_mode_disable_button: Button
 var _god_mode_no_damage_button: Button
@@ -53,11 +60,13 @@ func _ready() -> void:
     _hud.settings_pressed.connect(_on_settings_button_pressed)
 
     RenderingServer.set_default_clear_color(BACKGROUND_COLOR)
-    _player.setup(_grid, _grid.grid_size / 2)
-    _action_controller.setup(_run_build)
-    _preview_controller.setup(_run_build)
-    _run_controller.setup(_run_build)
-    _build_inspection_panel.setup(_run_build)
+    _validate_class_resources()
+    _active_class = ninja_class
+    _player.setup(_grid, _grid.grid_size / 2, _active_class)
+    _action_controller.setup(_run_build, _active_class)
+    _preview_controller.setup(_run_build, _active_class)
+    _run_controller.setup(_run_build, _active_class)
+    _build_inspection_panel.setup(_run_build, _active_class)
     _run_controller.start_first_wave()
     _wire_debug_panel()
     _refresh_danger()
@@ -78,11 +87,8 @@ func _on_world_advanced(_tick_count: int) -> void:
     _refresh_hud()
 
 
-## A reward may have changed the run build's mobility payload, triggers, or artifact stacks, so the
-## debug panel's button highlighting and the HUD's artifact strip must catch up alongside the new
-## wave's danger telegraphs instead of waiting for the next action or world advance to refresh them.
+## A reward may have changed triggers or artifact stacks, so debug/HUD views refresh immediately.
 func _on_reward_applied() -> void:
-    _refresh_debug_payload_buttons()
     _refresh_debug_trigger_buttons()
     _refresh_danger()
     _refresh_hud()
@@ -90,11 +96,9 @@ func _on_reward_applied() -> void:
         _build_inspection_panel.refresh()
 
 
-## A fresh run starts with default mobility payload/triggers and god mode cleared (TickPlayer.reset()),
-## so the debug panel's button highlighting must catch up alongside the danger telegraphs and HUD; an
-## open build panel must also drop any stale rows from the previous run.
+## A fresh run keeps the selected class but clears triggers, god mode, danger, HUD, and build rows.
 func _on_run_reset_finished() -> void:
-    _refresh_debug_payload_buttons()
+    _refresh_debug_class_buttons()
     _refresh_debug_trigger_buttons()
     _refresh_debug_god_mode_buttons()
     _refresh_danger()
@@ -127,8 +131,7 @@ func _restart_run() -> void:
 # == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 
 
-## Registers every tick-arena debug control, grouped into Combat (enemy kill), Player (god mode), and
-## Build (the mobility-payload/trigger Major-effect overrides) sections.
+## Registers Combat, Player/class, and Dash-Major debug actions.
 func _wire_debug_panel() -> void:
     _kill_all_enemies_button = _debug_panel.add_action("Instant Kill All Enemies", _on_debug_kill_all_enemies, "Combat")
 
@@ -137,11 +140,12 @@ func _wire_debug_panel() -> void:
     _god_mode_undead_button = _debug_panel.add_action("God Mode - Undead", _on_debug_set_god_mode_undead, "Player")
     _refresh_debug_god_mode_buttons()
 
-    _dash_payload_button = _debug_panel.add_action("Dash Payload", _on_debug_set_dash_payload, "Build")
-    _smash_payload_button = _debug_panel.add_action("Smash Payload", _on_debug_set_smash_payload, "Build")
-    _refresh_debug_payload_buttons()
+    _ninja_class_button = _debug_panel.add_action("Class - Ninja", _on_debug_set_ninja_class, "Player")
+    _viking_class_button = _debug_panel.add_action("Class - Viking", _on_debug_set_viking_class, "Player")
+    _refresh_debug_class_buttons()
     _guard_shredder_button = _debug_panel.add_action("Guard Shredder", _on_debug_toggle_guard_shredder, "Build")
     _execution_button = _debug_panel.add_action("Execution", _on_debug_toggle_execution, "Build")
+    _chain_dash_button = _debug_panel.add_action("Chain Dash", _on_debug_toggle_chain_dash, "Build")
     _refresh_debug_trigger_buttons()
 
 
@@ -169,16 +173,16 @@ func _on_debug_set_god_mode_undead() -> void:
     _set_debug_god_mode(TickPlayer.GodMode.UNDEAD)
 
 
-func _on_debug_set_dash_payload() -> void:
+func _on_debug_set_ninja_class() -> void:
     if not Debug.enabled:
         return
-    _set_debug_mobility_payload(RunBuild.PAYLOAD_DASH)
+    _set_debug_character_class(ninja_class)
 
 
-func _on_debug_set_smash_payload() -> void:
+func _on_debug_set_viking_class() -> void:
     if not Debug.enabled:
         return
-    _set_debug_mobility_payload(RunBuild.PAYLOAD_SMASH)
+    _set_debug_character_class(viking_class)
 
 
 func _on_debug_toggle_guard_shredder() -> void:
@@ -193,45 +197,61 @@ func _on_debug_toggle_execution() -> void:
     _toggle_debug_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
 
 
+func _on_debug_toggle_chain_dash() -> void:
+    if not Debug.enabled:
+        return
+    _toggle_debug_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH)
+
+
 ## Applies the picked god mode to the player and refreshes the mutually-exclusive button styling.
 func _set_debug_god_mode(mode: TickPlayer.GodMode) -> void:
     _player.set_god_mode(mode)
     _refresh_debug_god_mode_buttons()
 
 
-## Writes through the same RunBuild override real Major effects use, so debug behavior stays
-## representative of perk behavior instead of a parallel scene-only flag.
-func _set_debug_mobility_payload(payload: StringName) -> void:
+## Applies a debug class only through a full run reset so no prior class state survives.
+func _set_debug_character_class(character_class: CharacterClassData) -> void:
+    if character_class == null or character_class == _active_class:
+        return
     _action_controller.cancel_smash_windup()
-    _run_build.set_mobility_payload_override(payload)
-    _refresh_debug_payload_buttons()
-    _refresh_hud()
+    _active_class = character_class
+    _player.set_character_class(character_class)
+    _action_controller.set_character_class(character_class)
+    _preview_controller.set_character_class(character_class)
+    _run_controller.set_character_class(character_class)
+    _build_inspection_panel.set_character_class(character_class)
+    _restart_run()
 
 
 ## Flips one mobility-slot-triggered Major through the same RunBuild store real Major effects write to.
-## Guard Shredder and Execution toggle independently so both can be tested alone, together, and
-## alongside either mobility payload before reward-loop acquisition exists.
+## Dash triggers toggle independently but are disabled while Viking/Smash is active.
 func _toggle_debug_mobility_trigger(trigger_id: StringName) -> void:
+    if _active_class == null or _active_class.mobility_id != CharacterClassData.MOBILITY_DASH:
+        return
     var next_active := not _run_build.has_mobility_trigger(trigger_id)
     _run_build.set_mobility_trigger(trigger_id, next_active)
     _refresh_debug_trigger_buttons()
 
 
-## Marks whichever payload button matches the run build's current mobility payload as active, so the
-## panel stays the readable source of truth instead of the player needing to remember hidden state.
-func _refresh_debug_payload_buttons() -> void:
-    var payload := _run_build.get_mobility_payload()
-    _dash_payload_button.text = "Dash Payload%s" % (" (Active)" if payload == RunBuild.PAYLOAD_DASH else "")
-    _smash_payload_button.text = "Smash Payload%s" % (" (Active)" if payload == RunBuild.PAYLOAD_SMASH else "")
+## Highlights the active class selected for the current run.
+func _refresh_debug_class_buttons() -> void:
+    _debug_panel.set_action_active(_ninja_class_button, _active_class == ninja_class)
+    _debug_panel.set_action_active(_viking_class_button, _active_class == viking_class)
 
 
-## Marks the Guard Shredder / Execution buttons active per the run build's mobility-trigger state, the
-## same readability convention the payload buttons use.
+## Marks the Dash-Major buttons active per the run build's mobility-trigger state and disables them
+## while the fixed Viking Smash class is active.
 func _refresh_debug_trigger_buttons() -> void:
     var guard_shredder_active := _run_build.has_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER)
     var execution_active := _run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
+    var chain_dash_active := _run_build.has_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH)
+    var dash_active := _active_class != null and _active_class.mobility_id == CharacterClassData.MOBILITY_DASH
     _guard_shredder_button.text = "Guard Shredder%s" % (" (Active)" if guard_shredder_active else "")
     _execution_button.text = "Execution%s" % (" (Active)" if execution_active else "")
+    _chain_dash_button.text = "Chain Dash%s" % (" (Active)" if chain_dash_active else "")
+    _guard_shredder_button.disabled = not dash_active
+    _execution_button.disabled = not dash_active
+    _chain_dash_button.disabled = not dash_active
 
 
 ## Highlights whichever god-mode button matches the player's current god mode through the panel's
@@ -276,11 +296,14 @@ func _clear_danger_telegraphs() -> void:
 ## Builds a plain-data snapshot from the existing owners and hands it to the HUD presenter to render
 ## the presenter never reaches into player/run-build/run-controller state itself.
 func _refresh_hud() -> void:
+    if _active_class == null:
+        return
     _hud.render(
         {
             "hp": _player.hp,
             "max_hp": _player.max_hp(_run_build.total(RunBuild.CH_MAX_HEALTH)),
-            "mobility_payload": _run_build.get_mobility_payload(),
+            "class_name": _active_class.display_name,
+            "mobility_id": _active_class.mobility_id,
             "dash_cooldown": _player.dash_cooldown,
             "smash_cooldown": _player.smash_cooldown,
             "speed_meter": _player.speed_meter,
@@ -291,3 +314,17 @@ func _refresh_hud() -> void:
             "artifact_rows": BuildInspectionFormatter.build_artifact_rows(_run_build),
         },
     )
+
+# == Character classes ==
+
+
+## Reports invalid authored class resources before any run collaborator consumes them.
+func _validate_class_resources() -> void:
+    if ninja_class == null:
+        ToastManager.show_dev_error("TickArena: Ninja CharacterClassData is not assigned")
+    else:
+        ninja_class.validate()
+    if viking_class == null:
+        ToastManager.show_dev_error("TickArena: Viking CharacterClassData is not assigned")
+    else:
+        viking_class.validate()

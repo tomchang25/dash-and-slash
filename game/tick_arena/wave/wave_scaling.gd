@@ -5,6 +5,8 @@
 class_name WaveScaling
 extends RefCounted
 
+# -- Constants --
+
 const SUPPORT_BASE_COUNT := 3
 const SUPPORT_COUNT_WAVE_DIVISOR := 2
 
@@ -15,8 +17,8 @@ const POP_CAP_WAVE_DIVISOR := 5
 const POP_CAP_MIN := 3
 const POP_CAP_MAX := 6
 
-# -- First-pass calibration constants: playtest and retune against the target curve
-# (average run ends ~wave 20, wave 30 is the practical ceiling). --
+# First-pass calibration constants: playtest and retune against the target curve
+# (average run ends ~wave 20, wave 30 is the practical ceiling).
 const HP_MULTIPLIER_PER_TIER := 0.35
 const DAMAGE_MULTIPLIER_PER_TIER := 0.20
 const DEFENSE_PER_TIER := 6.0

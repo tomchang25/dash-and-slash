@@ -34,11 +34,11 @@ func test_projects_mobility_triggers() -> void:
     var run_build := RunBuild.new()
     run_build.set_mobility_trigger(RunBuild.TRIGGER_GUARD_SHREDDER, true)
     run_build.set_mobility_trigger(RunBuild.TRIGGER_EXECUTION, true)
-    run_build.set_mobility_trigger(RunBuild.TRIGGER_MOBILITY_FREE_ACTION, true)
+    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
 
-    assert_true(TickCombatProjection.has_mobility_guard_shredder(run_build))
-    assert_true(TickCombatProjection.has_mobility_execution(run_build))
-    assert_true(TickCombatProjection.has_mobility_free_action(run_build))
+    assert_true(TickCombatProjection.has_dash_guard_shredder(run_build))
+    assert_true(TickCombatProjection.has_dash_execution(run_build))
+    assert_true(TickCombatProjection.has_chain_dash(run_build))
 
 
 func test_projects_mobility_stagger_burst_multiplier() -> void:

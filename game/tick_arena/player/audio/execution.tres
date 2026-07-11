@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpatialAudioEvent" load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://dhngr3j0sq0n0" path="res://common/audio/events/spatial_audio_event.gd" id="1_script"]
+[ext_resource type="AudioStream" uid="uid://dk8b3o0un1gf5" path="res://common/audio/presets/assets/Punch_2.wav" id="2_punch"]
+
+[resource]
+script = ExtResource("1_script")
+limiter_key = &"execution"
+max_per_window = 4
+window_sec = 1.0
+volume_db = -20.0
+bus_id = 1
+streams = Array[AudioStream]([ExtResource("2_punch")])
+use_random_pitch = true

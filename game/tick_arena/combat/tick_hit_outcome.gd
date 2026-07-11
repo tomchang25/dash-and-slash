@@ -16,7 +16,7 @@ enum FeedbackKind {
     KILL,
 }
 
-## Distinguishes a mobility-slot-triggered Major's upgraded result from a generic guard break or kill,
+## Distinguishes a Dash-triggered Major's upgraded result from a generic guard break or kill,
 ## so presentation can show distinct feedback while the fallback feedback still fires.
 enum MajorTrigger {
     NONE,

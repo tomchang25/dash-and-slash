@@ -10,7 +10,7 @@ signal navigation_failed(key: StringName)
 var _pending_payload: Variant = null
 var _current_key: StringName = &""
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## Navigates to a registered scene key and stores an optional one-shot payload for the arriving scene.
@@ -81,7 +81,7 @@ func has_route(key: StringName) -> bool:
 func current_key() -> StringName:
     return _current_key
 
-# == Internals =================================================================
+# == Internals ==
 
 
 func _emit_scene_changed(key: StringName) -> void:

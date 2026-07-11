@@ -19,23 +19,24 @@ const PUFF_ACTIVE_COLOR := Color(1.0, 0.5, 0.5, 1.0)
 const PUFF_EXPAND_SCALE := 2.0
 const PUFF_VFX_DURATION := 0.12
 
-# -- State --------------------------------------------------------------------
+# -- State --
+
 var _attack_data: EnemyAttackData
 var _puff_phase: int = PuffPhase.NONE
 var _puff_base_scale := Vector2.ONE
 var _puff_base_color := Color.WHITE
 var _puff_vfx_tween: Tween
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
     super()
     _select_attack_data()
 
-# == Common API ================================================================
+# == Common API ==
 
 
 func get_body() -> Polygon2D:
@@ -101,7 +102,7 @@ func should_commit_on_arrival() -> bool:
 func try_commit_attack() -> bool:
     return begin_puff_tick()
 
-# == Tick puff zone ============================================================
+# == Tick puff zone ==
 
 
 ## The square zone footprint centered on the enemy, sized to the puff radius.
@@ -159,7 +160,7 @@ func _clear_attack_presentation() -> void:
         _puff_phase = PuffPhase.NONE
         _play_puff_vfx(false)
 
-# == Setup helpers =============================================================
+# == Setup helpers ==
 
 
 func _after_setup_ready() -> void:

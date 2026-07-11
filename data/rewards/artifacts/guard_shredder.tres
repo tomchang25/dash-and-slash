@@ -16,5 +16,6 @@ display_name = "Guard Shredder"
 description_template = "Back-angle dash hits break guard instantly (%d)"
 rarity = 1
 min_wave = 2
+required_mobility = &"dash"
 effects = Array[ExtResource("1_8oefu")]([SubResource("effect")])
 icon = ExtResource("3_icon")

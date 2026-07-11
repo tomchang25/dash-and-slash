@@ -7,14 +7,16 @@ extends GridEnemy
 ## and flanking windows open naturally instead of the chase locking on forever.
 const TICK_SPEED := 75
 
-# -- Node references ----------------------------------------------------------
+# -- State --
+
+var _attack_data: EnemyAttackData
+
+# -- Node references --
+
 @onready var _attack_controller: EnemyAttackController = %AttackController
 @onready var _telegraph: TileTelegraph = %TileTelegraph
 
-# -- State --------------------------------------------------------------------
-var _attack_data: EnemyAttackData
-
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -22,7 +24,7 @@ func _ready() -> void:
     _configure_attack_controller()
     _select_attack_data()
 
-# == Common API ================================================================
+# == Common API ==
 
 
 ## Reports an attack only when the enemy already faces the direction whose footprint covers the target.
@@ -77,6 +79,8 @@ func begin_attack_telegraph() -> bool:
         return false
     attack.show_warning()
     start_attack_windup_vfx(CombatFeedbackVFX.WindupStyle.TILE)
+    if _visual_presenter != null:
+        _visual_presenter.show_prepare_attack()
     return true
 
 
@@ -85,6 +89,8 @@ func show_attack_charge() -> void:
     var attack := get_attack_controller()
     if attack != null:
         attack.show_charge()
+    if _visual_presenter != null:
+        _visual_presenter.show_attack_commit()
 
 
 func plan_next_action() -> bool:
@@ -101,7 +107,7 @@ func plan_next_action() -> bool:
 
     return plan_approach_action()
 
-# == Setup helpers =============================================================
+# == Setup helpers ==
 
 
 func _after_setup_ready() -> void:
@@ -125,6 +131,8 @@ func _cancel_attack() -> void:
     stop_attack_windup_vfx()
     if _attack_controller != null:
         _attack_controller.cancel()
+    if _visual_presenter != null:
+        _visual_presenter.show_idle()
 
 
 ## Tick hook: clears the tile telegraph and windup when an attack resolves or is cancelled.

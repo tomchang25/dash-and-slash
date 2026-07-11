@@ -16,5 +16,6 @@ display_name = "Execution"
 description_template = "Dash hits on staggered targets kill instantly (%d)"
 rarity = 1
 min_wave = 2
+required_mobility = &"dash"
 effects = Array[ExtResource("1_jkagg")]([SubResource("effect")])
 icon = ExtResource("3_icon")

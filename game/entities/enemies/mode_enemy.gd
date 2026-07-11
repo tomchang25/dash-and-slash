@@ -15,19 +15,22 @@ const TILE_MODE_COLOR := Color(0.9, 0.35, 0.25, 1.0)
 const PUFF_MODE_COLOR := Color(0.95, 0.8, 0.2, 1.0)
 const CHARGE_MODE_COLOR := Color(0.35, 0.6, 1.0, 1.0)
 
-# -- Exports ------------------------------------------------------------------
+# -- Exports --
+
 @export var attack_sfx_event: SpatialAudioEvent
 
-# -- State --------------------------------------------------------------------
+# -- State --
+
 var _mode: int = Mode.TILE
 var _mode_ready := false
 var _current_attack_data: EnemyAttackData
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
+
 @onready var _tile_executor: EnemyAttackController = %TileAttackExecutor
 @onready var _telegraph: TileTelegraph = %TileTelegraph
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
@@ -35,7 +38,7 @@ func _ready() -> void:
     _configure_executors()
     _apply_current_mode_color()
 
-# == Signal handlers ==========================================================
+# == Signal handlers ==
 
 
 func _on_guard_changed(current: int, maximum: int) -> void:
@@ -52,7 +55,7 @@ func _on_stagger_ended() -> void:
     super()
     guard_stagger_ended.emit()
 
-# == Common API ================================================================
+# == Common API ==
 
 
 func emit_guard_snapshot() -> void:
@@ -201,7 +204,7 @@ func cancel_attack() -> void:
             if _tile_executor != null:
                 _tile_executor.cancel()
 
-# == Tick clocking =============================================================
+# == Tick clocking ==
 
 
 ## Tick footprint committed by begin_attack_telegraph(): the current mode's executor cells.
@@ -232,7 +235,7 @@ func _clear_attack_presentation() -> void:
     stop_attack_windup_vfx()
     _mode_ready = false
 
-# == Setup helpers =============================================================
+# == Setup helpers ==
 
 
 func _after_setup_ready() -> void:

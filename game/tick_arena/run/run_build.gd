@@ -1,13 +1,5 @@
 # run_build.gd
-# Run-scoped store of applied reward-effect contributions. Pure data: holds a
-# signed-entry list per channel and projects each channel's total on read, plus
-# an owned-artifact registry enforcing the run-wide legendary-rarity cap and
-# per-group exclusivity, and a mobility-slot-triggered-effect flag set (Guard
-# Shredder, Execution, Mobility Free Action) that the active mobility strike's
-# resolution queries directly, regardless of whether the slot payload is Dash
-# or Smash. Consumers (Player, TickPlayer, TickArena, WaveController) own their
-# own base values and clamps; this store owns no base values and applies no
-# clamps of its own.
+# Run-scoped reward store for channel contributions, owned artifacts, and class-specific Major triggers.
 class_name RunBuild
 extends RefCounted
 
@@ -24,19 +16,14 @@ const CH_ENEMY_DEFENSE_PRESSURE := &"enemy_defense_pressure"
 const CH_SPEED := &"speed"
 const CH_MOBILITY_COOLDOWN := &"mobility_cooldown"
 
-const PAYLOAD_DASH := &"dash"
-const PAYLOAD_SMASH := &"smash"
-const PAYLOAD_DEBUG_STUB := &"debug_stub"
-
 const TRIGGER_GUARD_SHREDDER := &"guard_shredder"
 const TRIGGER_EXECUTION := &"execution"
-const TRIGGER_MOBILITY_FREE_ACTION := &"mobility_free_action"
+const TRIGGER_CHAIN_DASH := &"chain_dash"
 
 const LEGENDARY_CAP := 4
 
 var _entries: Array[Dictionary] = []
 var _owned_artifacts: Array[Dictionary] = []
-var _mobility_payload_override := PAYLOAD_DASH
 var _mobility_triggers: Dictionary = { }
 
 # == Common API ==
@@ -59,28 +46,12 @@ func total(channel: StringName) -> float:
     return sum
 
 
-## Clears every recorded entry, the owned-artifact registry, the mobility payload override (back
-## to the Dash default), and the mobility-trigger set. This is the sole production restart path:
-## the arena root constructs one RunBuild per arena scene and TickRunController.reset_run() clears
-## it in place, so every collaborator keeps its original injected reference for the scene's lifetime.
+## Clears every recorded entry, the owned-artifact registry, and the Mobility-trigger set while
+## preserving the active class, which belongs to TickArena rather than reward state.
 func clear() -> void:
     _entries.clear()
     _owned_artifacts.clear()
-    _mobility_payload_override = PAYLOAD_DASH
     _mobility_triggers.clear()
-
-
-## Returns the active mobility-slot payload. Dash is the default when no Major has replaced the slot.
-func get_mobility_payload() -> StringName:
-    return _mobility_payload_override
-
-
-## Debug/prototype seam for artifact payload replacement; production rewards should call this through their effect application path.
-func set_mobility_payload_override(payload: StringName) -> void:
-    if payload != PAYLOAD_DASH and payload != PAYLOAD_SMASH and payload != PAYLOAD_DEBUG_STUB:
-        ToastManager.show_dev_error("RunBuild: unknown mobility payload %s" % payload)
-        return
-    _mobility_payload_override = payload
 
 
 ## Registers an artifact pick in the owned-artifact registry: a fresh stackable pick is appended, a
@@ -151,19 +122,16 @@ func get_owned_artifacts() -> Array[Dictionary]:
     return _owned_artifacts.duplicate()
 
 
-## Returns whether the given mobility-slot-triggered artifact effect (Guard Shredder, Execution,
-## Mobility Free Action) is currently active. The active mobility strike's resolution reads this
-## directly instead of forking per-effect code paths per payload, so the same trigger fires whether
-## the slot payload is Dash or Smash.
+## Returns whether the given class-Mobility artifact trigger is active for this run.
 func has_mobility_trigger(trigger_id: StringName) -> bool:
     return bool(_mobility_triggers.get(trigger_id, false))
 
 
-## Activates or deactivates one mobility-slot-triggered artifact effect by id. Real trigger effects
+## Activates or deactivates one class-Mobility-triggered artifact effect by id. Real trigger effects
 ## call this from their own apply(); debug controls write through the same call so debug behavior
 ## stays representative of artifact behavior instead of a parallel scene-only flag.
 func set_mobility_trigger(trigger_id: StringName, active: bool) -> void:
-    if trigger_id != TRIGGER_GUARD_SHREDDER and trigger_id != TRIGGER_EXECUTION and trigger_id != TRIGGER_MOBILITY_FREE_ACTION:
+    if trigger_id != TRIGGER_GUARD_SHREDDER and trigger_id != TRIGGER_EXECUTION and trigger_id != TRIGGER_CHAIN_DASH:
         ToastManager.show_dev_error("RunBuild: unknown mobility trigger %s" % trigger_id)
         return
     _mobility_triggers[trigger_id] = active

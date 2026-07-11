@@ -3,7 +3,7 @@
 class_name EnemyStatusBars
 extends Node2D
 
-# -- Exports ------------------------------------------------------------------
+# -- Exports --
 
 const GUARD_POINTS_PER_SHIELD := 4
 
@@ -12,25 +12,25 @@ const GUARD_POINTS_PER_SHIELD := 4
 @export var shield_icon_size: Vector2 = Vector2(16.0, 16.0)
 @export var shield_gap: Vector2 = Vector2(2.0, 2.0)
 
-# -- State --------------------------------------------------------------------
+# -- State --
 
 var _current_guard := 0
 var _max_guard := 0
 var _shield_icons: Array[ShieldStatusIcon] = []
 
-# -- Node references ----------------------------------------------------------
+# -- Node references --
 
 @onready var _hp_bar: ProgressBar = %HpBar
 @onready var _shield_container: Node2D = %ShieldContainer
 
-# == Lifecycle ================================================================
+# == Lifecycle ==
 
 
 func _ready() -> void:
     _apply_health(1.0, 1.0)
     _apply_guard()
 
-# == Common API ================================================================
+# == Common API ==
 
 
 func set_health(current: float, maximum: float) -> void:
@@ -53,7 +53,7 @@ func reset() -> void:
 func set_enabled(value: bool) -> void:
     visible = value
 
-# == View Application =========================================================
+# == View Application ==
 
 
 func _apply_health(current: float, maximum: float) -> void:

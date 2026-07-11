@@ -1,8 +1,8 @@
 # artifact_registry.gd
 # Resource-backed catalog of authored reward artifacts: the read-only content source
 # WaveRewardChoiceGenerator rolls and filters against. Exposes the full artifact list and id
-# lookup, and validates authored data for null entries, empty ids, and duplicate ids. Owns no run
-# state, RNG, cadence, or picked artifacts — that stays in WaveRewardChoiceGenerator and RunBuild.
+# lookup, and validates authored data for null entries, empty/duplicate ids, and fixed-Mobility
+# requirements. Owns no run state, RNG, cadence, or picked artifacts.
 class_name ArtifactRegistry
 extends Resource
 
@@ -26,8 +26,7 @@ func get_by_id(id: StringName) -> Artifact:
 
 
 ## Validates authored content and reports each problem as a developer error: a null entry, an
-## empty id, or a duplicate id. Returns true when every entry is a distinct, non-null artifact with
-## a non-empty id.
+## empty/duplicate id, or unsupported required Mobility. Returns true when every entry is valid.
 func validate() -> bool:
     var ok := true
     var seen_ids: Dictionary = { }
@@ -43,6 +42,10 @@ func validate() -> bool:
             continue
         if seen_ids.has(artifact.id):
             ToastManager.show_dev_error("ArtifactRegistry: duplicate artifact id '%s'" % artifact.id)
+            ok = false
+            continue
+        if artifact.required_mobility != &"" and not CharacterClassData.is_supported_mobility(artifact.required_mobility):
+            ToastManager.show_dev_error("ArtifactRegistry: artifact '%s' requires unknown Mobility '%s'" % [artifact.id, artifact.required_mobility])
             ok = false
             continue
         seen_ids[artifact.id] = true

@@ -15,12 +15,12 @@ static func empty_outcome() -> TickHitOutcome:
 
 ## Resolves one tick-grid hit from immutable target state. Optional guard damage lets legacy enemy
 ## kinds keep their authored guard profile while using this resolver's math. guard_shredder_trigger
-## and execution_trigger are the mobility-slot-triggered Major hooks: pass true only from an actual
-## Dash or Smash mobility-slot strike whose run build has that trigger active, never from a normal attack.
-## stagger_burst_multiplier lets mobility payloads restore their authored 2.0x payoff against already-staggered targets.
-## The caller's origin_cell already encodes which payload is striking (Dash: the cell the victim was
+## and execution_trigger are Dash-triggered Major hooks: pass true only from an actual Dash whose
+## run build has that trigger active, never from Smash or a normal attack.
+## stagger_burst_multiplier lets Mobility attacks restore their authored 2.0x payoff against already-staggered targets.
+## The caller's origin_cell already encodes which Mobility is striking (Dash: the cell the victim was
 ## hit from along its travel path; Smash: the locked landing cell) — this resolver derives the hit
-## angle from whatever origin it is given and does not need to know which payload produced it.
+## angle from whatever origin it is given and does not need to know which Mobility produced it.
 static func resolve_hit(
         attacker_origin_cell: Vector2i,
         target_snapshot: Dictionary,
@@ -104,21 +104,17 @@ static func apply_defense(amount: float, defense: float) -> float:
     return amount * (amount / (amount + defense))
 
 
-## Returns whether any hit outcome in the list satisfies the Mobility Free Action Major's refund
-## condition. Folds a mobility-slot strike's potentially many victim outcomes (Dash's travel path,
-## Smash's 3x3 block) into a single per-action flag, so a strike that hits several qualifying targets
-## still refunds at most once.
-static func any_qualifies_for_mobility_free_action(outcomes: Array[TickHitOutcome]) -> bool:
+## Returns whether any Dash hit outcome satisfies Chain Dash, folding multiple victims into one refund.
+static func any_qualifies_for_chain_dash(outcomes: Array[TickHitOutcome]) -> bool:
     for outcome in outcomes:
-        if qualifies_for_mobility_free_action(outcome):
+        if qualifies_for_chain_dash(outcome):
             return true
     return false
 
 
-## Returns whether one committed hit outcome satisfies the Mobility Free Action Major's refund
-## condition: a kill, a guard break, or a back-angle hit.
-static func qualifies_for_mobility_free_action(outcome: TickHitOutcome) -> bool:
-    if outcome.killed or outcome.guard_broken:
+## Returns whether one Dash hit qualifies through a kill, guard break, staggered target, or back angle.
+static func qualifies_for_chain_dash(outcome: TickHitOutcome) -> bool:
+    if outcome.killed or outcome.guard_broken or outcome.staggered:
         return true
     return outcome.angle == TileDirectionResolver.HitAngle.BACK
 

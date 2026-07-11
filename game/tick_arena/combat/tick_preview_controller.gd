@@ -1,10 +1,12 @@
 # tick_preview_controller.gd
 # Owns read-only tick-arena preview calculation: mouse cell/aim resolution, dash plan previews,
-# smash previews, and predicted outcome badges. Writes only view payloads to TickGridView and must
+# Smash previews, predicted outcome badges, and the presentation-only player aim marker. It must
 # never mutate player state, enemy state, run-build state, wave state, or world time. Shares aim/plan
 # resolution with TickActionController through TickAimContext and combat base numbers through
 # TickCombatRules so a preview can never disagree with what a commit resolves; the aim mode and
-# last-aim direction it reads stay the action controller's own truth.
+# last-aim direction it reads stay the action controller's own truth. It also reports every genuine
+# mouse-cell change (cursor hovering a new aim cell) to the action controller as a facing event and
+# reads back the resolved facing direction each frame, but owns none of that state itself.
 class_name TickPreviewController
 extends Node
 
@@ -19,7 +21,9 @@ extends Node
 # -- State --
 
 var _run_build: RunBuild
+var _character_class: CharacterClassData
 var _aim_context: TickAimContext
+var _last_mouse_cell := Vector2i(1 << 20, 1 << 20)
 
 # == Lifecycle ==
 
@@ -30,28 +34,43 @@ func _process(_delta: float) -> void:
 # == Common API ==
 
 
-## Stores the run build this controller reads the mobility payload and mobility triggers from; the
-## tick arena root owns and constructs the shared RunBuild instance.
-func setup(run_build: RunBuild) -> void:
+## Stores the run build and immutable active class distributed by the tick arena root.
+func setup(run_build: RunBuild, character_class: CharacterClassData) -> void:
     _run_build = run_build
+    _character_class = character_class
     _aim_context = TickAimContext.new(grid, engine, player, run_build, action_controller.get_last_aim)
+
+
+## Replaces the active class only at the arena's run-reset boundary.
+func set_character_class(character_class: CharacterClassData) -> void:
+    _character_class = character_class
 
 # == Preview ==
 
 
 ## Recomputes the free aiming previews every frame; aiming never consumes a tick.
 ## Previews carry resolved outcomes (landing ghost, per-victim angle/result badges) computed by the
-## same predict_hit math that resolves the commit, so the display can never lie.
+## same predict_hit math that resolves the commit, so the display can never lie. Targeting/legality
+## always reads the live mouse-resolved aim. The presented facing direction is different: it only
+## reports a hover event to the action controller when the mouse cell itself actually changed this
+## frame, then reads back whatever facing that (or a keyboard move, or a click) last resolved to — so
+## it never continuously snaps to the cursor while the player or the world is what actually moved.
 func _update_preview() -> void:
     var outcomes := { }
     var preview := { }
+    var mouse_cell := _aim_context.mouse_cell()
+    if mouse_cell != _last_mouse_cell:
+        _last_mouse_cell = mouse_cell
+        action_controller.report_cursor_hover(_aim_context.aim_direction())
+    var resolved_aim := _aim_context.aim_direction()
+    player.set_visual_aim_direction(action_controller.get_facing_direction())
 
     if player.is_smash_armed():
         _apply_locked_smash_preview(preview, outcomes)
     elif action_controller.is_mobility_mode():
         _apply_mobility_preview(preview, outcomes)
     else:
-        preview["aim_cell"] = player.cell + _aim_context.aim_direction()
+        preview["aim_cell"] = player.cell + resolved_aim
         var aim_enemy := engine.enemy_at(preview["aim_cell"])
         if aim_enemy != null:
             outcomes[aim_enemy.get_grid_pos()] = _outcome_entry(aim_enemy, player.cell, TickCombatProjection.normal_attack_damage(_run_build))
@@ -64,8 +83,10 @@ func _update_preview() -> void:
 ## Only reached while no Smash is armed, since an armed windup's preview is locked in by
 ## _update_preview() before this is ever called.
 func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
-    var payload := _run_build.get_mobility_payload()
-    if payload == RunBuild.PAYLOAD_DASH:
+    if _character_class == null:
+        ToastManager.show_dev_error("TickPreviewController: missing CharacterClassData")
+        return
+    if _character_class.mobility_id == CharacterClassData.MOBILITY_DASH:
         var plan := _aim_context.compute_dash_plan()
         preview["dash_path"] = plan["path"]
         preview["dash_legal"] = plan["legal"]
@@ -73,8 +94,8 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
             preview["dash_landing"] = plan["landing"]
             preview["ghost_cell"] = plan["landing"]
             var dir: Vector2i = plan["dir"]
-            var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
-            var execution := TickCombatProjection.has_mobility_execution(_run_build)
+            var guard_shredder := TickCombatProjection.has_dash_guard_shredder(_run_build)
+            var execution := TickCombatProjection.has_dash_execution(_run_build)
             for victim: GridEnemy in plan["victims"]:
                 outcomes[victim.get_grid_pos()] = _outcome_entry(
                     victim,
@@ -85,7 +106,7 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
                     TickCombatProjection.mobility_stagger_burst_multiplier(),
                 )
         return
-    if payload == RunBuild.PAYLOAD_SMASH:
+    if _character_class.mobility_id == CharacterClassData.MOBILITY_SMASH:
         var target := _aim_context.clamped_smash_target()
         preview["smash_center"] = target
         preview["smash_legal"] = engine.is_cell_open_for_player(target)
@@ -93,15 +114,7 @@ func _apply_mobility_preview(preview: Dictionary, outcomes: Dictionary) -> void:
             preview["ghost_cell"] = target
             _collect_smash_outcomes(target, outcomes)
         return
-    if payload == RunBuild.PAYLOAD_DEBUG_STUB:
-        var target := player.cell + _aim_context.aim_direction()
-        preview["dash_path"] = [target]
-        preview["dash_legal"] = engine.is_cell_open_for_player(target)
-        if bool(preview["dash_legal"]):
-            preview["dash_landing"] = target
-            preview["ghost_cell"] = target
-        return
-    ToastManager.show_dev_error("TickPreviewController: unknown mobility payload %s" % payload)
+    ToastManager.show_dev_error("TickPreviewController: unknown class Mobility %s" % _character_class.mobility_id)
 
 
 ## Predicts one hit for the preview and condenses it into a display entry: cell, label, and intensity
@@ -133,19 +146,17 @@ func _outcome_entry(
 
 
 ## Collects predicted outcomes for every living enemy in the 3x3 block centered on the given cell.
-## The landing cell is the origin for every victim, per the Smash direction rule (Phase 04 sketch),
-## so Guard Shredder's back-angle check reads relative to the landing, not the player's start cell.
+## The landing cell remains the origin for direction labels, but Smash never receives Dash-only
+## Guard Shredder, Execution, or Chain Dash behavior.
 func _collect_smash_outcomes(center: Vector2i, outcomes: Dictionary) -> void:
-    var guard_shredder := TickCombatProjection.has_mobility_guard_shredder(_run_build)
-    var execution := TickCombatProjection.has_mobility_execution(_run_build)
     for enemy: GridEnemy in engine.actors():
         if _aim_context.chebyshev(enemy.get_grid_pos() - center) <= 1:
             outcomes[enemy.get_grid_pos()] = _outcome_entry(
                 enemy,
                 center,
                 TickCombatProjection.mobility_attack_damage(_run_build, TickCombatRules.PLAYER_SMASH_DAMAGE),
-                guard_shredder,
-                execution,
+                false,
+                false,
                 TickCombatProjection.mobility_stagger_burst_multiplier(),
             )
 
