@@ -15,7 +15,7 @@ enum GodMode {
 # -- Constants --
 
 const MAX_HP := 100.0
-const MOVE_TWEEN_SEC := 0.09
+const MOVE_TWEEN_SEC := 0.22
 const LEAP_TWEEN_SEC := 0.12
 const BODY_RADIUS := 40.0
 const DAMAGE_FLASH_SEC := 0.18
@@ -109,15 +109,23 @@ func play_normal_attack_visual(direction: Vector2i) -> void:
 
 ## Moves the logical cell immediately and tweens the visual position; leap uses the slower smash arc timing.
 func move_to(target_cell: Vector2i, leap := false) -> void:
-    cell = target_cell
+    var move_direction := target_cell - cell
     if _move_tween != null:
         _move_tween.kill()
+        position = _grid.cell_center(cell)
+    cell = target_cell
     var duration := LEAP_TWEEN_SEC if leap else MOVE_TWEEN_SEC
-    scale = Vector2(1.12, 0.88)
+    if leap:
+        scale = Vector2(1.12, 0.88)
+    else:
+        scale = Vector2.ONE
+        if visual_presenter != null:
+            visual_presenter.play_move(move_direction)
     _move_tween = create_tween()
     _move_tween.set_parallel(true)
-    _move_tween.tween_property(self, "position", _grid.cell_center(target_cell), duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-    _move_tween.tween_property(self, "scale", Vector2.ONE, duration * 1.5)
+    _move_tween.tween_property(self, "position", _grid.cell_center(target_cell), duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+    if leap:
+        _move_tween.tween_property(self, "scale", Vector2.ONE, duration * 1.5)
 
 
 ## Applies damage with a red flash, honoring the active debug god mode; returns true when the player

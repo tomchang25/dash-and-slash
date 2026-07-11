@@ -15,7 +15,7 @@ const DEFAULT_TICK_SPEED := 100
 const DEFAULT_WARNING_TICKS := 2
 const DEFAULT_RECOVERY_TICKS := 1
 ## Visual-only slide time for a one-cell tick snap; the logical cell moves instantly.
-const TICK_MOVE_TWEEN_SEC := 0.09
+const TICK_MOVE_TWEEN_SEC := 0.14
 const STAGGER_VFX_COLOR := Color(0.3, 0.5, 1.0, 1.0)
 const PATH_DEBUG_COLOR := Color(0.2, 0.8, 1.0, 0.8)
 const PATH_DEBUG_WIDTH := 4.0
@@ -382,7 +382,7 @@ func tick_snap_to_cell(target_cell: Vector2i) -> void:
     scale = Vector2(1.1, 0.9)
     _tick_move_tween = create_tween()
     _tick_move_tween.set_parallel(true)
-    _tick_move_tween.tween_property(self, "global_position", _grid.cell_center(target_cell), TICK_MOVE_TWEEN_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+    _tick_move_tween.tween_property(self, "global_position", _grid.cell_center(target_cell), TICK_MOVE_TWEEN_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
     _tick_move_tween.tween_property(self, "scale", Vector2.ONE, TICK_MOVE_TWEEN_SEC * 1.5)
     if _visual_presenter != null:
         _visual_presenter.show_move()
