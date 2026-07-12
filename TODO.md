@@ -31,6 +31,10 @@ Nothing currently in progress.
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
 - [enemy_mobility] Rework committed enemy mobility around ChargeEnemy collision displacement and a new DashEnemy backline ambush — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
+- [wave_progression] Build data-driven ordered wave groups and enemy-level scaling for a ten-wave demo plus optional lethal endless continuation — [ref plans/data_driven_wave_progression_and_enemy_levels.md]
+- [reward_runtime] Correct Chain Dash timing/state and make Max Health gains heal by their exact increase — [ref plans/player_reward_runtime_corrections.implementation_spec.md]
+- [telegraph_ui] Aggregate overlapping danger countdowns into one primary timer, multiplicity, and later corner badges — [ref plans/telegraph_overlap_countdown_presentation.implementation_spec.md]
+- [combat_audio] Add player action whooshes, Dash stagger-hit flesh feedback, and dedicated Guard Break audio — [ref plans/player_combat_action_and_hit_sfx.implementation_spec.md]
 
 ---
 
@@ -38,8 +42,6 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 
 One-line, no reasoning, no backing doc.
 
-- [wave-balance] Playtest and retune WaveScaling's per-tier hp/damage/defense growth constants against the target curve (runs ending ~wave 20, wave 30 as practical ceiling).
-- [audio] Add a dedicated guard-broken SFX event — guard break currently plays only VFX plus the generic damaged/blocked audio (forgotten bullet from the shipped guard rework).
 - [docs] Sync the GDD to v0.5 shipped reality (drop the draft banner, close resolved deferred-list items) — remaining tail from the archived tick combat rework cutover.
 
 ---
