@@ -54,6 +54,7 @@ var speed_meter := 0
 var god_mode := GodMode.OFF
 
 var _smash_armed := false
+var _mobility_invulnerable := false
 var _grid: GridArena = null
 var _character_class: CharacterClassData
 
@@ -144,7 +145,11 @@ func move_to(target_cell: Vector2i, leap := false) -> void:
 
 ## Applies damage with a red flash, honoring the active debug god mode; returns true when the player
 ## died. NO_DAMAGE and UNDEAD still flash so debug hit feedback stays visible, but never report death.
+## A Dash/Smash mobility invulnerability window takes priority over god mode and skips the flash too,
+## since no hit actually landed.
 func take_damage(amount: float) -> bool:
+    if _mobility_invulnerable:
+        return false
     var died := false
     match god_mode:
         GodMode.OFF:
@@ -195,6 +200,7 @@ func reset(start_cell: Vector2i, max_health_bonus := 0.0) -> void:
     smash_cooldown = 0
     speed_meter = 0
     god_mode = GodMode.OFF
+    _mobility_invulnerable = false
     disarm_smash()
     cell = start_cell
     if _move_tween != null:
@@ -263,3 +269,17 @@ func disarm_smash() -> void:
 
 func is_smash_armed() -> bool:
     return _smash_armed
+
+
+## Opens the mobility invulnerability window for the Dash/Smash release action now resolving: it
+## covers both the cell the player leaves and the cell it lands on, since a mobility action already
+## relocates the logical cell before TickEngine.advance_world() resolves enemy detonations against it.
+func begin_mobility_invulnerability() -> void:
+    _mobility_invulnerable = true
+
+
+## Closes the mobility invulnerability window; TickActionController calls this once per consumed verb
+## before that verb's own logic runs, so the window only ever survives the single advance_world() call
+## immediately following a Dash/Smash release.
+func clear_mobility_invulnerability() -> void:
+    _mobility_invulnerable = false

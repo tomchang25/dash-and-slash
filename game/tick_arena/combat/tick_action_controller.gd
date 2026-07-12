@@ -240,6 +240,7 @@ func _verb_dash() -> Dictionary:
         view.flash_deny(player.cell + plan["dir"] * _aim_context.dash_range())
         return _verb_illegal()
     _tick_player_action_upkeep()
+    player.begin_mobility_invulnerability()
     player.play_action_whoosh()
     var dir: Vector2i = plan["dir"]
     var guard_shredder := TickCombatProjection.has_dash_guard_shredder(_run_build)
@@ -291,6 +292,7 @@ func _verb_smash() -> Dictionary:
         view.flash_deny(landing)
         return _verb_illegal()
     _tick_player_action_upkeep()
+    player.begin_mobility_invulnerability()
     view.flash_swing(_aim_context.smash_area(landing))
     var sfx_context := _build_mobility_sfx_context()
     for enemy: GridEnemy in engine.actors():
@@ -332,8 +334,11 @@ func _verb_illegal() -> Dictionary:
 
 ## Advances player-side per-action upkeep for a consumed verb. This is intentionally separate from
 ## TickEngine.advance_world() so free actions reduce player cooldowns without advancing enemy clocks,
-## spawn warnings, or attack telegraphs.
+## spawn warnings, or attack telegraphs. Clearing mobility invulnerability here, ahead of every verb's
+## own logic, guarantees the window only ever survives the single advance_world() call immediately
+## following the Dash/Smash release that opened it.
 func _tick_player_action_upkeep() -> void:
+    player.clear_mobility_invulnerability()
     player.tick_cooldowns()
 
 
