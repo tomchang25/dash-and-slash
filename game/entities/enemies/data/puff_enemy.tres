@@ -18,4 +18,7 @@ radius = 2
 script = ExtResource("1_data")
 enemy_id = "puff_enemy"
 display_name = "Puff Enemy"
+max_health = 30.0
+max_guard = 16
+defense = 0.0
 attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_puff")])

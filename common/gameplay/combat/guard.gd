@@ -22,6 +22,14 @@ func _ready() -> void:
     _current = max_guard
 
 
+## Configures max guard from authored data (e.g. EnemyData). Called once by the owner during setup,
+## before any combat or pool-lifecycle operation. Distinct from reset(), which restores pool-acquire
+## defaults from the max_guard already configured here.
+func initialize(max_value: int) -> void:
+    max_guard = max_value
+    _current = max_guard
+
+
 func current() -> int:
     return _current
 

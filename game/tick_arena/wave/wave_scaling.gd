@@ -2,6 +2,10 @@
 # Stateless formulas for infinite-wave enemy count, population cap, and per-tier stat scaling.
 # Support count and population cap are tuned for tick-paced combat: wave size can grow without
 # bound, but concurrent-alive enemies stay in the low 3-6 range so the board stays readable.
+# TODO: get_hp_multiplier(), get_damage_multiplier(), and get_defense() are legacy per-wave stat
+# scaling — delete them (and their WaveController/GridEnemy call sites) once Child 02 lands
+# EnemyLevelProgressionProfile-driven level application; see
+# data_driven_wave_progression_and_enemy_levels_02_group_runtime_and_demo_completion.sketch.md.
 class_name WaveScaling
 extends RefCounted
 

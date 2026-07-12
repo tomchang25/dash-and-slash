@@ -347,6 +347,10 @@ func _spawn_one(entry: Dictionary) -> void:
         elite_spawned.emit(enemy)
 
 
+## TODO: legacy per-wave scaling bridge — delete this method (and get_hp_multiplier(),
+## get_damage_multiplier(), get_defense() below) once Child 02 lands EnemyLevelProgressionProfile-driven
+## level application and retires WaveScaling; see
+## data_driven_wave_progression_and_enemy_levels_02_group_runtime_and_demo_completion.sketch.md.
 func _apply_wave_scaling(enemy: Node) -> void:
     var grid_enemy := enemy as GridEnemy
     if grid_enemy == null:

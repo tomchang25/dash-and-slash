@@ -41,4 +41,7 @@ active_duration = 2
 script = ExtResource("1_data")
 enemy_id = "mode_enemy"
 display_name = "Mode Enemy"
+max_health = 180.0
+max_guard = 16
+defense = 0.0
 attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_tile_wide"), SubResource("attack_tile_square"), SubResource("attack_tile_line"), SubResource("attack_charge"), SubResource("attack_puff")])

@@ -65,12 +65,10 @@ script = ExtResource("24_frame_view")
 [node name="Health" type="Node" parent="." unique_id=136558344]
 unique_name_in_owner = true
 script = ExtResource("2_health")
-max_health = 180.0
 
 [node name="Guard" type="Node" parent="." unique_id=148406137]
 unique_name_in_owner = true
 script = ExtResource("4_guard")
-max_guard = 16
 
 [node name="TileTelegraph" type="Node2D" parent="." unique_id=1304441992]
 unique_name_in_owner = true

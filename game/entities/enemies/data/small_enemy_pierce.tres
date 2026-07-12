@@ -15,4 +15,7 @@ cell_offsets = Array[Vector2i]([Vector2i(1, 0)])
 script = ExtResource("1_data")
 enemy_id = "small_enemy_pierce"
 display_name = "Small Enemy (Pierce)"
+max_health = 100.0
+max_guard = 16
+defense = 0.0
 attacks = Array[ExtResource("2_ad")]([SubResource("atk_pierce")])

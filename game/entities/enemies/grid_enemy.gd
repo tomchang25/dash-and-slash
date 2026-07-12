@@ -44,6 +44,15 @@ var _reservation_is_attack: bool = false
 var _attack_windup_vfx: Node2D
 var _damage_multiplier := 1.0
 var _defense := 0.0
+## Legacy per-wave scaling recorded by apply_wave_scaling() (called pre-ready by the spawner) and
+## applied from _ready() once _initialize_from_enemy_data() has set up Health/Guard from EnemyData.
+## TODO: delete this bridge (fields, apply_wave_scaling(), _apply_pending_legacy_scaling()) once
+## Child 02 lands EnemyLevelProgressionProfile-driven level application and retires WaveScaling;
+## see data_driven_wave_progression_and_enemy_levels_02_group_runtime_and_demo_completion.sketch.md.
+var _pending_legacy_hp_multiplier := 1.0
+var _pending_legacy_damage_multiplier := 1.0
+var _pending_legacy_defense := 0.0
+var _has_pending_legacy_scaling := false
 var _fsm_debug_label: Label
 ## One-shot Result SFX queued by a resolved KILL's take_hit(), consumed and cleared by
 ## play_death_sfx(). Cleared without consumption when the predicted kill did not actually reduce
@@ -79,6 +88,8 @@ var _tick_move_tween: Tween
 
 func _ready() -> void:
     _resolve_node_references()
+    _initialize_from_enemy_data()
+    _apply_pending_legacy_scaling()
     super()
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
@@ -480,20 +491,27 @@ func finish_attack_into_recovery() -> void:
     _tick_runtime.begin_recovery(get_recovery_tick_count() + 1)
 
 
-## Applies per-wave milestone scaling to this enemy instance: bumps max_health in
-## place (Health is a per-instance node, safe to mutate), stores a damage
-## multiplier consumed when tile attacks resolve, and stores a flat
-## defense value consumed by TickHitResolver.apply_defense(). Guard never scales.
+## Records per-wave milestone scaling for this enemy instance without touching Health/Guard yet.
+## The wave controller calls this pre-ready (before EnemyData has initialized Health/Guard's
+## authored bases via _initialize_from_enemy_data()), so it is applied later from _ready() instead;
+## see _apply_pending_legacy_scaling(). Guard never scales.
+## TODO: legacy scaling bridge, see the _pending_legacy_* fields comment above — delete after Child 02.
 func apply_wave_scaling(hp_multiplier: float, damage_multiplier: float, defense: float) -> void:
-    _damage_multiplier = max(damage_multiplier, 0.0)
-    _defense = max(defense, 0.0)
-    if health != null and hp_multiplier > 1.0:
-        health.add_max_health(health.max_health * (hp_multiplier - 1.0), true)
+    _pending_legacy_hp_multiplier = max(hp_multiplier, 0.0)
+    _pending_legacy_damage_multiplier = max(damage_multiplier, 0.0)
+    _pending_legacy_defense = max(defense, 0.0)
+    _has_pending_legacy_scaling = true
 
 
 ## Returns this enemy's current outgoing-damage multiplier from wave scaling.
 func get_damage_multiplier() -> float:
     return _damage_multiplier
+
+
+## Returns this enemy's current flat Defense value, from EnemyData's authored base plus any legacy
+## wave-scaling addition. Consumed by TickHitResolver.apply_defense().
+func get_defense() -> float:
+    return _defense
 
 
 func has_target() -> bool:
@@ -1019,6 +1037,34 @@ func _refresh_planned_reservations() -> bool:
     return _grid.reserve_cells_with_active_steps(self, reserved_cells, _reservation_is_attack, active_cells)
 
 # == Setup helpers ==
+
+
+## Configures Health/Guard/Defense from this enemy's authored EnemyData. Runs once from _ready(),
+## before Enemy._ready()'s health snapshot, so downstream signal listeners see the final authored
+## bases rather than Health/Guard's own component defaults. Missing EnemyData reports a development
+## error and leaves Health/Guard at those component defaults instead of silently trusting bad data.
+func _initialize_from_enemy_data() -> void:
+    if enemy_data == null:
+        ToastManager.show_dev_error("GridEnemy: %s missing enemy_data; using component defaults" % name)
+        return
+    if health != null:
+        health.initialize(enemy_data.max_health)
+    if _guard != null:
+        _guard.initialize(enemy_data.max_guard)
+    _defense = enemy_data.defense
+
+
+## Applies the legacy per-wave scaling recorded by apply_wave_scaling(), once
+## _initialize_from_enemy_data() has set up Health/Guard's authored bases. No-op when
+## apply_wave_scaling() was never called pre-ready (e.g. direct instantiation in tests).
+## TODO: legacy scaling bridge, see the _pending_legacy_* fields comment above — delete after Child 02.
+func _apply_pending_legacy_scaling() -> void:
+    if not _has_pending_legacy_scaling:
+        return
+    _damage_multiplier = _pending_legacy_damage_multiplier
+    _defense += _pending_legacy_defense
+    if health != null and _pending_legacy_hp_multiplier > 1.0:
+        health.add_max_health(health.max_health * (_pending_legacy_hp_multiplier - 1.0), true)
 
 
 func _init_debug_fsm_state() -> void:

@@ -37,12 +37,10 @@ polygon = PackedVector2Array(0, -18, -18, 18, 18, 18)
 [node name="Health" type="Node" parent="." unique_id=995602641]
 unique_name_in_owner = true
 script = ExtResource("2_health")
-max_health = 30.0
 
 [node name="Guard" type="Node" parent="." unique_id=1924644580]
 unique_name_in_owner = true
 script = ExtResource("5_guard")
-max_guard = 16
 stagger_ticks = 3
 
 [node name="StateMachine" type="Node" parent="." unique_id=878128284 node_paths=PackedStringArray("initial_state")]
