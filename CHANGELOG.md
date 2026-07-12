@@ -16,6 +16,18 @@ Rules:
 
 ## [unreleased]
 
+### Unified Combat Result SFX Selection
+
+- 2026-07-12 — [combat_audio] Normal attacks and Dashes now play a shared action whoosh and every resolved player hit selects exactly one Result SFX — mobility kills, Guard Shredder, and Execution get distinct events, and Guard Breaks, deaths, and ordinary hits no longer layer multiple sounds
+
+### Telegraph Overlap Countdown Presentation
+
+- 2026-07-12 — [ui] Overlapping danger telegraphs now aggregate countdowns by cell with multiplicity labels and later corner badges, while player-occupied danger cells move the primary timer to a 12 o'clock badge
+
+### Player Reward Runtime Corrections
+
+- 2026-07-12 — [rewards] Qualifying Chain Dash hits now clear Dash cooldown and ready one Speed follow-up, while Max Health rewards immediately restore their exact gained amount
+
 ### ModeEnemy Attack Cycle And Spawn Timing
 
 - 2026-07-12 — [enemy] ModeEnemy now selects individual attacks for matching pursuit and rerolls after attacks or stagger, while elite spawns telegraph for one player action and the enemy presents as an Octopus

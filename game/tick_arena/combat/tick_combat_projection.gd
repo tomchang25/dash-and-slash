@@ -35,7 +35,8 @@ static func has_dash_execution(run_build: RunBuild) -> bool:
     return run_build.has_mobility_trigger(RunBuild.TRIGGER_EXECUTION)
 
 
-## Returns whether qualifying Dash hits can refund world advancement through Chain Dash.
+## Returns whether Chain Dash is active for this run: a qualifying Dash hit clears Dash cooldown and
+## prepares the Speed meter as a ready follow-up free action.
 static func has_chain_dash(run_build: RunBuild) -> bool:
     return run_build.has_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH)
 

@@ -1,5 +1,5 @@
 # test_tick_hit_resolver_chain_dash.gd
-# Tests Chain Dash qualification and multi-victim single-refund folding on typed hit outcomes.
+# Tests Chain Dash qualification and multi-victim single-state-application folding on typed hit outcomes.
 extends GutTest
 
 func test_kill_outcome_qualifies() -> void:

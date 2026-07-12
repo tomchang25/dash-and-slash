@@ -29,6 +29,20 @@ const OUTCOME_LABEL_COLORS: Array[Color] = [
 const OUTCOME_FONT_SIZE := 30
 const FLASH_SEC := 0.2
 const COUNTDOWN_FONT_SIZE := 52
+const COUNTDOWN_MULTIPLIER_FONT_SIZE := 22
+const CORNER_COUNTDOWN_FONT_SIZE := 26
+const CORNER_MULTIPLIER_FONT_SIZE := 14
+const CORNER_OFFSET_RATIO := 0.3
+const PLAYER_BADGE_COUNTDOWN_FONT_SIZE := 36
+const PLAYER_BADGE_MULTIPLIER_FONT_SIZE := 16
+const PLAYER_BADGE_OFFSET_RATIO := 0.43
+# Clockwise from top-left; later distinct countdowns fill these in ascending order.
+const CORNER_DIRECTIONS: Array[Vector2] = [
+    Vector2(-1.0, -1.0),
+    Vector2(1.0, -1.0),
+    Vector2(1.0, 1.0),
+    Vector2(-1.0, 1.0),
+]
 
 # -- Exports --
 
@@ -99,6 +113,46 @@ func flash_swing(cells: Array[Vector2i]) -> void:
 func flash_detonation(cells: Array[Vector2i]) -> void:
     _add_flash(cells, DANGER_ACTIVE_COLOR, false)
 
+
+## Aggregates danger payloads into a deterministic per-cell countdown summary: each covered cell
+## maps to an ascending `{ticks, count}` array, collapsing sources that share both the same cell and
+## the same countdown into one entry. A cell repeated within one source counts once for that source.
+## Missing or non-positive countdowns are skipped defensively instead of drawing a misleading zero.
+static func aggregate_cell_summaries(danger: Array[Dictionary]) -> Dictionary:
+    var counts_by_cell: Dictionary = { }
+    for source in danger:
+        var ticks := int(source.get("ticks", 0))
+        if ticks <= 0:
+            continue
+        var seen_cells: Dictionary = { }
+        for danger_cell: Vector2i in source.get("cells", []):
+            if seen_cells.has(danger_cell):
+                continue
+            seen_cells[danger_cell] = true
+            if not counts_by_cell.has(danger_cell):
+                counts_by_cell[danger_cell] = { }
+            var counts: Dictionary = counts_by_cell[danger_cell]
+            counts[ticks] = int(counts.get(ticks, 0)) + 1
+
+    var summaries: Dictionary = { }
+    for danger_cell: Vector2i in counts_by_cell:
+        var counts: Dictionary = counts_by_cell[danger_cell]
+        var tick_values := counts.keys()
+        tick_values.sort()
+        var entries: Array[Dictionary] = []
+        for ticks in tick_values:
+            entries.append({ "ticks": ticks, "count": counts[ticks] })
+        summaries[danger_cell] = entries
+    return summaries
+
+
+## Returns the primary countdown label center for a telegraphed cell. A player-occupied cell moves
+## its primary label to the 12 o'clock outer-ring position so countdown text never draws through the body.
+static func primary_countdown_label_center(cell_center: Vector2, target_cell: Vector2i, player_cell: Vector2i, tile_size: float) -> Vector2:
+    if target_cell != player_cell:
+        return cell_center
+    return cell_center + Vector2(0.0, -tile_size * PLAYER_BADGE_OFFSET_RATIO)
+
 # == Drawing ==
 
 
@@ -114,18 +168,51 @@ func _add_flash(cells: Array[Vector2i], color: Color, outline_only: bool) -> voi
     queue_redraw()
 
 
-## Draws the debug tick countdown over each telegraphed cell plus the charge-destination marker; the
-## danger fill itself is painted by the production GridTerrainView from GridArena telegraph state.
+## Draws one aggregated countdown summary per telegraphed cell (central earliest label plus up to
+## four later corner badges) plus each source's charge-destination marker; the danger fill itself is
+## painted by the production GridTerrainView from GridArena telegraph state.
 func _draw_danger() -> void:
     var font := ThemeDB.fallback_font
+    var summaries := aggregate_cell_summaries(_danger)
+    for danger_cell: Vector2i in summaries:
+        _draw_cell_summary(font, danger_cell, summaries[danger_cell])
     for danger in _danger:
-        var ticks := int(danger["ticks"])
-        var fill := DANGER_CHARGE_COLOR if ticks <= 1 else DANGER_WARNING_COLOR
-        for danger_cell: Vector2i in danger["cells"]:
-            var text_pos := to_local(grid.cell_center(danger_cell)) + Vector2(-grid.tile_size * 0.5, COUNTDOWN_FONT_SIZE * 0.35)
-            draw_string(font, text_pos, str(ticks), HORIZONTAL_ALIGNMENT_CENTER, grid.tile_size, COUNTDOWN_FONT_SIZE, Color(1.0, 1.0, 1.0, 0.9))
         if danger.has("dest"):
+            var ticks := int(danger["ticks"])
+            var fill := DANGER_CHARGE_COLOR if ticks <= 1 else DANGER_WARNING_COLOR
             _draw_diamond(danger["dest"], fill.lightened(0.3))
+
+
+## Draws one cell's aggregated countdown summary: the earliest entry centered at the countdown size,
+## then its later distinct entries as smaller corner badges in stable clockwise order, capped at four.
+func _draw_cell_summary(font: Font, target_cell: Vector2i, entries: Array[Dictionary]) -> void:
+    var center := to_local(grid.cell_center(target_cell))
+    var earliest: Dictionary = entries[0]
+    var player_cell := grid.get_player_cell()
+    var is_player_cell := target_cell == player_cell
+    var primary_center := primary_countdown_label_center(center, target_cell, player_cell, grid.tile_size)
+    var primary_font_size := PLAYER_BADGE_COUNTDOWN_FONT_SIZE if is_player_cell else COUNTDOWN_FONT_SIZE
+    var primary_multiplier_font_size := PLAYER_BADGE_MULTIPLIER_FONT_SIZE if is_player_cell else COUNTDOWN_MULTIPLIER_FONT_SIZE
+    _draw_countdown_label(font, primary_center, int(earliest["ticks"]), int(earliest["count"]), primary_font_size, primary_multiplier_font_size)
+
+    var corner_count := mini(entries.size() - 1, CORNER_DIRECTIONS.size())
+    for i in range(corner_count):
+        var entry: Dictionary = entries[i + 1]
+        var corner_center := center + CORNER_DIRECTIONS[i] * grid.tile_size * CORNER_OFFSET_RATIO
+        _draw_countdown_label(font, corner_center, int(entry["ticks"]), int(entry["count"]), CORNER_COUNTDOWN_FONT_SIZE, CORNER_MULTIPLIER_FONT_SIZE)
+
+
+## Draws one countdown value centered at `center`, with a smaller `xN` multiplicity suffix offset to
+## its right when `count` is greater than one; a count of one draws no suffix.
+func _draw_countdown_label(font: Font, center: Vector2, ticks: int, count: int, font_size: int, suffix_font_size: int) -> void:
+    var ticks_text := str(ticks)
+    var ticks_size := font.get_string_size(ticks_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+    var ticks_pos := center + Vector2(-ticks_size.x * 0.5, font_size * 0.35)
+    draw_string(font, ticks_pos, ticks_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1.0, 1.0, 1.0, 0.9))
+    if count <= 1:
+        return
+    var suffix_pos := ticks_pos + Vector2(ticks_size.x + font_size * 0.08, 0.0)
+    draw_string(font, suffix_pos, "×%d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, suffix_font_size, Color(1.0, 1.0, 1.0, 0.85))
 
 
 func _draw_preview() -> void:

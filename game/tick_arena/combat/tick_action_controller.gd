@@ -1,8 +1,8 @@
 # tick_action_controller.gd
 # Owns tick-arena verb dispatch (move, confirm/attack, class Mobility, wait), Speed meter
-# spend/fill, Chain Dash refunds, hit application, and the decision to advance the tick
-# world (tick resolution stage 1); world advancement itself is handed to TickEngine. Result
-# presentation (Major-trigger VFX/SFX) belongs to TickCombatFeedback.
+# spend/fill, Chain Dash cooldown-clear/Speed-ready state, hit application, and the decision to
+# advance the tick world (tick resolution stage 1); world advancement itself is handed to TickEngine. Result
+# presentation (Major-trigger VFX) belongs to TickCombatFeedback.
 # Aim/plan resolution (mouse cell, aim direction, dash/smash plans) is shared with TickPreviewController
 # through TickAimContext; the presentation-only facing direction is owned here too and read by
 # TickPreviewController each frame. Facing only ever changes on a discrete input event (keyboard move,
@@ -125,8 +125,8 @@ func cancel_smash_windup() -> void:
 ## buttons (Do Nothing / Cancel Attack) can resolve it, so a stray click or key press can never sneak
 ## past it and act on the game underneath.
 ## Verbs return an action result (`{ "consumed": bool, "advances_world": bool }`) instead of a bare
-## bool: a consumed verb only advances the world when it was not a Speed-meter or Chain Dash
-## Action Major free action, and illegal inputs stay consumed false per the shared verb-result contract.
+## bool: a consumed verb only advances the world when it was not a Speed-meter free move/attack, and
+## illegal inputs stay consumed false per the shared verb-result contract.
 ## The tick arena root connects TickInput's verb_requested signal directly to this method.
 func handle_verb(verb: TickVerb) -> void:
     if _input_locked or _smash_cancel_confirm_open:
@@ -149,8 +149,8 @@ func handle_verb(verb: TickVerb) -> void:
     if bool(result.get("advances_world", false)):
         engine.advance_world()
     elif bool(result.get("consumed", false)):
-        # A free action (Speed spend or Chain Dash refund) still changed HUD-visible state
-        # (the meter, a cooldown) even though the world did not advance, so the HUD must refresh here too.
+        # A Speed-spent free move/attack still changed HUD-visible state (the meter) even though the
+        # world did not advance, so the HUD must refresh here too.
         state_changed.emit()
 
 # == Player verbs (tick resolution stage 1) ==
@@ -208,6 +208,7 @@ func _resolve_attack(aim: Vector2i) -> Dictionary:
     _last_aim = aim
     var target := player.cell + aim
     _tick_player_action_upkeep()
+    player.play_action_whoosh()
     view.flash_swing([target])
     player.play_normal_attack_visual(aim)
     var free_action := _spend_speed_if_full()
@@ -239,9 +240,11 @@ func _verb_dash() -> Dictionary:
         view.flash_deny(player.cell + plan["dir"] * _aim_context.dash_range())
         return _verb_illegal()
     _tick_player_action_upkeep()
+    player.play_action_whoosh()
     var dir: Vector2i = plan["dir"]
     var guard_shredder := TickCombatProjection.has_dash_guard_shredder(_run_build)
     var execution := TickCombatProjection.has_dash_execution(_run_build)
+    var sfx_context := _build_mobility_sfx_context()
     var outcomes: Array[TickHitOutcome] = []
     for victim: GridEnemy in plan["victims"]:
         outcomes.append(
@@ -252,19 +255,21 @@ func _verb_dash() -> Dictionary:
                 guard_shredder,
                 execution,
                 TickCombatProjection.mobility_stagger_burst_multiplier(),
+                sfx_context,
             ),
         )
     view.flash_swing(plan["path"])
     player.move_to(plan["landing"], true)
     player.dash_cooldown = TickCombatProjection.mobility_cooldown_ticks(_run_build, TickCombatRules.DASH_COOLDOWN_TICKS)
-    var refunds := _chain_dash_refunds(outcomes)
-    return _verb_result(not refunds)
+    _apply_chain_dash_state(outcomes)
+    return _verb_result(true)
 
 
 ## First confirm arms the windup on a locked landing cell (costs one tick, enemies act one beat)
 ## the next confirm releases the leap and 3x3 hit regardless of where the mouse is now aimed. Arming
-## has no attack outcome and neither phase can inherit Dash-only Major refunds. The arming click also
-## sets the presentation-only facing direction toward the locked target, same as a Dash confirm.
+## has no attack outcome and neither phase can inherit Dash-only Major triggers such as Chain Dash.
+## The arming click also sets the presentation-only facing direction toward the locked target, same
+## as a Dash confirm.
 func _verb_smash() -> Dictionary:
     if not player.is_smash_armed():
         if player.smash_cooldown > 0:
@@ -287,6 +292,7 @@ func _verb_smash() -> Dictionary:
         return _verb_illegal()
     _tick_player_action_upkeep()
     view.flash_swing(_aim_context.smash_area(landing))
+    var sfx_context := _build_mobility_sfx_context()
     for enemy: GridEnemy in engine.actors():
         if _aim_context.chebyshev(enemy.get_grid_pos() - landing) <= 1:
             _apply_player_hit(
@@ -296,6 +302,7 @@ func _verb_smash() -> Dictionary:
                 false,
                 false,
                 TickCombatProjection.mobility_stagger_burst_multiplier(),
+                sfx_context,
             )
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
     AudioManager.play_event(player.smash_impact_sfx_event, grid.cell_center(landing))
@@ -313,7 +320,7 @@ func _verb_wait() -> Dictionary:
 
 
 ## Shared verb-result shape for a consumed verb: consumed is always true, advances_world is false only
-## for a Speed-meter free move/attack or a Chain Dash refund.
+## for a Speed-meter free move/attack.
 func _verb_result(advances_world: bool) -> Dictionary:
     return { "consumed": true, "advances_world": advances_world }
 
@@ -345,9 +352,17 @@ func _fill_speed_meter() -> void:
     player.fill_speed_meter(_run_build.total(RunBuild.CH_SPEED))
 
 
-## Whether Chain Dash refunds this Dash's world advancement; several qualifying victims still refund once.
-func _chain_dash_refunds(outcomes: Array[TickHitOutcome]) -> bool:
-    return TickCombatProjection.has_chain_dash(_run_build) and TickHitResolver.any_qualifies_for_chain_dash(outcomes)
+## Applies Chain Dash's state change once when any outcome from this Dash qualifies: clears Dash
+## cooldown and prepares the Speed meter as a ready follow-up free action. Several qualifying victims
+## still apply this once. The triggering Dash itself still advances the world normally; only the
+## later free move/attack that spends the prepared meter skips it.
+func _apply_chain_dash_state(outcomes: Array[TickHitOutcome]) -> void:
+    if not TickCombatProjection.has_chain_dash(_run_build):
+        return
+    if not TickHitResolver.any_qualifies_for_chain_dash(outcomes):
+        return
+    player.dash_cooldown = 0
+    player.prepare_speed_free_action()
 
 
 ## Holding Alt selects Mobility Mode; releasing it returns to Attack Mode. Switching never consumes a
@@ -388,9 +403,18 @@ func _close_smash_cancel_confirm() -> void:
     smash_cancel_confirm_panel.visible = false
 
 
+## Builds the shared Dash/Smash Result SFX context from player-owned event references, so both
+## mobility actions resolve their mobility-kill, Guard Shredder, and Execution overrides through the
+## same immutable object. A normal attack passes no context at all, keeping every branch on its
+## generic enemy-owned event.
+func _build_mobility_sfx_context() -> TickHitSfxContext:
+    return TickHitSfxContext.new(player.mobility_kill_sfx_event, player.guard_shredder_sfx_event, player.execution_sfx_event)
+
+
 ## Resolves one committed player hit and returns the resolver outcome so mobility strike loops can
-## collect it for Chain Dash's refund check instead of losing it. A kill needs
-## no explicit removal here: take_hit() synchronously fires the enemy's died signal, which the wave
+## collect it for Chain Dash's qualification check instead of losing it. sfx_context is the Dash/Smash
+## Result SFX override context; normal attack passes none, keeping generic feedback. A kill needs no
+## explicit removal here: take_hit() synchronously fires the enemy's died signal, which the wave
 ## controller (via the spawner's died_callback) already uses to drop it from alive-count tracking.
 func _apply_player_hit(
         enemy: GridEnemy,
@@ -399,8 +423,9 @@ func _apply_player_hit(
         guard_shredder_trigger := false,
         execution_trigger := false,
         stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+        sfx_context: TickHitSfxContext = null,
 ) -> TickHitOutcome:
     var enemy_pos := enemy.global_position
-    var result := enemy.take_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
+    var result := enemy.take_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier, sfx_context)
     feedback.report_hit_outcome(result, enemy_pos)
     return result

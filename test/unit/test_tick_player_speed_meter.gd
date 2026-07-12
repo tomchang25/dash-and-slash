@@ -2,7 +2,6 @@
 # Tests class-backed Speed fill, reward additions, caps, spending, and reset.
 extends GutTest
 
-
 func test_speed_meter_starts_empty_and_not_full() -> void:
     var player := _make_player(20)
 
@@ -50,6 +49,24 @@ func test_meter_never_exceeds_maximum() -> void:
 
     assert_eq(player.speed_meter, TickPlayer.SPEED_METER_MAX)
     assert_true(player.is_speed_meter_full())
+
+
+func test_prepare_speed_free_action_fills_the_meter_to_ready() -> void:
+    var player := _make_player(20)
+
+    player.prepare_speed_free_action()
+
+    assert_true(player.is_speed_meter_full())
+    assert_eq(player.speed_meter, TickPlayer.SPEED_METER_MAX)
+
+
+func test_prepare_speed_free_action_is_idempotent_when_already_full() -> void:
+    var player := _make_player(20)
+    player.speed_meter = TickPlayer.SPEED_METER_MAX
+
+    player.prepare_speed_free_action()
+
+    assert_eq(player.speed_meter, TickPlayer.SPEED_METER_MAX)
 
 
 func test_spend_resets_meter() -> void:

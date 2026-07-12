@@ -36,6 +36,12 @@ const SPEED_FILL_CAP := 75
 @export var smash_impact_sfx_event: SpatialAudioEvent
 @export var guard_shredder_sfx_event: SpatialAudioEvent
 @export var execution_sfx_event: SpatialAudioEvent
+## Shared committed-action whoosh for a legal normal attack or Dash; see play_action_whoosh().
+@export var normal_dash_whoosh_sfx_event: SpatialAudioEvent
+## Shared Dash/Smash mobility-kill event, carried through a TickHitSfxContext built by
+## TickActionController and selected by GridEnemy in place of its generic death event for a
+## non-Execution mobility kill.
+@export var mobility_kill_sfx_event: SpatialAudioEvent
 
 # -- State --
 
@@ -107,6 +113,14 @@ func play_normal_attack_visual(direction: Vector2i) -> void:
         visual_presenter.play_normal_attack(direction)
 
 
+## Plays the shared committed-action whoosh at the player's current position. TickActionController calls
+## this exactly once per legal normal attack or Dash, whether it hits or whiffs, and never for a denied
+## action; a multi-victim Dash still calls this once, outside its victim loop.
+func play_action_whoosh() -> void:
+    if normal_dash_whoosh_sfx_event != null:
+        AudioManager.play_event(normal_dash_whoosh_sfx_event, global_position)
+
+
 ## Moves the logical cell immediately and tweens the visual position; leap uses the slower smash arc timing.
 func move_to(target_cell: Vector2i, leap := false) -> void:
     var move_direction := target_cell - cell
@@ -163,6 +177,15 @@ func max_hp(bonus_total: float) -> float:
     return MAX_HP + maxf(bonus_total, 0.0)
 
 
+## Applies a positive Max Health reward gain directly to current hp, clamped at the maximum newly
+## projected from the given post-contribution bonus total. Non-positive gains are ignored since this
+## operation only ever expresses reward-driven healing, never damage.
+func apply_max_health_gain(gain: float, bonus_total: float) -> void:
+    if gain <= 0.0:
+        return
+    hp = minf(hp + gain, max_hp(bonus_total))
+
+
 ## Restores spawn defaults and snaps back to the given cell, healing to the max hp projected from the
 ## given Max Health reward bonus total so a run's earned max health survives a death/reset. Also clears
 ## any debug god mode so a fresh run starts under normal damage/death rules.
@@ -206,6 +229,14 @@ func spend_speed_meter() -> void:
 func fill_speed_meter(speed_stacks: float) -> void:
     var gain := speed_meter_fill_for(speed_stacks)
     speed_meter = mini(speed_meter + gain, SPEED_METER_MAX)
+    queue_redraw()
+
+
+## Fills the Speed meter to its ready state outright, for a reward that grants a prepared follow-up
+## free action directly instead of through the normal per-action fill formula. Filling an already-full
+## meter is idempotent.
+func prepare_speed_free_action() -> void:
+    speed_meter = SPEED_METER_MAX
     queue_redraw()
 
 

@@ -50,8 +50,9 @@ var _run_over := false
 
 
 ## Counts a pending spawn-warning batch down by one player-action world tick and resolves it at
-## zero. Free actions (a Speed-spent move/attack or a Chain Dash refund) never call
-## advance_world(), so they never emit world_advanced and never count down.
+## zero. A Speed-spent free move/attack never calls advance_world(), so it never emits
+## world_advanced and never counts down; Dash always advances the world normally, even when it
+## triggers Chain Dash's cooldown-clear and Speed-ready state.
 func _on_world_advanced(_tick_count: int) -> void:
     if _run_over or _pending_batch.is_empty():
         return

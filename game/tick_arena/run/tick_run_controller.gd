@@ -102,6 +102,16 @@ func _on_restart_button_pressed() -> void:
 func _on_spawn_warning_changed(cells: Array[Vector2i], ticks: int) -> void:
     spawn_warning_changed.emit(cells, ticks)
 
+
+## Forwards a newly recorded positive Max Health contribution to the player as an immediate current-hp
+## gain, clamped at the maximum this contribution just raised. Every other channel, and non-positive
+## deltas, must never reach the player as a heal; a run reset clears the store without calling
+## record(), so it never fires this handler either.
+func _on_run_build_contribution_recorded(channel: StringName, delta: float, total: float) -> void:
+    if channel != RunBuild.CH_MAX_HEALTH or delta <= 0.0:
+        return
+    player.apply_max_health_gain(delta, total)
+
 # == Common API ==
 
 
@@ -112,6 +122,7 @@ func setup(run_build: RunBuild, character_class: CharacterClassData) -> void:
     _run_build = run_build
     _character_class = character_class
     _rng.randomize()
+    _run_build.contribution_recorded.connect(_on_run_build_contribution_recorded)
     _wire_reward_flow()
     _wire_wave_controller()
 

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpatialAudioEvent" load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://dhngr3j0sq0n0" path="res://common/audio/events/spatial_audio_event.gd" id="1_script"]
+[ext_resource type="AudioStream" path="res://common/audio/presets/assets/stab_flesh.wav" id="2_stab_flesh"]
+
+[resource]
+script = ExtResource("1_script")
+limiter_key = &"mobility_kill"
+max_per_window = 8
+window_sec = 0.5
+volume_db = -20.0
+bus_id = 1
+streams = Array[AudioStream]([ExtResource("2_stab_flesh")])
+use_random_pitch = true

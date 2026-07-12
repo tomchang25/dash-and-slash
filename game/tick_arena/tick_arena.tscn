@@ -85,10 +85,9 @@ unique_name_in_owner = true
 [node name="Player" parent="." unique_id=1622788001 instance=ExtResource("6_player_scene")]
 unique_name_in_owner = true
 
-[node name="TickCombatFeedback" type="Node" parent="." unique_id=1915679964 node_paths=PackedStringArray("player")]
+[node name="TickCombatFeedback" type="Node" parent="." unique_id=1915679964]
 unique_name_in_owner = true
 script = ExtResource("15_combat_feedback")
-player = NodePath("../Player")
 
 [node name="TickActionController" type="Node" parent="." unique_id=790138784 node_paths=PackedStringArray("grid", "view", "engine", "player", "feedback", "smash_cancel_confirm_panel", "smash_cancel_confirm_button", "smash_cancel_keep_button")]
 unique_name_in_owner = true

@@ -3,6 +3,11 @@
 class_name RunBuild
 extends RefCounted
 
+## Published after a channel contribution is recorded, carrying the channel, the accepted signed
+## delta, and the channel's resulting total. TickRunController is the sole production listener,
+## forwarding positive Max Health deltas to the player; RunBuild itself holds no player reference.
+signal contribution_recorded(channel: StringName, delta: float, total: float)
+
 const CH_NORMAL_ATTACK_DAMAGE := &"normal_attack_damage"
 const CH_NORMAL_ATTACK_COOLDOWN := &"normal_attack_cooldown"
 const CH_MOBILITY_ATTACK_DAMAGE := &"mobility_attack_damage"
@@ -29,10 +34,12 @@ var _mobility_triggers: Dictionary = { }
 # == Common API ==
 
 
-## Records a signed contribution on the given channel. Reductions pass a
-## negative delta; the channel's total is the sum of every recorded delta.
+## Records a signed contribution on the given channel, then publishes it so run-scoped observers can
+## react to the newly accepted contribution without RunBuild needing to know who consumes it.
+## Reductions pass a negative delta; the channel's total is the sum of every recorded delta.
 func record(channel: StringName, delta: float) -> void:
     _entries.append({ "channel": channel, "delta": delta })
+    contribution_recorded.emit(channel, delta, total(channel))
 
 
 ## Returns the summed delta recorded on the given channel, recomputed from

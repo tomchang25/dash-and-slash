@@ -104,7 +104,8 @@ static func apply_defense(amount: float, defense: float) -> float:
     return amount * (amount / (amount + defense))
 
 
-## Returns whether any Dash hit outcome satisfies Chain Dash, folding multiple victims into one refund.
+## Returns whether any Dash hit outcome satisfies Chain Dash, folding multiple victims into one
+## state application.
 static func any_qualifies_for_chain_dash(outcomes: Array[TickHitOutcome]) -> bool:
     for outcome in outcomes:
         if qualifies_for_chain_dash(outcome):

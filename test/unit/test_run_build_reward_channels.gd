@@ -2,7 +2,8 @@
 # Tests channel artifacts covering Normal Attack Damage, Mobility (Dash) Attack Damage, Mobility
 # Range, and Max Health. All four must be eligible and apply with no grid in context,
 # recording their stacked contribution to RunBuild's dedicated channel, the same pattern Speed and
-# Mobility Cooldown already use.
+# Mobility Cooldown already use. Also tests RunBuild.record()'s contribution_recorded notification:
+# its channel/delta/total payload and that a channel's notification never leaks as another channel.
 extends GutTest
 
 func test_normal_attack_damage_artifact_is_eligible_without_grid() -> void:
@@ -71,6 +72,50 @@ func test_max_health_artifact_records_to_run_build_channel_without_grid() -> voi
     artifact.apply(context, 2)
 
     assert_eq(run_build.total(RunBuild.CH_MAX_HEALTH), 40.0)
+
+
+func test_record_emits_contribution_recorded_with_channel_delta_and_total() -> void:
+    var run_build := RunBuild.new()
+    var received: Array[Dictionary] = []
+    run_build.contribution_recorded.connect(
+        func(channel: StringName, delta: float, total: float) -> void:
+            received.append({ "channel": channel, "delta": delta, "total": total })
+    )
+
+    run_build.record(RunBuild.CH_MAX_HEALTH, 20.0)
+
+    assert_eq(received.size(), 1)
+    assert_eq(received[0]["channel"], RunBuild.CH_MAX_HEALTH)
+    assert_eq(received[0]["delta"], 20.0)
+    assert_eq(received[0]["total"], 20.0)
+
+
+func test_record_reports_the_running_channel_total_across_stacked_contributions() -> void:
+    var run_build := RunBuild.new()
+    var totals: Array[float] = []
+    run_build.contribution_recorded.connect(
+        func(_channel: StringName, _delta: float, total: float) -> void:
+            totals.append(total)
+    )
+
+    run_build.record(RunBuild.CH_MAX_HEALTH, 20.0)
+    run_build.record(RunBuild.CH_MAX_HEALTH, 20.0)
+
+    assert_eq(totals, [20.0, 40.0], "a two-stack pick still records as two separate deltas against a running total")
+
+
+func test_record_on_one_channel_does_not_notify_as_another_channel() -> void:
+    var run_build := RunBuild.new()
+    var channels: Array[StringName] = []
+    run_build.contribution_recorded.connect(
+        func(channel: StringName, _delta: float, _total: float) -> void:
+            channels.append(channel)
+    )
+
+    run_build.record(RunBuild.CH_NORMAL_ATTACK_DAMAGE, 10.0)
+
+    assert_eq(channels, [RunBuild.CH_NORMAL_ATTACK_DAMAGE])
+    assert_false(channels.has(RunBuild.CH_MAX_HEALTH), "a Normal Attack Damage contribution must never be observable as a Max Health channel notification")
 
 
 func _make_normal_attack_damage_artifact() -> Artifact:
