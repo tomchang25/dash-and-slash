@@ -76,15 +76,6 @@ Samurai is deferred until Ninja and Viking prove the fixed-Mobility class model.
 - Decide whether guard and counter timing deserve a new player combat verb/state or whether Samurai should use a different mobility-centered fantasy.
 - Keep Samurai out of the initial class data, selection surface, sprite work, and Major eligibility pools.
 
-### Enemy Spawn Ratio Data Drive
-
-Replace uniform enemy scene selection with weighted spawn pools that can scale by wave and run pressure.
-
-- Replace hard-coded uniform support enemy selection with data-driven enemy spawn weights.
-- Allow spawn weights to vary by wave, milestone, stage, or run configuration.
-- Keep reward downside pressure as fixed future enemy additions or weighted pool modifiers instead of hidden randomness.
-- Consider lowering ChargeEnemy spawn share after the idle-corner fallback fix has been tested in real waves.
-
 ### Enemy Idle And Path Reservation Follow-up
 
 Enemy Idle is currently a tick decision state, not a long-lived waiting state. When a GridEnemy in Reposition loses ownership of the first reserved path step, `tick_step_along_path()` clears the path and returns false; `EnemyRepositionState` then transitions back to Idle instead of replanning, turning, or committing inside the same funded actor action. That makes path conflicts consume the enemy's action and produces visible idle churn. Newly spawned enemies can show a related symptom because the first Idle decision may only transition into Reposition, with the actual step delayed until the next `advance_tick()`.
@@ -98,6 +89,16 @@ Enemy Idle is currently a tick decision state, not a long-lived waiting state. W
 Later reward-economy work, kept behind the core loop stabilizing. The former terrain-targeting and terrain-shaping ideas were dropped — per-wave terrain mutation is frozen and the obstacle-grid direction replaces that pressure channel.
 
 - Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
+
+### Forced Trade-Off Curses And Nemesis
+
+Freeze replacement curse work until the data-driven wave and level cutover removes the current pressure curses. A later plan should replace the forced single random curse with a forced three-choice offer whose mutators change how the run is played rather than adding hidden enemy stat pressure.
+
+- Explore a wave-start mutator that begins each wave at half HP.
+- Explore doubled Mobility cooldown paired with doubled normal and Mobility attack damage.
+- Explore losing 1 HP per action tick while healing for 10% of actual normal and Mobility attack damage dealt.
+- Explore normal attacks dealing no Guard damage while Mobility Guard damage doubles.
+- Explore a persistent Nemesis-style invincible hunter that relentlessly pressures the player without belonging to normal wave groups or blocking wave completion.
 
 ### 增加額外障礙物 Grid 替代
 
