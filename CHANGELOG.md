@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Telegraph Overlap Countdown Presentation
+
+- 2026-07-12 — [ui] Overlapping danger telegraphs now aggregate countdowns by cell with multiplicity labels and later corner badges, while player-occupied danger cells move the primary timer to a 12 o'clock badge
+
 ### Player Reward Runtime Corrections
 
 - 2026-07-12 — [rewards] Qualifying Chain Dash hits now clear Dash cooldown and ready one Speed follow-up, while Max Health rewards immediately restore their exact gained amount

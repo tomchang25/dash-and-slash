@@ -32,7 +32,6 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 
 - [enemy_mobility] Rework committed enemy mobility around ChargeEnemy collision displacement and a new DashEnemy backline ambush — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
 - [wave_progression] Build data-driven ordered wave groups and enemy-level scaling for a ten-wave demo plus optional lethal endless continuation — [ref plans/data_driven_wave_progression_and_enemy_levels.md]
-- [telegraph_ui] Aggregate overlapping danger countdowns into one primary timer, multiplicity, and later corner badges — [ref plans/telegraph_overlap_countdown_presentation.implementation_spec.md]
 - [combat_audio] Add player action whooshes, Dash stagger-hit flesh feedback, and dedicated Guard Break audio — [ref plans/player_combat_action_and_hit_sfx.implementation_spec.md]
 
 ---
