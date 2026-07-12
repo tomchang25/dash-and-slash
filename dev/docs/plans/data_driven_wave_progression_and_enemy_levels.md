@@ -9,10 +9,10 @@ Build a designer-authored wave progression that delivers a complete ten-wave dem
 1. Waves must be authored as ordered groups rather than flattened into one queue so encounter composition, escalation order, and elite or boss entrances are intentional data instead of runtime exceptions.
 2. Each group must define its enemy composition and when it may begin relative to the preceding group, including immediate overlap and previous-group-survivor thresholds, because elite and future boss entrances need encounter timing independent of the global population limit.
 3. Each enemy must own one authored Level 1 data graph for HP, Guard, Defense, and attack profiles; combat components consume those values as runtime state instead of remaining competing tuning authorities.
-4. Every spawned enemy must receive a visible integer level equal to the current one-based wave plus an authored non-negative group offset, and that level must drive HP, damage, Guard, and Defense through one data-driven progression profile.
+4. Every spawned enemy must receive an integer level equal to the current one-based wave plus an authored non-negative group offset, and that level must drive HP, damage, Guard, and Defense through one data-driven progression profile while remaining available to debug inspection rather than normal combat UI.
 5. Enemy level must be the only numeric enemy-strength progression: remove the legacy wave-tier scaling and all four enemy-pressure curses, channels, and forced single-curse confirmation rather than stacking hidden modifiers onto displayed level.
 6. Waves 1–10 must form the complete authored demo: waves 1–3 introduce Small enemies, waves 4–6 add Charge enemies, waves 7–9 add Mode enemies, and wave 10 ends with a boss encounter represented initially by a visually distinct Mode-enemy variant.
-7. Clearing wave 10 must mark the demo complete and offer `End Run` or `Continue Endless`; continuing enters wave 11 without revoking or duplicating the completion result.
+7. Clearing wave 10 must mark the current run as demo-complete and offer `End Run` or `Continue Endless`; continuing preserves that result, completes the normal wave-10 reward step, and enters wave 11 without finalizing the run.
 8. Wave 11 onward must reuse one fixed authored endless encounter grammar and increase pressure only through the advancing enemy level; it must not introduce new enemy kinds, groups, counts, spawn overlap, population growth, curses, or other hidden escalation.
 9. Balance must make wave 10 a fair official completion target, waves 11–19 a mastery extension, and wave 20 onward intentionally lethal territory where the simulation remains valid but ordinary mistakes can end a run rapidly.
 
@@ -60,7 +60,7 @@ Every stat authors its own coefficients and exponents. Guard rounds to an intege
 | 7–9   | Add Mode enemies in controlled groups, combining earlier threats without exceeding the readability cap.                                                                                                                             |
 | 10    | Deliver the demo boss encounter. The first version uses a separately authored, visually distinct Mode-enemy variant with a boss level offset and boss group timing so a future real boss can replace it without changing wave flow. |
 
-Clearing wave 10 records demo completion before presenting the branch. `End Run` closes the run through the normal results flow. `Continue Endless` preserves the current build and starts wave 11.
+Clearing wave 10 records run-local demo completion before presenting the branch. `End Run` and player death converge on one results flow with different terminal reasons. `Continue Endless` does not finalize the run; it preserves the current build, completes the normal milestone reward without the retired curse confirmation, and then starts wave 11.
 
 ### Endless progression
 
@@ -77,11 +77,11 @@ The target experience is:
 
 ### Child overview
 
-| Child | Focus                                                                                                      | Current document                                                                                 |
-| ----- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 01    | Wave/group schemas, unified enemy Level 1 authority, and deterministic level projection                    | `data_driven_wave_progression_and_enemy_levels_01_progression_data_model.implementation_spec.md` |
-| 02    | Ordered-group runtime, level application, pressure-curse retirement, demo completion, and boss placeholder | `data_driven_wave_progression_and_enemy_levels_02_group_runtime_and_demo_completion.sketch.md`   |
-| 03    | Authored demo encounters, fixed endless template, and level-only balance curve                             | `data_driven_wave_progression_and_enemy_levels_03_demo_and_endless_balance.sketch.md`            |
+| Child | Focus                                                                                                      | Current document                                                                                            |
+| ----- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 01    | Wave/group schemas, unified enemy Level 1 authority, and deterministic level projection                    | `data_driven_wave_progression_and_enemy_levels_01_progression_data_model.implementation_spec.md`            |
+| 02    | Ordered-group runtime, level application, pressure-curse retirement, demo completion, and boss placeholder | `data_driven_wave_progression_and_enemy_levels_02_group_runtime_and_demo_completion.implementation_spec.md` |
+| 03    | Authored demo encounters, fixed endless template, and level-only balance curve                             | `data_driven_wave_progression_and_enemy_levels_03_demo_and_endless_balance.sketch.md`                       |
 
 Recommended landing order: establish the data and Level 1 authority first; migrate runtime spawning, retire pressure curses, and add the wave-10 completion branch second; author and playtest the complete demo and endless curve only after both seams are stable.
 
@@ -93,14 +93,16 @@ Recommended landing order: establish the data and Level 1 authority first; migra
 4. Do not build the future forced three-choice trade-off curse system or its persistent Nemesis-style hunter as part of this plan.
 5. Do not copy another game's exact scaling constants or formulas; the survival-mode reference informs the escalating-level concept, not its numerical implementation.
 6. Do not balance unrelated player rewards or fix separate gameplay and audio chores as part of this plan.
+7. Do not add Coin, save-backed completion, character unlocks, or artifact unlock progression; the Meta Progression plan consumes this plan's run outcome after the runtime cutover establishes it.
 
 ## Acceptance Criteria
 
 1. Designers can change wave composition, group order, overlap thresholds, level offsets, population caps, and all four level curves without changing runtime logic.
 2. Groups enter strictly in authored order, respect their predecessor-survivor condition and population headroom, and complete the wave only after every authored group and living member is cleared.
 3. Enemy authored data is the single Level 1 tuning authority, while runtime combat components retain ownership of live HP, Guard, attacks, and Defense consumption.
-4. Enemy level is visible and consistently projects HP, damage, Guard, and Defense; no legacy tier bonus or enemy-pressure curse also modifies those stats.
+4. Enemy level is retained for debug inspection and consistently projects HP, damage, Guard, and Defense; no legacy tier bonus or enemy-pressure curse also modifies those stats.
 5. Waves 1–10 follow the authored roster progression and wave 10 ends with the visually distinct boss placeholder.
-6. Clearing wave 10 records `Demo Complete` exactly once and offers functional `End Run` and `Continue Endless` choices.
-7. Continuing uses the fixed endless encounter grammar for every later wave; comparing two endless waves shows only level-derived numerical pressure changing.
-8. Playtest results support wave 10 as the official completion target, waves 11–19 as increasingly unforgiving mastery play, and wave 20 onward as valid but intentionally high-lethality overtime.
+6. Clearing wave 10 records run-local `Demo Complete` exactly once and offers functional `End Run` and `Continue Endless` choices.
+7. Death and `End Run` produce one results flow with the correct terminal reason and highest completed wave, while continuing does not finalize the run.
+8. Continuing completes the normal wave-10 reward step and uses the fixed endless encounter grammar for every later wave; comparing two endless waves shows only level-derived numerical pressure changing.
+9. Playtest results support wave 10 as the official completion target, waves 11–19 as increasingly unforgiving mastery play, and wave 20 onward as valid but intentionally high-lethality overtime.

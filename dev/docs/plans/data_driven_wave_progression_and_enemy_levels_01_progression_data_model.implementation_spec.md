@@ -34,7 +34,7 @@ The current flat wave controller and legacy tier scaling remain operational duri
 
 ### Excluded
 
-- Production wave content, final coefficients, group runtime, visible level, completion/endless flow, pressure removal, replacement curses, and new enemies.
+- Production wave content, final coefficients, group runtime, debug-level display, completion/endless flow, pressure removal, replacement curses, and new enemies.
 
 ## Files to Change
 
