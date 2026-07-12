@@ -1,16 +1,10 @@
 # build_inspection_formatter.gd
 # Stateless formatting/data-assembly for the build inspection panel: stable channel display order
-# and labels, flat/percent value formatting, class/Mobility and trigger labels, and owned-artifact
-# row assembly from RunBuild's read API. Kept free of any Control/scene reference so it can be
+# and labels, flat value formatting, class/Mobility and trigger labels, and owned-artifact row
+# assembly from RunBuild's read API. Kept free of any Control/scene reference so it can be
 # unit-tested without instancing the panel.
 class_name BuildInspectionFormatter
 extends RefCounted
-
-## How a channel's raw RunBuild.total() value maps to display text.
-enum ChannelUnit {
-    FLAT,
-    PERCENT_FRACTION,
-}
 
 const ROW_STYLE_CHANNEL := &"DetailLabel"
 const ROW_STYLE_SUMMARY := &"CaptionLabel"
@@ -24,10 +18,6 @@ const _CHANNEL_ORDER: Array[StringName] = [
     RunBuild.CH_MAX_HEALTH,
     RunBuild.CH_SPEED,
     RunBuild.CH_MOBILITY_COOLDOWN,
-    RunBuild.CH_FUTURE_ENEMY_COUNT,
-    RunBuild.CH_ENEMY_HEALTH_PRESSURE,
-    RunBuild.CH_ENEMY_DAMAGE_PRESSURE,
-    RunBuild.CH_ENEMY_DEFENSE_PRESSURE,
 ]
 
 const _CHANNEL_LABELS := {
@@ -39,26 +29,6 @@ const _CHANNEL_LABELS := {
     RunBuild.CH_MAX_HEALTH: "Max Health",
     RunBuild.CH_SPEED: "Speed Energy",
     RunBuild.CH_MOBILITY_COOLDOWN: "Mobility Cooldown",
-    RunBuild.CH_FUTURE_ENEMY_COUNT: "Future Enemies",
-    RunBuild.CH_ENEMY_HEALTH_PRESSURE: "Enemy Health",
-    RunBuild.CH_ENEMY_DAMAGE_PRESSURE: "Enemy Damage",
-    RunBuild.CH_ENEMY_DEFENSE_PRESSURE: "Enemy Defense",
-}
-
-# enemy_health/damage_pressure are authored as 0-1 fractions (unit_scale 0.01) and need *100.
-const _CHANNEL_UNITS := {
-    RunBuild.CH_NORMAL_ATTACK_DAMAGE: ChannelUnit.FLAT,
-    RunBuild.CH_NORMAL_ATTACK_COOLDOWN: ChannelUnit.FLAT,
-    RunBuild.CH_MOBILITY_ATTACK_DAMAGE: ChannelUnit.FLAT,
-    RunBuild.CH_DASH_COOLDOWN: ChannelUnit.FLAT,
-    RunBuild.CH_MOBILITY_RANGE: ChannelUnit.FLAT,
-    RunBuild.CH_MAX_HEALTH: ChannelUnit.FLAT,
-    RunBuild.CH_SPEED: ChannelUnit.FLAT,
-    RunBuild.CH_MOBILITY_COOLDOWN: ChannelUnit.FLAT,
-    RunBuild.CH_FUTURE_ENEMY_COUNT: ChannelUnit.FLAT,
-    RunBuild.CH_ENEMY_HEALTH_PRESSURE: ChannelUnit.PERCENT_FRACTION,
-    RunBuild.CH_ENEMY_DAMAGE_PRESSURE: ChannelUnit.PERCENT_FRACTION,
-    RunBuild.CH_ENEMY_DEFENSE_PRESSURE: ChannelUnit.FLAT,
 }
 
 const _TRIGGER_ORDER: Array[StringName] = [
@@ -129,20 +99,12 @@ static func build_artifact_rows(run_build: RunBuild) -> Array[Dictionary]:
     return rows
 
 
-## Formats one channel's raw total per its authored unit: signed flat number or a stored fraction
-## scaled to percentage points.
+## Formats one channel's raw total as a signed flat number.
 static func format_channel_value(channel: StringName, total: float) -> String:
-    if not _CHANNEL_UNITS.has(channel):
+    if not _CHANNEL_LABELS.has(channel):
         ToastManager.show_dev_error("BuildInspectionFormatter: unknown channel '%s'" % channel)
         return "Unknown"
-    match _CHANNEL_UNITS[channel]:
-        ChannelUnit.FLAT:
-            return _format_signed_number(total)
-        ChannelUnit.PERCENT_FRACTION:
-            return "%s%%" % _format_signed_number(total * 100.0)
-        _:
-            ToastManager.show_dev_error("BuildInspectionFormatter: unhandled channel unit for '%s'" % channel)
-            return "Unknown"
+    return _format_signed_number(total)
 
 # == Value Formatting ==
 

@@ -21,6 +21,9 @@
 [ext_resource type="PackedScene" uid="uid://bhyxtcpg1okc6" path="res://game/tick_arena/hud/tick_arena_hud.tscn" id="19_arena_hud"]
 [ext_resource type="Resource" path="res://game/tick_arena/player/data/ninja.tres" id="20_ninja_class"]
 [ext_resource type="Resource" path="res://game/tick_arena/player/data/viking.tres" id="21_viking_class"]
+[ext_resource type="Resource" path="res://data/waves/default_wave_catalog.tres" id="22_wave_catalog"]
+[ext_resource type="Script" path="res://game/tick_arena/run/demo_completion_overlay.gd" id="23_demo_completion_overlay"]
+[ext_resource type="Script" path="res://game/tick_arena/run/run_result_overlay.gd" id="24_result_overlay"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smash_cancel_confirm"]
 bg_color = Color(0.12, 0.12, 0.15, 0.96)
@@ -110,7 +113,7 @@ engine = NodePath("../TickEngine")
 player = NodePath("../Player")
 action_controller = NodePath("../TickActionController")
 
-[node name="TickRunController" type="Node" parent="." unique_id=1990975426 node_paths=PackedStringArray("grid", "engine", "player", "enemy_container", "action_controller", "reward_overlay", "wave_banner_overlay", "wave_banner_label", "death_overlay", "restart_button")]
+[node name="TickRunController" type="Node" parent="." unique_id=1990975426 node_paths=PackedStringArray("grid", "engine", "player", "enemy_container", "action_controller", "reward_overlay", "wave_banner_overlay", "wave_banner_label", "demo_completion_overlay", "result_overlay")]
 unique_name_in_owner = true
 script = ExtResource("14_run_controller")
 grid = NodePath("../GridArena")
@@ -120,10 +123,11 @@ enemy_container = NodePath("../Enemies")
 action_controller = NodePath("../TickActionController")
 reward_overlay = NodePath("../HUD/WaveRewardOverlay")
 artifact_registry = ExtResource("16_artifact_registry")
+wave_catalog = ExtResource("22_wave_catalog")
 wave_banner_overlay = NodePath("../HUD/WaveBannerOverlay")
 wave_banner_label = NodePath("../HUD/WaveBannerOverlay/CenterContainer/WaveBannerLabel")
-death_overlay = NodePath("../HUD/DeathOverlay")
-restart_button = NodePath("../HUD/DeathOverlay/CenterContainer/PanelContainer/RootVBox/RestartButton")
+demo_completion_overlay = NodePath("../HUD/DemoCompletionOverlay")
+result_overlay = NodePath("../HUD/RunResultOverlay")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=596725559]
 zoom = Vector2(0.65, 0.65)
@@ -279,7 +283,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="DeathOverlay" type="Control" parent="HUD" unique_id=115362699]
+[node name="DemoCompletionOverlay" type="Control" parent="HUD" unique_id=500000001]
 unique_name_in_owner = true
 visible = false
 layout_mode = 3
@@ -288,8 +292,9 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("23_demo_completion_overlay")
 
-[node name="Backdrop" type="ColorRect" parent="HUD/DeathOverlay" unique_id=1049618108]
+[node name="Backdrop" type="ColorRect" parent="HUD/DemoCompletionOverlay" unique_id=500000002]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -299,7 +304,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 0.55)
 
-[node name="CenterContainer" type="CenterContainer" parent="HUD/DeathOverlay" unique_id=853158819]
+[node name="CenterContainer" type="CenterContainer" parent="HUD/DemoCompletionOverlay" unique_id=500000003]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -307,23 +312,106 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="PanelContainer" type="PanelContainer" parent="HUD/DeathOverlay/CenterContainer" unique_id=1575658552]
-custom_minimum_size = Vector2(420, 220)
+[node name="PanelContainer" type="PanelContainer" parent="HUD/DemoCompletionOverlay/CenterContainer" unique_id=500000004]
+custom_minimum_size = Vector2(460, 240)
 layout_mode = 2
 
-[node name="RootVBox" type="VBoxContainer" parent="HUD/DeathOverlay/CenterContainer/PanelContainer" unique_id=2139164645]
+[node name="RootVBox" type="VBoxContainer" parent="HUD/DemoCompletionOverlay/CenterContainer/PanelContainer" unique_id=500000005]
 layout_mode = 2
 theme_override_constants/separation = 18
 
-[node name="DeathLabel" type="Label" parent="HUD/DeathOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=119456681]
+[node name="DemoCompletionLabel" type="Label" parent="HUD/DemoCompletionOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=500000006]
+layout_mode = 2
+theme_type_variation = &"Heading2Label"
+text = "Demo Complete"
+horizontal_alignment = 1
+
+[node name="DemoCompletionDescriptionLabel" type="Label" parent="HUD/DemoCompletionOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=500000007]
+layout_mode = 2
+text = "End the run here, or continue into the endless waves with your current build."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ButtonRow" type="HBoxContainer" parent="HUD/DemoCompletionOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=500000008]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="EndRunButton" type="Button" parent="HUD/DemoCompletionOverlay/CenterContainer/PanelContainer/RootVBox/ButtonRow" unique_id=500000009]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 56)
+layout_mode = 2
+text = "End Run"
+
+[node name="ContinueEndlessButton" type="Button" parent="HUD/DemoCompletionOverlay/CenterContainer/PanelContainer/RootVBox/ButtonRow" unique_id=500000010]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 56)
+layout_mode = 2
+text = "Continue Endless"
+
+[node name="RunResultOverlay" type="Control" parent="HUD" unique_id=115362699]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("24_result_overlay")
+
+[node name="Backdrop" type="ColorRect" parent="HUD/RunResultOverlay" unique_id=1049618108]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.55)
+
+[node name="CenterContainer" type="CenterContainer" parent="HUD/RunResultOverlay" unique_id=853158819]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="HUD/RunResultOverlay/CenterContainer" unique_id=1575658552]
+custom_minimum_size = Vector2(420, 240)
+layout_mode = 2
+
+[node name="RootVBox" type="VBoxContainer" parent="HUD/RunResultOverlay/CenterContainer/PanelContainer" unique_id=2139164645]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="ResultTitleLabel" type="Label" parent="HUD/RunResultOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=119456681]
+unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Heading2Label"
 text = "You Died"
 horizontal_alignment = 1
 
-[node name="RestartButton" type="Button" parent="HUD/DeathOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=312479373]
+[node name="ResultSummaryLabel" type="Label" parent="HUD/RunResultOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=500000011]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 56)
 layout_mode = 2
-size_flags_horizontal = 4
+text = "Class — Highest Wave: 0"
+horizontal_alignment = 1
+
+[node name="ButtonRow" type="HBoxContainer" parent="HUD/RunResultOverlay/CenterContainer/PanelContainer/RootVBox" unique_id=500000012]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="RestartButton" type="Button" parent="HUD/RunResultOverlay/CenterContainer/PanelContainer/RootVBox/ButtonRow" unique_id=312479373]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 56)
+layout_mode = 2
 text = "Restart"
+
+[node name="MainMenuButton" type="Button" parent="HUD/RunResultOverlay/CenterContainer/PanelContainer/RootVBox/ButtonRow" unique_id=500000013]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 56)
+layout_mode = 2
+text = "Main Menu"

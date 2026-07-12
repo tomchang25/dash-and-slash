@@ -28,6 +28,9 @@ enum StartCondition {
 @export var warning_ticks := 0
 ## Non-negative enemy-level bonus applied to every member of this group.
 @export var level_offset := 0
+## Authored boss role, read by wave display and boss treatment. Runtime code must never compare a
+## scene against a boss scene reference to detect boss behavior or demo completion.
+@export var is_boss := false
 @export var composition_mode: CompositionMode = CompositionMode.FIXED
 ## Total enemies drawn by weight; positive and required only in weighted mode.
 @export var weighted_total_count := 0

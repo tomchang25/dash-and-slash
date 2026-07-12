@@ -1,10 +1,10 @@
 # test_tick_run_controller_reward_sequence.gd
 # Narrow coverage for TickRunController's milestone reward-offer assembly: the fixed Minor x2 first
 # slot (one eligible Minor at two stacks) and the per-slot Major-or-Minor x2 fallback in the other
-# two slots. Full wave-completion -> banner -> offer -> curse-confirmation -> next-wave sequencing
-# needs the arena's full scene-node graph (grid, engine, player, overlays), so that sequence is
-# covered by manual editor verification instead, per the cadence spec's documented escape hatch for
-# scene-level coverage.
+# two slots — milestone offers never open a curse confirmation. Full wave-completion -> banner ->
+# offer -> next-wave sequencing needs the arena's full scene-node graph (grid, engine, player,
+# overlays), so that sequence is covered by manual editor verification instead, per the cadence
+# spec's documented escape hatch for scene-level coverage.
 extends GutTest
 
 ## Test-only subclass exposing TickRunController's private offer-assembly helpers through public

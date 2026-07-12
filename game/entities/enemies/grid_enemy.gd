@@ -44,15 +44,12 @@ var _reservation_is_attack: bool = false
 var _attack_windup_vfx: Node2D
 var _damage_multiplier := 1.0
 var _defense := 0.0
-## Legacy per-wave scaling recorded by apply_wave_scaling() (called pre-ready by the spawner) and
+## Final level, recorded by apply_level_projection(). Read by the debug FSM label only.
+var _level := 1
+## Level projection recorded by apply_level_projection() (called pre-ready by the spawner) and
 ## applied from _ready() once _initialize_from_enemy_data() has set up Health/Guard from EnemyData.
-## TODO: delete this bridge (fields, apply_wave_scaling(), _apply_pending_legacy_scaling()) once
-## Child 02 lands EnemyLevelProgressionProfile-driven level application and retires WaveScaling;
-## see data_driven_wave_progression_and_enemy_levels_02_group_runtime_and_demo_completion.sketch.md.
-var _pending_legacy_hp_multiplier := 1.0
-var _pending_legacy_damage_multiplier := 1.0
-var _pending_legacy_defense := 0.0
-var _has_pending_legacy_scaling := false
+var _pending_projection: EnemyLevelProjection = null
+var _has_pending_projection := false
 var _fsm_debug_label: Label
 ## One-shot Result SFX queued by a resolved KILL's take_hit(), consumed and cleared by
 ## play_death_sfx(). Cleared without consumption when the predicted kill did not actually reduce
@@ -89,7 +86,7 @@ var _tick_move_tween: Tween
 func _ready() -> void:
     _resolve_node_references()
     _initialize_from_enemy_data()
-    _apply_pending_legacy_scaling()
+    _apply_pending_projection()
     super()
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
@@ -491,27 +488,30 @@ func finish_attack_into_recovery() -> void:
     _tick_runtime.begin_recovery(get_recovery_tick_count() + 1)
 
 
-## Records per-wave milestone scaling for this enemy instance without touching Health/Guard yet.
-## The wave controller calls this pre-ready (before EnemyData has initialized Health/Guard's
-## authored bases via _initialize_from_enemy_data()), so it is applied later from _ready() instead;
-## see _apply_pending_legacy_scaling(). Guard never scales.
-## TODO: legacy scaling bridge, see the _pending_legacy_* fields comment above — delete after Child 02.
-func apply_wave_scaling(hp_multiplier: float, damage_multiplier: float, defense: float) -> void:
-    _pending_legacy_hp_multiplier = max(hp_multiplier, 0.0)
-    _pending_legacy_damage_multiplier = max(damage_multiplier, 0.0)
-    _pending_legacy_defense = max(defense, 0.0)
-    _has_pending_legacy_scaling = true
+## Records this enemy's final level and projected stats without touching Health/Guard yet. The wave
+## controller calls this pre-ready (before EnemyData has initialized Health/Guard's authored bases
+## via _initialize_from_enemy_data()), so it is applied later from _ready() instead; see
+## _apply_pending_projection(). Leaves enemy_data and attack data untouched.
+func apply_level_projection(level: int, projection: EnemyLevelProjection) -> void:
+    _level = level
+    _pending_projection = projection
+    _has_pending_projection = true
 
 
-## Returns this enemy's current outgoing-damage multiplier from wave scaling.
+## Returns this enemy's current outgoing-damage multiplier from its level projection.
 func get_damage_multiplier() -> float:
     return _damage_multiplier
 
 
-## Returns this enemy's current flat Defense value, from EnemyData's authored base plus any legacy
-## wave-scaling addition. Consumed by TickHitResolver.apply_defense().
+## Returns this enemy's current flat Defense value, from its level projection (or EnemyData's
+## authored base when no projection was ever applied). Consumed by TickHitResolver.apply_defense().
 func get_defense() -> float:
     return _defense
+
+
+## Returns this enemy's final level, or 1 when no level projection was ever applied.
+func get_level() -> int:
+    return _level
 
 
 func has_target() -> bool:
@@ -1054,17 +1054,19 @@ func _initialize_from_enemy_data() -> void:
     _defense = enemy_data.defense
 
 
-## Applies the legacy per-wave scaling recorded by apply_wave_scaling(), once
+## Applies the level projection recorded by apply_level_projection(), once
 ## _initialize_from_enemy_data() has set up Health/Guard's authored bases. No-op when
-## apply_wave_scaling() was never called pre-ready (e.g. direct instantiation in tests).
-## TODO: legacy scaling bridge, see the _pending_legacy_* fields comment above — delete after Child 02.
-func _apply_pending_legacy_scaling() -> void:
-    if not _has_pending_legacy_scaling:
+## apply_level_projection() was never called pre-ready (e.g. direct instantiation in tests), which
+## leaves Level 1 identity stats from the authored EnemyData in place.
+func _apply_pending_projection() -> void:
+    if not _has_pending_projection or _pending_projection == null:
         return
-    _damage_multiplier = _pending_legacy_damage_multiplier
-    _defense += _pending_legacy_defense
-    if health != null and _pending_legacy_hp_multiplier > 1.0:
-        health.add_max_health(health.max_health * (_pending_legacy_hp_multiplier - 1.0), true)
+    _damage_multiplier = _pending_projection.damage_multiplier
+    _defense = _pending_projection.defense
+    if health != null:
+        health.initialize(_pending_projection.max_health)
+    if _guard != null:
+        _guard.initialize(_pending_projection.max_guard)
 
 
 func _init_debug_fsm_state() -> void:
@@ -1118,9 +1120,14 @@ func _on_world_advanced_debug(_tick_count: int) -> void:
         _fsm_debug_label.text = _fsm_status_text()
 
 
-## Debug readout text: the runtime's clocked status (telegraph countdown, then recovery) takes priority
-## over the parked state name, since the machine now sits in its deciding state while those windows run.
+## Debug readout text: prefixed with the enemy's final level, then the runtime's clocked status
+## (telegraph countdown, then recovery), which takes priority over the parked state name since the
+## machine now sits in its deciding state while those windows run.
 func _fsm_status_text() -> String:
+    return "Lv.%d %s" % [_level, _fsm_state_status_text()]
+
+
+func _fsm_state_status_text() -> String:
     if _tick_runtime.has_pending_attack():
         return "Telegraph(%d)" % _tick_runtime.attack_ticks()
     if _tick_runtime.recovery_remaining() > 0:

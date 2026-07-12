@@ -1,7 +1,9 @@
 # test_enemy_progression_data.gd
-# Focused coverage for the wave/group/composition/curve/profile schema graph, EnemyData's Level 1
-# base-stat authority, and GridEnemy's EnemyData-driven component initialization plus the deferred
-# legacy wave-scaling bridge. See data_driven_wave_progression_and_enemy_levels_01_progression_data_model.implementation_spec.md.
+# Focused coverage for the wave/group/composition/curve/profile schema graph including the authored
+# boss group role, EnemyData's Level 1 base-stat authority, and GridEnemy's EnemyData-driven
+# component initialization plus the deferred level-projection application. See
+# data_driven_wave_progression_and_enemy_levels_01_progression_data_model.implementation_spec.md and
+# data_driven_wave_progression_and_enemy_levels_02_group_runtime_and_demo_completion.implementation_spec.md.
 extends GutTest
 
 const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
@@ -255,6 +257,17 @@ func test_group_with_predecessor_condition_still_validates_regardless_of_positio
     group.start_condition = WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED
     assert_true(group.validate("TestGroup"), "a predecessor condition on what would be the first group must not fail validation")
 
+
+func test_group_is_boss_defaults_false() -> void:
+    var group := _make_fixed_group()
+    assert_false(group.is_boss)
+
+
+func test_group_is_boss_can_be_authored_true_and_still_validates() -> void:
+    var group := _make_fixed_group()
+    group.is_boss = true
+    assert_true(group.validate("TestGroup"), "the authored boss role must not affect validation")
+
 # == WaveDefinition ==
 
 
@@ -353,36 +366,47 @@ func test_missing_enemy_data_falls_back_to_component_defaults_and_reports_error(
     assert_eq(enemy.get_guard().max_guard, 4, "Guard's own script default should remain, not Small's authored 16")
     assert_push_error("missing enemy_data")
 
-# == GridEnemy: deferred legacy wave scaling ==
+# == GridEnemy: deferred level projection ==
 
 
-func test_apply_wave_scaling_called_pre_ready_applies_after_enemy_data_initializes() -> void:
+func test_apply_level_projection_called_pre_ready_applies_after_enemy_data_initializes() -> void:
     var enemy := SmallEnemyScene.instantiate() as GridEnemy
-    enemy.apply_wave_scaling(1.5, 1.2, 3.0)
+    var projection := EnemyLevelProjection.new()
+    projection.max_health = 150.0
+    projection.max_guard = 20
+    projection.defense = 3.0
+    projection.damage_multiplier = 1.2
+    enemy.apply_level_projection(5, projection)
     add_child_autofree(enemy)
 
-    assert_almost_eq(enemy.health.max_health, 150.0, 0.001, "legacy hp multiplier applies on top of the authored base of 100")
+    assert_almost_eq(enemy.health.max_health, 150.0, 0.001, "the projected max health replaces the authored base of 100")
+    assert_almost_eq(enemy.health.current(), 150.0, 0.001, "current health starts full at the projected max")
+    assert_eq(enemy.get_guard().max_guard, 20, "the projected max guard replaces the authored base of 16")
     assert_almost_eq(enemy.get_damage_multiplier(), 1.2, 0.001)
-    assert_almost_eq(enemy.get_defense(), 3.0, 0.001, "authored base defense of 0 plus the legacy addition")
-    assert_eq(enemy.get_guard().max_guard, 16, "legacy scaling never touches Guard")
+    assert_almost_eq(enemy.get_defense(), 3.0, 0.001)
+    assert_eq(enemy.get_level(), 5)
 
 
-func test_apply_wave_scaling_never_called_leaves_identity_scaling() -> void:
+func test_apply_level_projection_never_called_leaves_level_one_identity() -> void:
     var enemy := add_child_autofree(SmallEnemyScene.instantiate()) as GridEnemy
 
     assert_almost_eq(enemy.get_damage_multiplier(), 1.0, 0.001)
     assert_almost_eq(enemy.get_defense(), 0.0, 0.001)
-    assert_almost_eq(enemy.health.max_health, 100.0, 0.001, "no legacy hp multiplier means the authored base is untouched")
+    assert_almost_eq(enemy.health.max_health, 100.0, 0.001, "no projection means the authored base is untouched")
+    assert_eq(enemy.get_level(), 1, "an enemy that never receives a projection reports Level 1")
 
 
-func test_apply_wave_scaling_negative_inputs_are_clamped() -> void:
+func test_apply_level_projection_via_progression_profile_matches_projected_stats() -> void:
+    var profile := _make_profile()
     var enemy := SmallEnemyScene.instantiate() as GridEnemy
-    enemy.apply_wave_scaling(-1.0, -1.0, -5.0)
+    var projection := profile.project(enemy.enemy_data, 10)
+    enemy.apply_level_projection(10, projection)
     add_child_autofree(enemy)
 
-    assert_almost_eq(enemy.get_damage_multiplier(), 0.0, 0.001)
-    assert_almost_eq(enemy.get_defense(), 0.0, 0.001)
-    assert_almost_eq(enemy.health.max_health, 100.0, 0.001, "a clamped-to-zero hp multiplier must not shrink max health")
+    assert_almost_eq(enemy.health.max_health, projection.max_health, 0.001)
+    assert_eq(enemy.get_guard().max_guard, projection.max_guard)
+    assert_almost_eq(enemy.get_defense(), projection.defense, 0.001)
+    assert_almost_eq(enemy.get_damage_multiplier(), projection.damage_multiplier, 0.001)
 
 # == Test helpers ==
 
