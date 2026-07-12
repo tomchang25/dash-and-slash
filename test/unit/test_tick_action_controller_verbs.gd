@@ -56,8 +56,8 @@ class FakeView:
 class TestActionController:
     extends TickActionController
 
-    func chain_dash_refunds(outcomes: Array[TickHitOutcome]) -> bool:
-        return _chain_dash_refunds(outcomes)
+    func apply_chain_dash_state(outcomes: Array[TickHitOutcome]) -> void:
+        _apply_chain_dash_state(outcomes)
 
 
 func test_default_aim_mode_is_attack() -> void:
@@ -139,6 +139,21 @@ func test_dash_sets_fresh_cooldown_after_player_action_upkeep() -> void:
     assert_eq(engine.advance_world_count, 1)
 
 
+func test_dash_advances_world_normally_even_when_chain_dash_is_owned() -> void:
+    var context := _make_controller_context()
+    var controller: TickActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+    var engine: FakeEngine = context["engine"]
+    var run_build: RunBuild = context["run_build"]
+    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
+
+    controller.handle_verb(TickVerb.mode_set(true))
+    controller.handle_verb(TickVerb.confirm())
+
+    assert_eq(engine.advance_world_count, 1, "the triggering Dash always advances the world normally")
+    assert_eq(player.dash_cooldown, TickCombatRules.DASH_COOLDOWN_TICKS, "no victim qualifies on an empty grid, so cooldown is not cleared")
+
+
 func test_viking_dispatches_smash_instead_of_dash() -> void:
     var context := _make_controller_context(CharacterClassData.MOBILITY_SMASH)
     var controller: TickActionController = context["controller"]
@@ -151,16 +166,57 @@ func test_viking_dispatches_smash_instead_of_dash() -> void:
     assert_eq(player.dash_cooldown, 0)
 
 
-func test_chain_dash_trigger_refunds_qualifying_dash_once() -> void:
+func test_chain_dash_state_clears_cooldown_and_prepares_speed_meter_once_for_several_qualifiers() -> void:
     var context := _make_controller_context()
     var controller: TestActionController = context["controller"]
+    var player: FakePlayer = context["player"]
     var run_build: RunBuild = context["run_build"]
+    var qualifying_a := TickHitOutcome.new()
+    qualifying_a.staggered = true
+    var qualifying_b := TickHitOutcome.new()
+    qualifying_b.killed = true
+    var outcomes: Array[TickHitOutcome] = [qualifying_a, qualifying_b]
+    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
+    player.dash_cooldown = TickCombatRules.DASH_COOLDOWN_TICKS
+    player.speed_meter = 0
+
+    controller.apply_chain_dash_state(outcomes)
+
+    assert_eq(player.dash_cooldown, 0, "a qualifying Dash clears cooldown instead of refunding world time")
+    assert_true(player.is_speed_meter_full(), "a qualifying Dash prepares the Speed meter as a ready follow-up free action")
+
+
+func test_chain_dash_state_does_nothing_without_the_active_trigger() -> void:
+    var context := _make_controller_context()
+    var controller: TestActionController = context["controller"]
+    var player: FakePlayer = context["player"]
     var outcome := TickHitOutcome.new()
     outcome.staggered = true
     var outcomes: Array[TickHitOutcome] = [outcome]
-    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
+    player.dash_cooldown = TickCombatRules.DASH_COOLDOWN_TICKS
+    player.speed_meter = 0
 
-    assert_true(controller.chain_dash_refunds(outcomes))
+    controller.apply_chain_dash_state(outcomes)
+
+    assert_eq(player.dash_cooldown, TickCombatRules.DASH_COOLDOWN_TICKS, "cooldown is unchanged when Chain Dash is not owned")
+    assert_false(player.is_speed_meter_full(), "the Speed meter is unchanged when Chain Dash is not owned")
+
+
+func test_chain_dash_state_does_nothing_when_no_outcome_qualifies() -> void:
+    var context := _make_controller_context()
+    var controller: TestActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+    var run_build: RunBuild = context["run_build"]
+    var non_qualifying := TickHitOutcome.new()
+    var outcomes: Array[TickHitOutcome] = [non_qualifying]
+    run_build.set_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH, true)
+    player.dash_cooldown = TickCombatRules.DASH_COOLDOWN_TICKS
+    player.speed_meter = 0
+
+    controller.apply_chain_dash_state(outcomes)
+
+    assert_eq(player.dash_cooldown, TickCombatRules.DASH_COOLDOWN_TICKS, "cooldown is unchanged when nothing qualifies")
+    assert_false(player.is_speed_meter_full(), "the Speed meter is unchanged when nothing qualifies")
 
 
 ## Regression for the auto-attack-on-move handling: with the SettingsStore preference on, walking

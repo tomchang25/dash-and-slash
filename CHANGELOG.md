@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### Player Reward Runtime Corrections
+
+- 2026-07-12 — [rewards] Qualifying Chain Dash hits now clear Dash cooldown and ready one Speed follow-up, while Max Health rewards immediately restore their exact gained amount
+
 ### ModeEnemy Attack Cycle And Spawn Timing
 
 - 2026-07-12 — [enemy] ModeEnemy now selects individual attacks for matching pursuit and rerolls after attacks or stagger, while elite spawns telegraph for one player action and the enemy presents as an Octopus

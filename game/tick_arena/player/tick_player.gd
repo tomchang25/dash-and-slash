@@ -163,6 +163,15 @@ func max_hp(bonus_total: float) -> float:
     return MAX_HP + maxf(bonus_total, 0.0)
 
 
+## Applies a positive Max Health reward gain directly to current hp, clamped at the maximum newly
+## projected from the given post-contribution bonus total. Non-positive gains are ignored since this
+## operation only ever expresses reward-driven healing, never damage.
+func apply_max_health_gain(gain: float, bonus_total: float) -> void:
+    if gain <= 0.0:
+        return
+    hp = minf(hp + gain, max_hp(bonus_total))
+
+
 ## Restores spawn defaults and snaps back to the given cell, healing to the max hp projected from the
 ## given Max Health reward bonus total so a run's earned max health survives a death/reset. Also clears
 ## any debug god mode so a fresh run starts under normal damage/death rules.
@@ -206,6 +215,14 @@ func spend_speed_meter() -> void:
 func fill_speed_meter(speed_stacks: float) -> void:
     var gain := speed_meter_fill_for(speed_stacks)
     speed_meter = mini(speed_meter + gain, SPEED_METER_MAX)
+    queue_redraw()
+
+
+## Fills the Speed meter to its ready state outright, for a reward that grants a prepared follow-up
+## free action directly instead of through the normal per-action fill formula. Filling an already-full
+## meter is idempotent.
+func prepare_speed_free_action() -> void:
+    speed_meter = SPEED_METER_MAX
     queue_redraw()
 
 

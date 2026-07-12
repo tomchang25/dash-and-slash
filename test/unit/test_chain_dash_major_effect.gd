@@ -2,7 +2,6 @@
 # Tests the Dash-only Chain Dash artifact eligibility and trigger application.
 extends GutTest
 
-
 func test_chain_dash_applies_for_dash_context() -> void:
     var run_build := RunBuild.new()
     var context := WaveRewardContext.new(null, run_build, CharacterClassData.MOBILITY_DASH)
@@ -41,7 +40,7 @@ func _make_chain_dash() -> Artifact:
     var artifact := Artifact.new()
     artifact.id = &"chain_dash"
     artifact.display_name = "Chain Dash"
-    artifact.description_template = "Qualifying Dash hits skip world time (%d)"
+    artifact.description_template = "Qualifying Dash hits clear Dash cooldown and ready your next move or attack (%d)"
     artifact.rarity = Artifact.Rarity.LEGENDARY
     artifact.min_wave = 2
     artifact.magnitude = 1.0
