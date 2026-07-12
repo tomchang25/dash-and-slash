@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpatialAudioEvent" format=3 uid="uid://dkhhc02gm41wf"]
+
+[ext_resource type="Script" uid="uid://dhngr3j0sq0n0" path="res://common/audio/events/spatial_audio_event.gd" id="1_script"]
+[ext_resource type="AudioStream" uid="uid://do576nsvs1mi1" path="res://common/audio/presets/assets/window-break-sfx-333914.wav" id="2_window_break"]
+
+[resource]
+script = ExtResource("1_script")
+limiter_key = &"guard_break"
+max_per_window = 8
+window_sec = 0.5
+volume_db = -24.0
+bus_id = 1
+streams = Array[AudioStream]([ExtResource("2_window_break")])
+use_random_pitch = true

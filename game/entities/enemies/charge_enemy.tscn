@@ -14,6 +14,7 @@
 [ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="17_died_audio"]
 [ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="18_damaged_audio"]
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
+[ext_resource type="Resource" path="res://common/audio/presets/sfx/default_guard_broken_audio.tres" id="24_guard_broken_audio"]
 [ext_resource type="Resource" uid="uid://cfqgbpgdk2ovj" path="res://game/entities/enemies/data/charge_enemy.tres" id="20_enemy_data"]
 [ext_resource type="Script" uid="uid://c7p4m8sh2nqky" path="res://game/entities/enemies/charge_enemy_visual_presenter.gd" id="21_visual_presenter"]
 [ext_resource type="Script" uid="uid://bvmt0lifmapyg" path="res://game/entities/enemies/directional_sprite_frame_view.gd" id="22_frame_view"]
@@ -24,6 +25,7 @@ script = ExtResource("1_enemy")
 death_sfx_event = ExtResource("17_died_audio")
 damaged_sfx_event = ExtResource("18_damaged_audio")
 blocked_sfx_event = ExtResource("19_blocked_audio")
+guard_break_sfx_event = ExtResource("24_guard_broken_audio")
 enemy_data = ExtResource("20_enemy_data")
 health = NodePath("Health")
 _state_machine = NodePath("StateMachine")

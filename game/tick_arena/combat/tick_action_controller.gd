@@ -2,7 +2,7 @@
 # Owns tick-arena verb dispatch (move, confirm/attack, class Mobility, wait), Speed meter
 # spend/fill, Chain Dash cooldown-clear/Speed-ready state, hit application, and the decision to
 # advance the tick world (tick resolution stage 1); world advancement itself is handed to TickEngine. Result
-# presentation (Major-trigger VFX/SFX) belongs to TickCombatFeedback.
+# presentation (Major-trigger VFX) belongs to TickCombatFeedback.
 # Aim/plan resolution (mouse cell, aim direction, dash/smash plans) is shared with TickPreviewController
 # through TickAimContext; the presentation-only facing direction is owned here too and read by
 # TickPreviewController each frame. Facing only ever changes on a discrete input event (keyboard move,
@@ -208,6 +208,7 @@ func _resolve_attack(aim: Vector2i) -> Dictionary:
     _last_aim = aim
     var target := player.cell + aim
     _tick_player_action_upkeep()
+    player.play_action_whoosh()
     view.flash_swing([target])
     player.play_normal_attack_visual(aim)
     var free_action := _spend_speed_if_full()
@@ -239,9 +240,11 @@ func _verb_dash() -> Dictionary:
         view.flash_deny(player.cell + plan["dir"] * _aim_context.dash_range())
         return _verb_illegal()
     _tick_player_action_upkeep()
+    player.play_action_whoosh()
     var dir: Vector2i = plan["dir"]
     var guard_shredder := TickCombatProjection.has_dash_guard_shredder(_run_build)
     var execution := TickCombatProjection.has_dash_execution(_run_build)
+    var sfx_context := _build_mobility_sfx_context()
     var outcomes: Array[TickHitOutcome] = []
     for victim: GridEnemy in plan["victims"]:
         outcomes.append(
@@ -252,6 +255,7 @@ func _verb_dash() -> Dictionary:
                 guard_shredder,
                 execution,
                 TickCombatProjection.mobility_stagger_burst_multiplier(),
+                sfx_context,
             ),
         )
     view.flash_swing(plan["path"])
@@ -288,6 +292,7 @@ func _verb_smash() -> Dictionary:
         return _verb_illegal()
     _tick_player_action_upkeep()
     view.flash_swing(_aim_context.smash_area(landing))
+    var sfx_context := _build_mobility_sfx_context()
     for enemy: GridEnemy in engine.actors():
         if _aim_context.chebyshev(enemy.get_grid_pos() - landing) <= 1:
             _apply_player_hit(
@@ -297,6 +302,7 @@ func _verb_smash() -> Dictionary:
                 false,
                 false,
                 TickCombatProjection.mobility_stagger_burst_multiplier(),
+                sfx_context,
             )
     SmashFeedbackVFX.play_impact(grid.cell_center(landing), self)
     AudioManager.play_event(player.smash_impact_sfx_event, grid.cell_center(landing))
@@ -397,9 +403,18 @@ func _close_smash_cancel_confirm() -> void:
     smash_cancel_confirm_panel.visible = false
 
 
+## Builds the shared Dash/Smash Result SFX context from player-owned event references, so both
+## mobility actions resolve their mobility-kill, Guard Shredder, and Execution overrides through the
+## same immutable object. A normal attack passes no context at all, keeping every branch on its
+## generic enemy-owned event.
+func _build_mobility_sfx_context() -> TickHitSfxContext:
+    return TickHitSfxContext.new(player.mobility_kill_sfx_event, player.guard_shredder_sfx_event, player.execution_sfx_event)
+
+
 ## Resolves one committed player hit and returns the resolver outcome so mobility strike loops can
-## collect it for Chain Dash's qualification check instead of losing it. A kill needs
-## no explicit removal here: take_hit() synchronously fires the enemy's died signal, which the wave
+## collect it for Chain Dash's qualification check instead of losing it. sfx_context is the Dash/Smash
+## Result SFX override context; normal attack passes none, keeping generic feedback. A kill needs no
+## explicit removal here: take_hit() synchronously fires the enemy's died signal, which the wave
 ## controller (via the spawner's died_callback) already uses to drop it from alive-count tracking.
 func _apply_player_hit(
         enemy: GridEnemy,
@@ -408,8 +423,9 @@ func _apply_player_hit(
         guard_shredder_trigger := false,
         execution_trigger := false,
         stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+        sfx_context: TickHitSfxContext = null,
 ) -> TickHitOutcome:
     var enemy_pos := enemy.global_position
-    var result := enemy.take_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
+    var result := enemy.take_hit(origin_cell, damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier, sfx_context)
     feedback.report_hit_outcome(result, enemy_pos)
     return result

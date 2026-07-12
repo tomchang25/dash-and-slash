@@ -13,6 +13,7 @@
 [ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="13_died_audio"]
 [ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="14_damaged_audio"]
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="15_blocked_audio"]
+[ext_resource type="Resource" path="res://common/audio/presets/sfx/default_guard_broken_audio.tres" id="18_guard_broken_audio"]
 [ext_resource type="Resource" uid="uid://cipqwuymcgx88" path="res://game/entities/enemies/data/puff_enemy.tres" id="17_enemy_data"]
 
 [node name="Enemy" type="Node2D" unique_id=1436900450 node_paths=PackedStringArray("_state_machine", "_guard", "_status_bars", "_body", "health")]
@@ -20,6 +21,7 @@ script = ExtResource("1_enemy")
 death_sfx_event = ExtResource("13_died_audio")
 damaged_sfx_event = ExtResource("14_damaged_audio")
 blocked_sfx_event = ExtResource("15_blocked_audio")
+guard_break_sfx_event = ExtResource("18_guard_broken_audio")
 enemy_data = ExtResource("17_enemy_data")
 _state_machine = NodePath("StateMachine")
 _guard = NodePath("Guard")

@@ -2,18 +2,24 @@
 # Tests TickActionController's mode_set verb handling directly: default aim mode and mode_set toggling
 # between Attack and Mobility. These paths touch no exported scene dependency (grid/view/engine/player),
 # so the controller can be exercised without a scene tree per Phase 6b's ownership split (mode is the
-# action controller's own state).
+# action controller's own state). Also covers the shared normal-attack/Dash action whoosh: exactly one
+# play per legal committed action (hit or whiff), none for a denied action.
 extends GutTest
 
 class FakePlayer:
     extends TickPlayer
 
     var moved_to: Array[Vector2i] = []
+    var whoosh_count := 0
 
 
     func move_to(target_cell: Vector2i, _leap := false) -> void:
         cell = target_cell
         moved_to.append(target_cell)
+
+
+    func play_action_whoosh() -> void:
+        whoosh_count += 1
 
 
 class FakeEngine:
@@ -238,6 +244,7 @@ func test_move_into_enemy_attacks_when_auto_attack_on_move_enabled() -> void:
     assert_true(view.swung_cells.has(target), "auto-attack should swing at the blocking enemy's cell")
     assert_false(view.denied_cells.has(target), "auto-attack should not also flash a deny on the same cell")
     assert_true(player.moved_to.is_empty(), "swinging at the enemy should not move the player into its cell")
+    assert_eq(player.whoosh_count, 1, "the shared action whoosh should play once for the auto-attack swing")
     SettingsStore.auto_attack_on_move = prior_setting
 
 
@@ -259,7 +266,73 @@ func test_move_into_enemy_denies_when_auto_attack_on_move_disabled() -> void:
 
     assert_true(view.denied_cells.has(target), "move into an enemy should deny when the setting is off")
     assert_true(view.swung_cells.is_empty(), "no auto-attack swing should fire when the setting is off")
+    assert_eq(player.whoosh_count, 0, "a denied move must not play the action whoosh")
     SettingsStore.auto_attack_on_move = prior_setting
+
+
+## Every legal normal attack plays exactly one shared action whoosh, whether it whiffs or hits, because
+## it communicates the committed swing rather than hit confirmation.
+func test_normal_attack_whiff_plays_exactly_one_action_whoosh() -> void:
+    var context := _make_controller_context()
+    var controller: TickActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+
+    controller.handle_verb(TickVerb.confirm())
+
+    assert_eq(player.whoosh_count, 1, "a legal normal-attack whiff must still play one action whoosh")
+
+
+func test_normal_attack_hit_plays_exactly_one_action_whoosh() -> void:
+    var context := _make_controller_context()
+    var controller: TickActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+    var engine: FakeEngine = context["engine"]
+    var target := player.cell + Vector2i.RIGHT
+    engine.blocked_cell = target
+    engine.enemy_at_blocked_cell = autofree(GridEnemy.new())
+
+    controller.handle_verb(TickVerb.confirm())
+
+    assert_eq(player.whoosh_count, 1, "a legal normal attack that hits must still play exactly one action whoosh")
+
+
+## A legal Dash plays its whoosh outside the victim loop, so an empty-victim Dash still plays it once.
+func test_dash_with_no_victims_plays_exactly_one_action_whoosh() -> void:
+    var context := _make_controller_context()
+    var controller: TickActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+
+    controller.handle_verb(TickVerb.mode_set(true))
+    controller.handle_verb(TickVerb.confirm())
+
+    assert_eq(player.whoosh_count, 1, "a legal Dash must play exactly one action whoosh even with no victims")
+
+
+func test_dash_denied_by_cooldown_plays_no_action_whoosh() -> void:
+    var context := _make_controller_context()
+    var controller: TickActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+    player.dash_cooldown = 2
+
+    controller.handle_verb(TickVerb.mode_set(true))
+    controller.handle_verb(TickVerb.confirm())
+
+    assert_eq(player.whoosh_count, 0, "a Dash denied by cooldown must not play the action whoosh")
+
+
+func test_dash_denied_by_an_occupied_landing_cell_plays_no_action_whoosh() -> void:
+    var context := _make_controller_context()
+    var controller: TickActionController = context["controller"]
+    var player: FakePlayer = context["player"]
+    var engine: FakeEngine = context["engine"]
+    var target := player.cell + Vector2i.RIGHT
+    engine.blocked_cell = target
+    engine.enemy_at_blocked_cell = autofree(GridEnemy.new())
+
+    controller.handle_verb(TickVerb.mode_set(true))
+    controller.handle_verb(TickVerb.confirm())
+
+    assert_eq(player.whoosh_count, 0, "a Dash denied by an occupied landing cell must not play the action whoosh")
 
 
 func _make_controller_context(mobility_id := CharacterClassData.MOBILITY_DASH) -> Dictionary:

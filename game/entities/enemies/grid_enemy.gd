@@ -25,6 +25,9 @@ const PATH_DEBUG_WIDTH := 4.0
 @export var death_sfx_event: SpatialAudioEvent
 @export var damaged_sfx_event: SpatialAudioEvent
 @export var blocked_sfx_event: SpatialAudioEvent
+## Ordinary Guard Break's dedicated Result SFX, replacing the generic damaged event for a GUARD_BREAK
+## outcome; see _select_result_sfx_event(). Generic across all base enemy kinds, not a Dash-only Major.
+@export var guard_break_sfx_event: SpatialAudioEvent
 @export var enemy_data: EnemyData
 
 # -- State --
@@ -42,6 +45,11 @@ var _attack_windup_vfx: Node2D
 var _damage_multiplier := 1.0
 var _defense := 0.0
 var _fsm_debug_label: Label
+## One-shot Result SFX queued by a resolved KILL's take_hit(), consumed and cleared by
+## play_death_sfx(). Cleared without consumption when the predicted kill did not actually reduce
+## health to zero (invulnerability, debug No-Damage/Undead), so it can never leak into a later force
+## or debug death.
+var _queued_death_sfx_event: SpatialAudioEvent = null
 
 # -- Tick state --
 
@@ -325,24 +333,32 @@ func predict_hit(
 
 
 ## Applies one player hit from the given origin cell, reusing the established guard/health/feedback
-## seams (damaged/blocked SFX, guard-break/shield/full-damage VFX), and returns the same outcome
-## as predict_hit(). A guard break clears banked energy via _on_guard_broken().
+## seams (single Result SFX selection, guard-break/shield/full-damage VFX), and returns the same
+## outcome as predict_hit(). A guard break clears banked energy via _on_guard_broken().
+## sfx_context carries the Dash/Smash mobility-kill, Guard Shredder, and Execution event overrides for
+## this committed hit; a normal attack passes none, so every branch stays on its generic enemy-owned
+## event. A resolved KILL never plays audio here — it queues the selected death event for the Dead
+## state to consume instead; see _apply_hit_feedback() and play_death_sfx().
 func take_hit(
         origin_cell: Vector2i,
         base_damage: float,
         guard_shredder_trigger := false,
         execution_trigger := false,
         stagger_burst_multiplier := TickCombatRules.STAGGER_ATTACK_MULTIPLIER,
+        sfx_context: TickHitSfxContext = null,
 ) -> TickHitOutcome:
     var src_pos := _grid.cell_center(origin_cell) if _grid != null else Vector2.ZERO
     var outcome := _resolve_tick_hit_outcome(origin_cell, base_damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
     if not is_alive():
         return outcome
-    _apply_hit_feedback(outcome, src_pos)
+    _apply_hit_feedback(outcome, src_pos, sfx_context)
     if health != null:
         health.take_damage(outcome.hp_damage, self)
     if health != null and not health.is_alive():
         return outcome
+    # The predicted kill did not actually reduce health to zero (invulnerability, debug No-Damage or
+    # Undead), so drop the queued override before it can leak into a later force or debug death.
+    _queued_death_sfx_event = null
     if _guard != null and outcome.guard_damage > 0:
         _guard.take_guard_damage(outcome.guard_damage)
     return outcome
@@ -667,9 +683,15 @@ func force_death() -> void:
         health.kill()
 
 
+## Plays this enemy's single death Result SFX: a queued override selected by a resolved KILL take_hit()
+## (Execution's event, or Dash/Smash's mobility-kill event), falling back to this enemy's authored
+## death_sfx_event when no override was queued. Always consumes and clears the queue first, including
+## when it is empty, so force_death() and a later debug death never replay a stale override from an
+## earlier prevented kill.
 func play_death_sfx() -> void:
-    if death_sfx_event != null:
-        AudioManager.play_event(death_sfx_event, global_position)
+    var event := _consume_queued_death_sfx_event()
+    if event != null:
+        AudioManager.play_event(event, global_position)
 
 
 func get_idle_state_id() -> int:
@@ -1154,26 +1176,64 @@ func _facing_as_cell_dir() -> Vector2i:
     return TickCombatRules.dominant_direction(Vector2i(roundi(_facing.x), roundi(_facing.y)))
 
 
-## Plays the established damaged/blocked SFX and guard-break/shield/full-damage VFX for a resolved hit.
-func _apply_hit_feedback(outcome: TickHitOutcome, src_pos: Vector2) -> void:
+## Plays the single selected Result SFX and the established guard-break/shield/full-damage VFX for a
+## resolved hit. A KILL queues its selected death event instead of playing it immediately, since the
+## Dead state fires synchronously inside health.take_damage() below and is the only caller allowed to
+## play death audio; see _select_result_sfx_event() for the full priority table.
+func _apply_hit_feedback(outcome: TickHitOutcome, src_pos: Vector2, sfx_context: TickHitSfxContext = null) -> void:
+    if outcome.feedback_kind == TickHitOutcome.FeedbackKind.WHIFF:
+        return
+    var result_event := _select_result_sfx_event(outcome, sfx_context)
+    if outcome.killed:
+        _queued_death_sfx_event = result_event
+    elif result_event != null:
+        AudioManager.play_event(result_event, global_position)
     match outcome.feedback_kind:
-        TickHitOutcome.FeedbackKind.WHIFF:
-            return
         TickHitOutcome.FeedbackKind.BLOCKED:
-            var blocked_event := _get_blocked_hit_sfx(outcome.angle)
-            if blocked_event != null:
-                AudioManager.play_event(blocked_event, global_position)
             CombatFeedbackVFX.play_shielded_hit(global_position, src_pos.angle_to_point(global_position), self)
         TickHitOutcome.FeedbackKind.GUARD_BREAK:
-            if damaged_sfx_event != null:
-                AudioManager.play_event(damaged_sfx_event, global_position)
             CombatFeedbackVFX.play_guard_break(global_position, self)
         TickHitOutcome.FeedbackKind.STAGGER_BURST, TickHitOutcome.FeedbackKind.KILL, TickHitOutcome.FeedbackKind.DAMAGED:
-            if damaged_sfx_event != null:
-                AudioManager.play_event(damaged_sfx_event, global_position)
             CombatFeedbackVFX.play_full_damage(global_position, self)
         _:
             ToastManager.show_dev_error("GridEnemy: unexpected feedback kind %s" % outcome.feedback_kind)
+
+
+## Selects the single Result SFX for a resolved (non-whiff) hit. KILL selects Execution's event when
+## the outcome's Major trigger is EXECUTION, else the mobility-kill event from a Dash/Smash sfx_context,
+## else null so play_death_sfx() falls back to this enemy's authored death event. GUARD_BREAK selects
+## the Guard Shredder event when the Major trigger is GUARD_SHREDDER, else the generic Guard Break
+## event. STAGGER_BURST and ordinary DAMAGED share the generic damaged event. BLOCKED keeps the
+## existing angle-based blocked/damaged split. A missing special event falls through to the next
+## applicable event; a missing generic event remains silent. Exposed as its own pure selection so tests
+## can cover which event gets chosen without touching AudioManager playback.
+func _select_result_sfx_event(outcome: TickHitOutcome, sfx_context: TickHitSfxContext) -> SpatialAudioEvent:
+    match outcome.feedback_kind:
+        TickHitOutcome.FeedbackKind.BLOCKED:
+            return _get_blocked_hit_sfx(outcome.angle)
+        TickHitOutcome.FeedbackKind.GUARD_BREAK:
+            if outcome.major_trigger == TickHitOutcome.MajorTrigger.GUARD_SHREDDER and sfx_context != null and sfx_context.guard_shredder_event != null:
+                return sfx_context.guard_shredder_event
+            return guard_break_sfx_event
+        TickHitOutcome.FeedbackKind.STAGGER_BURST, TickHitOutcome.FeedbackKind.DAMAGED:
+            return damaged_sfx_event
+        TickHitOutcome.FeedbackKind.KILL:
+            if outcome.major_trigger == TickHitOutcome.MajorTrigger.EXECUTION and sfx_context != null and sfx_context.execution_event != null:
+                return sfx_context.execution_event
+            if sfx_context != null and sfx_context.mobility_kill_event != null:
+                return sfx_context.mobility_kill_event
+            return null
+    return null
+
+
+## Consumes and clears the queued death Result SFX, falling back to death_sfx_event when nothing was
+## queued. Always clears the queue, including when it is already empty, so a later force_death() or
+## debug death can never replay a stale override from an earlier prevented kill. Exposed as its own
+## pure step so tests can cover the queue lifecycle without going through AudioManager playback.
+func _consume_queued_death_sfx_event() -> SpatialAudioEvent:
+    var event := _queued_death_sfx_event if _queued_death_sfx_event != null else death_sfx_event
+    _queued_death_sfx_event = null
+    return event
 
 
 func _get_blocked_hit_sfx(angle: TileDirectionResolver.HitAngle) -> SpatialAudioEvent:

@@ -6,7 +6,6 @@
 [ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="5_sm"]
 [ext_resource type="Script" uid="uid://cra7ap84cq52l" path="res://common/gameplay/grid/tile_telegraph.gd" id="6_telegraph"]
 [ext_resource type="Script" uid="uid://dccf5ed0kuq50" path="res://game/entities/enemies/enemy_attack_controller.gd" id="8_tile_executor"]
-[ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/view/enemy_status_bars.tscn" id="24_status_bars"]
 [ext_resource type="Script" uid="uid://v830nt1qxe7u" path="res://game/entities/enemies/states/enemy_idle_state.gd" id="9_idle"]
 [ext_resource type="Script" uid="uid://bwg432ox13y5p" path="res://game/entities/enemies/states/enemy_face_once_state.gd" id="10_face"]
 [ext_resource type="Script" uid="uid://kso7t1372ljp" path="res://game/entities/enemies/states/enemy_staggered_state.gd" id="14_staggered"]
@@ -16,25 +15,28 @@
 [ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="18_damaged_audio"]
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
 [ext_resource type="Resource" uid="uid://d2s4krk5m4bxe" path="res://common/audio/presets/sfx/default_slash_audio.tres" id="20_attack_audio"]
-[ext_resource type="Resource" path="res://game/entities/enemies/data/mode_enemy.tres" id="22_enemy_data"]
-[ext_resource type="Script" path="res://game/entities/enemies/mode_enemy_visual_presenter.gd" id="23_visual_presenter"]
+[ext_resource type="Resource" uid="uid://b47bhiwj6vtbu" path="res://game/entities/enemies/data/mode_enemy.tres" id="22_enemy_data"]
+[ext_resource type="Script" uid="uid://bd0vsvstbje6o" path="res://game/entities/enemies/mode_enemy_visual_presenter.gd" id="23_visual_presenter"]
 [ext_resource type="Script" uid="uid://bvmt0lifmapyg" path="res://game/entities/enemies/directional_sprite_frame_view.gd" id="24_frame_view"]
-[ext_resource type="Texture2D" path="res://game/entities/enemies/assets/mode_enemy/octopus_sprite_sheet.png" id="25_octopus_sheet"]
+[ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/view/enemy_status_bars.tscn" id="24_status_bars"]
+[ext_resource type="Texture2D" uid="uid://3c5fofkwje58" path="res://game/entities/enemies/assets/mode_enemy/octopus_sprite_sheet.png" id="25_octopus_sheet"]
+[ext_resource type="Resource" path="res://common/audio/presets/sfx/default_guard_broken_audio.tres" id="26_guard_broken_audio"]
 
-[node name="ModeEnemy" type="Node2D" unique_id=308864669 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "_body", "_facing_arrow", "_visual_presenter")]
+[node name="ModeEnemy" type="Node2D" unique_id=308864669 node_paths=PackedStringArray("_state_machine", "_guard", "_status_bars", "_body", "_facing_arrow", "_visual_presenter", "health")]
 script = ExtResource("1_boss")
+attack_sfx_event = ExtResource("20_attack_audio")
 death_sfx_event = ExtResource("17_died_audio")
 damaged_sfx_event = ExtResource("18_damaged_audio")
 blocked_sfx_event = ExtResource("19_blocked_audio")
-attack_sfx_event = ExtResource("20_attack_audio")
+guard_break_sfx_event = ExtResource("26_guard_broken_audio")
 enemy_data = ExtResource("22_enemy_data")
-health = NodePath("Health")
 _state_machine = NodePath("StateMachine")
 _guard = NodePath("Guard")
 _status_bars = NodePath("StatusBars")
 _body = NodePath("Body")
 _facing_arrow = NodePath("FacingArrow")
 _visual_presenter = NodePath("VisualPresenter")
+health = NodePath("Health")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1387936035]
 unique_name_in_owner = true
@@ -53,12 +55,12 @@ script = ExtResource("23_visual_presenter")
 
 [node name="Sprite" type="Sprite2D" parent="VisualPresenter" unique_id=1029384957]
 unique_name_in_owner = true
-script = ExtResource("24_frame_view")
 texture_filter = 1
 scale = Vector2(5, 5)
 texture = ExtResource("25_octopus_sheet")
 hframes = 4
 vframes = 4
+script = ExtResource("24_frame_view")
 
 [node name="Health" type="Node" parent="." unique_id=136558344]
 unique_name_in_owner = true
@@ -86,8 +88,8 @@ position = Vector2(0, -49)
 unique_name_in_owner = true
 script = ExtResource("5_sm")
 initial_state = NodePath("Idle")
-tick_enabled = false
 frame_driven = false
+tick_enabled = false
 
 [node name="Idle" type="Node" parent="StateMachine" unique_id=1466879869]
 script = ExtResource("9_idle")

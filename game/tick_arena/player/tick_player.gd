@@ -36,6 +36,12 @@ const SPEED_FILL_CAP := 75
 @export var smash_impact_sfx_event: SpatialAudioEvent
 @export var guard_shredder_sfx_event: SpatialAudioEvent
 @export var execution_sfx_event: SpatialAudioEvent
+## Shared committed-action whoosh for a legal normal attack or Dash; see play_action_whoosh().
+@export var normal_dash_whoosh_sfx_event: SpatialAudioEvent
+## Shared Dash/Smash mobility-kill event, carried through a TickHitSfxContext built by
+## TickActionController and selected by GridEnemy in place of its generic death event for a
+## non-Execution mobility kill.
+@export var mobility_kill_sfx_event: SpatialAudioEvent
 
 # -- State --
 
@@ -105,6 +111,14 @@ func set_visual_aim_direction(direction: Vector2i) -> void:
 func play_normal_attack_visual(direction: Vector2i) -> void:
     if visual_presenter != null:
         visual_presenter.play_normal_attack(direction)
+
+
+## Plays the shared committed-action whoosh at the player's current position. TickActionController calls
+## this exactly once per legal normal attack or Dash, whether it hits or whiffs, and never for a denied
+## action; a multi-victim Dash still calls this once, outside its victim loop.
+func play_action_whoosh() -> void:
+    if normal_dash_whoosh_sfx_event != null:
+        AudioManager.play_event(normal_dash_whoosh_sfx_event, global_position)
 
 
 ## Moves the logical cell immediately and tweens the visual position; leap uses the slower smash arc timing.
