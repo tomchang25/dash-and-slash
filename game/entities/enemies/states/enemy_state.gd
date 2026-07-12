@@ -10,7 +10,6 @@ enum EnemyStateId {
     FACE_TARGET = 2,
     STAGGERED = 6,
     DEAD = 7,
-    MODE_CHANGE = 8,
 }
 
 var enemy: GridEnemy

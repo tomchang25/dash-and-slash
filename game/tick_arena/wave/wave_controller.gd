@@ -31,7 +31,7 @@ const SUPPORT_ENEMY_SCENES := [
     ChargeEnemyScene,
 ]
 ## Player-action world ticks a spawn-warning batch telegraphs before it resolves.
-const SPAWN_WARNING_TICKS := 2
+const SPAWN_WARNING_TICKS := 1
 
 var _current_wave_number := 0
 var _run_build: RunBuild

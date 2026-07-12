@@ -42,4 +42,3 @@ script = ExtResource("1_data")
 enemy_id = "mode_enemy"
 display_name = "Mode Enemy"
 attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_tile_wide"), SubResource("attack_tile_square"), SubResource("attack_tile_line"), SubResource("attack_charge"), SubResource("attack_puff")])
-mode_colors = Array[Color]([Color(0.9, 0.35, 0.25, 1), Color(0.95, 0.8, 0.2, 1), Color(0.35, 0.6, 1, 1)])

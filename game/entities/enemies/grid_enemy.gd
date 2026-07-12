@@ -692,11 +692,6 @@ func get_dead_state_id() -> int:
     return EnemyState.EnemyStateId.DEAD
 
 
-## Pre-decision state a kind enters before planning movement (e.g. the mode roll), or -1 for none.
-func get_pre_decision_state_id() -> int:
-    return -1
-
-
 ## True when the enemy should commit an attack instead of planning movement this decision tick.
 func should_commit_before_plan() -> bool:
     return false

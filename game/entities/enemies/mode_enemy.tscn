@@ -16,10 +16,12 @@
 [ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="18_damaged_audio"]
 [ext_resource type="Resource" uid="uid://xsccf58mw7d5" path="res://common/audio/presets/sfx/default_blocked_audio.tres" id="19_blocked_audio"]
 [ext_resource type="Resource" uid="uid://d2s4krk5m4bxe" path="res://common/audio/presets/sfx/default_slash_audio.tres" id="20_attack_audio"]
-[ext_resource type="Script" path="res://game/entities/enemies/states/mode_enemy_mode_change_state.gd" id="21_mode_change"]
 [ext_resource type="Resource" path="res://game/entities/enemies/data/mode_enemy.tres" id="22_enemy_data"]
+[ext_resource type="Script" path="res://game/entities/enemies/mode_enemy_visual_presenter.gd" id="23_visual_presenter"]
+[ext_resource type="Script" uid="uid://bvmt0lifmapyg" path="res://game/entities/enemies/directional_sprite_frame_view.gd" id="24_frame_view"]
+[ext_resource type="Texture2D" path="res://game/entities/enemies/assets/mode_enemy/octopus_sprite_sheet.png" id="25_octopus_sheet"]
 
-[node name="ModeEnemy" type="Node2D" unique_id=308864669 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "_body", "_facing_arrow")]
+[node name="ModeEnemy" type="Node2D" unique_id=308864669 node_paths=PackedStringArray("health", "_state_machine", "_guard", "_status_bars", "_body", "_facing_arrow", "_visual_presenter")]
 script = ExtResource("1_boss")
 death_sfx_event = ExtResource("17_died_audio")
 damaged_sfx_event = ExtResource("18_damaged_audio")
@@ -32,9 +34,11 @@ _guard = NodePath("Guard")
 _status_bars = NodePath("StatusBars")
 _body = NodePath("Body")
 _facing_arrow = NodePath("FacingArrow")
+_visual_presenter = NodePath("VisualPresenter")
 
 [node name="Body" type="Polygon2D" parent="." unique_id=1387936035]
 unique_name_in_owner = true
+visible = false
 color = Color(0.9, 0.35, 0.25, 1)
 polygon = PackedVector2Array(0, -30, -28, -10, -22, 30, 22, 30, 28, -10)
 
@@ -42,6 +46,19 @@ polygon = PackedVector2Array(0, -30, -28, -10, -22, 30, 22, 30, 28, -10)
 unique_name_in_owner = true
 color = Color(1, 0.8, 0.2, 0.7)
 polygon = PackedVector2Array(0, 42, -10, 22, 10, 22)
+
+[node name="VisualPresenter" type="Node2D" parent="." unique_id=1029384956]
+unique_name_in_owner = true
+script = ExtResource("23_visual_presenter")
+
+[node name="Sprite" type="Sprite2D" parent="VisualPresenter" unique_id=1029384957]
+unique_name_in_owner = true
+script = ExtResource("24_frame_view")
+texture_filter = 1
+scale = Vector2(5, 5)
+texture = ExtResource("25_octopus_sheet")
+hframes = 4
+vframes = 4
 
 [node name="Health" type="Node" parent="." unique_id=136558344]
 unique_name_in_owner = true
@@ -74,9 +91,6 @@ frame_driven = false
 
 [node name="Idle" type="Node" parent="StateMachine" unique_id=1466879869]
 script = ExtResource("9_idle")
-
-[node name="ModeChange" type="Node" parent="StateMachine" unique_id=1301000009]
-script = ExtResource("21_mode_change")
 
 [node name="Reposition" type="Node" parent="StateMachine" unique_id=1699999999]
 script = ExtResource("16_repos")

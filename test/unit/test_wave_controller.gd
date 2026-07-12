@@ -378,7 +378,6 @@ func test_spawn_queue_drains_under_population_cap() -> void:
     run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 7)
     wc.start_next_wave()
     wc.trigger_world_advanced()
-    wc.trigger_world_advanced()
 
     assert_eq(fake_spawner.spawned.size(), 3, "only cap-worth of enemies should spawn immediately")
     assert_eq(wc.alive_count(), 3, "alive count should sit at the population cap")
@@ -386,11 +385,10 @@ func test_spawn_queue_drains_under_population_cap() -> void:
     assert_true(completed_calls.is_empty(), "wave should not complete while enemies remain queued or alive")
 
     # Kill one alive enemy at a time; each death schedules one more warning batch, which spawns
-    # once its 2-tick countdown resolves.
+    # once its one-tick countdown resolves.
     for i in 7:
         var dying: Node = wc.first_alive()
         dying.died.emit(dying)
-        wc.trigger_world_advanced()
         wc.trigger_world_advanced()
 
     assert_eq(wc.queue_count(), 0, "queue should be fully drained")
@@ -431,10 +429,7 @@ func test_spawn_warning_does_not_resolve_before_its_countdown_elapses() -> void:
     assert_eq(fake_spawner.spawned.size(), 0, "the batch should only telegraph, not spawn, when scheduled")
 
     wc.trigger_world_advanced()
-    assert_eq(fake_spawner.spawned.size(), 0, "one world advance is not enough to resolve a 2-tick warning")
-
-    wc.trigger_world_advanced()
-    assert_eq(fake_spawner.spawned.size(), WaveScaling.get_support_count(1), "the second world advance resolves the warning")
+    assert_eq(fake_spawner.spawned.size(), WaveScaling.get_support_count(1), "one world advance resolves the warning")
 
     for enemy in fake_spawner.spawned:
         if is_instance_valid(enemy):
@@ -471,7 +466,6 @@ func test_spawn_queue_survives_overlapping_deaths_during_warning() -> void:
     run_build.record(RunBuild.CH_FUTURE_ENEMY_COUNT, 4)
     wc.start_next_wave()
     wc.trigger_world_advanced()
-    wc.trigger_world_advanced()
 
     assert_eq(fake_spawner.spawned.size(), 3, "only cap-worth of enemies should spawn immediately")
     assert_eq(wc.queue_count(), 4, "4 enemies should be queued")
@@ -489,8 +483,6 @@ func test_spawn_queue_survives_overlapping_deaths_during_warning() -> void:
     # freed headroom queues immediately after.
     wc.trigger_world_advanced()
     wc.trigger_world_advanced()
-    wc.trigger_world_advanced()
-    wc.trigger_world_advanced()
 
     assert_eq(wc.alive_count(), 3, "population should be back at cap, not short an enemy")
     assert_eq(wc.queue_count(), 2, "2 of the 4 queued entries should remain")
@@ -499,7 +491,6 @@ func test_spawn_queue_survives_overlapping_deaths_during_warning() -> void:
     while wc.queue_count() > 0:
         var dying: Node = wc.first_alive()
         dying.died.emit(dying)
-        wc.trigger_world_advanced()
         wc.trigger_world_advanced()
 
     assert_eq(wc.queue_count(), 0, "queue should be fully drained")
@@ -550,7 +541,6 @@ func test_elite_cleared_signal_fires_without_ending_run() -> void:
     # the queue down to it.
     wc.begin_wave_now()
     wc.trigger_world_advanced()
-    wc.trigger_world_advanced()
 
     assert_eq(fake_spawner.spawned.size(), 4, "only cap-worth of enemies should spawn immediately")
     assert_eq(wc.queue_count(), 2, "the support overflow and the elite should still be queued")
@@ -558,7 +548,6 @@ func test_elite_cleared_signal_fires_without_ending_run() -> void:
     for i in 2:
         var dying: Node = wc.first_alive()
         dying.died.emit(dying)
-        wc.trigger_world_advanced()
         wc.trigger_world_advanced()
 
     assert_eq(fake_spawner.spawned.size(), 6, "all 5 support enemies and the elite should have spawned")
@@ -614,7 +603,6 @@ func test_end_run_clears_pending_spawn_queue_and_warning_batch() -> void:
     assert_eq(wc.queue_count(), 0, "end_run should drop the remaining spawn queue")
 
     # No further enemies should spawn even if the world keeps advancing after the run is over.
-    wc.trigger_world_advanced()
     wc.trigger_world_advanced()
     assert_eq(fake_spawner.spawned.size(), 0, "nothing queued or warning should spawn once the run has ended")
 

@@ -16,6 +16,10 @@ Rules:
 
 ## [unreleased]
 
+### ModeEnemy Attack Cycle And Spawn Timing
+
+- 2026-07-12 — [enemy] ModeEnemy now selects individual attacks for matching pursuit and rerolls after attacks or stagger, while elite spawns telegraph for one player action and the enemy presents as an Octopus
+
 ### Tick Arena Visual Readability And Identity
 
 - 2026-07-10 — [visual] Tick arena enemies render through sprite-based visual presenters with facing, prepare/commit telegraph cues, damage flash, and stagger tint instead of colored prototype squares, covering SmallEnemy and ChargeEnemy while other enemy kinds keep their legacy fallback
