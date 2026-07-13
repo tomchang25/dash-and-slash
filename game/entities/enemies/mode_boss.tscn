@@ -21,6 +21,7 @@
 [ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/view/enemy_status_bars.tscn" id="24_status_bars"]
 [ext_resource type="Texture2D" uid="uid://3c5fofkwje58" path="res://game/entities/enemies/assets/mode_enemy/octopus_sprite_sheet.png" id="25_octopus_sheet"]
 [ext_resource type="Resource" path="res://common/audio/presets/sfx/default_guard_broken_audio.tres" id="26_guard_broken_audio"]
+[ext_resource type="Texture2D" uid="uid://p4nqodd5ar71" path="res://game/entities/enemies/assets/mode_enemy/retaliation_aura_sprite_sheet.png" id="27_retaliation_aura_sheet"]
 
 [node name="ModeBoss" type="Node2D" unique_id=308864670 node_paths=PackedStringArray("_state_machine", "_guard", "_status_bars", "_body", "_facing_arrow", "_visual_presenter", "health")]
 script = ExtResource("1_boss")
@@ -62,6 +63,14 @@ texture = ExtResource("25_octopus_sheet")
 hframes = 4
 vframes = 4
 script = ExtResource("24_frame_view")
+
+[node name="RetaliationAura" type="Sprite2D" parent="VisualPresenter" unique_id=1029384961]
+unique_name_in_owner = true
+visible = false
+texture_filter = 1
+scale = Vector2(8, 8)
+texture = ExtResource("27_retaliation_aura_sheet")
+hframes = 5
 
 [node name="Health" type="Node" parent="." unique_id=136558345]
 unique_name_in_owner = true

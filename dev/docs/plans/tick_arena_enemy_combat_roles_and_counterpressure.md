@@ -10,7 +10,7 @@ Make enemy combat resistant to repeat Guard-lock while giving each roster role a
 2. Recovering from Stagger must grant a visible five-tick protection window that halves incoming Guard damage without preventing damage or secretly clamping Guard, so repeat Stagger requires substantially more commitment without appearing bugged.
 3. A living enemy hit outside a committed windup must prepare to spend its next funded action facing the player, because repeatedly attacking the same exposed side must provoke a readable response rather than preserve an infinite flank.
 4. The production roster must consist of tactically distinct roles: Thrust and Slash as the Small melee family, Charge as Heavy, Ranged using the Small Guard profile, Mode as Elite, a guardless Bomb as Special, and individually authored bosses using a default or custom Boss policy.
-5. Mode enemies must retaliate after Stagger with protection plus one visible empowered combat cycle, while bosses remain individually authored so a shared elite rule does not flatten bespoke encounter phases.
+5. Mode enemies must retaliate after Stagger with protection plus a visible ten-tick empowered window, while bosses remain individually authored so a shared elite rule does not flatten bespoke encounter phases.
 6. Enemy groups must enter in role-aware formations and distance bands instead of uniformly scattered weighted batches, because adding new enemy scripts alone cannot solve isolated chase-and-pick-off encounters.
 7. Wave 21 onward must add discrete class-based Guard increments every five waves without using group level offsets, because lethal overtime may erode the waves 1–20 break-count contract while demo and mastery waves must preserve it.
 8. Preview, committed resolution, Guard bars, status presentation, and debug inspection must agree on Guard damage, protection, lethal tier, facing response, and empowered attacks so no tactical rule exists only in hidden runtime state.
@@ -77,7 +77,7 @@ Pierce and Burst leave the production roster because Pierce does not create a su
 
 ### Elite retaliation
 
-When Mode recovers from Stagger, it receives the common protection window and empowers its next committed combat cycle. The empowered attack uses one fewer warning tick, never below one, and deals 1.25 times damage; the modifiers are fixed when the attack commits and cannot shorten an already visible warning. The empowerment ends when that attack resolves or is cancelled and must have a distinct presentation. Bosses may opt into, replace, or omit this policy per encounter.
+When Mode recovers from Stagger, it receives the common protection window and begins ten normal world ticks of retaliation. Every attack committed while retaliation is active uses one fewer warning tick, never below one, and deals 1.25 times damage; each attack fixes those modifiers at commit, so expiry cannot shorten or weaken an already visible warning. Retaliation counts down through pathing, windup, and recovery, leaving five active ticks after the common protection ends, and clears early on a new Stagger, death, or reset. It must have a distinct presentation for its full active duration. Bosses may opt into, replace, or omit this policy per encounter.
 
 ### Role-aware encounter placement
 
@@ -94,7 +94,7 @@ Final counts, group timing, weights, and growth curves remain deferred to the ex
 | 03    | Thrust and Slash consolidation plus Pierce and Burst production retirement                       | `tick_arena_enemy_combat_roles_and_counterpressure_03_small_roster_consolidation.implementation_spec.md` |
 | 04    | Guardless Bomb self-destruct threat                                                              | `tick_arena_enemy_combat_roles_and_counterpressure_04_bomb_enemy_self_destruct.implementation_spec.md` |
 | 05    | Small-profile Ranged enemy with fixed Cross pressure                                             | `tick_arena_enemy_combat_roles_and_counterpressure_05_ranged_enemy_cross_pressure.implementation_spec.md` |
-| 06    | Mode retaliation and per-boss policy seam                                                        | `tick_arena_enemy_combat_roles_and_counterpressure_06_elite_retaliation_and_boss_policy.sketch.md`    |
+| 06    | Mode retaliation and per-boss policy seam                                                        | `tick_arena_enemy_combat_roles_and_counterpressure_06_elite_retaliation_and_boss_policy.implementation_spec.md` |
 | 07    | Role-aware group formations and provisional roster integration                                   | `tick_arena_enemy_combat_roles_and_counterpressure_07_role_aware_spawn_formations.sketch.md`          |
 
 Recommended landing order: establish Guard and protection first, then add the shared hit-facing response. Consolidate the Small roster before adding Bomb and Ranged so each new role has a unique tactical slot. Add Mode retaliation after the shared protection contract is stable, then introduce formation-aware placement and hand the resulting roster and grammar to the deferred wave-balance child.
@@ -117,6 +117,6 @@ Recommended landing order: establish Guard and protection first, then add the sh
 5. Thrust, Slash, Charge, Bomb, Ranged, Mode, and the placeholder Boss each present a distinct positioning or timing problem; Pierce and Burst are absent from production encounters.
 6. Bomb can be killed to disarm it, otherwise resolves its locked explosion and self-destructs without entering Guard or Stagger.
 7. Ranged maintains its minimum range, locks a readable Cross footprint within six cells, and retreats rather than using melee behavior when crowded.
-8. Mode's first post-Stagger attack visibly uses the empowered warning and damage contract, while bosses can define a different policy without changing shared elite behavior.
+8. For ten world ticks after Stagger recovery, every Mode attack committed visibly uses the empowered warning and damage contract, including five ticks after Guard protection ends, while bosses can define a different policy without changing shared elite behavior.
 9. Role-aware groups enter in readable formations without violating ordered eligibility, warning revalidation, population headroom, wave completion, or fixed endless-template rules.
 10. The deferred wave-balance work can author final encounters using the completed roster, Guard rules, retaliation policies, and formation vocabulary without adding another runtime exception.

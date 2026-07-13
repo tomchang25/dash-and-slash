@@ -10,6 +10,7 @@ const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const BombEnemyScene := preload("res://game/entities/enemies/bomb_enemy.tscn")
 const RangedEnemyScene := preload("res://game/entities/enemies/ranged_enemy.tscn")
+const ModeBossScene := preload("res://game/entities/enemies/mode_boss.tscn")
 
 
 ## Spawn planner test double: always returns the origin cell so the test doesn't depend on real
@@ -50,6 +51,7 @@ class FakeSpawner:
     extends EnemySpawner
 
     var spawned: Array[Node] = []
+    var picked_scenes: Array[PackedScene] = []
 
 
     func spawn_enemy(_picked: PackedScene, _spawn_cell: Vector2i, died_callback: Callable, pre_ready_setup: Callable = Callable()) -> Node:
@@ -58,6 +60,7 @@ class FakeSpawner:
         if pre_ready_setup.is_valid():
             pre_ready_setup.call(enemy)
         spawned.append(enemy)
+        picked_scenes.append(_picked)
         return enemy
 
 
@@ -129,8 +132,13 @@ class TestWaveController:
 # -- State --
 
 var _test_controllers: Array[TestWaveController] = []
+var _debug_enabled_before_test := false
 
 # == Test lifecycle ==
+
+
+func before_each() -> void:
+    _debug_enabled_before_test = Debug.enabled
 
 
 ## Releases every RefCounted collaborator retained by the current test's wave-controller fixtures.
@@ -138,6 +146,7 @@ func after_each() -> void:
     for controller in _test_controllers:
         controller.dispose_test_fixture()
     _test_controllers.clear()
+    Debug.enabled = _debug_enabled_before_test
 
 # == EnemySpawnPlanner revalidation ==
 
@@ -546,6 +555,69 @@ func test_wave_completes_only_after_all_groups_and_warnings_are_exhausted() -> v
     b_enemy.died.emit(b_enemy)
     assert_eq(completed_calls.size(), 1, "wave completes once every group's queue and living members are exhausted")
 
+    _free_spawned(fake_spawner)
+
+# == Wave 1 debug Boss ==
+
+
+func test_debug_wave_one_boss_spawns_after_authored_enemies_and_delays_completion() -> void:
+    Debug.enabled = true
+    var fixture := _make_test_controller()
+    var wc: TestWaveController = fixture[0]
+    var fake_spawner: FakeSpawner = fixture[1]
+    var wave := WaveDefinition.new()
+    wave.population_cap = 3
+    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1)]
+    wc.set_catalog(_make_catalog_for_wave_one(wave))
+    wc.set_debug_wave_one_boss_scene(ModeBossScene)
+
+    var completed_calls: Array = []
+    var boss_spawned_count := [0]
+    var boss_cleared_count := [0]
+    wc.normal_wave_completed.connect(func(n: int, m: bool) -> void: completed_calls.append([n, m]))
+    wc.boss_spawned.connect(func(_boss: Node) -> void: boss_spawned_count[0] += 1)
+    wc.boss_cleared.connect(func() -> void: boss_cleared_count[0] += 1)
+
+    wc.start_next_wave()
+    wc.trigger_world_advanced()
+    var authored_enemy := wc.first_alive()
+    authored_enemy.died.emit(authored_enemy)
+
+    assert_eq(fake_spawner.spawned.size(), 2, "clearing authored Wave 1 enemies should append one debug Boss")
+    assert_eq(fake_spawner.picked_scenes[1], ModeBossScene)
+    assert_eq(wc.alive_count(), 1)
+    assert_eq(boss_spawned_count[0], 1)
+    assert_true(completed_calls.is_empty(), "Wave 1 must stay active until the debug Boss dies")
+
+    var debug_boss := wc.first_alive()
+    debug_boss.died.emit(debug_boss)
+
+    assert_eq(boss_cleared_count[0], 1)
+    assert_eq(completed_calls, [[1, false]], "killing the debug Boss should complete Wave 1 normally")
+    _free_spawned(fake_spawner)
+
+
+func test_wave_one_debug_boss_never_spawns_while_debug_is_disabled() -> void:
+    Debug.enabled = false
+    var fixture := _make_test_controller()
+    var wc: TestWaveController = fixture[0]
+    var fake_spawner: FakeSpawner = fixture[1]
+    var wave := WaveDefinition.new()
+    wave.population_cap = 3
+    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1)]
+    wc.set_catalog(_make_catalog_for_wave_one(wave))
+    wc.set_debug_wave_one_boss_scene(ModeBossScene)
+
+    var completed_calls: Array = []
+    wc.normal_wave_completed.connect(func(n: int, m: bool) -> void: completed_calls.append([n, m]))
+
+    wc.start_next_wave()
+    wc.trigger_world_advanced()
+    var authored_enemy := wc.first_alive()
+    authored_enemy.died.emit(authored_enemy)
+
+    assert_eq(fake_spawner.spawned.size(), 1)
+    assert_eq(completed_calls, [[1, false]], "release-safe flow should complete without injecting the debug Boss")
     _free_spawned(fake_spawner)
 
 # == Boss role ==

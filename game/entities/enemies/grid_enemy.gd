@@ -400,7 +400,7 @@ func begin_tick_telegraph() -> bool:
     var cells := get_committed_attack_cells()
     if cells.is_empty():
         return false
-    _tick_runtime.commit_attack(cells, get_warning_tick_count())
+    _tick_runtime.commit_attack(cells, get_warning_tick_count(), get_attack_hit_damage())
     return true
 
 
@@ -522,11 +522,21 @@ func get_committed_attack_cells() -> Array[Vector2i]:
     return empty
 
 
-## Outgoing per-hit damage this enemy deals to the player at detonation, after wave-scaling.
+## Prospective outgoing per-hit damage this enemy would deal to the player, after wave-scaling.
+## Live/pre-commit only; begin_tick_telegraph() snapshots this value into EnemyTickRuntime at commit
+## time, and detonation reads get_committed_attack_damage() instead so a later change to this value
+## (e.g. a subclass's temporary modifier ending) can never disagree with an already-locked attack.
 func get_attack_hit_damage() -> float:
     var attack := get_current_attack_data()
     var base := attack.damage if attack != null else 10.0
     return base * _damage_multiplier
+
+
+## Committed outgoing damage for the locked attack, fixed at commit_attack() time. Detonation and
+## committed-damage inspection read this instead of the live get_attack_hit_damage() above, so a
+## resolved hit, its inspection, and its cancellation always agree on one immutable combat-cycle snapshot.
+func get_committed_attack_damage() -> float:
+    return _tick_runtime.attack_damage()
 
 
 ## Ends a resolved attack and opens its recovery window (a disabled status counted in advance_status()).
@@ -563,6 +573,11 @@ func get_defense() -> float:
 ## Returns this enemy's final level, or 1 when no level projection was ever applied.
 func get_level() -> int:
     return _level
+
+
+## Returns the complete debug status text used by the optional enemy-side FSM label.
+func get_debug_status_text() -> String:
+    return _fsm_status_text()
 
 
 func has_target() -> bool:
@@ -1282,7 +1297,7 @@ func _tick_detonate() -> void:
 ## This cell-membership check replaces enemy-side physics hitbox overlap for enemy-to-player damage.
 func _resolve_detonation_on_player(tiles: Array[Vector2i]) -> void:
     if _tick_engine.player_cell() in tiles:
-        _tick_engine.damage_player(get_attack_hit_damage(), self)
+        _tick_engine.damage_player(get_committed_attack_damage(), self)
     _tick_engine.notify_detonation(tiles)
 
 

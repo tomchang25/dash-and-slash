@@ -25,6 +25,7 @@ enum RewardFlowState {
 
 const REWARD_OPEN_DELAY := 2.0
 const WAVE_BANNER_FADE := 0.35
+const DebugWaveOneBossScene := preload("res://game/entities/enemies/mode_boss.tscn")
 
 # -- Exports --
 
@@ -303,6 +304,7 @@ func _wire_wave_controller() -> void:
     _wave_controller = WaveController.new()
     _wave_controller.setup(grid, _spawn_planner, _spawner, engine)
     _wave_controller.set_catalog(wave_catalog)
+    _wave_controller.set_debug_wave_one_boss_scene(DebugWaveOneBossScene)
     _wave_controller.normal_wave_completed.connect(_on_normal_wave_completed)
     _wave_controller.spawn_warning_changed.connect(_on_spawn_warning_changed)
 

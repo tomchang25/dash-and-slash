@@ -42,6 +42,8 @@ var _pending_batch_group_index := -1
 var _warning_ticks_remaining := 0
 var _boss_ref: Node = null
 var _run_over := false
+var _debug_wave_one_boss_scene: PackedScene
+var _debug_wave_one_boss_spawned := false
 
 # == Signal handlers ==
 
@@ -188,6 +190,7 @@ func reset() -> void:
     _warning_ticks_remaining = 0
     _boss_ref = null
     _run_over = false
+    _debug_wave_one_boss_spawned = false
 
 
 ## Returns the current spawn-warning display payload ({cells, ticks}), or an empty dictionary.
@@ -205,6 +208,12 @@ func get_spawn_warning_danger() -> Dictionary:
 ## with Debug.enabled (see debug_standard.md).
 func force_kill_all_enemies() -> void:
     _kill_all_alive_enemies()
+
+
+## Configures the optional Wave 1 debug Boss. Actual spawning remains gated by Debug.enabled when
+## the authored Wave 1 queue and living roster are both exhausted.
+func set_debug_wave_one_boss_scene(scene: PackedScene) -> void:
+    _debug_wave_one_boss_scene = scene
 
 # == Wave Flow ==
 
@@ -256,7 +265,37 @@ func _check_wave_completion() -> void:
         return
     if not _alive_enemies.is_empty():
         return
+    if _try_spawn_debug_wave_one_boss():
+        return
     normal_wave_completed.emit(get_wave_number(), is_milestone_wave())
+
+
+## Injects one untelegraphed Boss after authored Wave 1 enemies are exhausted so retaliation and
+## Boss-policy work can be exercised quickly. It uses the normal spawner, projection, alive roster,
+## and Boss signals; killing it re-enters _check_wave_completion() and completes Wave 1 exactly once.
+func _try_spawn_debug_wave_one_boss() -> bool:
+    if not Debug.enabled:
+        return false
+    if _current_wave_number != 1 or _debug_wave_one_boss_spawned or _debug_wave_one_boss_scene == null:
+        return false
+
+    var reserved_spawn_cells: Array[Vector2i] = []
+    var spawn_cell := _spawn_planner.choose_enemy_spawn_cell(0, 1, reserved_spawn_cells)
+    var enemy := _spawner.spawn_enemy(
+        _debug_wave_one_boss_scene,
+        spawn_cell,
+        Callable(self, "_on_enemy_died"),
+        func(e: Node) -> void: _apply_level_projection(e, _current_wave_number),
+    )
+    if enemy == null:
+        ToastManager.show_dev_error("WaveController: failed to spawn the Wave 1 debug Boss")
+        return false
+
+    _debug_wave_one_boss_spawned = true
+    _alive_enemies.append(enemy)
+    _boss_ref = enemy
+    boss_spawned.emit(enemy)
+    return true
 
 
 func _all_queues_empty() -> bool:

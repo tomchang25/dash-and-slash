@@ -47,7 +47,7 @@ class TestGridEnemy:
 
     func commit_test_attack(ticks: int = 3) -> void:
         var cells: Array[Vector2i] = [Vector2i.ZERO]
-        _tick_runtime.commit_attack(cells, ticks)
+        _tick_runtime.commit_attack(cells, ticks, 0.0)
 
 
     func begin_test_recovery(ticks: int) -> void:

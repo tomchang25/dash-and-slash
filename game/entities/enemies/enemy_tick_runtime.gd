@@ -13,21 +13,38 @@ extends RefCounted
 var _attack_tiles: Array[Vector2i] = []
 ## Player-actions remaining until the committed attack detonates; -1 when no attack is pending.
 var _attack_ticks := -1
+## Committed outgoing damage for the locked attack, fixed by commit_attack() until clear_attack().
+var _attack_damage := 0.0
 ## World ticks the enemy stays disabled in its post-attack recovery window.
 var _recovery_ticks := 0
 
 # == Common API ==
 
 
-## Locks a committed attack: stores its footprint tiles and starts the player-action countdown.
-func commit_attack(tiles: Array[Vector2i], ticks: int) -> void:
+## Locks a committed attack: stores its footprint tiles, outgoing damage, and starts the
+## player-action countdown. All three fields are fixed for the whole combat cycle so detonation,
+## inspection, and cancellation always agree on one immutable snapshot.
+func commit_attack(tiles: Array[Vector2i], ticks: int, damage: float) -> void:
     _attack_tiles = tiles
     _attack_ticks = ticks
+    _attack_damage = damage
 
 
 ## True while a committed attack is still counting down (the enemy is frozen until it detonates).
 func has_pending_attack() -> bool:
     return _attack_ticks > 0
+
+
+## True once a combat cycle has been committed and not yet cleared, including the zero-tick moment
+## between the countdown finishing and finish_attack_into_recovery()/clear_attack() running — distinct
+## from has_pending_attack(), which already reads false at that same zero-tick moment.
+func has_committed_snapshot() -> bool:
+    return _attack_ticks != -1
+
+
+## Committed outgoing damage for the locked attack; 0.0 when no attack has ever been committed.
+func attack_damage() -> float:
+    return _attack_damage
 
 
 ## The committed attack's locked footprint tiles (live reference; callers that mutate must duplicate).
@@ -46,10 +63,11 @@ func step_attack_countdown() -> int:
     return _attack_ticks
 
 
-## Drops the committed attack: clears the locked tiles and the countdown.
+## Drops the committed attack: clears the locked tiles, the countdown, and the committed damage.
 func clear_attack() -> void:
     _attack_tiles.clear()
     _attack_ticks = -1
+    _attack_damage = 0.0
 
 
 ## Returns the danger display payload ({cells, ticks}) for a pending attack, or an empty dictionary.
