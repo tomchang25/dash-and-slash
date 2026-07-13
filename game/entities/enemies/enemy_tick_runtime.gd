@@ -2,9 +2,8 @@
 # Per-enemy tick combat runtime: owns the clocked combat status an enemy carries between world ticks —
 # the committed attack's locked tiles, the player-action countdown to detonation, and the post-attack
 # recovery window. One instance per enemy. The enemy entity stays the engine-facing actor and sequences
-# detonation through these primitives; kinds with non-default clocking (the puff zone) drive the same
-# primitives in their own order. Centralizing the counters here keeps their invariants in one owner
-# instead of scattered across the shared base, the states, and the engine.
+# detonation through these primitives. Centralizing the counters here keeps their invariants in one
+# owner instead of scattered across the shared base, the states, and the engine.
 class_name EnemyTickRuntime
 extends RefCounted
 
@@ -39,12 +38,6 @@ func attack_tiles() -> Array[Vector2i]:
 ## Player-actions remaining until detonation; -1 when no attack is pending.
 func attack_ticks() -> int:
     return _attack_ticks
-
-
-## Sets the remaining countdown directly. Used by multi-phase clocking (the puff active window) that
-## re-arms the counter without re-locking tiles.
-func set_attack_ticks(ticks: int) -> void:
-    _attack_ticks = ticks
 
 
 ## Counts the pending attack down by one player action and returns the remaining count.

@@ -30,13 +30,12 @@ cell_shape = 3
 warning_duration = 3
 recovery_duration = 2
 
-[sub_resource type="Resource" id="attack_puff"]
+[sub_resource type="Resource" id="attack_area"]
 script = ExtResource("2_attack_data")
-attack_id = "mode_boss_puff"
+attack_id = "mode_boss_area"
 attack_kind = 2
 cell_shape = 2
 damage = 22.0
-active_duration = 2
 
 [resource]
 script = ExtResource("1_data")
@@ -45,4 +44,4 @@ display_name = "Mode Boss"
 max_health = 600.0
 guard_profile = ExtResource("3_guard_profile")
 defense = 5.0
-attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_tile_wide"), SubResource("attack_tile_square"), SubResource("attack_tile_line"), SubResource("attack_charge"), SubResource("attack_puff")])
+attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_tile_wide"), SubResource("attack_tile_square"), SubResource("attack_tile_line"), SubResource("attack_charge"), SubResource("attack_area")])

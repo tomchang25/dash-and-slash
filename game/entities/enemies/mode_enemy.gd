@@ -1,5 +1,5 @@
 # mode_enemy.gd
-# 1x1 special enemy that selects one authored tile, puff, or charge attack per combat cycle.
+# 1x1 special enemy that selects one authored tile, area, or charge attack per combat cycle.
 class_name ModeEnemy
 extends GridEnemy
 
@@ -101,7 +101,7 @@ func prepare_attack() -> bool:
             return _tile_executor.prepare(_grid_pos, _facing, _current_attack_data)
         EnemyAttackData.AttackKind.CHARGE:
             return _tile_executor.prepare_cells(get_unblocked_charge_cells(_grid_pos, _facing, _current_attack_data))
-        EnemyAttackData.AttackKind.PUFF:
+        EnemyAttackData.AttackKind.AREA:
             return _tile_executor.prepare(_grid_pos, _facing, _current_attack_data)
 
     ToastManager.show_dev_error("ModeEnemy: unsupported selected attack kind")
@@ -173,7 +173,7 @@ func plan_next_action() -> bool:
             return plan_cell_attack_action(get_cells_for_origin, get_origins_for_target)
         EnemyAttackData.AttackKind.CHARGE:
             return plan_charge_origin_action()
-        EnemyAttackData.AttackKind.PUFF:
+        EnemyAttackData.AttackKind.AREA:
             return plan_approach_action()
 
     ToastManager.show_dev_error("ModeEnemy: unsupported selected attack kind")
@@ -236,7 +236,7 @@ func _can_attack_with_current_selection() -> bool:
             if target_cell == _grid_pos or _facing == Vector2.ZERO:
                 return false
             return target_cell in get_unblocked_charge_cells(_grid_pos, _facing, _current_attack_data)
-        EnemyAttackData.AttackKind.PUFF:
+        EnemyAttackData.AttackKind.AREA:
             return is_target_within_grid_range(_current_attack_data.radius)
 
     ToastManager.show_dev_error("ModeEnemy: unsupported selected attack kind")
@@ -265,20 +265,17 @@ func _create_fallback_attack_data() -> EnemyAttackData:
         0:
             attack_data.attack_kind = EnemyAttackData.AttackKind.TILE
             attack_data.damage = 12.0
-            attack_data.active_duration = 1
             attack_data.cell_shape = EnemyAttackData.CellShape.WIDE
             attack_data.width = 3
             attack_data.depth = 2
         1:
             attack_data.attack_kind = EnemyAttackData.AttackKind.TILE
             attack_data.damage = 12.0
-            attack_data.active_duration = 1
             attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
             attack_data.radius = 1
         2:
             attack_data.attack_kind = EnemyAttackData.AttackKind.TILE
             attack_data.damage = 12.0
-            attack_data.active_duration = 1
             attack_data.cell_shape = EnemyAttackData.CellShape.LINE
             attack_data.line_length = 4
         3:
@@ -288,10 +285,9 @@ func _create_fallback_attack_data() -> EnemyAttackData:
             attack_data.damage_interval = 0.45
             attack_data.charge_speed = CHARGING_SPEED
         4:
-            attack_data.attack_kind = EnemyAttackData.AttackKind.PUFF
+            attack_data.attack_kind = EnemyAttackData.AttackKind.AREA
             attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
             attack_data.damage = 14.0
-            attack_data.active_duration = 2
             attack_data.radius = 1
         _:
             ToastManager.show_dev_error("ModeEnemy: invalid fallback attack index")

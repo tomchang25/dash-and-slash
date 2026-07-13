@@ -2,6 +2,23 @@
 # Covers ModeEnemy's direct authored-attack selection and its reset/stagger reroll boundaries.
 extends GutTest
 
+## Minimal tick-engine double exposing only player_cell(), which _can_attack_with_current_selection()
+## and plan_next_action() read through GridEnemy.get_target_cell() for the AREA-kind checks below.
+class FakeTickEngine:
+    extends RefCounted
+
+    signal world_advanced(tick_count: int)
+
+    var _target_cell: Vector2i
+
+
+    func _init(target_cell: Vector2i) -> void:
+        _target_cell = target_cell
+
+
+    func player_cell() -> Vector2i:
+        return _target_cell
+
 
 func test_scene_uses_octopus_presenter_without_mode_change_state() -> void:
     var scene := load("res://game/entities/enemies/mode_enemy.tscn") as PackedScene
@@ -27,6 +44,39 @@ func test_select_next_attack_uses_the_only_authored_attack() -> void:
     enemy._select_next_attack()
 
     assert_eq(enemy.get_current_attack_data(), selected, "selection should use the authored attack resource")
+    enemy.free()
+
+
+## The AREA attack kind must still drive Mode's selection, commit-check, and planning match
+## statements, with no fall-through to the unsupported-kind fallback.
+func test_area_kind_selection_survives_commit_check_and_planning() -> void:
+    var grid: GridArena = autofree(GridArena.new())
+    grid.grid_size = Vector2i(5, 5)
+    grid.starting_land_size = Vector2i(5, 5)
+    grid.generate_grid()
+
+    var enemy := ModeEnemy.new()
+    var data := EnemyData.new()
+    var area_attack := EnemyAttackData.new()
+    area_attack.attack_kind = EnemyAttackData.AttackKind.AREA
+    area_attack.cell_shape = EnemyAttackData.CellShape.SQUARE
+    area_attack.radius = 1
+    var attacks: Array[EnemyAttackData] = [area_attack]
+    data.attacks = attacks
+    enemy.enemy_data = data
+    enemy._grid = grid
+    enemy._grid_pos = Vector2i(2, 2)
+    var target: Node2D = autofree(Node2D.new())
+    target.global_position = grid.cell_center(Vector2i(2, 2))
+    enemy._target = target
+    enemy.bind_tick_engine(FakeTickEngine.new(Vector2i(2, 2)))
+
+    enemy._select_next_attack()
+
+    assert_eq(enemy.get_current_attack_data().attack_kind, EnemyAttackData.AttackKind.AREA)
+    assert_true(enemy._can_attack_with_current_selection(), "an in-range AREA attack must be selectable without a facing check")
+    assert_true(enemy.plan_next_action(), "AREA planning should fall back to ordinary approach movement")
+    assert_push_error_count(0, "AREA-kind selection must never hit the unsupported-attack-kind fallback")
     enemy.free()
 
 

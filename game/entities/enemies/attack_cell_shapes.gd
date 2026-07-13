@@ -20,6 +20,8 @@ static func local_offsets_for(attack_data: EnemyAttackData) -> Array[Vector2i]:
             return adjacent_ring_offsets(attack_data.radius)
         EnemyAttackData.CellShape.CUSTOM_OFFSETS:
             return attack_data.cell_offsets.duplicate()
+        EnemyAttackData.CellShape.MANHATTAN:
+            return manhattan_offsets(attack_data.radius)
     return []
 
 
@@ -55,6 +57,20 @@ static func square_offsets(radius: int) -> Array[Vector2i]:
 
     for forward_offset in range(-radius, radius + 1):
         for lateral_offset in range(-radius, radius + 1):
+            offsets.append(Vector2i(forward_offset, lateral_offset))
+    return offsets
+
+
+## Returns local offsets whose cardinal step distance from the origin is at most radius.
+## A diagonal step therefore costs two cells, producing a centered diamond footprint.
+static func manhattan_offsets(radius: int) -> Array[Vector2i]:
+    var offsets: Array[Vector2i] = []
+    if radius < 0:
+        return offsets
+
+    for forward_offset: int in range(-radius, radius + 1):
+        var lateral_limit: int = radius - abs(forward_offset)
+        for lateral_offset: int in range(-lateral_limit, lateral_limit + 1):
             offsets.append(Vector2i(forward_offset, lateral_offset))
     return offsets
 
@@ -109,6 +125,11 @@ static func wide(origin_cell: Vector2i, facing_cell: Vector2i, depth: int, width
 ## Returns a square footprint centered on the origin cell.
 static func square(origin_cell: Vector2i, radius: int, grid: GridArena = null, require_grid: bool = false) -> Array[Vector2i]:
     return cells_from_local_offsets(origin_cell, Vector2i.RIGHT, square_offsets(radius), grid, require_grid)
+
+
+## Returns a centered diamond footprint bounded by cardinal step distance.
+static func manhattan(origin_cell: Vector2i, radius: int, grid: GridArena = null, require_grid: bool = false) -> Array[Vector2i]:
+    return cells_from_local_offsets(origin_cell, Vector2i.RIGHT, manhattan_offsets(radius), grid, require_grid)
 
 
 ## Returns the ring of cells adjacent to the origin cell, excluding the origin itself.

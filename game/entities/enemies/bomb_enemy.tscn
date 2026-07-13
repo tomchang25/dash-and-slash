@@ -1,0 +1,73 @@
+[gd_scene format=3 uid="uid://cd7np3m0rvry6"]
+
+[ext_resource type="Script" uid="uid://b4cn3xjce0geg" path="res://game/entities/enemies/bomb_enemy.gd" id="1_enemy"]
+[ext_resource type="Script" uid="uid://c2uxgr4wl3y2o" path="res://common/gameplay/combat/health.gd" id="2_health"]
+[ext_resource type="Script" uid="uid://bmw3304tsywe" path="res://common/framework/state_machine/state_machine.gd" id="3_sm"]
+[ext_resource type="Script" uid="uid://v830nt1qxe7u" path="res://game/entities/enemies/states/enemy_idle_state.gd" id="4_idle"]
+[ext_resource type="Script" uid="uid://ck22jjn6ueb2b" path="res://game/entities/enemies/states/enemy_reposition_state.gd" id="5_reposition"]
+[ext_resource type="Script" uid="uid://bwg432ox13y5p" path="res://game/entities/enemies/states/enemy_face_once_state.gd" id="6_face"]
+[ext_resource type="Script" uid="uid://barkfgyuqruhw" path="res://game/entities/enemies/states/enemy_dead_state.gd" id="7_dead"]
+[ext_resource type="PackedScene" uid="uid://cgfdigxq4ywrg" path="res://common/gameplay/view/enemy_status_bars.tscn" id="8_status_bars"]
+[ext_resource type="Resource" uid="uid://csppceje2neh5" path="res://common/audio/presets/sfx/default_died_audio.tres" id="9_died_audio"]
+[ext_resource type="Resource" uid="uid://vp7463hsmyw0" path="res://common/audio/presets/sfx/default_damaged_audio.tres" id="10_damaged_audio"]
+[ext_resource type="Resource" uid="uid://cipqwuymcgx88" path="res://game/entities/enemies/data/bomb_enemy.tres" id="11_enemy_data"]
+[ext_resource type="Script" uid="uid://veg3bp07w239m" path="res://game/entities/enemies/bomb_enemy_visual_presenter.gd" id="12_visual_presenter"]
+[ext_resource type="Script" uid="uid://bvmt0lifmapyg" path="res://game/entities/enemies/directional_sprite_frame_view.gd" id="13_frame_view"]
+[ext_resource type="Texture2D" path="res://game/entities/enemies/assets/bomb_enemy/lantern_red_sprite_sheet.png" id="14_lantern_sheet"]
+
+[node name="Enemy" type="Node2D" unique_id=1436900450 node_paths=PackedStringArray("_state_machine", "_status_bars", "_body", "_visual_presenter", "health")]
+script = ExtResource("1_enemy")
+death_sfx_event = ExtResource("9_died_audio")
+damaged_sfx_event = ExtResource("10_damaged_audio")
+enemy_data = ExtResource("11_enemy_data")
+health = NodePath("Health")
+_state_machine = NodePath("StateMachine")
+_status_bars = NodePath("StatusBars")
+_body = NodePath("Body")
+_visual_presenter = NodePath("VisualPresenter")
+
+[node name="Body" type="Polygon2D" parent="." unique_id=2079355181]
+unique_name_in_owner = true
+visible = false
+color = Color(0.15, 0.15, 0.18, 1)
+polygon = PackedVector2Array(0, -20, -18, 12, -10, 20, 10, 20, 18, 12)
+
+[node name="VisualPresenter" type="Node2D" parent="." unique_id=1029384858]
+unique_name_in_owner = true
+script = ExtResource("12_visual_presenter")
+
+[node name="Sprite" type="Sprite2D" parent="VisualPresenter" unique_id=1029384859]
+unique_name_in_owner = true
+texture_filter = 1
+scale = Vector2(5, 5)
+texture = ExtResource("14_lantern_sheet")
+hframes = 4
+vframes = 4
+script = ExtResource("13_frame_view")
+
+[node name="Health" type="Node" parent="." unique_id=995602641]
+unique_name_in_owner = true
+script = ExtResource("2_health")
+
+[node name="StateMachine" type="Node" parent="." unique_id=878128285 node_paths=PackedStringArray("initial_state")]
+unique_name_in_owner = true
+script = ExtResource("3_sm")
+initial_state = NodePath("Idle")
+tick_enabled = false
+frame_driven = false
+
+[node name="Idle" type="Node" parent="StateMachine" unique_id=200186375]
+script = ExtResource("4_idle")
+
+[node name="RepositionStep" type="Node" parent="StateMachine" unique_id=1894023203]
+script = ExtResource("5_reposition")
+
+[node name="FaceOnce" type="Node" parent="StateMachine" unique_id=1246309415]
+script = ExtResource("6_face")
+
+[node name="Dead" type="Node" parent="StateMachine" unique_id=1875734918]
+script = ExtResource("7_dead")
+
+[node name="StatusBars" parent="." unique_id=702434122 instance=ExtResource("8_status_bars")]
+unique_name_in_owner = true
+position = Vector2(0, -49)

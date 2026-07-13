@@ -7,7 +7,7 @@ const ThrustEnemyScene := preload("res://game/entities/enemies/thrust_enemy.tscn
 const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const ModeEnemyScene := preload("res://game/entities/enemies/mode_enemy.tscn")
-const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
+const BombEnemyScene := preload("res://game/entities/enemies/bomb_enemy.tscn")
 
 # == EnemyData: Level 1 authority ==
 
@@ -53,7 +53,6 @@ func test_production_enemy_data_uses_role_profiles() -> void:
         "res://game/entities/enemies/data/slash_enemy.tres": [100.0, 32, 0.0],
         "res://game/entities/enemies/data/charge_enemy.tres": [150.0, 64, 0.0],
         "res://game/entities/enemies/data/mode_enemy.tres": [180.0, 96, 0.0],
-        "res://game/entities/enemies/data/puff_enemy.tres": [30.0, 32, 0.0],
         "res://game/entities/enemies/data/mode_boss.tres": [600.0, 128, 5.0],
     }
     for path: String in expectations.keys():
@@ -64,6 +63,24 @@ func test_production_enemy_data_uses_role_profiles() -> void:
         assert_eq(data.guard_profile.max_guard_for_base_wave(1), expected[1], "%s Wave 1 max Guard" % path)
         assert_almost_eq(data.defense, expected[2], 0.001, "%s defense" % path)
         assert_true(data.validate(), "%s should be valid authored data" % path)
+
+
+## Bomb is the roster's only guardless role: no authored guard_profile, plus a level-one HP and
+## explosion damage that stay authoritative through the shared wave projection.
+func test_bomb_enemy_data_is_guardless_level_one() -> void:
+    var data := load("res://game/entities/enemies/data/bomb_enemy.tres") as EnemyData
+    assert_almost_eq(data.max_health, 50.0, 0.001)
+    assert_null(data.guard_profile, "Bomb must not author a Guard profile")
+    assert_almost_eq(data.defense, 0.0, 0.001)
+    assert_true(data.validate(), "Bomb should be valid authored data despite the missing guard_profile")
+
+    assert_eq(data.attacks.size(), 1, "Bomb should author exactly one attack")
+    var attack := data.attacks[0]
+    assert_eq(attack.attack_kind, EnemyAttackData.AttackKind.AREA)
+    assert_eq(attack.cell_shape, EnemyAttackData.CellShape.MANHATTAN)
+    assert_almost_eq(attack.damage, 50.0, 0.001)
+    assert_eq(attack.warning_duration, 3)
+    assert_eq(attack.radius, 4)
 
 # == EnemyStatGrowthCurve ==
 
@@ -388,10 +405,11 @@ func test_mode_enemy_scene_initializes_health_and_guard_from_enemy_data() -> voi
     assert_eq(enemy.get_guard().max_guard, 96)
 
 
-func test_puff_enemy_scene_initializes_health_and_guard_from_enemy_data() -> void:
-    var enemy := add_child_autofree(PuffEnemyScene.instantiate()) as GridEnemy
-    assert_almost_eq(enemy.health.max_health, 30.0, 0.001)
-    assert_eq(enemy.get_guard().max_guard, 32)
+## Bomb's scene omits the Guard node entirely rather than carrying a disabled component.
+func test_bomb_enemy_scene_initializes_health_with_no_guard_component() -> void:
+    var enemy := add_child_autofree(BombEnemyScene.instantiate()) as GridEnemy
+    assert_almost_eq(enemy.health.max_health, 50.0, 0.001)
+    assert_null(enemy.get_guard(), "Bomb's scene must not wire a Guard node")
 
 
 func test_missing_guard_profile_disables_the_scene_guard_component() -> void:

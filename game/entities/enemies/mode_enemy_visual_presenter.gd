@@ -25,7 +25,7 @@ var _attack_kind := EnemyAttackData.AttackKind.TILE
 # == Common API ==
 
 
-## Updates the presentation-only context that selects tile/puff or charge action feedback.
+## Updates the presentation-only context that selects tile/area or charge action feedback.
 func set_attack_kind(attack_kind: int) -> void:
     _attack_kind = attack_kind as EnemyAttackData.AttackKind
 

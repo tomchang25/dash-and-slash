@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://chpa5spmh7wpy" path="res://data/waves/definitions/enemy_stat_growth_curve.gd" id="6_curve"]
 [ext_resource type="PackedScene" uid="uid://dssmenemy01" path="res://game/entities/enemies/thrust_enemy.tscn" id="10_thrust"]
 [ext_resource type="PackedScene" uid="uid://btkc35il187bd" path="res://game/entities/enemies/slash_enemy.tscn" id="11_slash"]
+[ext_resource type="PackedScene" uid="uid://cd7np3m0rvry6" path="res://game/entities/enemies/bomb_enemy.tscn" id="12_bomb"]
 [ext_resource type="PackedScene" uid="uid://dk4e80quaedoa" path="res://game/entities/enemies/charge_enemy.tscn" id="14_charge"]
 [ext_resource type="PackedScene" uid="uid://dmodebossplac" path="res://game/entities/enemies/mode_boss.tscn" id="15_boss"]
 
@@ -26,6 +27,11 @@ script = ExtResource("4_entry")
 enemy_scene = ExtResource("14_charge")
 weight = 1.0
 
+[sub_resource type="Resource" id="entry_bomb"]
+script = ExtResource("4_entry")
+enemy_scene = ExtResource("12_bomb")
+count = 1
+
 [sub_resource type="Resource" id="group_w1"]
 script = ExtResource("3_group")
 start_condition = 2
@@ -34,9 +40,16 @@ composition_mode = 1
 weighted_total_count = 3
 entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
 
+[sub_resource type="Resource" id="group_w1_bomb"]
+script = ExtResource("3_group")
+start_condition = 2
+warning_ticks = 1
+entries = Array[ExtResource("4_entry")]([SubResource("entry_bomb")])
+
 [sub_resource type="Resource" id="wave_def_1"]
 script = ExtResource("2_wave")
-groups = Array[ExtResource("3_group")]([SubResource("group_w1")])
+population_cap = 4
+groups = Array[ExtResource("3_group")]([SubResource("group_w1"), SubResource("group_w1_bomb")])
 
 [sub_resource type="Resource" id="group_w2"]
 script = ExtResource("3_group")

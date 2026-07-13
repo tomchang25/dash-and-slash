@@ -390,7 +390,8 @@ func take_hit(
 
 
 ## Commits an attack telegraph clocked in ticks: locks the footprint tiles and starts the countdown.
-## Returns false when the kind could not prepare the attack.
+## Returns false when the kind could not prepare the attack. Kinds with a non-telegraph commit
+## override try_commit_attack() instead of calling this.
 func begin_tick_telegraph() -> bool:
     if not begin_attack_telegraph():
         return false
@@ -788,7 +789,7 @@ func should_commit_after_face() -> bool:
 
 
 ## Commits this kind's attack telegraph and starts its tick countdown. Returns false when it could not
-## be prepared. Kinds with a non-telegraph commit (the puff zone windup) override this.
+## be prepared. Kinds with a non-telegraph commit override this.
 func try_commit_attack() -> bool:
     return begin_tick_telegraph()
 
@@ -1214,7 +1215,7 @@ func _fallback_node(assigned: Node, node_name: StringName) -> Node:
 
 
 ## Per-kind detonation when the telegraph countdown reaches zero. The base resolves a single
-## cell-membership check against the player and hands off to recovery. Charge/puff kinds override.
+## cell-membership check against the player and hands off to recovery. Charge/Bomb kinds override.
 func _tick_detonate() -> void:
     _resolve_detonation_on_player(get_attack_tiles())
     finish_attack_into_recovery()
