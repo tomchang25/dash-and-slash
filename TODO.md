@@ -86,6 +86,14 @@ Enemy Idle is currently a tick decision state, not a long-lived waiting state. W
 - Add an immediate replan path for reservation-lost or blocked-first-step cases so the enemy still simulates useful behavior when its planned path is stolen.
 - Recheck newly spawned enemy behavior after spawn warning resolution so first-round actors do not appear parked in Idle for the next round.
 
+### Spawn Telegraph Forced Displacement Follow-up
+
+Keep the group-based spawning refactor on its current safe replacement behavior when the player occupies a warned spawn cell at resolution. After the shared forced-displacement and occupancy-refresh contract in `tick_arena_enemy_mobility_and_forced_displacement.md` is implemented and proven, revisit whether the enemy should instead spawn on its warned cell and displace the player.
+
+- Reuse the shared forced-displacement seam rather than adding spawn-owned knockback logic or coupling spawning directly to `ChargeEnemy`.
+- Define displacement direction, legal destination selection, pinned-player handling, damage, simultaneous spawn order, and warning-to-resolution agreement before this becomes actionable.
+- Keep this future behavior outside the group-based spawning refactor; spawning telegraphs may block enemy path planning first while player-cell resolution continues to use nearby legal replacement placement.
+
 ### Wave Reward Deferred Ideas
 
 Later reward-economy work, kept behind the core loop stabilizing. The former terrain-targeting and terrain-shaping ideas were dropped — per-wave terrain mutation is frozen and the obstacle-grid direction replaces that pressure channel.

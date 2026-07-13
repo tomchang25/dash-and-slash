@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make enemy combat resistant to repeat Guard-lock while giving each roster role a distinct tactical purpose and encounter position. The plan replaces interchangeable chase-and-attack pressure with predictable Guard classes, reactive facing, specialized Bomb and Ranged threats, elite retaliation, and role-aware spawn formations before final wave balance resumes.
+Make enemy combat resistant to repeat Guard-lock while giving each roster role a distinct tactical purpose and encounter position. The plan replaces interchangeable chase-and-attack pressure with predictable Guard classes, reactive facing, specialized Bomb and Ranged threats, elite retaliation, and a stable role vocabulary consumed by the group-based spawning refactor.
 
 ## Requirements
 
@@ -11,7 +11,7 @@ Make enemy combat resistant to repeat Guard-lock while giving each roster role a
 3. A living enemy hit outside a committed windup must prepare to spend its next funded action facing the player, because repeatedly attacking the same exposed side must provoke a readable response rather than preserve an infinite flank.
 4. The production roster must consist of tactically distinct roles: Thrust and Slash as the Small melee family, Charge as Heavy, Ranged using the Small Guard profile, Mode as Elite, a guardless Bomb as Special, and individually authored bosses using a default or custom Boss policy.
 5. Mode enemies must retaliate after Stagger with protection plus a visible ten-tick empowered window, while bosses remain individually authored so a shared elite rule does not flatten bespoke encounter phases.
-6. Enemy groups must enter in role-aware formations and distance bands instead of uniformly scattered weighted batches, because adding new enemy scripts alone cannot solve isolated chase-and-pick-off encounters.
+6. Enemy roles must expose a stable tactical vocabulary that reusable spawn groups can place through authored player-ring, anchor-cluster, or scatter strategies without runtime inspection of enemy scenes or scripts.
 7. Wave 21 onward must add discrete class-based Guard increments every five waves without using group level offsets, because lethal overtime may erode the waves 1–20 break-count contract while demo and mastery waves must preserve it.
 8. Preview, committed resolution, Guard bars, status presentation, and debug inspection must agree on Guard damage, protection, lethal tier, facing response, and empowered attacks so no tactical rule exists only in hidden runtime state.
 
@@ -69,7 +69,7 @@ After a hit resolves, an enemy that remains alive, did not enter Stagger, and ha
 | Slash  | Small-profile melee that threatens a three-cell cross-lane in front and rewards longitudinal spacing.                                                                                                      |
 | Charge | Heavy-profile committed line threat; collision and forced-displacement behavior remains owned by the separate enemy-mobility plan.                                                                         |
 | Bomb   | Guardless Special that approaches the player's adjacent ring, locks a three-by-three explosion for three ticks, deals 50 damage on detonation, then kills itself. Killing it before detonation disarms it. |
-| Ranged | Small-profile backline threat that cannot attack within the adjacent ring, targets within six cells, retreats when crowded, and locks one Cross attack footprint during windup.                            |
+| Ranged | Small-profile backline threat that attacks from Manhattan distance three through five, retreats when crowded, and locks one Cross attack footprint during windup.                                |
 | Mode   | Elite-profile multi-attack enemy that combines established attack languages and gains post-Stagger retaliation.                                                                                            |
 | Boss   | Individually authored encounter using the default Boss Guard profile only when no bespoke policy replaces it; the existing Mode-based boss remains a placeholder.                                          |
 
@@ -79,11 +79,11 @@ Pierce and Burst leave the production roster because Pierce does not create a su
 
 When Mode recovers from Stagger, it receives the common protection window and begins ten normal world ticks of retaliation. Every attack committed while retaliation is active uses one fewer warning tick, never below one, and deals 1.25 times damage; each attack fixes those modifiers at commit, so expiry cannot shorten or weaken an already visible warning. Retaliation counts down through pathing, windup, and recovery, leaving five active ticks after the common protection ends, and clears early on a new Stagger, death, or reset. It must have a distinct presentation for its full active duration. Bosses may opt into, replace, or omit this policy per encounter.
 
-### Role-aware encounter placement
+### Group-based encounter placement handoff
 
-Authored groups choose a formation or distance-band intent in addition to composition and start timing. Melee roles should enter as readable arcs or clusters, Ranged should occupy a backline band, and Bomb should enter from a flank or overlapping follow-up group. Formation changes placement only; ordered eligibility, warning reservations, population headroom, and fixed endless grammar remain intact.
+The Data-Driven Wave Progression plan owns the merged spawning-logic refactor and production wave content. Reusable spawn groups choose one of three placement strategies in addition to composition: Small groups use a player-centered ring, Ranged and authored mixed groups use a shared distant anchor cluster, and Charge/Bomb groups scatter independently. Placement data belongs to the group resource; runtime must not inspect an enemy scene to derive role behavior.
 
-Final counts, group timing, weights, and growth curves remain deferred to the existing wave-balance child. This plan establishes the stable roles and placement language that balance will consume.
+That refactor also owns atomic group admission, warning revalidation, SPAWNING path blocking, external group/wave resources, and the first demo/Endless schedule. This combat-role plan supplies only the stable roster and tactical contracts those groups consume.
 
 ### Child overview
 
@@ -95,13 +95,14 @@ Final counts, group timing, weights, and growth curves remain deferred to the ex
 | 04    | Guardless Bomb self-destruct threat                                                              | `tick_arena_enemy_combat_roles_and_counterpressure_04_bomb_enemy_self_destruct.implementation_spec.md` |
 | 05    | Small-profile Ranged enemy with fixed Cross pressure                                             | `tick_arena_enemy_combat_roles_and_counterpressure_05_ranged_enemy_cross_pressure.implementation_spec.md` |
 | 06    | Mode retaliation and per-boss policy seam                                                        | `tick_arena_enemy_combat_roles_and_counterpressure_06_elite_retaliation_and_boss_policy.implementation_spec.md` |
-| 07    | Role-aware group formations and provisional roster integration                                   | `tick_arena_enemy_combat_roles_and_counterpressure_07_role_aware_spawn_formations.sketch.md`          |
 
-Recommended landing order: establish Guard and protection first, then add the shared hit-facing response. Consolidate the Small roster before adding Bomb and Ranged so each new role has a unique tactical slot. Add Mode retaliation after the shared protection contract is stable, then introduce formation-aware placement and hand the resulting roster and grammar to the deferred wave-balance child.
+The former Child 07 formation sketch is merged into `data_driven_wave_progression_and_enemy_levels_03_group_based_spawning_logic_refactor.implementation_spec.md` so schema, scheduling, placement, and authored wave content land as one coherent change.
+
+Recommended landing order: establish Guard and protection first, then add the shared hit-facing response. Consolidate the Small roster before adding Bomb and Ranged so each new role has a unique tactical slot. Add Mode retaliation after the shared protection contract is stable, then hand the completed roster to the group-based spawning refactor.
 
 ## Non-Goals
 
-1. Do not perform final wave 1–10 composition, endless counts, population-cap tuning, or HP, damage, and Defense curve balance; the deferred wave-balance child owns those decisions after this plan stabilizes.
+1. Do not author production wave composition, group counts, population caps, spawning algorithms, or HP, damage, and Defense curve balance in this plan; the Data-Driven Wave Progression plan owns them.
 2. Do not implement a bespoke final boss; preserve the placeholder while establishing a per-boss policy seam.
 3. Do not implement Charge collision displacement, DashEnemy, or Viking Smash knockback; the separate enemy-mobility plan owns them.
 4. Do not add Ranged variants, enemy-introducing Curse Artifacts, hidden reward-driven roster changes, or post-wave procedural enemy escalation.
@@ -116,7 +117,7 @@ Recommended landing order: establish Guard and protection first, then add the sh
 4. A non-breaking hit outside committed windup prepares a one-step facing response without granting an unfunded action, stacking response costs, or cancelling higher-priority combat state.
 5. Thrust, Slash, Charge, Bomb, Ranged, Mode, and the placeholder Boss each present a distinct positioning or timing problem; Pierce and Burst are absent from production encounters.
 6. Bomb can be killed to disarm it, otherwise resolves its locked explosion and self-destructs without entering Guard or Stagger.
-7. Ranged maintains its minimum range, locks a readable Cross footprint within six cells, and retreats rather than using melee behavior when crowded.
+7. Ranged maintains its Manhattan distance-three-through-five band, locks a readable Cross footprint, and retreats rather than using melee behavior when crowded.
 8. For ten world ticks after Stagger recovery, every Mode attack committed visibly uses the empowered warning and damage contract, including five ticks after Guard protection ends, while bosses can define a different policy without changing shared elite behavior.
-9. Role-aware groups enter in readable formations without violating ordered eligibility, warning revalidation, population headroom, wave completion, or fixed endless-template rules.
-10. The deferred wave-balance work can author final encounters using the completed roster, Guard rules, retaliation policies, and formation vocabulary without adding another runtime exception.
+9. The completed roster can be referenced by authored player-ring, anchor-cluster, and scatter groups without runtime scene-role detection.
+10. The group-based spawning refactor can author encounters using the completed roster, Guard rules, and retaliation policies without adding another enemy-mechanic exception.
