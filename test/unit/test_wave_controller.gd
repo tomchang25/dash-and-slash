@@ -4,10 +4,6 @@
 # expansion, level-projection wiring, boss-role signals, and wave completion.
 extends GutTest
 
-const SmallEnemyLineScene := preload("res://game/entities/enemies/small_enemy.tscn")
-const SmallEnemySweepScene := preload("res://game/entities/enemies/small_enemy_sweep.tscn")
-
-
 ## Spawn planner test double: always returns the origin cell so the test doesn't depend on real
 ## grid placement, only on queue/population bookkeeping. Revalidation is stubbed to always pass so
 ## these tests exercise queueing/warning timing, not cell geometry — see the dedicated
@@ -41,19 +37,16 @@ class NoCellSpawnPlanner:
 
 
 ## Spawner test double: creates a bare Enemy (has the "died" signal, no scene dependencies) instead
-## of instantiating a real enemy PackedScene, and records the last pre-ready setup callable so a
-## test can apply it against a real GridEnemy fixture to inspect the projected level.
+## of instantiating a real enemy PackedScene.
 class FakeSpawner:
     extends EnemySpawner
 
     var spawned: Array[Node] = []
-    var last_pre_ready_setup: Callable
 
 
     func spawn_enemy(_picked: PackedScene, _spawn_cell: Vector2i, died_callback: Callable, pre_ready_setup: Callable = Callable()) -> Node:
         var enemy := Enemy.new()
         enemy.connect(&"died", died_callback)
-        last_pre_ready_setup = pre_ready_setup
         if pre_ready_setup.is_valid():
             pre_ready_setup.call(enemy)
         spawned.append(enemy)
@@ -103,6 +96,40 @@ class TestWaveController:
 
     func group_living_count(index: int) -> int:
         return _group_living_count[index]
+
+
+    ## Exposes queue-entry level construction without loading an enemy scene.
+    func make_queue_entry_for_test(scene: PackedScene, group: WaveGroupDefinition) -> Dictionary:
+        return _make_queue_entry(scene, group)
+
+
+    ## Disconnects the test-only TickEngine signal and releases every fixture collaborator.
+    func dispose_test_fixture() -> void:
+        for enemy in _alive_enemies:
+            if is_instance_valid(enemy):
+                enemy.free()
+        _alive_enemies.clear()
+        _enemy_group_index.clear()
+        if _engine != null and is_instance_valid(_engine) and _engine.world_advanced.is_connected(_on_world_advanced):
+            _engine.world_advanced.disconnect(_on_world_advanced)
+        _catalog = null
+        _grid = null
+        _spawn_planner = null
+        _spawner = null
+        _engine = null
+
+# -- State --
+
+var _test_controllers: Array[TestWaveController] = []
+
+# == Test lifecycle ==
+
+
+## Releases every RefCounted collaborator retained by the current test's wave-controller fixtures.
+func after_each() -> void:
+    for controller in _test_controllers:
+        controller.dispose_test_fixture()
+    _test_controllers.clear()
 
 # == EnemySpawnPlanner revalidation ==
 
@@ -233,7 +260,7 @@ func test_wave_display_text_for_normal_wave() -> void:
 func test_wave_display_text_for_boss_wave() -> void:
     var boss_wave := WaveDefinition.new()
     boss_wave.population_cap = 3
-    boss_wave.groups = [_make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 0, 0, true)]
+    boss_wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 0, 0, true)]
     var wc := WaveController.new()
     wc.set_catalog(_make_catalog_for_wave_one(boss_wave))
     wc.advance_wave()
@@ -254,7 +281,7 @@ func test_group_drains_under_population_cap() -> void:
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(SmallEnemyLineScene, 10)]
+    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 10)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     var completed_calls: Array = []
@@ -298,7 +325,7 @@ func test_spawn_warning_does_not_resolve_before_its_countdown_elapses() -> void:
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 2)]
+    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 2)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
@@ -320,7 +347,7 @@ func test_zero_warning_ticks_group_spawns_immediately_without_telegraph() -> voi
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
+    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
@@ -338,7 +365,7 @@ func test_zero_warning_ticks_group_with_no_valid_cell_requeues_without_recursing
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
+    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
@@ -358,7 +385,7 @@ func test_end_run_clears_pending_spawn_queue_and_warning_batch() -> void:
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(SmallEnemyLineScene, 10, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 1)]
+    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 10, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 1)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
@@ -384,8 +411,8 @@ func test_previous_group_cleared_gates_the_next_group() -> void:
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(SmallEnemySweepScene, 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED, 0)
+    var group_a := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED, 0)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
     wave.groups = [group_a, group_b]
@@ -409,8 +436,8 @@ func test_previous_group_survivors_at_most_gates_the_next_group() -> void:
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(SmallEnemyLineScene, 3, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(SmallEnemySweepScene, 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST, 0, 0, 1)
+    var group_a := _make_fixed_group(_make_placeholder_scene(), 3, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST, 0, 0, 1)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
     wave.groups = [group_a, group_b]
@@ -437,8 +464,8 @@ func test_immediate_overlap_groups_are_all_eligible_at_wave_start() -> void:
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(SmallEnemySweepScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var group_a := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
     wave.groups = [group_a, group_b]
@@ -460,8 +487,8 @@ func test_group_eligibility_is_never_revoked() -> void:
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(SmallEnemyLineScene, 4, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(SmallEnemySweepScene, 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST, 0, 0, 1)
+    var group_a := _make_fixed_group(_make_placeholder_scene(), 4, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST, 0, 0, 1)
     var wave := WaveDefinition.new()
     wave.population_cap = 2
     wave.groups = [group_a, group_b]
@@ -490,8 +517,8 @@ func test_wave_completes_only_after_all_groups_and_warnings_are_exhausted() -> v
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(SmallEnemySweepScene, 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED, 0)
+    var group_a := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED, 0)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
     wave.groups = [group_a, group_b]
@@ -521,7 +548,7 @@ func test_boss_spawned_and_boss_cleared_signals_fire_for_the_is_boss_group() -> 
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var boss_group := _make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 0, 0, true)
+    var boss_group := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 0, 0, true)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
     wave.groups = [boss_group]
@@ -554,7 +581,7 @@ func test_weighted_group_draws_exact_total_count() -> void:
     group.start_condition = WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP
     group.warning_ticks = 0
     group.weighted_total_count = 5
-    group.entries = [_make_entry(SmallEnemyLineScene, 0, 1.0), _make_entry(SmallEnemySweepScene, 0, 1.0)]
+    group.entries = [_make_entry(_make_placeholder_scene(), 0, 1.0), _make_entry(_make_placeholder_scene(), 0, 1.0)]
     var wave := WaveDefinition.new()
     wave.population_cap = 10
     wave.groups = [group]
@@ -568,14 +595,13 @@ func test_weighted_group_draws_exact_total_count() -> void:
     _free_spawned(fake_spawner)
 
 
-## Ties the wave-plus-offset level formula to GridEnemy's own recorded level: the callback wired
-## through EnemySpawner's pre-ready setup boundary must apply wave_number + group.level_offset.
-func test_level_projection_callback_uses_wave_number_plus_group_level_offset() -> void:
+## Ties the queued level to the wave-plus-offset formula and verifies Guard stays on the base wave.
+func test_level_projection_uses_wave_number_plus_group_level_offset() -> void:
     var fixture := _make_test_controller()
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group := _make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 3)
+    var group := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 3)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
     wave.groups = [group]
@@ -583,12 +609,16 @@ func test_level_projection_callback_uses_wave_number_plus_group_level_offset() -
 
     wc.start_next_wave()
 
-    var enemy := SmallEnemyLineScene.instantiate() as GridEnemy
-    fake_spawner.last_pre_ready_setup.call(enemy)
-    add_child_autofree(enemy)
+    var queue_entry := wc.make_queue_entry_for_test(_make_placeholder_scene(), group)
+    var level: int = queue_entry["level"]
+    var guard_profile := GuardProfile.new()
+    guard_profile.base_guard = 32
+    var enemy_data := EnemyData.new()
+    enemy_data.guard_profile = guard_profile
+    var projection := _make_profile().project(enemy_data, level, wc.get_wave_number())
 
-    assert_eq(enemy.get_level(), 4, "level should be wave_number (1) plus the group's level_offset (3)")
-    assert_eq(enemy.get_guard().max_guard, 32, "group level_offset must not increase the Wave 1 Small Guard profile")
+    assert_eq(level, 4, "level should be wave_number (1) plus the group's level_offset (3)")
+    assert_eq(projection.max_guard, 32, "group level_offset must not increase the Wave 1 Small Guard profile")
 
     _free_spawned(fake_spawner)
 
@@ -611,6 +641,7 @@ func _make_test_controller_with_spawn_planner(spawn_planner: EnemySpawnPlanner) 
 
     var wc := TestWaveController.new()
     wc.setup(grid, spawn_planner, fake_spawner, engine)
+    _test_controllers.append(wc)
     return [wc, fake_spawner]
 
 
@@ -618,6 +649,11 @@ func _free_spawned(fake_spawner: FakeSpawner) -> void:
     for enemy in fake_spawner.spawned:
         if is_instance_valid(enemy):
             enemy.free()
+
+
+## Returns an inert scene because FakeSpawner records wave data but never instantiates it.
+func _make_placeholder_scene() -> PackedScene:
+    return PackedScene.new()
 
 
 func _make_entry(scene: PackedScene, count: int = 0, weight: float = 0.0) -> WaveCompositionEntry:
@@ -662,7 +698,7 @@ func _make_profile() -> EnemyLevelProgressionProfile:
 func _make_single_group_wave() -> WaveDefinition:
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(SmallEnemyLineScene, 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
+    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
     return wave
 
 
