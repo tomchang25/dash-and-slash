@@ -3,7 +3,8 @@
 # GridEnemy's EnemyData-driven component initialization and deferred level-projection application.
 extends GutTest
 
-const SmallEnemyScene := preload("res://game/entities/enemies/small_enemy.tscn")
+const ThrustEnemyScene := preload("res://game/entities/enemies/thrust_enemy.tscn")
+const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const ModeEnemyScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 const PuffEnemyScene := preload("res://game/entities/enemies/puff_enemy.tscn")
@@ -48,10 +49,8 @@ func test_enemy_data_validate_rejects_negative_defense() -> void:
 
 func test_production_enemy_data_uses_role_profiles() -> void:
     var expectations := {
-        "res://game/entities/enemies/data/small_enemy_line.tres": [100.0, 32, 0.0],
-        "res://game/entities/enemies/data/small_enemy_burst.tres": [100.0, 32, 0.0],
-        "res://game/entities/enemies/data/small_enemy_pierce.tres": [100.0, 32, 0.0],
-        "res://game/entities/enemies/data/small_enemy_sweep.tres": [100.0, 32, 0.0],
+        "res://game/entities/enemies/data/thrust_enemy.tres": [100.0, 32, 0.0],
+        "res://game/entities/enemies/data/slash_enemy.tres": [100.0, 32, 0.0],
         "res://game/entities/enemies/data/charge_enemy.tres": [150.0, 64, 0.0],
         "res://game/entities/enemies/data/mode_enemy.tres": [180.0, 96, 0.0],
         "res://game/entities/enemies/data/puff_enemy.tres": [30.0, 32, 0.0],
@@ -368,12 +367,13 @@ func test_catalog_validate_supports_fixed_and_weighted_groups_and_all_conditions
 # == GridEnemy: EnemyData-driven component initialization ==
 
 
-func test_small_enemy_scene_initializes_health_and_guard_from_enemy_data() -> void:
-    var enemy := add_child_autofree(SmallEnemyScene.instantiate()) as GridEnemy
-    assert_almost_eq(enemy.health.max_health, 100.0, 0.001)
-    assert_almost_eq(enemy.health.current(), 100.0, 0.001)
-    assert_eq(enemy.get_guard().max_guard, 32)
-    assert_eq(enemy.get_guard().current(), 32)
+func test_thrust_and_slash_scenes_initialize_shared_small_health_and_guard() -> void:
+    for enemy_scene: PackedScene in [ThrustEnemyScene, SlashEnemyScene]:
+        var enemy := add_child_autofree(enemy_scene.instantiate()) as GridEnemy
+        assert_almost_eq(enemy.health.max_health, 100.0, 0.001)
+        assert_almost_eq(enemy.health.current(), 100.0, 0.001)
+        assert_eq(enemy.get_guard().max_guard, 32)
+        assert_eq(enemy.get_guard().current(), 32)
 
 
 func test_charge_enemy_scene_initializes_health_and_guard_from_enemy_data() -> void:
@@ -395,7 +395,7 @@ func test_puff_enemy_scene_initializes_health_and_guard_from_enemy_data() -> voi
 
 
 func test_missing_guard_profile_disables_the_scene_guard_component() -> void:
-    var enemy := SmallEnemyScene.instantiate() as GridEnemy
+    var enemy := ThrustEnemyScene.instantiate() as GridEnemy
     enemy.enemy_data = enemy.enemy_data.duplicate()
     enemy.enemy_data.guard_profile = null
     add_child_autofree(enemy)
@@ -407,7 +407,7 @@ func test_missing_guard_profile_disables_the_scene_guard_component() -> void:
 
 
 func test_apply_level_projection_called_pre_ready_applies_after_enemy_data_initializes() -> void:
-    var enemy := SmallEnemyScene.instantiate() as GridEnemy
+    var enemy := ThrustEnemyScene.instantiate() as GridEnemy
     var projection := EnemyLevelProjection.new()
     projection.max_health = 150.0
     projection.max_guard = 20
@@ -425,7 +425,7 @@ func test_apply_level_projection_called_pre_ready_applies_after_enemy_data_initi
 
 
 func test_apply_level_projection_never_called_leaves_level_one_identity() -> void:
-    var enemy := add_child_autofree(SmallEnemyScene.instantiate()) as GridEnemy
+    var enemy := add_child_autofree(ThrustEnemyScene.instantiate()) as GridEnemy
 
     assert_almost_eq(enemy.get_damage_multiplier(), 1.0, 0.001)
     assert_almost_eq(enemy.get_defense(), 0.0, 0.001)
@@ -435,7 +435,7 @@ func test_apply_level_projection_never_called_leaves_level_one_identity() -> voi
 
 func test_apply_level_projection_via_progression_profile_matches_projected_stats() -> void:
     var profile := _make_profile()
-    var enemy := SmallEnemyScene.instantiate() as GridEnemy
+    var enemy := ThrustEnemyScene.instantiate() as GridEnemy
     var projection := profile.project(enemy.enemy_data, 10, 21)
     enemy.apply_level_projection(10, projection)
     add_child_autofree(enemy)
@@ -495,7 +495,7 @@ func _make_fixed_group() -> WaveGroupDefinition:
     group.warning_ticks = 2
     group.level_offset = 0
     var entry := WaveCompositionEntry.new()
-    entry.enemy_scene = SmallEnemyScene
+    entry.enemy_scene = ThrustEnemyScene
     entry.count = 2
     group.entries = [entry]
     return group
@@ -509,7 +509,7 @@ func _make_weighted_group() -> WaveGroupDefinition:
     group.level_offset = 0
     group.weighted_total_count = 4
     var entry := WaveCompositionEntry.new()
-    entry.enemy_scene = SmallEnemyScene
+    entry.enemy_scene = ThrustEnemyScene
     entry.weight = 1.0
     group.entries = [entry]
     return group

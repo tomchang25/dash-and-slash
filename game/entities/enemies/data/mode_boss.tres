@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://data/enemies/definitions/enemy_data.gd" id="1_data"]
 [ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://data/enemies/definitions/enemy_attack_data.gd" id="2_attack_data"]
-[ext_resource type="Resource" path="res://data/enemies/guard_profiles/boss_guard_profile.tres" id="3_guard_profile"]
+[ext_resource type="Resource" uid="uid://df24bkpriub0w" path="res://data/enemies/guard_profiles/boss_guard_profile.tres" id="3_guard_profile"]
 
 [sub_resource type="Resource" id="attack_tile_wide"]
 script = ExtResource("2_attack_data")

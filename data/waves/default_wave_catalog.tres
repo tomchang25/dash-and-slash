@@ -1,36 +1,24 @@
 [gd_resource type="Resource" script_class="WaveCatalog" format=3 uid="uid://dwavecatalog1"]
 
-[ext_resource type="Script" path="res://data/waves/definitions/wave_catalog.gd" id="1_catalog"]
-[ext_resource type="Script" path="res://data/waves/definitions/wave_definition.gd" id="2_wave"]
-[ext_resource type="Script" path="res://data/waves/definitions/wave_group_definition.gd" id="3_group"]
-[ext_resource type="Script" path="res://data/waves/definitions/wave_composition_entry.gd" id="4_entry"]
-[ext_resource type="Script" path="res://data/waves/definitions/enemy_level_progression_profile.gd" id="5_profile"]
-[ext_resource type="Script" path="res://data/waves/definitions/enemy_stat_growth_curve.gd" id="6_curve"]
-[ext_resource type="PackedScene" path="res://game/entities/enemies/small_enemy.tscn" id="10_line"]
-[ext_resource type="PackedScene" path="res://game/entities/enemies/small_enemy_sweep.tscn" id="11_sweep"]
-[ext_resource type="PackedScene" path="res://game/entities/enemies/small_enemy_pierce.tscn" id="12_pierce"]
-[ext_resource type="PackedScene" path="res://game/entities/enemies/small_enemy_burst.tscn" id="13_burst"]
-[ext_resource type="PackedScene" path="res://game/entities/enemies/charge_enemy.tscn" id="14_charge"]
-[ext_resource type="PackedScene" path="res://game/entities/enemies/mode_boss.tscn" id="15_boss"]
+[ext_resource type="Script" uid="uid://bku1eqvtpyqr3" path="res://data/waves/definitions/wave_catalog.gd" id="1_catalog"]
+[ext_resource type="Script" uid="uid://bjc811ue2akbj" path="res://data/waves/definitions/wave_definition.gd" id="2_wave"]
+[ext_resource type="Script" uid="uid://c3r8qrj6qmswp" path="res://data/waves/definitions/wave_group_definition.gd" id="3_group"]
+[ext_resource type="Script" uid="uid://cmejhheclo211" path="res://data/waves/definitions/wave_composition_entry.gd" id="4_entry"]
+[ext_resource type="Script" uid="uid://dkj13wuxgek8y" path="res://data/waves/definitions/enemy_level_progression_profile.gd" id="5_profile"]
+[ext_resource type="Script" uid="uid://chpa5spmh7wpy" path="res://data/waves/definitions/enemy_stat_growth_curve.gd" id="6_curve"]
+[ext_resource type="PackedScene" uid="uid://dssmenemy01" path="res://game/entities/enemies/thrust_enemy.tscn" id="10_thrust"]
+[ext_resource type="PackedScene" uid="uid://btkc35il187bd" path="res://game/entities/enemies/slash_enemy.tscn" id="11_slash"]
+[ext_resource type="PackedScene" uid="uid://dk4e80quaedoa" path="res://game/entities/enemies/charge_enemy.tscn" id="14_charge"]
+[ext_resource type="PackedScene" uid="uid://dmodebossplac" path="res://game/entities/enemies/mode_boss.tscn" id="15_boss"]
 
-[sub_resource type="Resource" id="entry_line"]
+[sub_resource type="Resource" id="entry_thrust"]
 script = ExtResource("4_entry")
-enemy_scene = ExtResource("10_line")
+enemy_scene = ExtResource("10_thrust")
 weight = 1.0
 
-[sub_resource type="Resource" id="entry_sweep"]
+[sub_resource type="Resource" id="entry_slash"]
 script = ExtResource("4_entry")
-enemy_scene = ExtResource("11_sweep")
-weight = 1.0
-
-[sub_resource type="Resource" id="entry_pierce"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("12_pierce")
-weight = 1.0
-
-[sub_resource type="Resource" id="entry_burst"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("13_burst")
+enemy_scene = ExtResource("11_slash")
 weight = 1.0
 
 [sub_resource type="Resource" id="entry_charge"]
@@ -38,100 +26,131 @@ script = ExtResource("4_entry")
 enemy_scene = ExtResource("14_charge")
 weight = 1.0
 
-[sub_resource type="Resource" id="entry_boss"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("15_boss")
-count = 1
-
 [sub_resource type="Resource" id="group_w1"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 3
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_1"]
+script = ExtResource("2_wave")
+groups = Array[ExtResource("3_group")]([SubResource("group_w1")])
 
 [sub_resource type="Resource" id="group_w2"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 4
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_2"]
+script = ExtResource("2_wave")
+groups = Array[ExtResource("3_group")]([SubResource("group_w2")])
 
 [sub_resource type="Resource" id="group_w3"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 4
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_3"]
+script = ExtResource("2_wave")
+groups = Array[ExtResource("3_group")]([SubResource("group_w3")])
 
 [sub_resource type="Resource" id="group_w4"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 5
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_4"]
+script = ExtResource("2_wave")
+groups = Array[ExtResource("3_group")]([SubResource("group_w4")])
 
 [sub_resource type="Resource" id="group_w5"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 5
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_5"]
+script = ExtResource("2_wave")
+population_cap = 4
+groups = Array[ExtResource("3_group")]([SubResource("group_w5")])
 
 [sub_resource type="Resource" id="group_w6"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 6
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_6"]
+script = ExtResource("2_wave")
+population_cap = 4
+groups = Array[ExtResource("3_group")]([SubResource("group_w6")])
 
 [sub_resource type="Resource" id="group_w7"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 6
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_7"]
+script = ExtResource("2_wave")
+population_cap = 4
+groups = Array[ExtResource("3_group")]([SubResource("group_w7")])
 
 [sub_resource type="Resource" id="group_w8"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 7
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_8"]
+script = ExtResource("2_wave")
+population_cap = 4
+groups = Array[ExtResource("3_group")]([SubResource("group_w8")])
 
 [sub_resource type="Resource" id="group_w9"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 7
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="wave_def_9"]
+script = ExtResource("2_wave")
+population_cap = 4
+groups = Array[ExtResource("3_group")]([SubResource("group_w9")])
 
 [sub_resource type="Resource" id="group_w10_support"]
 script = ExtResource("3_group")
 start_condition = 2
 warning_ticks = 1
-level_offset = 0
 composition_mode = 1
 weighted_total_count = 4
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
+[sub_resource type="Resource" id="entry_boss"]
+script = ExtResource("4_entry")
+enemy_scene = ExtResource("15_boss")
+count = 1
 
 [sub_resource type="Resource" id="group_w10_boss"]
 script = ExtResource("3_group")
@@ -140,93 +159,42 @@ survivor_threshold = 1
 warning_ticks = 2
 level_offset = 3
 is_boss = true
-composition_mode = 0
 entries = Array[ExtResource("4_entry")]([SubResource("entry_boss")])
-
-[sub_resource type="Resource" id="group_endless"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-level_offset = 0
-composition_mode = 1
-weighted_total_count = 6
-entries = Array[ExtResource("4_entry")]([SubResource("entry_line"), SubResource("entry_sweep"), SubResource("entry_pierce"), SubResource("entry_burst"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_1"]
-script = ExtResource("2_wave")
-population_cap = 3
-groups = Array[ExtResource("3_group")]([SubResource("group_w1")])
-
-[sub_resource type="Resource" id="wave_def_2"]
-script = ExtResource("2_wave")
-population_cap = 3
-groups = Array[ExtResource("3_group")]([SubResource("group_w2")])
-
-[sub_resource type="Resource" id="wave_def_3"]
-script = ExtResource("2_wave")
-population_cap = 3
-groups = Array[ExtResource("3_group")]([SubResource("group_w3")])
-
-[sub_resource type="Resource" id="wave_def_4"]
-script = ExtResource("2_wave")
-population_cap = 3
-groups = Array[ExtResource("3_group")]([SubResource("group_w4")])
-
-[sub_resource type="Resource" id="wave_def_5"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w5")])
-
-[sub_resource type="Resource" id="wave_def_6"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w6")])
-
-[sub_resource type="Resource" id="wave_def_7"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w7")])
-
-[sub_resource type="Resource" id="wave_def_8"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w8")])
-
-[sub_resource type="Resource" id="wave_def_9"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w9")])
 
 [sub_resource type="Resource" id="wave_def_10"]
 script = ExtResource("2_wave")
 population_cap = 5
 groups = Array[ExtResource("3_group")]([SubResource("group_w10_support"), SubResource("group_w10_boss")])
 
+[sub_resource type="Resource" id="group_endless"]
+script = ExtResource("3_group")
+start_condition = 2
+warning_ticks = 1
+composition_mode = 1
+weighted_total_count = 6
+entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
+
 [sub_resource type="Resource" id="wave_def_endless"]
 script = ExtResource("2_wave")
 population_cap = 4
 groups = Array[ExtResource("3_group")]([SubResource("group_endless")])
 
-[sub_resource type="Resource" id="curve_hp"]
-script = ExtResource("6_curve")
-standard_coefficient = 0.08
-standard_exponent = 1.0
-lethal_coefficient = 0.15
-lethal_exponent = 1.2
-
 [sub_resource type="Resource" id="curve_damage"]
 script = ExtResource("6_curve")
 standard_coefficient = 0.05
-standard_exponent = 1.0
 lethal_coefficient = 0.1
 lethal_exponent = 1.1
 
 [sub_resource type="Resource" id="curve_defense"]
 script = ExtResource("6_curve")
 standard_coefficient = 0.6
-standard_exponent = 1.0
 lethal_coefficient = 1.2
-lethal_exponent = 1.0
+
+[sub_resource type="Resource" id="curve_hp"]
+script = ExtResource("6_curve")
+standard_coefficient = 0.08
+lethal_coefficient = 0.15
+lethal_exponent = 1.2
 
 [sub_resource type="Resource" id="progression_profile"]
 script = ExtResource("5_profile")

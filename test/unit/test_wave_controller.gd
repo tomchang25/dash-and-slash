@@ -4,6 +4,12 @@
 # expansion, level-projection wiring, boss-role signals, and wave completion.
 extends GutTest
 
+const DefaultWaveCatalog := preload("res://data/waves/default_wave_catalog.tres")
+const ThrustEnemyScene := preload("res://game/entities/enemies/thrust_enemy.tscn")
+const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
+const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
+
+
 ## Spawn planner test double: always returns the origin cell so the test doesn't depend on real
 ## grid placement, only on queue/population bookkeeping. Revalidation is stubbed to always pass so
 ## these tests exercise queueing/warning timing, not cell geometry — see the dedicated
@@ -571,6 +577,13 @@ func test_boss_spawned_and_boss_cleared_signals_fire_for_the_is_boss_group() -> 
 # == Weighted expansion / level projection ==
 
 
+func test_default_catalog_weighted_groups_use_only_active_small_roles() -> void:
+    for wave_index in DefaultWaveCatalog.demo_waves.size():
+        var wave := DefaultWaveCatalog.demo_waves[wave_index]
+        _assert_weighted_groups_use_active_small_roles(wave)
+    _assert_weighted_groups_use_active_small_roles(DefaultWaveCatalog.endless_template)
+
+
 func test_weighted_group_draws_exact_total_count() -> void:
     var fixture := _make_test_controller()
     var wc: TestWaveController = fixture[0]
@@ -651,9 +664,17 @@ func _free_spawned(fake_spawner: FakeSpawner) -> void:
             enemy.free()
 
 
-## Returns an inert scene because FakeSpawner records wave data but never instantiates it.
+## Returns a production scene because FakeSpawner records wave data but never instantiates it.
 func _make_placeholder_scene() -> PackedScene:
-    return PackedScene.new()
+    return ThrustEnemyScene
+
+
+func _assert_weighted_groups_use_active_small_roles(wave) -> void:
+    for group in wave.groups:
+        if group.composition_mode != WaveGroupDefinition.CompositionMode.WEIGHTED:
+            continue
+        for entry in group.entries:
+            assert_true(entry.enemy_scene in [ThrustEnemyScene, SlashEnemyScene, ChargeEnemyScene])
 
 
 func _make_entry(scene: PackedScene, count: int = 0, weight: float = 0.0) -> WaveCompositionEntry:

@@ -2,20 +2,18 @@
 
 [ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://data/enemies/definitions/enemy_data.gd" id="1_data"]
 [ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://data/enemies/definitions/enemy_attack_data.gd" id="2_ad"]
-[ext_resource type="Resource" path="res://data/enemies/guard_profiles/small_guard_profile.tres" id="3_guard_profile"]
+[ext_resource type="Resource" uid="uid://c7qjyjfr1iuhb" path="res://data/enemies/guard_profiles/small_guard_profile.tres" id="3_guard_profile"]
 
-[sub_resource type="Resource" id="atk_line"]
+[sub_resource type="Resource" id="atk_thrust"]
 script = ExtResource("2_ad")
-attack_id = "line"
+attack_id = "thrust"
 cell_shape = 5
 warning_duration = 1
 cell_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)])
 
 [resource]
 script = ExtResource("1_data")
-enemy_id = "small_enemy_line"
-display_name = "Small Enemy (Line)"
-max_health = 100.0
+enemy_id = "thrust_enemy"
+display_name = "Thrust"
 guard_profile = ExtResource("3_guard_profile")
-defense = 0.0
-attacks = Array[ExtResource("2_ad")]([SubResource("atk_line")])
+attacks = Array[ExtResource("2_ad")]([SubResource("atk_thrust")])
