@@ -440,6 +440,15 @@ func tick_face_toward_target() -> bool:
     return tick_turn_toward_cell(get_target_cell())
 
 
+## Immediately aligns authoritative and presented facing to a grid cell without spending an action.
+func face_toward_cell_immediately(target_cell: Vector2i) -> void:
+    var desired := cardinal_snap(Vector2(target_cell - _grid_pos))
+    if desired == Vector2.ZERO:
+        return
+    _facing = desired
+    face_arrow()
+
+
 ## Returns true when the current facing already covers the cardinal direction of the live target.
 ## A target on this cell or no target needs no turn, so neither case should interrupt normal planning.
 func is_facing_target() -> bool:

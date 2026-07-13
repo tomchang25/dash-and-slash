@@ -129,6 +129,7 @@ func test_commits_from_the_distance_band_without_facing_the_player() -> void:
     assert_false(enemy.is_facing_target(), "the fixture begins facing down while the player is right")
     assert_true(enemy.can_attack())
     assert_true(enemy.try_commit_attack())
+    assert_eq(enemy.get_facing(), Vector2.RIGHT, "telegraph start must face the target without a FaceOnce action")
     assert_true(enemy.has_pending_attack_test())
 
 

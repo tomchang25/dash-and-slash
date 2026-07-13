@@ -39,6 +39,7 @@ func begin_attack_telegraph() -> bool:
     if not grid.is_in_bounds(target_cell):
         return false
 
+    face_toward_cell_immediately(target_cell)
     var cells := EnemyAttackController.get_attack_cells(target_cell, CROSS_FACING, attack_data, grid)
     if not attack.prepare_cells(cells):
         return false

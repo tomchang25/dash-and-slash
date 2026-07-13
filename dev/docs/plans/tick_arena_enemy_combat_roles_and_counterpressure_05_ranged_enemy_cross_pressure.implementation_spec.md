@@ -8,7 +8,7 @@ Add one stable Ranged role that creates cross-board pressure from a readable dis
 
 ## Summary
 
-Ranged is a Small-profile enemy with Level 1 HP 100, Defense 0, Guard 32, tick speed 75, and one 10-damage attack. It may commit from Manhattan distance three through five, never from the adjacent ring, and ordinary attack commitment does not require it to face the player. The shared hit-triggered FaceOnce response still applies outside committed windup.
+Ranged is a Small-profile enemy with Level 1 HP 100, Defense 0, Guard 32, tick speed 75, and one 10-damage attack. It may commit from Manhattan distance three through five, never from the adjacent ring, and ordinary attack commitment does not require it to first spend a facing action. Telegraph start immediately faces the target cell. The shared hit-triggered FaceOnce response still applies outside committed windup.
 
 At commitment, Ranged snapshots the player's cell and locks a five-cell Cross consisting of that center plus its four orthogonal neighbors. The two-tick warning, danger countdown, and detonation all use that exact snapshot; later movement never retargets it. Bounds clip the Cross, while terrain, occupants, and reservations do not block it.
 
@@ -18,9 +18,9 @@ The role reuses the SmallEnemy telegraph, recovery, Guard/Stagger/death cleanup,
 
 - `RangedEnemy` extends `SmallEnemy`, reusing its controller, telegraph, tick speed, detonation/recovery, and cancellation hooks while replacing attack selection, range planning, target-centered preparation, and arrival commitment.
 - `GridEnemy` owns paths and reservations; its distance-band planner calls the unchanged stateless `EnemyPathPlanner`, blocks the player cell, reserves an attack destination, chooses the shortest reachable band cell with existing deterministic tie-breaks, and never falls back to melee approach.
-- `EnemyIdleState` commits immediately because Ranged ignores facing, and `EnemyRepositionState` commits on band entry. `EnemyFaceOnceState` remains the funded hit response and may commit afterward; no state owns countdowns or instant turning.
+- `EnemyIdleState` commits immediately because Ranged has no facing gate, and `EnemyRepositionState` commits on band entry. `EnemyFaceOnceState` remains the funded hit response and may commit afterward; the Ranged commit itself immediately faces the target cell without spending an action, while no state owns countdowns.
 - `ranged_enemy.tres` solely authors HP 100, Defense 0, Small Guard, one TILE attack, damage 10, warning two, recovery one, and five symmetric `CUSTOM_OFFSETS`; invalid attack counts fail safely instead of selecting a fallback variant.
-- Ranged transforms those offsets around the live player cell with a canonical orientation and passes them to `EnemyAttackController.prepare_cells()`. The controller feeds `EnemyTickRuntime`, which solely owns committed cells/countdown/recovery; `TickEngine` resolves the player's post-action cell and `TickArena` paints the same danger payload.
+- Ranged transforms those offsets around the live player cell with a canonical orientation, immediately faces that cell for the telegraph, and passes the cells to `EnemyAttackController.prepare_cells()`. The controller feeds `EnemyTickRuntime`, which solely owns committed cells/countdown/recovery; `TickEngine` resolves the player's post-action cell and `TickArena` paints the same danger payload.
 - Cross cells are bounds-clipped only; terrain and occupants neither block them nor become damage targets.
 - `ranged_enemy.tscn` inherits the Thrust component tree and Small presenter scaffold while overriding behavior, data, and Eye texture. The PNG becomes a feature-owned asset; no runtime path or `.import` metadata comes from the ignored vendor tree.
 - `default_wave_catalog.tres` remains encounter authority: Wave 1 is support -> Bomb -> Ranged in authored immediate-overlap order with cap five. Ranged remains absent from weighted and endless composition.
@@ -61,8 +61,8 @@ The role reuses the SmallEnemy telegraph, recovery, Guard/Stagger/death cleanup,
 
 ## Implementation Notes
 
-- Distance is `max(abs(dx), abs(dy))`. An in-band start needs no movement; otherwise choose the shortest claimable band path, or clear reservations and retry without melee fallback.
-- Author center/right/left/down/up offsets. Transform them around the target using a canonical orientation without changing enemy facing; keep existing enum values and use `CUSTOM_OFFSETS` plus the shared executor.
+- Distance is `abs(dx) + abs(dy)`. An in-band start needs no movement; otherwise choose the shortest claimable band path, or clear reservations and retry without melee fallback.
+- Author center/right/left/down/up offsets. Transform them around the target using a canonical orientation, then immediately face the target cell before warning; keep existing enum values and use `CUSTOM_OFFSETS` plus the shared executor.
 - A qualifying hit still queues funded FaceOnce, which may commit afterward if the player remains in band; Ranged is not exempt from hit reaction.
 - Copy only `assets/Ninja Adventure - Asset Pack/Actor/Monster/Eye/Eye.png`, retain the four-by-four integer-scale scaffold, and omit its `.import` sidecar.
 
@@ -79,7 +79,7 @@ The role reuses the SmallEnemy telegraph, recovery, Guard/Stagger/death cleanup,
 ## Acceptance Criteria
 
 1. Ranged has Level 1 HP 100, Defense 0, Small Guard 32, speed 75, and exactly one 10-damage, two-tick-warning, one-recovery attack.
-2. Ranged attacks without a facing prerequisite from Manhattan distance three through five, retreats or repositions when closer, approaches when farther, and never falls back to melee pursuit.
+2. Ranged attacks without a facing action prerequisite from Manhattan distance three through five, immediately faces the target cell when its telegraph starts, retreats or repositions when closer, approaches when farther, and never falls back to melee pursuit.
 3. Every commitment locks the player's current cell plus four orthogonal neighbors; warning, danger countdown, and detonation agree on that snapshot and never retarget.
 4. Bounds clip the Cross, while terrain and other actors neither block it nor receive damage.
 5. Hit-triggered FaceOnce, Guard, Stagger, death, recovery, and cancellation retain their shared timing and priority around the facing-independent attack.
