@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://data/enemies/definitions/enemy_data.gd" id="1_data"]
 [ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://data/enemies/definitions/enemy_attack_data.gd" id="2_attack_data"]
+[ext_resource type="Resource" path="res://data/enemies/guard_profiles/heavy_guard_profile.tres" id="3_guard_profile"]
 
 [sub_resource type="Resource" id="attack_charge"]
 script = ExtResource("2_attack_data")
@@ -16,6 +17,6 @@ script = ExtResource("1_data")
 enemy_id = "charge_enemy"
 display_name = "Charge Enemy"
 max_health = 150.0
-max_guard = 32
+guard_profile = ExtResource("3_guard_profile")
 defense = 0.0
 attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_charge")])

@@ -1,8 +1,7 @@
 # enemy_data.gd
-# Designer-authored resource for common enemy tuning: identity, recovery, Level 1 base stats, and
-# attack profiles. This is the single Level 1 authority for max HP, max Guard, and Defense; Health
-# and Guard consume these as runtime state instead of authoring competing defaults, and
-# EnemyLevelProgressionProfile projects them to an enemy's final level.
+# Designer-authored resource for common enemy tuning: identity, recovery, Level 1 HP/Defense, Guard
+# role, and attack profiles. Health consumes these runtime bases while Guard derives its live values
+# from the optional shared profile; EnemyLevelProgressionProfile projects final spawn values.
 class_name EnemyData
 extends Resource
 
@@ -10,7 +9,7 @@ extends Resource
 @export var display_name := ""
 @export var default_recovery_duration := 3.0
 @export var max_health := 100.0
-@export var max_guard := 4
+@export var guard_profile: GuardProfile
 @export var defense := 0.0
 @export var attacks: Array[EnemyAttackData] = []
 
@@ -26,8 +25,7 @@ func validate() -> bool:
     if max_health <= 0.0:
         ToastManager.show_dev_error("EnemyData: max_health must be positive for '%s', got %s" % [enemy_id, max_health])
         valid = false
-    if max_guard < 0:
-        ToastManager.show_dev_error("EnemyData: max_guard must be non-negative for '%s', got %d" % [enemy_id, max_guard])
+    if guard_profile != null and not guard_profile.validate():
         valid = false
     if defense < 0.0:
         ToastManager.show_dev_error("EnemyData: defense must be non-negative for '%s', got %s" % [enemy_id, defense])

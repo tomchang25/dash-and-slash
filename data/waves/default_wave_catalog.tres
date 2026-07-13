@@ -221,13 +221,6 @@ standard_exponent = 1.0
 lethal_coefficient = 0.1
 lethal_exponent = 1.1
 
-[sub_resource type="Resource" id="curve_guard"]
-script = ExtResource("6_curve")
-standard_coefficient = 0.04
-standard_exponent = 1.0
-lethal_coefficient = 0.08
-lethal_exponent = 1.0
-
 [sub_resource type="Resource" id="curve_defense"]
 script = ExtResource("6_curve")
 standard_coefficient = 0.6
@@ -239,7 +232,6 @@ lethal_exponent = 1.0
 script = ExtResource("5_profile")
 hp_curve = SubResource("curve_hp")
 damage_curve = SubResource("curve_damage")
-guard_curve = SubResource("curve_guard")
 defense_curve = SubResource("curve_defense")
 
 [resource]

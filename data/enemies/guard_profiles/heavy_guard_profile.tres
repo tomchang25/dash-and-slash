@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GuardProfile" format=3]
+
+[ext_resource type="Script" path="res://data/enemies/definitions/guard_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+base_guard = 64
+guard_per_lethal_tier = 16
+stagger_ticks = 3
+protection_ticks = 5
+protection_multiplier = 0.5

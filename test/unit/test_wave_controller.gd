@@ -7,6 +7,7 @@ extends GutTest
 const SmallEnemyLineScene := preload("res://game/entities/enemies/small_enemy.tscn")
 const SmallEnemySweepScene := preload("res://game/entities/enemies/small_enemy_sweep.tscn")
 
+
 ## Spawn planner test double: always returns the origin cell so the test doesn't depend on real
 ## grid placement, only on queue/population bookkeeping. Revalidation is stubbed to always pass so
 ## these tests exercise queueing/warning timing, not cell geometry — see the dedicated
@@ -587,6 +588,7 @@ func test_level_projection_callback_uses_wave_number_plus_group_level_offset() -
     add_child_autofree(enemy)
 
     assert_eq(enemy.get_level(), 4, "level should be wave_number (1) plus the group's level_offset (3)")
+    assert_eq(enemy.get_guard().max_guard, 32, "group level_offset must not increase the Wave 1 Small Guard profile")
 
     _free_spawned(fake_spawner)
 
@@ -653,7 +655,6 @@ func _make_profile() -> EnemyLevelProgressionProfile:
     var profile := EnemyLevelProgressionProfile.new()
     profile.hp_curve = curve
     profile.damage_curve = curve
-    profile.guard_curve = curve
     profile.defense_curve = curve
     return profile
 

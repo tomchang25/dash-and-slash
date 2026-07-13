@@ -455,7 +455,7 @@ func _apply_level_projection(enemy: Node, level: int) -> void:
         return
     if _catalog == null or _catalog.progression_profile == null:
         return
-    var projection := _catalog.progression_profile.project(grid_enemy.enemy_data, level)
+    var projection := _catalog.progression_profile.project(grid_enemy.enemy_data, level, _current_wave_number)
     grid_enemy.apply_level_projection(level, projection)
 
 

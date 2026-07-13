@@ -104,7 +104,9 @@ func _ready() -> void:
         _guard.guard_broken.connect(_on_guard_broken)
         _guard.stagger_started.connect(_on_stagger_started)
         _guard.stagger_ended.connect(_on_stagger_ended)
+        _guard.protection_changed.connect(_on_guard_protection_changed)
         _on_guard_changed(_guard.current(), _guard.max_guard)
+        _on_guard_protection_changed(_guard.is_protected())
 
     face_arrow()
     _init_debug_fsm_state()
@@ -144,6 +146,7 @@ func reset() -> void:
         _on_health_changed(health.current(), health.max_health)
     if _guard != null:
         _on_guard_changed(_guard.current(), _guard.max_guard)
+        _on_guard_protection_changed(_guard.is_protected())
     _reset_extra()
 
 # == Signal handlers ==
@@ -181,7 +184,13 @@ func _on_guard_broken() -> void:
 
 func _on_guard_changed(current: int, maximum: int) -> void:
     if _status_bars != null:
-        _status_bars.set_guard(current, maximum)
+        var visible_maximum := maximum if _guard != null and _guard.is_enabled() else 0
+        _status_bars.set_guard(current, visible_maximum)
+
+
+func _on_guard_protection_changed(protected: bool) -> void:
+    if _status_bars != null:
+        _status_bars.set_guard_protected(protected)
 
 
 ## Restores the idle visual after a tick-move slide finishes, unless a higher-priority
@@ -304,6 +313,8 @@ func advance_status() -> bool:
     if _guard != null and _guard.is_staggered():
         _guard.advance_stagger()
         return true
+    if _guard != null and _guard.is_protected():
+        _guard.advance_protection()
     return _tick_runtime.advance_recovery()
 
 
@@ -1050,7 +1061,11 @@ func _initialize_from_enemy_data() -> void:
     if health != null:
         health.initialize(enemy_data.max_health)
     if _guard != null:
-        _guard.initialize(enemy_data.max_guard)
+        if enemy_data.guard_profile == null:
+            _guard.disable_guard()
+        else:
+            var profile := enemy_data.guard_profile
+            _guard.initialize(profile.max_guard_for_base_wave(1), profile.stagger_ticks, profile.protection_ticks, profile.protection_multiplier)
     _defense = enemy_data.defense
 
 
@@ -1066,7 +1081,10 @@ func _apply_pending_projection() -> void:
     if health != null:
         health.initialize(_pending_projection.max_health)
     if _guard != null:
-        _guard.initialize(_pending_projection.max_guard)
+        if _pending_projection.max_guard <= 0:
+            _guard.disable_guard()
+        else:
+            _guard.initialize(_pending_projection.max_guard, _guard.stagger_ticks, _guard.protection_ticks, _guard.protection_multiplier)
 
 
 func _init_debug_fsm_state() -> void:
@@ -1212,10 +1230,11 @@ func _target_snapshot() -> Dictionary:
     return {
         "cell": _grid_pos,
         "facing": _facing_as_cell_dir(),
-        "has_guard": _guard != null,
+        "has_guard": _guard != null and _guard.is_enabled(),
         "guard_current": _guard.current() if _guard != null else 0,
         "guard_max": _guard.max_guard if _guard != null else 0,
         "staggered": _guard.is_staggered() if _guard != null else false,
+        "guard_protection_multiplier": _guard.current_protection_multiplier() if _guard != null else 1.0,
         "hp": health.current() if health != null else 0.0,
         "hp_max": health.max_health if health != null else 0.0,
         "defense": _defense,
