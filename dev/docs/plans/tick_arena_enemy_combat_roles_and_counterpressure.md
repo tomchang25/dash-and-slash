@@ -93,7 +93,7 @@ Final counts, group timing, weights, and growth curves remain deferred to the ex
 | 02    | Hit-triggered facing response and action-order preservation                                      | `tick_arena_enemy_combat_roles_and_counterpressure_02_hit_reaction_facing.implementation_spec.md` |
 | 03    | Thrust and Slash consolidation plus Pierce and Burst production retirement                       | `tick_arena_enemy_combat_roles_and_counterpressure_03_small_roster_consolidation.implementation_spec.md` |
 | 04    | Guardless Bomb self-destruct threat                                                              | `tick_arena_enemy_combat_roles_and_counterpressure_04_bomb_enemy_self_destruct.implementation_spec.md` |
-| 05    | Small-profile Ranged enemy with fixed Cross pressure                                             | `tick_arena_enemy_combat_roles_and_counterpressure_05_ranged_enemy_cross_pressure.sketch.md`          |
+| 05    | Small-profile Ranged enemy with fixed Cross pressure                                             | `tick_arena_enemy_combat_roles_and_counterpressure_05_ranged_enemy_cross_pressure.implementation_spec.md` |
 | 06    | Mode retaliation and per-boss policy seam                                                        | `tick_arena_enemy_combat_roles_and_counterpressure_06_elite_retaliation_and_boss_policy.sketch.md`    |
 | 07    | Role-aware group formations and provisional roster integration                                   | `tick_arena_enemy_combat_roles_and_counterpressure_07_role_aware_spawn_formations.sketch.md`          |
 

@@ -50,6 +50,10 @@ class PathEnemy:
         return plan_approach_action()
 
 
+    func plan_manhattan_distance_band(minimum_range: int, maximum_range: int) -> bool:
+        return plan_manhattan_distance_band_action(minimum_range, maximum_range)
+
+
     func get_planned_path() -> Array[Vector2i]:
         return _planned_path.duplicate()
 
@@ -206,6 +210,49 @@ func test_charge_planning_returns_ready_when_already_at_valid_origin() -> void:
     assert_true(enemy.can_charge_target_from_cell(enemy.get_grid_pos()))
     assert_true(enemy.plan_charge())
     assert_true(enemy.get_planned_path().is_empty())
+
+
+# == Distance-band planning ==
+
+
+func test_manhattan_distance_band_planning_retreats_from_an_adjacent_target() -> void:
+    _setup_square_grid(Vector2i(7, 7))
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(3, 3), _make_target(Vector2i(3, 2)))
+
+    assert_true(enemy.plan_manhattan_distance_band(2, 6))
+    assert_eq(enemy.get_planned_path(), [Vector2i(2, 3)])
+
+
+func test_manhattan_distance_band_planning_approaches_a_far_target_to_the_nearest_band_cell() -> void:
+    _setup_square_grid(Vector2i(7, 7))
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(0, 3), _make_target(Vector2i(5, 3)))
+
+    assert_true(enemy.plan_manhattan_distance_band(2, 3))
+    assert_eq(enemy.get_planned_path(), [Vector2i(1, 3), Vector2i(2, 3)])
+
+
+func test_manhattan_distance_band_planning_is_ready_without_a_path_when_already_in_range() -> void:
+    _setup_square_grid(Vector2i(7, 7))
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(1, 3), _make_target(Vector2i(3, 3)))
+
+    assert_true(enemy.plan_manhattan_distance_band(2, 6))
+    assert_true(enemy.get_planned_path().is_empty())
+
+
+func test_manhattan_distance_band_planning_does_not_treat_diagonal_chebyshev_range_as_ready() -> void:
+    _setup_square_grid(Vector2i(9, 9))
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(0, 0), _make_target(Vector2i(4, 4)))
+
+    assert_true(enemy.plan_manhattan_distance_band(2, 6))
+    assert_false(enemy.get_planned_path().is_empty())
+    var endpoint: Vector2i = enemy.get_planned_path().back()
+    var target_cell := Vector2i(4, 4)
+    var distance := absi(endpoint.x - target_cell.x) + absi(endpoint.y - target_cell.y)
+    assert_true(distance >= 2 and distance <= 6)
 
 
 func _setup_square_grid(size: Vector2i) -> void:

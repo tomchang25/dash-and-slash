@@ -8,6 +8,7 @@ const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const ModeEnemyScene := preload("res://game/entities/enemies/mode_enemy.tscn")
 const BombEnemyScene := preload("res://game/entities/enemies/bomb_enemy.tscn")
+const RangedEnemyScene := preload("res://game/entities/enemies/ranged_enemy.tscn")
 
 # == EnemyData: Level 1 authority ==
 
@@ -51,6 +52,7 @@ func test_production_enemy_data_uses_role_profiles() -> void:
     var expectations := {
         "res://game/entities/enemies/data/thrust_enemy.tres": [100.0, 32, 0.0],
         "res://game/entities/enemies/data/slash_enemy.tres": [100.0, 32, 0.0],
+        "res://game/entities/enemies/data/ranged_enemy.tres": [100.0, 32, 0.0],
         "res://game/entities/enemies/data/charge_enemy.tres": [150.0, 64, 0.0],
         "res://game/entities/enemies/data/mode_enemy.tres": [180.0, 96, 0.0],
         "res://game/entities/enemies/data/mode_boss.tres": [600.0, 128, 5.0],
@@ -81,6 +83,23 @@ func test_bomb_enemy_data_is_guardless_level_one() -> void:
     assert_almost_eq(attack.damage, 50.0, 0.001)
     assert_eq(attack.warning_duration, 3)
     assert_eq(attack.radius, 4)
+
+
+func test_ranged_enemy_data_authors_the_level_one_cross_pressure_values() -> void:
+    var data := load("res://game/entities/enemies/data/ranged_enemy.tres") as EnemyData
+    assert_almost_eq(data.max_health, 100.0, 0.001)
+    assert_almost_eq(data.defense, 0.0, 0.001)
+    assert_not_null(data.guard_profile)
+    assert_eq(data.guard_profile.max_guard_for_base_wave(1), 32)
+    assert_eq(data.attacks.size(), 1)
+
+    var attack: EnemyAttackData = data.attacks[0]
+    assert_eq(attack.attack_kind, EnemyAttackData.AttackKind.TILE)
+    assert_eq(attack.cell_shape, EnemyAttackData.CellShape.CUSTOM_OFFSETS)
+    assert_almost_eq(attack.damage, 10.0, 0.001)
+    assert_eq(attack.warning_duration, 2)
+    assert_eq(attack.recovery_duration, 1)
+    assert_eq(attack.cell_offsets, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)])
 
 # == EnemyStatGrowthCurve ==
 
@@ -384,8 +403,8 @@ func test_catalog_validate_supports_fixed_and_weighted_groups_and_all_conditions
 # == GridEnemy: EnemyData-driven component initialization ==
 
 
-func test_thrust_and_slash_scenes_initialize_shared_small_health_and_guard() -> void:
-    for enemy_scene: PackedScene in [ThrustEnemyScene, SlashEnemyScene]:
+func test_thrust_slash_and_ranged_scenes_initialize_shared_small_health_and_guard() -> void:
+    for enemy_scene: PackedScene in [ThrustEnemyScene, SlashEnemyScene, RangedEnemyScene]:
         var enemy := add_child_autofree(enemy_scene.instantiate()) as GridEnemy
         assert_almost_eq(enemy.health.max_health, 100.0, 0.001)
         assert_almost_eq(enemy.health.current(), 100.0, 0.001)

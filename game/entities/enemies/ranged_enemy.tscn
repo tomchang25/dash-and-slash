@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://dssmenemy01" path="res://game/entities/enemies/thrust_enemy.tscn" id="1_base"]
+[ext_resource type="Script" path="res://game/entities/enemies/ranged_enemy.gd" id="2_ranged"]
+[ext_resource type="Resource" path="res://game/entities/enemies/data/ranged_enemy.tres" id="3_data"]
+[ext_resource type="Texture2D" path="res://game/entities/enemies/assets/ranged_enemy/eye_sprite_sheet.png" id="4_eye_sheet"]
+
+[node name="RangedEnemy" instance=ExtResource("1_base")]
+script = ExtResource("2_ranged")
+enemy_data = ExtResource("3_data")
+
+[node name="Sprite" parent="VisualPresenter" index="0"]
+texture = ExtResource("4_eye_sheet")

@@ -9,6 +9,7 @@ const ThrustEnemyScene := preload("res://game/entities/enemies/thrust_enemy.tscn
 const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
 const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const BombEnemyScene := preload("res://game/entities/enemies/bomb_enemy.tscn")
+const RangedEnemyScene := preload("res://game/entities/enemies/ranged_enemy.tscn")
 
 
 ## Spawn planner test double: always returns the origin cell so the test doesn't depend on real
@@ -585,12 +586,12 @@ func test_default_catalog_weighted_groups_use_only_active_small_roles() -> void:
     _assert_weighted_groups_use_active_small_roles(DefaultWaveCatalog.endless_template)
 
 
-## Wave 1 carries one deterministic Bomb test group after its three-enemy support group so every
-## fresh run exposes the new role without making it a weighted or final-balance roster decision.
-func test_default_catalog_wave_one_has_a_fixed_bomb_test_group() -> void:
+## Wave 1 carries deterministic Bomb then Ranged test groups after its three-enemy support group so
+## every fresh run exposes both roles without making either a weighted or final-balance roster decision.
+func test_default_catalog_wave_one_has_fixed_bomb_and_ranged_test_groups() -> void:
     var wave: WaveDefinition = DefaultWaveCatalog.demo_waves[0]
-    assert_eq(wave.population_cap, 4)
-    assert_eq(wave.groups.size(), 2)
+    assert_eq(wave.population_cap, 5)
+    assert_eq(wave.groups.size(), 3)
 
     var bomb_group: WaveGroupDefinition = wave.groups[1]
     assert_eq(bomb_group.composition_mode, WaveGroupDefinition.CompositionMode.FIXED)
@@ -599,6 +600,14 @@ func test_default_catalog_wave_one_has_a_fixed_bomb_test_group() -> void:
     assert_eq(bomb_group.entries.size(), 1)
     assert_eq(bomb_group.entries[0].enemy_scene, BombEnemyScene)
     assert_eq(bomb_group.entries[0].count, 1)
+
+    var ranged_group: WaveGroupDefinition = wave.groups[2]
+    assert_eq(ranged_group.composition_mode, WaveGroupDefinition.CompositionMode.FIXED)
+    assert_eq(ranged_group.start_condition, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP)
+    assert_eq(ranged_group.warning_ticks, 1)
+    assert_eq(ranged_group.entries.size(), 1)
+    assert_eq(ranged_group.entries[0].enemy_scene, RangedEnemyScene)
+    assert_eq(ranged_group.entries[0].count, 1)
 
 
 func test_weighted_group_draws_exact_total_count() -> void:

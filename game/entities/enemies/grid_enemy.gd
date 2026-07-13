@@ -135,6 +135,8 @@ func reset() -> void:
     super()
     _staggered = false
     _pending_hit_facing_response = false
+    cancel_tick_attack()
+    _tick_runtime.clear_recovery()
     stop_attack_windup_vfx()
     if _body != null:
         _body.modulate = Color.WHITE
@@ -648,6 +650,47 @@ func plan_approach_action() -> bool:
     return true
 
 
+## Plans movement into an inclusive Manhattan-distance band around the target. The target cell is
+## blocked, and the final attack-position reservation uses attack priority without altering BFS ties.
+func plan_manhattan_distance_band_action(minimum_range: int, maximum_range: int) -> bool:
+    clear_planned_path()
+    _reservation_is_attack = true
+
+    if _grid == null or not has_target():
+        return false
+    if minimum_range < 0 or maximum_range < minimum_range:
+        ToastManager.show_dev_error("GridEnemy: distance band must satisfy 0 <= minimum <= maximum")
+        return false
+
+    var start := _grid_pos
+    var target_cell := get_target_cell()
+    if not _grid.is_in_bounds(target_cell):
+        return false
+    if _is_cell_in_manhattan_distance_band(start, target_cell, minimum_range, maximum_range):
+        queue_redraw()
+        return true
+
+    var path := EnemyPathPlanner.find_path_to_best_reachable_cell(
+        _grid,
+        self,
+        _get_movement_directions(),
+        start,
+        target_cell,
+        true,
+        func(cell: Vector2i) -> bool: return _is_cell_in_manhattan_distance_band(cell, target_cell, minimum_range, maximum_range),
+        func(_cell: Vector2i, _path_length: int) -> int: return 0,
+    )
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    if not _refresh_planned_reservations():
+        clear_planned_path()
+        return false
+    queue_redraw()
+    return true
+
+
 ## Clears pending grid movement, active path debug state, and path reservations.
 func clear_planned_path() -> void:
     if _grid != null:
@@ -1030,6 +1073,11 @@ func _update_grid_pos() -> void:
 
 func _is_approach_candidate(cell: Vector2i, target_cell: Vector2i) -> bool:
     return cell != target_cell and _grid.is_walkable(cell)
+
+
+func _is_cell_in_manhattan_distance_band(cell: Vector2i, target_cell: Vector2i, minimum_range: int, maximum_range: int) -> bool:
+    var distance := absi(cell.x - target_cell.x) + absi(cell.y - target_cell.y)
+    return distance >= minimum_range and distance <= maximum_range
 
 
 func _score_approach_candidate(cell: Vector2i, target_cell: Vector2i, path_length: int) -> int:
