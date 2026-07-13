@@ -48,6 +48,8 @@ Reviews use `dev/workflows/review_standard.md`; command files define the review 
 - `/pr-review` -> `dev/workflows/commands/pr-review.md`: reviews the branch against the base branch, then generates a PR title/description without creating files or opening a PR.
 - `/stage-review` -> `dev/workflows/commands/stage-review.md`: checks staged changes against the plan spec and standards lint.
 - `/research-context` -> `dev/workflows/commands/research-context.md`: retrieves relevant codebase context for an idea, scratchboard entry, draft, or small plan without implementing changes.
+- `/spec-discuss` -> `dev/workflows/commands/spec-discuss.md`: inspects a focused target against live code, recommends resolutions for user-authority decisions, and locks the input for a later spec build without editing files.
+- `/spec-build` -> `dev/workflows/commands/spec-build.md`: re-verifies live code, writes the final implementation spec, updates its parent or TODO lifecycle pointers, and lints the documentation without implementing code.
 
 ## Planning And Docs
 
