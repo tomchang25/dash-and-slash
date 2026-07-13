@@ -63,6 +63,9 @@ var _queued_death_sfx_event: SpatialAudioEvent = null
 var _tick_engine = null
 ## Owns this enemy's clocked combat status: committed attack tiles, detonation countdown, recovery window.
 var _tick_runtime := EnemyTickRuntime.new()
+## True while a hit-triggered facing response is queued but not yet funded by an act_tick(); see
+## _queue_hit_facing_response() and consume_pending_hit_facing_response().
+var _pending_hit_facing_response: bool = false
 
 # -- Timer / tween handles --
 
@@ -131,6 +134,7 @@ func _draw() -> void:
 func reset() -> void:
     super()
     _staggered = false
+    _pending_hit_facing_response = false
     stop_attack_windup_vfx()
     if _body != null:
         _body.modulate = Color.WHITE
@@ -169,6 +173,7 @@ func _on_reservation_lost(_entity: Object) -> void:
 
 func _on_guard_broken() -> void:
     _staggered = true
+    _pending_hit_facing_response = false
     stop_attack_windup_vfx()
     clear_planned_path()
     # A guard break clears any banked action energy and cancels the pending attack, so a
@@ -380,6 +385,7 @@ func take_hit(
     _queued_death_sfx_event = null
     if _guard != null and outcome.guard_damage > 0:
         _guard.take_guard_damage(outcome.guard_damage)
+    _queue_hit_facing_response()
     return outcome
 
 
@@ -431,6 +437,15 @@ func tick_face_toward_target() -> bool:
     return tick_turn_toward_cell(get_target_cell())
 
 
+## Returns true when the current facing already covers the cardinal direction of the live target.
+## A target on this cell or no target needs no turn, so neither case should interrupt normal planning.
+func is_facing_target() -> bool:
+    if not has_target():
+        return true
+    var desired := cardinal_snap(Vector2(get_target_cell() - _grid_pos))
+    return desired == Vector2.ZERO or _facing == desired
+
+
 ## Rotates facing at most 90 degrees toward the target's cardinal direction. Returns true once aligned.
 ## The per-tick cap is the flank-depth knob: turning to face a flanker costs actions, opening back hits.
 func tick_turn_toward_cell(target_cell: Vector2i) -> bool:
@@ -444,6 +459,19 @@ func tick_turn_toward_cell(target_cell: Vector2i) -> bool:
         _facing = desired
     face_arrow()
     return _facing == desired
+
+
+## True while a hit-triggered facing response is queued but not yet funded by an act_tick(). Cleared by
+## reset(), death entry, and Guard break, so pooling and post-death readouts never claim a stale response.
+func has_pending_hit_facing_response() -> bool:
+    return _pending_hit_facing_response
+
+
+## Consumes the pending hit-facing response exactly when its funded capped turn begins executing.
+## Called by EnemyFaceOnceState._advance_tick(), never when FaceTarget is merely entered/prepared, so a
+## Speed free action (which never reaches an act_tick()) leaves the response visibly still pending.
+func consume_pending_hit_facing_response() -> void:
+    _pending_hit_facing_response = false
 
 
 ## Consumes one reserved cell from the planned path as a tick snap-step. Returns true when a step was taken.
@@ -693,6 +721,7 @@ func get_guard() -> Guard:
 func begin_death() -> void:
     stop_attack_windup_vfx()
     clear_planned_path()
+    _pending_hit_facing_response = false
     # Vacate the grid cell immediately so other actors and the player can enter during the death tween.
     if _grid != null:
         _grid.unregister_occupant(self)
@@ -1343,3 +1372,21 @@ func _on_death_effects() -> void:
     var dead_state_id := get_dead_state_id()
     if _state_machine != null and dead_state_id >= 0:
         _state_machine.request_transition(dead_state_id, true)
+
+# == Hit-facing response ==
+
+
+## Queues one hit-triggered facing response after take_hit() has applied live HP and Guard. Eligible
+## enemies must require a capped turn: an already front-facing enemy keeps its normal Idle or Reposition
+## intent instead of spending an empty FaceTarget action. Stagger, a committed telegraph, and a resolved
+## death retain priority and never queue a response. A repeated hit while one is pending changes neither
+## the pending count nor the eventual action cost, since it returns before changing the planned path.
+func _queue_hit_facing_response() -> void:
+    if _pending_hit_facing_response:
+        return
+    if not is_alive() or _staggered or _tick_runtime.has_pending_attack() or is_facing_target():
+        return
+    _pending_hit_facing_response = true
+    clear_planned_path()
+    if _state_machine != null:
+        _state_machine.request_transition(get_face_state_id())

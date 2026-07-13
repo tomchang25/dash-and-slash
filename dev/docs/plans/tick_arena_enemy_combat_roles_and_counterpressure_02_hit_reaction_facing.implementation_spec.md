@@ -4,11 +4,11 @@ Parent Plan: `tick_arena_enemy_combat_roles_and_counterpressure.md`
 
 ## Goal
 
-Make a surviving enemy struck outside committed windup prepare one funded facing action toward the player. This closes repeat side/back-hit loops while preserving existing action economy, attack commitments, and Stagger priority.
+Make a surviving enemy struck outside committed windup prepare one funded facing action toward the player when it is not already front-facing. This closes repeat side/back-hit loops while preserving existing action economy, attack commitments, and Stagger priority.
 
 ## Summary
 
-After hit resolution applies HP and Guard state, an eligible enemy abandons stale movement reservations and enters the existing one-step FaceTarget state. It does not turn immediately: the next normal world advance may fund the state, while a Speed free action only leaves the pending state visible.
+After hit resolution applies HP and Guard state, an eligible enemy that needs a turn abandons stale movement reservations and enters the existing one-step FaceTarget state. It does not turn immediately: the next normal world advance may fund the state, while a Speed free action only leaves the pending state visible. An already front-facing enemy retains its normal Idle or Reposition intent instead of paying for an empty FaceTarget action.
 
 Only one response can be pending. Death, Guard Break/Stagger, and a committed telegraph take priority and suppress the response; recovery can retain it until the actor may act. Repeated hits never add turns, restart the cost, or cancel a committed windup.
 
@@ -52,7 +52,7 @@ Only one response can be pending. Death, Guard Break/Stagger, and a committed te
 
 ## Implementation Notes
 
-- Eligible means alive after HP application, no Guard break/Stagger, no pending telegraph, and not Dead or Staggered. A pending response can survive recovery but cannot execute until TickEngine permits an action.
+- Eligible means alive after HP application, no Guard break/Stagger, no pending telegraph, not Dead or Staggered, and not already facing the player. A pending response can survive recovery but cannot execute until TickEngine permits an action.
 - On the first eligible hit, clear path/reservation, mark exactly one response pending, and request FaceTarget unless it is already current. A repeated hit while pending changes neither count nor action cost.
 - FaceTarget still turns at most 90 degrees and may commit only through its existing post-face attack decision. Clear pending response when that state's funded action begins, not when it is prepared.
 - A committed windup is immune even if a hit is non-breaking. A later hit after cancellation follows ordinary eligibility; do not branch on attack kind.
@@ -63,6 +63,7 @@ Only one response can be pending. Death, Guard Break/Stagger, and a committed te
 | Case | Expected Handling |
 | --- | --- |
 | A back hit lands while Reposition has reserved a future cell | Reservation and planned path clear before FaceTarget becomes pending. |
+| A front hit lands while the enemy already faces the player | Existing Idle or Reposition intent stays in place; no empty FaceTarget action is queued. |
 | Two hits land before an enemy receives an action | One FaceTarget action occurs; the second adds no turn. |
 | A hit breaks Guard or kills | Existing Stagger or Dead transition wins; no facing action queues. |
 | A hit lands during committed telegraph | Telegraph remains locked and no response is prepared. |
@@ -70,6 +71,6 @@ Only one response can be pending. Death, Guard Break/Stagger, and a committed te
 
 ## Acceptance Criteria
 
-1. A surviving non-breaking hit outside committed windup clears stale movement and prepares exactly one capped facing action.
+1. A surviving non-breaking hit outside committed windup clears stale movement and prepares exactly one capped facing action only when the enemy needs to turn; a front-facing enemy keeps its current intent.
 2. Free actions never execute it, while the next eligible funded action may turn and then follow normal attack decision rules.
 3. Repeated hits, recovery, Guard Break, Stagger, death, reset, and committed telegraphs retain deterministic priority with no stale reservation or extra facing cost.

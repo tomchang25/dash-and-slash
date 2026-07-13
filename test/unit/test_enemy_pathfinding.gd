@@ -163,6 +163,24 @@ func test_approach_moves_closer_without_stealing_active_step_reservations() -> v
     assert_eq(path[path.size() - 1], Vector2i(1, 1))
 
 
+## Regression for the hit-facing response (GridEnemy._queue_hit_facing_response()), which depends on
+## clear_planned_path() fully releasing a planned movement's reservation so another actor can claim it.
+func test_clear_planned_path_releases_the_grid_reservation() -> void:
+    _setup_square_grid(Vector2i(5, 5))
+    var target_cell := Vector2i(4, 4)
+    var enemy: PathEnemy = autofree(PathEnemy.new())
+    enemy.setup_approach_grid(_grid, Vector2i(0, 0), _make_target(target_cell))
+    assert_true(enemy.plan_approach())
+    var reserved_cell := enemy.get_planned_path()[0]
+    assert_true(_grid.is_reserved_by(reserved_cell, enemy))
+
+    enemy.clear_planned_path()
+
+    assert_true(enemy.get_planned_path().is_empty())
+    var claimant: Node = autofree(Node.new())
+    assert_true(_grid.reserve_cell(claimant, reserved_cell), "an abandoned reservation must be released so another actor can claim the cell")
+
+
 func test_charge_planning_uses_attack_data_origin_range() -> void:
     _setup_square_grid(Vector2i(6, 5))
     var target_cell := Vector2i(4, 2)
