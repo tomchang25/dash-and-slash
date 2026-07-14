@@ -237,7 +237,7 @@ func test_wave_display_text_for_normal_wave() -> void:
     var wc := WaveController.new()
     wc.set_catalog(_make_catalog_for_wave_one(_make_single_slot_wave()))
     wc.advance_wave()
-    assert_false(wc.is_milestone_wave(), "a wave with no is_boss slot is not a milestone wave")
+    assert_false(wc.is_boss_wave(), "a wave with no is_boss slot is not a boss wave")
     assert_eq(wc.get_wave_display_text(), "Wave 1")
 
 
@@ -248,7 +248,7 @@ func test_wave_display_text_for_boss_wave() -> void:
     var wc := WaveController.new()
     wc.set_catalog(_make_catalog_for_wave_one(boss_wave))
     wc.advance_wave()
-    assert_true(wc.is_milestone_wave(), "a wave with an is_boss slot is a milestone wave")
+    assert_true(wc.is_boss_wave(), "a wave with an is_boss slot is a boss wave")
     assert_eq(wc.get_wave_display_text(), "Wave 1: BOSS")
 
 # == Population cap + spawn-warning queueing ==
@@ -270,8 +270,8 @@ func test_full_group_spawns_atomically_and_wave_completes_after_all_die() -> voi
 
     var completed_calls: Array = []
     wc.normal_wave_completed.connect(
-        func(wave_number: int, is_milestone: bool) -> void:
-            completed_calls.append([wave_number, is_milestone])
+        func(wave_number: int) -> void:
+            completed_calls.append(wave_number)
     )
 
     wc.start_next_wave()
@@ -287,8 +287,7 @@ func test_full_group_spawns_atomically_and_wave_completes_after_all_die() -> voi
         dying.died.emit(dying)
 
     assert_eq(completed_calls.size(), 1, "wave should complete exactly once, after the batch and its population are gone")
-    assert_eq(completed_calls[0][0], 1, "completed wave number should be 1")
-    assert_false(completed_calls[0][1], "a single non-boss group is not a milestone wave")
+    assert_eq(completed_calls[0], 1, "completed wave number should be 1")
 
     _free_spawned(fake_spawner)
 
@@ -547,7 +546,7 @@ func test_wave_completes_only_after_all_groups_and_warnings_are_exhausted() -> v
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     var completed_calls: Array = []
-    wc.normal_wave_completed.connect(func(n: int, m: bool) -> void: completed_calls.append([n, m]))
+    wc.normal_wave_completed.connect(func(n: int) -> void: completed_calls.append(n))
 
     wc.start_next_wave()
     assert_true(completed_calls.is_empty())
@@ -579,7 +578,7 @@ func test_debug_wave_one_boss_spawns_after_authored_enemies_and_delays_completio
     var completed_calls: Array = []
     var boss_spawned_count := [0]
     var boss_cleared_count := [0]
-    wc.normal_wave_completed.connect(func(n: int, m: bool) -> void: completed_calls.append([n, m]))
+    wc.normal_wave_completed.connect(func(n: int) -> void: completed_calls.append(n))
     wc.boss_spawned.connect(func(_boss: Node) -> void: boss_spawned_count[0] += 1)
     wc.boss_cleared.connect(func() -> void: boss_cleared_count[0] += 1)
 
@@ -598,7 +597,7 @@ func test_debug_wave_one_boss_spawns_after_authored_enemies_and_delays_completio
     debug_boss.died.emit(debug_boss)
 
     assert_eq(boss_cleared_count[0], 1)
-    assert_eq(completed_calls, [[1, false]], "killing the debug Boss should complete Wave 1 normally")
+    assert_eq(completed_calls, [1], "killing the debug Boss should complete Wave 1 normally")
     _free_spawned(fake_spawner)
 
 
@@ -614,7 +613,7 @@ func test_wave_one_debug_boss_never_spawns_while_debug_is_disabled() -> void:
     wc.set_debug_wave_one_boss_scene(ModeBossScene)
 
     var completed_calls: Array = []
-    wc.normal_wave_completed.connect(func(n: int, m: bool) -> void: completed_calls.append([n, m]))
+    wc.normal_wave_completed.connect(func(n: int) -> void: completed_calls.append(n))
 
     wc.start_next_wave()
     wc.trigger_world_advanced()
@@ -622,7 +621,7 @@ func test_wave_one_debug_boss_never_spawns_while_debug_is_disabled() -> void:
     authored_enemy.died.emit(authored_enemy)
 
     assert_eq(fake_spawner.spawned.size(), 1)
-    assert_eq(completed_calls, [[1, false]], "release-safe flow should complete without injecting the debug Boss")
+    assert_eq(completed_calls, [1], "release-safe flow should complete without injecting the debug Boss")
     _free_spawned(fake_spawner)
 
 # == Boss role ==

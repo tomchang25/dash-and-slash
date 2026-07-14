@@ -14,8 +14,8 @@
 class_name WaveController
 extends RefCounted
 
-signal wave_started(display_text: String, is_milestone_wave: bool)
-signal normal_wave_completed(wave_number: int, is_milestone_wave: bool)
+signal wave_started(display_text: String, is_boss_wave: bool)
+signal normal_wave_completed(wave_number: int)
 signal boss_spawned(boss: Node)
 signal boss_cleared
 signal spawn_warning_changed(cells: Array[Vector2i], ticks: int)
@@ -147,8 +147,9 @@ func advance_wave() -> bool:
     return true
 
 
-## Returns true when the active wave's slots include an authored boss slot.
-func is_milestone_wave() -> bool:
+## Returns true when the active wave's slots include an authored boss slot. Boss identity is
+## display/lifecycle only; it does not decide reward rarity or cadence (owned by TickRunController).
+func is_boss_wave() -> bool:
     var wave := _active_wave()
     if wave == null:
         return false
@@ -165,7 +166,7 @@ func get_wave_number() -> int:
 
 ## Returns the text shown for the current wave.
 func get_wave_display_text() -> String:
-    if is_milestone_wave():
+    if is_boss_wave():
         return "Wave %d: BOSS" % get_wave_number()
     return "Wave %d" % get_wave_number()
 
@@ -243,7 +244,7 @@ func _begin_wave() -> void:
     if wave == null:
         ToastManager.show_dev_error("WaveController: no wave definition resolved for wave %d" % _current_wave_number)
         return
-    wave_started.emit(get_wave_display_text(), is_milestone_wave())
+    wave_started.emit(get_wave_display_text(), is_boss_wave())
     _prepare_slot_queues(wave)
     _evaluate_slot_eligibility()
     _schedule_next_warning_batch()
@@ -274,7 +275,7 @@ func _check_wave_completion() -> void:
         return
     if _try_spawn_debug_wave_one_boss():
         return
-    normal_wave_completed.emit(get_wave_number(), is_milestone_wave())
+    normal_wave_completed.emit(get_wave_number())
 
 
 ## Injects one untelegraphed Boss after authored Wave 1 enemies are exhausted so retaliation and

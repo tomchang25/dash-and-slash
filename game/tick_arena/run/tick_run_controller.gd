@@ -54,7 +54,6 @@ var _reward_generator: WaveRewardChoiceGenerator
 var _reward_context: WaveRewardContext
 var _reward_flow_state := RewardFlowState.NONE
 var _completed_wave_number := 0
-var _completed_wave_is_milestone := false
 var _highest_completed_wave := 0
 var _demo_completed := false
 var _run_finalized := false
@@ -90,14 +89,13 @@ func _on_reward_choice_applied() -> void:
             _finish_reward_flow()
 
 
-## Locks player input, stores the completed wave's number and milestone flag for the reward flow
-## that follows, records it as the run's new highest completed wave before any post-wave
-## presentation, and shows the "WAVE END" banner once the wave controller reports every queued and
-## alive enemy is gone; the wave-10 demo-completion branch or the reward choice only opens once the
-## banner has fully faded out.
-func _on_normal_wave_completed(wave_number: int, is_milestone_wave: bool) -> void:
+## Locks player input, stores the completed wave's number for the reward flow that follows, records
+## it as the run's new highest completed wave before any post-wave presentation, and shows the
+## "WAVE END" banner once the wave controller reports every queued and alive enemy is gone; the
+## wave-10 demo-completion branch or the reward choice only opens once the banner has fully faded
+## out.
+func _on_normal_wave_completed(wave_number: int) -> void:
     _completed_wave_number = wave_number
-    _completed_wave_is_milestone = is_milestone_wave
     _highest_completed_wave = max(_highest_completed_wave, wave_number)
     action_controller.set_input_locked(true)
     _show_wave_banner("WAVE END")
@@ -328,14 +326,23 @@ func _wire_reward_flow() -> void:
 
 
 ## Opens the reward offer for the wave that was just cleared: a normal Minor three-choice, or a
-## milestone offer with a fixed Minor x2 first slot and per-slot Major-or-Minor x2 fallback.
+## milestone offer with a fixed Minor x2 first slot and per-slot Major-or-Minor x2 fallback. Major
+## cadence is decided here, purely from the completed wave number — never from Boss identity, the
+## catalog, or demo completion.
 func _open_reward_choice() -> void:
-    if _completed_wave_is_milestone:
+    if _is_major_reward_wave(_completed_wave_number):
         _reward_flow_state = RewardFlowState.AWAITING_MILESTONE_REWARD
         _reward_controller.show_offer("Milestone Reward", _build_milestone_offer(_completed_wave_number))
     else:
         _reward_flow_state = RewardFlowState.AWAITING_NORMAL_REWARD
         _reward_controller.show_offer("Choose a Reward", _build_normal_offer(_completed_wave_number))
+
+
+## Every-third completed wave opens the Major milestone offer; every other wave opens the normal
+## Minor offer. This is the sole cadence input: Boss wave 10 is not divisible by three, so continuing
+## past it opens a normal offer, and wave 12 opens a Major offer despite having no Boss.
+func _is_major_reward_wave(wave_number: int) -> bool:
+    return wave_number > 0 and wave_number % 3 == 0
 
 
 ## Ends the current reward flow and starts the next wave — the sole path back to gameplay after a
