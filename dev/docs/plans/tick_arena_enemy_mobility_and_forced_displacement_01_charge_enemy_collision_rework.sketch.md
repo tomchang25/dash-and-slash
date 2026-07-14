@@ -8,13 +8,13 @@ Explore the implementation boundary for turning ChargeEnemy's current damage-lin
 
 ## Summary
 
-The likely implementation should keep ChargeEnemy's existing alignment, turn cost, five-cell authored line, warning countdown, recovery, presenter cues, and telegraph ownership. The major change is detonation: instead of damaging the player if present and selecting the farthest open landing independently, one ordered traversal result should decide damage, displacement, final ChargeEnemy position, occupancy updates, and feedback together.
+The likely implementation should keep ChargeEnemy's alignment requirement, five-cell authored line, warning countdown, recovery, presenter cues, and telegraph ownership while adopting the parent enemy-action rule that commitment turns and locks the charge without a separate FaceTarget action. The major detonation change is that, instead of damaging the player if present and selecting the farthest open landing independently, one ordered traversal result should decide damage, displacement, final ChargeEnemy position, occupancy updates, and feedback together.
 
 This slice is also the proving ground for forced displacement that Viking Smash Knockback will reuse later. The later implementation spec should extract only the smallest reusable collision/displacement rule justified by ChargeEnemy rather than building a speculative universal physics layer for future Item or DestroyedObject types that do not exist yet.
 
 ## Sketch
 
-- `ChargeEnemy._can_charge_now()` currently requires cardinal alignment, completed facing, and the player inside `get_charge_cells()`. That is the favored commit contract to preserve.
+- `ChargeEnemy._can_charge_now()` currently requires cardinal alignment, completed facing, and the player inside `get_charge_cells()`. Revise this so cardinal alignment and an unblocked player-containing line are sufficient; commitment derives the cardinal direction from the aligned target, updates facing for presentation/Guard truth, and locks the line in the same funded action.
 - `ChargeEnemy.begin_attack_telegraph()` stores the current charge cells and the tick runtime locks them for warning/charge display. The stored ordered line is the likely committed route; detonation must not recompute toward the player's new location.
 - `ChargeEnemy._tick_detonate()` currently calls the shared player-line damage helper, then `GridEnemy.get_charge_landing_cell()` and one `tick_snap_to_cell()`. The later spec should replace this split resolution with one ordered traversal outcome so damage and landing cannot disagree.
 - `GridArena` owns occupancy/reservation truth, while `TickEngine` exposes living-enemy lookup and open-cell checks. Forced movement likely needs a narrow grid-actor relocation API or explicit callbacks for player and GridEnemy rather than direct field mutation from ChargeEnemy.
@@ -32,7 +32,7 @@ This slice is also the proving ground for forced displacement that Viking Smash 
 1. No DashEnemy implementation.
 2. No Viking Smash Knockback implementation.
 3. No concrete Item, DestroyedObject, or generated-obstacle feature.
-4. No change to the five-cell range, facing turn cost, warning duration, recovery duration, or base attack damage outside the explicit half/double collision multipliers.
+4. No change to the five-cell range, warning duration, recovery duration, or base attack damage outside the explicit half/double collision multipliers; the separate facing turn cost is intentionally removed by the parent enemy-action contract.
 5. No real-time physics collision or animation-driven resolution.
 
 ## Acceptance Criteria
@@ -40,5 +40,5 @@ This slice is also the proving ground for forced displacement that Viking Smash 
 1. ChargeEnemy resolves the committed five-cell route in order and ends in the same cell the collision result reports.
 2. Player push, pinned double damage, movable-actor half damage/lateral displacement, and fixed-Environment blocking follow the parent plan.
 3. Forced actors update occupancy and abandon stale reservations/plans immediately while visual motion remains presentation-only.
-4. Existing ChargeEnemy facing, windup, telegraph, recovery, stagger cancellation, and death cleanup remain readable and functional.
+4. ChargeEnemy turns and commits without a separate FaceTarget action, while windup, telegraph, recovery, stagger cancellation, and death cleanup remain readable and functional.
 

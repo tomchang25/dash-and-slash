@@ -14,7 +14,7 @@ Because the player has no combat facing, "behind" means the cell one step beyond
 
 ## Sketch
 
-- The candidate commit check searches a cardinal line up to five cells, retains the existing enemy facing/turn cost before commitment, and requires both the player cell and the one-cell-beyond landing to be valid at windup start.
+- The candidate commit check searches a cardinal line up to five cells and requires both the player cell and the one-cell-beyond landing to be valid at windup start. Under the shared enemy-action contract, commitment derives and presents the approach direction in the same funded action rather than paying a separate facing turn.
 - The committed data likely needs the approach direction, locked player cell, path through the player, and locked landing cell. The warning display should distinguish the danger cell from the landing marker.
 - The landing validity check should use the same land/occupancy truth as player Dash and enemy movement, but DashEnemy must not inherit player Dash victims, Mobility rewards, range bonuses, or cooldown rules.
 - At detonation, revalidate only the committed landing cell. If it is non-land or occupied by the player, another enemy, or a future blocking actor, cancel the attack, clear presentation, and enter normal recovery without teleporting or dealing damage.
@@ -37,5 +37,5 @@ Because the player has no combat facing, "behind" means the cell one step beyond
 2. Windup shows the locked attack cell and landing before resolution.
 3. An occupied landing at detonation cancels the attack with no teleport or damage.
 4. A valid detonation places DashEnemy across the locked player cell and damages only a player who remained in that cell.
-5. DashEnemy never pushes blockers, damages path occupants, reads player facing, or retargets during windup.
+5. DashEnemy turns and commits without a separate FaceTarget action, and never pushes blockers, damages path occupants, reads player facing, or retargets during windup.
 

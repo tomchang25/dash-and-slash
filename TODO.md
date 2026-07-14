@@ -30,7 +30,10 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
-- [enemy_mobility] Rework committed enemy mobility around ChargeEnemy collision displacement and a new DashEnemy backline ambush — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
+- [action_points] Replace Speed-meter free actions with player-round AP, overflow-aware Chain Dash, and round-relative timing — [ref plans/tick_arena_action_points_and_relative_timing.md]
+- [enemy_commitment] Remove the FaceOnce action tax, add immediate hit-facing and multi-step MoveActions, and replan conflicts within one enemy-phase action — [ref plans/enemy_action_commitment_and_replanning.md]
+- [enemy_mobility] Rework ChargeEnemy as a facing-free collision charge, add DashEnemy backline ambush, and establish shared forced displacement — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
+- [execution_resistance] Convert Execution instant kills into triple Mobility damage against bosses and other resistant enemies — [ref plans/combat_execution_resistance.md]
 - [meta_progression] Add save-backed Coin, Ninja-clear Viking unlock, Main Menu character selection, and purchasable Artifact pool unlocks — [ref plans/meta_progression.md]
 
 ---
@@ -59,42 +62,21 @@ Character classes use fixed, non-shared Mobility identities, so future Majors ex
 - Keep Mobility execution behavior owned by the active payload while artifacts contribute named modifiers or triggers; do not restore payload-replacement artifacts.
 - If future classes ever share a Mobility, revisit whether required-Mobility filtering also needs an explicit class restriction instead of making those classes share every Major automatically.
 
-### Normal Attack Variants
+### 0.1.0 Player Baseline Balance Pass
 
-Normal attack shape variants are frozen while the first character classes establish identity through fixed Mobility and Mobility-specific Majors. Every initial class keeps the current one-cell cardinal normal attack.
+Current enemies feel too punishing, but exact player buffs should land only after enemy commitment, timing, and forced-displacement behavior stop changing so balance is not tuned around avoidable action-tax or occupancy bugs.
 
-- Revisit line, arc, wide, or other footprints only after Ninja and Viking have been playtested as distinct Mobility identities.
-- Any future variant pass must resolve one shared footprint for preview, committed hits, and auto-attack-on-move so the displayed cells cannot disagree with the executed attack.
-- Define penetration, obstacle blocking, multi-target order, and any windup or recovery trade-off before allowing a larger footprint to ship.
+- Playtest both Ninja and Viking across the authored ten-wave demo after the combat-rule plans land.
+- Compare authored player maximum health, normal and Mobility damage, base Mobility cooldowns, and reward magnitudes before changing enemy role identities or encounter grammar.
+- Keep the final adjustments in authored balance data and avoid hidden difficulty compensation or unconditional enemy-stat pressure.
 
-### Samurai Character Class
+### Smash Occupied Landing Resolution
 
-Samurai is deferred until Ninja and Viking prove the fixed-Mobility class model. Because different classes do not share Mobility in the current direction, Samurai needs its own Mobility identity rather than reusing Dash.
+An armed Smash must not be cancelled, rejected indefinitely, or reduced to leaving the player at the origin merely because an enemy occupied the locked landing during Windup. The non-cancelling collision result remains undecided and stays outside the enemy mobility plan until that rule is locked.
 
-- Decide whether guard and counter timing deserve a new player combat verb/state or whether Samurai should use a different mobility-centered fantasy.
-- Keep Samurai out of the initial class data, selection surface, sprite work, and Major eligibility pools.
-
-### Enemy Idle And Path Reservation Follow-up
-
-Enemy Idle is currently a tick decision state, not a long-lived waiting state. When a GridEnemy in Reposition loses ownership of the first reserved path step, `tick_step_along_path()` clears the path and returns false; `EnemyRepositionState` then transitions back to Idle instead of replanning, turning, or committing inside the same funded actor action. That makes path conflicts consume the enemy's action and produces visible idle churn. Newly spawned enemies can show a related symptom because the first Idle decision may only transition into Reposition, with the actual step delayed until the next `advance_tick()`.
-
-- Decide whether one funded enemy action should resolve decision plus movement/turn/commit in the same tick, instead of paying a separate FSM-transition tick.
-- Add an immediate replan path for reservation-lost or blocked-first-step cases so the enemy still simulates useful behavior when its planned path is stolen.
-- Recheck newly spawned enemy behavior after spawn warning resolution so first-round actors do not appear parked in Idle for the next round.
-
-### Spawn Telegraph Forced Displacement Follow-up
-
-Keep the group-based spawning refactor on its current safe replacement behavior when the player occupies a warned spawn cell at resolution. After the shared forced-displacement and occupancy-refresh contract in `tick_arena_enemy_mobility_and_forced_displacement.md` is implemented and proven, revisit whether the enemy should instead spawn on its warned cell and displace the player.
-
-- Reuse the shared forced-displacement seam rather than adding spawn-owned knockback logic or coupling spawning directly to `ChargeEnemy`.
-- Define displacement direction, legal destination selection, pinned-player handling, damage, simultaneous spawn order, and warning-to-resolution agreement before this becomes actionable.
-- Keep this future behavior outside the group-based spawning refactor; spawning telegraphs may block enemy path planning first while player-cell resolution continues to use nearby legal replacement placement.
-
-### Wave Reward Deferred Ideas
-
-Later reward-economy work, kept behind the core loop stabilizing. The former terrain-targeting and terrain-shaping ideas were dropped — per-wave terrain mutation is frozen and the obstacle-grid direction replaces that pressure channel.
-
-- Card rarity, weighted rolls, deck-building economy, and final card art.
+- Instantly killing the blocking center enemy so Smash lands normally is one candidate.
+- Reuse the shared forced-displacement seam when the center enemy can move, but do not treat failed displacement as action cancellation.
+- Define the resistant Boss or priority-target result together with the final blocked-displacement rule before promoting this Draft.
 
 ### Forced Trade-Off Curses And Nemesis
 
@@ -112,13 +94,6 @@ The data-driven wave and level cutover removed the current pressure curses. A la
 
 - Corrupt Land（已自 tick rework 流程退役）是此方向的第一個候選危險格機制——spec 保留在 `archived/tick_combat_rework_06a_corrupt_land.implementation_spec.md`，撿起時先對照 codebase 修訂。
 
-### Player Action State Ownership
-
-Player movement, Smash windup ("prepare attack"), and normal attack are all resolved inline inside `TickActionController.handle_verb()`'s verb match/dispatch, not through the project's `StateMachine`/`State` delegation pattern. Smash's two-phase prepare/release is tracked with a single `_smash_armed` bool on `TickPlayer` (`arm_smash`/`disarm_smash`/`is_smash_armed`) rather than a real state object, and normal attack has no windup phase at all.
-
-- Revisit whether this should move onto the shared `StateMachine`/`State` framework once more multi-phase player actions exist (e.g. a future Samurai guard/counter verb, see Samurai Character Class above).
-- Until then, treat `TickActionController` verb dispatch plus the `_smash_armed` flag as the intentional lightweight shape — do not add more ad hoc bools for new multi-phase actions without reconsidering this.
-
 ### Defensive Terrain And Tower Reward Cards
 
 Later reward cards that add player-owned board pressure, re-anchored to the stable-base obstacle-grid direction (see 增加額外障礙物 Grid 替代) now that per-wave terrain mutation is frozen.
@@ -127,3 +102,36 @@ Later reward cards that add player-owned board pressure, re-anchored to the stab
 - Add Tower as a reward card that regularly attacks nearby tiles.
 - Add Archer Tower as a reward card that behaves like Tower but launches one-hit arrows.
 - Keep these behind the obstacle-grid work and basic enemy spawn weighting.
+
+## Future Draft
+
+Preliminary concepts — bigger than a one-liner, but a single `###` sub-section says enough. Not necessarily actionable yet. One `###` heading per idea (nested under this `## Draft` so the section stays intact). When an idea outgrows its sub-section / becomes actionable / needs a stable link → move it into its own `dev/docs/plans/<x>.md` and delete it here. Stale and never grew → just delete it.
+
+### Spawn Telegraph Forced Displacement Follow-up
+
+Keep the group-based spawning refactor on its current safe replacement behavior when the player occupies a warned spawn cell at resolution. After the shared forced-displacement and occupancy-refresh contract in `tick_arena_enemy_mobility_and_forced_displacement.md` is implemented and proven, revisit whether the enemy should instead spawn on its warned cell and displace the player.
+
+- Reuse the shared forced-displacement seam rather than adding spawn-owned knockback logic or coupling spawning directly to `ChargeEnemy`.
+- Define displacement direction, legal destination selection, pinned-player handling, damage, simultaneous spawn order, and warning-to-resolution agreement before this becomes actionable.
+- Keep this future behavior outside the group-based spawning refactor; spawning telegraphs may block enemy path planning first while player-cell resolution continues to use nearby legal replacement placement.
+
+### Normal Attack Variants
+
+Normal attack shape variants are frozen while the first character classes establish identity through fixed Mobility and Mobility-specific Majors. Every initial class keeps the current one-cell cardinal normal attack.
+
+- Revisit line, arc, wide, or other footprints only after Ninja and Viking have been playtested as distinct Mobility identities.
+- Any future variant pass must resolve one shared footprint for preview, committed hits, and auto-attack-on-move so the displayed cells cannot disagree with the executed attack.
+- Define penetration, obstacle blocking, multi-target order, and any windup or recovery trade-off before allowing a larger footprint to ship.
+
+### Samurai Character Class
+
+Samurai is deferred until Ninja and Viking prove the fixed-Mobility class model. Because different classes do not share Mobility in the current direction, Samurai needs its own Mobility identity rather than reusing Dash.
+
+- Decide whether guard and counter timing deserve a new player combat verb/state or whether Samurai should use a different mobility-centered fantasy.
+- Keep Samurai out of the initial class data, selection surface, sprite work, and Major eligibility pools.
+
+### Wave Reward Deferred Ideas
+
+Later reward-economy work, kept behind the core loop stabilizing. The former terrain-targeting and terrain-shaping ideas were dropped — per-wave terrain mutation is frozen and the obstacle-grid direction replaces that pressure channel.
+
+- Card rarity, weighted rolls, deck-building economy, and final card art.
