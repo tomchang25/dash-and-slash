@@ -39,8 +39,6 @@ Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a 
 
 One-line, no reasoning, no backing doc.
 
-- [docs] Sync the GDD to v0.5 shipped reality (drop the draft banner, close resolved deferred-list items) — remaining tail from the archived tick combat rework cutover.
-
 ---
 
 ## Bug
