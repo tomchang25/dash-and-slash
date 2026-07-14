@@ -73,7 +73,7 @@ After a hit resolves, an enemy that remains alive, did not enter Stagger, and ha
 | Mode   | Elite-profile multi-attack enemy that combines established attack languages and gains post-Stagger retaliation.                                                                                            |
 | Boss   | Individually authored encounter using the default Boss Guard profile only when no bespoke policy replaces it; the existing Mode-based boss remains a placeholder.                                          |
 
-Pierce and Burst leave the production roster because Pierce does not create a sufficiently distinct positioning problem and Burst overlaps Bomb's close-area role. Their reusable assets may remain parked until a later cleanup explicitly removes them.
+Pierce and Burst leave the production roster and their scenes, data resources, and palettes are removed because Pierce does not create a sufficiently distinct positioning problem and Burst overlaps Bomb's close-area role. No compatibility alias or parked copy remains for these retired identities.
 
 ### Elite retaliation
 

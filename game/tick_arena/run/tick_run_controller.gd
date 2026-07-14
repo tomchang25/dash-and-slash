@@ -97,6 +97,8 @@ func _on_reward_choice_applied() -> void:
 func _on_normal_wave_completed(wave_number: int) -> void:
     _completed_wave_number = wave_number
     _highest_completed_wave = max(_highest_completed_wave, wave_number)
+    if wave_number == WaveCatalog.DEMO_WAVE_COUNT:
+        _demo_completed = true
     action_controller.set_input_locked(true)
     _show_wave_banner("WAVE END")
 
@@ -283,10 +285,8 @@ func _finalize_run(reason: RunOutcome.Reason) -> void:
     result_overlay.show_result(_run_outcome)
 
 
-## Marks run-local demo completion once, pauses, and opens the wave-10 End Run / Continue Endless
-## choice. Reached only once, right after the wave-10 banner fades.
+## Pauses and opens the wave-10 End Run / Continue Endless choice after the completion banner fades.
 func _open_demo_completion_choice() -> void:
-    _demo_completed = true
     get_tree().paused = true
     demo_completion_overlay.show_choice()
 

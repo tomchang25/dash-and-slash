@@ -489,6 +489,7 @@ func _spawn_one(entry: Dictionary, slot_index: int) -> void:
         func(e: Node) -> void: _apply_level_projection(e, level),
     )
     if enemy == null:
+        ToastManager.show_dev_error("WaveController: failed to spawn enemy from pending group entry")
         return
     _alive_enemies.append(enemy)
     _enemy_slot_index[enemy] = slot_index
