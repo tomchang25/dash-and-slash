@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="GuardProfile" format=3 uid="uid://df24bkpriub0w"]
+
+[ext_resource type="Script" uid="uid://bqqxlll5b8y8x" path="res://data/enemies/definitions/guard_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+base_guard = 128
+guard_per_lethal_tier = 32

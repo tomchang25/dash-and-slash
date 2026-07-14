@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="WaveCatalog" format=3 uid="uid://dwavecatalog1"]
+
+[ext_resource type="Script" uid="uid://bku1eqvtpyqr3" path="res://data/waves/definitions/wave_catalog.gd" id="1_catalog"]
+[ext_resource type="Script" uid="uid://dkj13wuxgek8y" path="res://data/waves/definitions/enemy_level_progression_profile.gd" id="2_profile"]
+[ext_resource type="Script" uid="uid://chpa5spmh7wpy" path="res://data/waves/definitions/enemy_stat_growth_curve.gd" id="3_curve"]
+[ext_resource type="Script" uid="uid://bjc811ue2akbj" path="res://data/waves/definitions/wave_definition.gd" id="4_wave_def"]
+[ext_resource type="Resource" uid="uid://dwavedemo0001" path="res://data/waves/demo/wave_01.tres" id="10_wave1"]
+[ext_resource type="Resource" uid="uid://dwavedemo0002" path="res://data/waves/demo/wave_02.tres" id="11_wave2"]
+[ext_resource type="Resource" uid="uid://dwavedemo0003" path="res://data/waves/demo/wave_03.tres" id="12_wave3"]
+[ext_resource type="Resource" uid="uid://dwavedemo0004" path="res://data/waves/demo/wave_04.tres" id="13_wave4"]
+[ext_resource type="Resource" uid="uid://dwavedemo0005" path="res://data/waves/demo/wave_05.tres" id="14_wave5"]
+[ext_resource type="Resource" uid="uid://dwavedemo0006" path="res://data/waves/demo/wave_06.tres" id="15_wave6"]
+[ext_resource type="Resource" uid="uid://dwavedemo0007" path="res://data/waves/demo/wave_07.tres" id="16_wave7"]
+[ext_resource type="Resource" uid="uid://dwavedemo0008" path="res://data/waves/demo/wave_08.tres" id="17_wave8"]
+[ext_resource type="Resource" uid="uid://dwavedemo0009" path="res://data/waves/demo/wave_09.tres" id="18_wave9"]
+[ext_resource type="Resource" uid="uid://dwavedemo0010" path="res://data/waves/demo/wave_10.tres" id="19_wave10"]
+[ext_resource type="Resource" uid="uid://dwaveendless1" path="res://data/waves/endless/default_endless_wave.tres" id="20_endless"]
+
+[sub_resource type="Resource" id="curve_damage"]
+script = ExtResource("3_curve")
+standard_coefficient = 0.05
+lethal_coefficient = 0.1
+lethal_exponent = 1.1
+
+[sub_resource type="Resource" id="curve_defense"]
+script = ExtResource("3_curve")
+standard_coefficient = 0.6
+lethal_coefficient = 1.2
+
+[sub_resource type="Resource" id="curve_hp"]
+script = ExtResource("3_curve")
+standard_coefficient = 0.08
+lethal_coefficient = 0.15
+lethal_exponent = 1.2
+
+[sub_resource type="Resource" id="progression_profile"]
+script = ExtResource("2_profile")
+hp_curve = SubResource("curve_hp")
+damage_curve = SubResource("curve_damage")
+defense_curve = SubResource("curve_defense")
+
+[resource]
+script = ExtResource("1_catalog")
+demo_waves = Array[ExtResource("4_wave_def")]([ExtResource("10_wave1"), ExtResource("11_wave2"), ExtResource("12_wave3"), ExtResource("13_wave4"), ExtResource("14_wave5"), ExtResource("15_wave6"), ExtResource("16_wave7"), ExtResource("17_wave8"), ExtResource("18_wave9"), ExtResource("19_wave10")])
+endless_template = ExtResource("20_endless")
+progression_profile = SubResource("progression_profile")

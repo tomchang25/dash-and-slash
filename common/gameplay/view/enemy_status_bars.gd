@@ -6,6 +6,8 @@ extends Node2D
 # -- Exports --
 
 const GUARD_POINTS_PER_SHIELD := 4
+const PROTECTED_GUARD_COLOR := Color(0.3, 0.85, 1.0, 1.0)
+const ORDINARY_GUARD_COLOR := Color.WHITE
 
 @export var shield_scene: PackedScene
 @export var shields_per_row: int = 4
@@ -16,6 +18,7 @@ const GUARD_POINTS_PER_SHIELD := 4
 
 var _current_guard := 0
 var _max_guard := 0
+var _guard_protected := false
 var _shield_icons: Array[ShieldStatusIcon] = []
 
 # -- Node references --
@@ -44,9 +47,16 @@ func set_guard(current: int, maximum: int) -> void:
     _apply_guard()
 
 
+## Updates the existing shield presentation to distinguish post-Stagger protected Guard.
+func set_guard_protected(protected: bool) -> void:
+    _guard_protected = protected
+    _apply_guard()
+
+
 func reset() -> void:
     _apply_health(_hp_bar.max_value, _hp_bar.max_value)
     _current_guard = _max_guard
+    _guard_protected = false
     _apply_guard()
 
 
@@ -63,6 +73,7 @@ func _apply_health(current: float, maximum: float) -> void:
 
 
 func _apply_guard() -> void:
+    _shield_container.modulate = PROTECTED_GUARD_COLOR if _guard_protected and _max_guard > 0 else ORDINARY_GUARD_COLOR
     for shield_index in _shield_icons.size():
         var points := clampi(_current_guard - shield_index * GUARD_POINTS_PER_SHIELD, 0, GUARD_POINTS_PER_SHIELD)
         _shield_icons[shield_index].set_points(points)

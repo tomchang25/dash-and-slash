@@ -5,11 +5,7 @@
 [ext_resource type="Resource" uid="uid://2fk0ol45s6be" path="res://data/rewards/artifacts/attack_up.tres" id="art_attack_up"]
 [ext_resource type="Resource" uid="uid://byw4vqvypadol" path="res://data/rewards/artifacts/chain_dash.tres" id="art_chain_dash"]
 [ext_resource type="Resource" uid="uid://oav0tadqrlbr" path="res://data/rewards/artifacts/dash_attack_up.tres" id="art_dash_attack_up"]
-[ext_resource type="Resource" uid="uid://8sx1jdlwexr" path="res://data/rewards/artifacts/enemy_damage_pressure.tres" id="art_enemy_damage_pressure"]
-[ext_resource type="Resource" uid="uid://rsn7fhk0n2wc" path="res://data/rewards/artifacts/enemy_defense_pressure.tres" id="art_enemy_defense_pressure"]
-[ext_resource type="Resource" uid="uid://oia4460b405h" path="res://data/rewards/artifacts/enemy_health_pressure.tres" id="art_enemy_health_pressure"]
 [ext_resource type="Resource" uid="uid://tqdp8g4womhx" path="res://data/rewards/artifacts/execution.tres" id="art_execution"]
-[ext_resource type="Resource" uid="uid://rnfyi284vaqd" path="res://data/rewards/artifacts/future_enemy.tres" id="art_future_enemy"]
 [ext_resource type="Resource" uid="uid://yh0lcj454200" path="res://data/rewards/artifacts/guard_shredder.tres" id="art_guard_shredder"]
 [ext_resource type="Resource" uid="uid://flwiwmroojy4" path="res://data/rewards/artifacts/max_health_up.tres" id="art_max_health_up"]
 [ext_resource type="Resource" uid="uid://4jy54qpxl5ja" path="res://data/rewards/artifacts/mobility_cooldown_down.tres" id="art_mobility_cooldown_down"]
@@ -18,4 +14,4 @@
 
 [resource]
 script = ExtResource("1_registry")
-artifacts = Array[ExtResource("2_artifact")]([ExtResource("art_future_enemy"), ExtResource("art_attack_up"), ExtResource("art_speed_up"), ExtResource("art_dash_attack_up"), ExtResource("art_mobility_cooldown_down"), ExtResource("art_mobility_range_up"), ExtResource("art_max_health_up"), ExtResource("art_enemy_health_pressure"), ExtResource("art_enemy_damage_pressure"), ExtResource("art_enemy_defense_pressure"), ExtResource("art_guard_shredder"), ExtResource("art_execution"), ExtResource("art_chain_dash")])
+artifacts = Array[ExtResource("2_artifact")]([ExtResource("art_attack_up"), ExtResource("art_speed_up"), ExtResource("art_dash_attack_up"), ExtResource("art_mobility_cooldown_down"), ExtResource("art_mobility_range_up"), ExtResource("art_max_health_up"), ExtResource("art_guard_shredder"), ExtResource("art_execution"), ExtResource("art_chain_dash")])

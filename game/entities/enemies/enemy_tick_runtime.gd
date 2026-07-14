@@ -2,9 +2,8 @@
 # Per-enemy tick combat runtime: owns the clocked combat status an enemy carries between world ticks —
 # the committed attack's locked tiles, the player-action countdown to detonation, and the post-attack
 # recovery window. One instance per enemy. The enemy entity stays the engine-facing actor and sequences
-# detonation through these primitives; kinds with non-default clocking (the puff zone) drive the same
-# primitives in their own order. Centralizing the counters here keeps their invariants in one owner
-# instead of scattered across the shared base, the states, and the engine.
+# detonation through these primitives. Centralizing the counters here keeps their invariants in one
+# owner instead of scattered across the shared base, the states, and the engine.
 class_name EnemyTickRuntime
 extends RefCounted
 
@@ -14,21 +13,38 @@ extends RefCounted
 var _attack_tiles: Array[Vector2i] = []
 ## Player-actions remaining until the committed attack detonates; -1 when no attack is pending.
 var _attack_ticks := -1
+## Committed outgoing damage for the locked attack, fixed by commit_attack() until clear_attack().
+var _attack_damage := 0.0
 ## World ticks the enemy stays disabled in its post-attack recovery window.
 var _recovery_ticks := 0
 
 # == Common API ==
 
 
-## Locks a committed attack: stores its footprint tiles and starts the player-action countdown.
-func commit_attack(tiles: Array[Vector2i], ticks: int) -> void:
+## Locks a committed attack: stores its footprint tiles, outgoing damage, and starts the
+## player-action countdown. All three fields are fixed for the whole combat cycle so detonation,
+## inspection, and cancellation always agree on one immutable snapshot.
+func commit_attack(tiles: Array[Vector2i], ticks: int, damage: float) -> void:
     _attack_tiles = tiles
     _attack_ticks = ticks
+    _attack_damage = damage
 
 
 ## True while a committed attack is still counting down (the enemy is frozen until it detonates).
 func has_pending_attack() -> bool:
     return _attack_ticks > 0
+
+
+## True once a combat cycle has been committed and not yet cleared, including the zero-tick moment
+## between the countdown finishing and finish_attack_into_recovery()/clear_attack() running — distinct
+## from has_pending_attack(), which already reads false at that same zero-tick moment.
+func has_committed_snapshot() -> bool:
+    return _attack_ticks != -1
+
+
+## Committed outgoing damage for the locked attack; 0.0 when no attack has ever been committed.
+func attack_damage() -> float:
+    return _attack_damage
 
 
 ## The committed attack's locked footprint tiles (live reference; callers that mutate must duplicate).
@@ -41,22 +57,17 @@ func attack_ticks() -> int:
     return _attack_ticks
 
 
-## Sets the remaining countdown directly. Used by multi-phase clocking (the puff active window) that
-## re-arms the counter without re-locking tiles.
-func set_attack_ticks(ticks: int) -> void:
-    _attack_ticks = ticks
-
-
 ## Counts the pending attack down by one player action and returns the remaining count.
 func step_attack_countdown() -> int:
     _attack_ticks -= 1
     return _attack_ticks
 
 
-## Drops the committed attack: clears the locked tiles and the countdown.
+## Drops the committed attack: clears the locked tiles, the countdown, and the committed damage.
 func clear_attack() -> void:
     _attack_tiles.clear()
     _attack_ticks = -1
+    _attack_damage = 0.0
 
 
 ## Returns the danger display payload ({cells, ticks}) for a pending attack, or an empty dictionary.

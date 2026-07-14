@@ -81,16 +81,12 @@ func test_production_default_registry_is_valid() -> void:
 func test_production_default_registry_contains_every_migrated_artifact() -> void:
     var registry := _load_default_registry()
     var expected_ids: Array[StringName] = [
-        &"future_enemy",
         &"attack_up",
         &"speed_up",
         &"dash_attack_up",
         &"mobility_cooldown_down",
         &"mobility_range_up",
         &"max_health_up",
-        &"enemy_health_pressure",
-        &"enemy_damage_pressure",
-        &"enemy_defense_pressure",
         &"guard_shredder",
         &"execution",
         &"chain_dash",

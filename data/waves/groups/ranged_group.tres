@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SpawnGroupDefinition" format=3 uid="uid://dgroupranged1"]
+
+[ext_resource type="Script" uid="uid://dspawngroupdef1" path="res://data/waves/definitions/spawn_group_definition.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cmejhheclo211" path="res://data/waves/definitions/wave_composition_entry.gd" id="2_entry"]
+[ext_resource type="PackedScene" path="res://game/entities/enemies/ranged_enemy.tscn" id="3_ranged"]
+
+[sub_resource type="Resource" id="entry_ranged"]
+script = ExtResource("2_entry")
+enemy_scene = ExtResource("3_ranged")
+count = 2
+
+[resource]
+script = ExtResource("1_script")
+placement_strategy = 1
+composition_mode = 0
+entries = Array[ExtResource("2_entry")]([SubResource("entry_ranged")])

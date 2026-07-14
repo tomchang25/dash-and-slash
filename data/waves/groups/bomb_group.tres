@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SpawnGroupDefinition" format=3 uid="uid://dgroupbomb001"]
+
+[ext_resource type="Script" uid="uid://dspawngroupdef1" path="res://data/waves/definitions/spawn_group_definition.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cmejhheclo211" path="res://data/waves/definitions/wave_composition_entry.gd" id="2_entry"]
+[ext_resource type="PackedScene" uid="uid://cd7np3m0rvry6" path="res://game/entities/enemies/bomb_enemy.tscn" id="3_bomb"]
+
+[sub_resource type="Resource" id="entry_bomb"]
+script = ExtResource("2_entry")
+enemy_scene = ExtResource("3_bomb")
+count = 2
+
+[resource]
+script = ExtResource("1_script")
+placement_strategy = 2
+composition_mode = 0
+entries = Array[ExtResource("2_entry")]([SubResource("entry_bomb")])

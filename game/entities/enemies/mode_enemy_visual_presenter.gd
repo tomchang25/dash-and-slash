@@ -17,17 +17,67 @@ const COMMIT_SETTLE_SEC := 0.1
 const COMMIT_SCALE := Vector2(1.22, 0.78)
 const CHARGE_COMMIT_FORWARD := 13.0
 const CHARGE_COMMIT_SCALE := Vector2(1.3, 0.68)
+const RETALIATION_AURA_FRAME_COUNT := 5
+const RETALIATION_AURA_FRAME_SEC := 0.08
 
 # -- State --
 
 var _attack_kind := EnemyAttackData.AttackKind.TILE
 
+# -- Timer / tween handles --
+
+var _retaliation_aura_tween: Tween
+
+# -- Node references --
+
+@onready var _retaliation_aura: Sprite2D = %RetaliationAura
+
 # == Common API ==
 
 
-## Updates the presentation-only context that selects tile/puff or charge action feedback.
+## Updates the presentation-only context that selects tile/area or charge action feedback.
 func set_attack_kind(attack_kind: int) -> void:
     _attack_kind = attack_kind as EnemyAttackData.AttackKind
+
+
+## Shows or hides the looping elite-retaliation Aura cue. Independent of action-feedback transforms
+## and sprite tint (a separate node, a separate tween) so the cue stays visible through pathing
+## delays and empowered windups instead of being cleared by show_idle()/show_move()/etc.
+func set_retaliation_active(active: bool) -> void:
+    if active:
+        _start_retaliation_aura_loop()
+    else:
+        _stop_retaliation_aura_loop()
+
+
+## Resets visuals to a clean idle/base-tint state and force-stops any in-progress retaliation Aura
+## loop, so a pooled enemy never re-enters play with a stale Aura cue.
+func reset_visuals() -> void:
+    super()
+    _stop_retaliation_aura_loop()
+
+# == Feature: elite retaliation ==
+
+
+func _start_retaliation_aura_loop() -> void:
+    if _retaliation_aura == null:
+        return
+    _retaliation_aura.visible = true
+    if _retaliation_aura_tween != null and is_instance_valid(_retaliation_aura_tween):
+        return
+    _retaliation_aura_tween = create_tween()
+    _retaliation_aura_tween.set_loops()
+    for frame_index in range(RETALIATION_AURA_FRAME_COUNT):
+        _retaliation_aura_tween.tween_callback(_retaliation_aura.set.bind("frame", frame_index))
+        _retaliation_aura_tween.tween_interval(RETALIATION_AURA_FRAME_SEC)
+
+
+func _stop_retaliation_aura_loop() -> void:
+    if _retaliation_aura_tween != null and is_instance_valid(_retaliation_aura_tween):
+        _retaliation_aura_tween.kill()
+    _retaliation_aura_tween = null
+    if _retaliation_aura != null:
+        _retaliation_aura.visible = false
 
 # == Feature: action feedback ==
 

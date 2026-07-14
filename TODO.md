@@ -31,15 +31,13 @@ Nothing currently in progress.
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
 - [enemy_mobility] Rework committed enemy mobility around ChargeEnemy collision displacement and a new DashEnemy backline ambush — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
-- [wave_progression] Build data-driven ordered wave groups and enemy-level scaling for a ten-wave demo plus optional lethal endless continuation — [ref plans/data_driven_wave_progression_and_enemy_levels.md]
+- [meta_progression] Add save-backed Coin, Ninja-clear Viking unlock, Main Menu character selection, and purchasable Artifact pool unlocks — [ref plans/meta_progression.md]
 
 ---
 
 ## Chore
 
 One-line, no reasoning, no backing doc.
-
-- [docs] Sync the GDD to v0.5 shipped reality (drop the draft banner, close resolved deferred-list items) — remaining tail from the archived tick combat rework cutover.
 
 ---
 
@@ -84,15 +82,23 @@ Enemy Idle is currently a tick decision state, not a long-lived waiting state. W
 - Add an immediate replan path for reservation-lost or blocked-first-step cases so the enemy still simulates useful behavior when its planned path is stolen.
 - Recheck newly spawned enemy behavior after spawn warning resolution so first-round actors do not appear parked in Idle for the next round.
 
+### Spawn Telegraph Forced Displacement Follow-up
+
+Keep the group-based spawning refactor on its current safe replacement behavior when the player occupies a warned spawn cell at resolution. After the shared forced-displacement and occupancy-refresh contract in `tick_arena_enemy_mobility_and_forced_displacement.md` is implemented and proven, revisit whether the enemy should instead spawn on its warned cell and displace the player.
+
+- Reuse the shared forced-displacement seam rather than adding spawn-owned knockback logic or coupling spawning directly to `ChargeEnemy`.
+- Define displacement direction, legal destination selection, pinned-player handling, damage, simultaneous spawn order, and warning-to-resolution agreement before this becomes actionable.
+- Keep this future behavior outside the group-based spawning refactor; spawning telegraphs may block enemy path planning first while player-cell resolution continues to use nearby legal replacement placement.
+
 ### Wave Reward Deferred Ideas
 
 Later reward-economy work, kept behind the core loop stabilizing. The former terrain-targeting and terrain-shaping ideas were dropped — per-wave terrain mutation is frozen and the obstacle-grid direction replaces that pressure channel.
 
-- Card rarity, weighted rolls, deck-building economy, permanent progression, and final card art.
+- Card rarity, weighted rolls, deck-building economy, and final card art.
 
 ### Forced Trade-Off Curses And Nemesis
 
-Freeze replacement curse work until the data-driven wave and level cutover removes the current pressure curses. A later plan should replace the forced single random curse with a forced three-choice offer whose mutators change how the run is played rather than adding hidden enemy stat pressure.
+The data-driven wave and level cutover removed the current pressure curses. A later plan should replace the forced single random curse with a forced three-choice offer whose mutators change how the run is played rather than adding hidden enemy stat pressure.
 
 - Explore a wave-start mutator that begins each wave at half HP.
 - Explore doubled Mobility cooldown paired with doubled normal and Mobility attack damage.

@@ -36,6 +36,14 @@ func _ready() -> void:
 # ══ Common API ════════════════════════════════════════════════════════════════
 
 
+## Configures max hp from authored data (e.g. EnemyData). Called once by the owner during setup,
+## before any combat or pool-lifecycle operation. Distinct from reset(), which restores pool-acquire
+## defaults from the max_health already configured here.
+func initialize(max_value: float) -> void:
+    max_health = max_value
+    _current = max_health
+
+
 ## Current hp. Read-only externally.
 func current() -> float:
     return _current

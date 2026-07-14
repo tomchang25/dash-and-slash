@@ -2,6 +2,10 @@
 # Stateless grid path search for enemy movement planning: reservation-aware BFS over a GridArena on
 # behalf of an asking entity. Kept free of enemy state so the shared enemy base owns only planning
 # policy (candidate/scoring callables and where a resolved path is stored), not the search itself.
+# Every traversed cell and candidate endpoint is rejected while GridArena reports it SPAWNING, so
+# enemies never plan through or onto an admitted spawn batch; the asker's own start cell is exempt
+# since it already stands there. Player movement and other grid consumers are unaffected; they keep
+# reading normal walkable/occupied/reserved state through GridArena directly.
 class_name EnemyPathPlanner
 extends RefCounted
 
@@ -105,9 +109,13 @@ static func find_path_to_best_reachable_cell(
     return _reconstruct_path(came_from, best_cell)
 
 
-## Returns true when the asker may end a planned path on the cell: walkable land it can claim.
+## Returns true when the asker may end a planned path on the cell: walkable land it can claim, and
+## not currently SPAWNING. Callers already special-case the asker's own current cell before calling
+## this, so every cell reaching here is a genuine candidate endpoint rather than a standing start.
 static func can_plan_goal_cell(grid: GridArena, asker: Object, cell: Vector2i, is_attack: bool) -> bool:
     if not grid.is_walkable(cell):
+        return false
+    if grid.is_spawn_path_blocked(cell):
         return false
     return _can_claim_committed_path_cell(grid, asker, cell, is_attack)
 
@@ -159,6 +167,8 @@ static func _can_path_through(
     if not grid.can_move_between(current, next):
         return false
     if next == blocked_cell:
+        return false
+    if grid.is_spawn_path_blocked(next):
         return false
     if _needs_committed_path_cell(current, next, start, goal_cells):
         return _can_claim_committed_path_cell(grid, asker, next, is_attack)

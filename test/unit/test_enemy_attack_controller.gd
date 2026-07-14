@@ -2,6 +2,10 @@
 # Verifies EnemyAttackController.get_attack_cells cell footprints.
 extends GutTest
 
+const ThrustEnemyData := preload("res://game/entities/enemies/data/thrust_enemy.tres")
+const SlashEnemyData := preload("res://game/entities/enemies/data/slash_enemy.tres")
+
+
 class FailingAttackEnemy:
     extends GridEnemy
 
@@ -142,21 +146,30 @@ func test_line_origin_cells_reverse_normalized_footprints() -> void:
     assert_false(Vector2i(3, 2) in origins)
 
 
-func test_custom_offsets_use_forward_left_local_space() -> void:
-    var attack_data := EnemyAttackData.new()
-    attack_data.cell_shape = EnemyAttackData.CellShape.CUSTOM_OFFSETS
-    attack_data.cell_offsets = [
-        Vector2i(1, -1),
-        Vector2i(1, 0),
-        Vector2i(1, 1),
-    ]
+func test_thrust_footprint_keeps_its_three_cell_forward_lane_for_every_facing() -> void:
+    var attack_data: EnemyAttackData = ThrustEnemyData.attacks[0]
     var grid: GridArena = autofree(GridArena.new())
+    grid.grid_size = Vector2i(9, 9)
+    grid.starting_land_size = Vector2i(9, 9)
+    grid.generate_grid()
 
-    var right_facing_cells := EnemyAttackController.get_attack_cells(Vector2i(2, 2), Vector2.RIGHT, attack_data, grid)
-    var down_facing_cells := EnemyAttackController.get_attack_cells(Vector2i(2, 2), Vector2.DOWN, attack_data, grid)
+    assert_eq(EnemyAttackController.get_attack_cells(Vector2i(4, 4), Vector2.RIGHT, attack_data, grid), [Vector2i(5, 4), Vector2i(6, 4), Vector2i(7, 4)])
+    assert_eq(EnemyAttackController.get_attack_cells(Vector2i(4, 4), Vector2.DOWN, attack_data, grid), [Vector2i(4, 5), Vector2i(4, 6), Vector2i(4, 7)])
+    assert_eq(EnemyAttackController.get_attack_cells(Vector2i(4, 4), Vector2.LEFT, attack_data, grid), [Vector2i(3, 4), Vector2i(2, 4), Vector2i(1, 4)])
+    assert_eq(EnemyAttackController.get_attack_cells(Vector2i(4, 4), Vector2.UP, attack_data, grid), [Vector2i(4, 3), Vector2i(4, 2), Vector2i(4, 1)])
 
-    assert_eq(right_facing_cells, [Vector2i(3, 3), Vector2i(3, 2), Vector2i(3, 1)])
-    assert_eq(down_facing_cells, [Vector2i(1, 3), Vector2i(2, 3), Vector2i(3, 3)])
+
+func test_slash_footprint_keeps_its_three_cell_forward_row_for_every_facing() -> void:
+    var attack_data: EnemyAttackData = SlashEnemyData.attacks[0]
+    var grid: GridArena = autofree(GridArena.new())
+    grid.grid_size = Vector2i(9, 9)
+    grid.starting_land_size = Vector2i(9, 9)
+    grid.generate_grid()
+
+    assert_eq(EnemyAttackController.get_attack_cells(Vector2i(4, 4), Vector2.RIGHT, attack_data, grid), [Vector2i(5, 5), Vector2i(5, 4), Vector2i(5, 3)])
+    assert_eq(EnemyAttackController.get_attack_cells(Vector2i(4, 4), Vector2.DOWN, attack_data, grid), [Vector2i(3, 5), Vector2i(4, 5), Vector2i(5, 5)])
+    assert_eq(EnemyAttackController.get_attack_cells(Vector2i(4, 4), Vector2.LEFT, attack_data, grid), [Vector2i(3, 3), Vector2i(3, 4), Vector2i(3, 5)])
+    assert_eq(EnemyAttackController.get_attack_cells(Vector2i(4, 4), Vector2.UP, attack_data, grid), [Vector2i(5, 3), Vector2i(4, 3), Vector2i(3, 3)])
 
 
 func test_custom_offset_origin_cells_reverse_committed_footprints() -> void:

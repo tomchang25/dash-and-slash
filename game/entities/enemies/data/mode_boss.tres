@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://dbossenemydta"]
+
+[ext_resource type="Script" uid="uid://bjjor5qifmotn" path="res://data/enemies/definitions/enemy_data.gd" id="1_data"]
+[ext_resource type="Script" uid="uid://bo3ikjicfxe8u" path="res://data/enemies/definitions/enemy_attack_data.gd" id="2_attack_data"]
+[ext_resource type="Resource" uid="uid://df24bkpriub0w" path="res://data/enemies/guard_profiles/boss_guard_profile.tres" id="3_guard_profile"]
+
+[sub_resource type="Resource" id="attack_tile_wide"]
+script = ExtResource("2_attack_data")
+attack_id = "mode_boss_tile_wide"
+cell_shape = 1
+damage = 20.0
+
+[sub_resource type="Resource" id="attack_tile_square"]
+script = ExtResource("2_attack_data")
+attack_id = "mode_boss_tile_square"
+cell_shape = 2
+damage = 20.0
+
+[sub_resource type="Resource" id="attack_tile_line"]
+script = ExtResource("2_attack_data")
+attack_id = "mode_boss_tile_line"
+damage = 20.0
+line_length = 4
+
+[sub_resource type="Resource" id="attack_charge"]
+script = ExtResource("2_attack_data")
+attack_id = "mode_boss_charge"
+attack_kind = 1
+cell_shape = 3
+warning_duration = 3
+recovery_duration = 2
+
+[sub_resource type="Resource" id="attack_area"]
+script = ExtResource("2_attack_data")
+attack_id = "mode_boss_area"
+attack_kind = 2
+cell_shape = 2
+damage = 22.0
+
+[resource]
+script = ExtResource("1_data")
+enemy_id = "mode_boss"
+display_name = "Mode Boss"
+max_health = 600.0
+guard_profile = ExtResource("3_guard_profile")
+defense = 5.0
+attacks = Array[ExtResource("2_attack_data")]([SubResource("attack_tile_wide"), SubResource("attack_tile_square"), SubResource("attack_tile_line"), SubResource("attack_charge"), SubResource("attack_area")])

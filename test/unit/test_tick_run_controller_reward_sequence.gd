@@ -1,10 +1,11 @@
 # test_tick_run_controller_reward_sequence.gd
-# Narrow coverage for TickRunController's milestone reward-offer assembly: the fixed Minor x2 first
-# slot (one eligible Minor at two stacks) and the per-slot Major-or-Minor x2 fallback in the other
-# two slots. Full wave-completion -> banner -> offer -> curse-confirmation -> next-wave sequencing
-# needs the arena's full scene-node graph (grid, engine, player, overlays), so that sequence is
-# covered by manual editor verification instead, per the cadence spec's documented escape hatch for
-# scene-level coverage.
+# Narrow coverage for TickRunController's every-third-wave Major reward cadence and milestone
+# reward-offer assembly: the fixed Minor x2 first slot (one eligible Minor at two stacks) and the
+# per-slot Major-or-Minor x2 fallback in the other two slots — milestone offers never open a curse
+# confirmation. Full wave-completion -> banner -> offer -> next-wave sequencing needs the arena's
+# full scene-node graph (grid, engine, player, overlays), so that sequence is covered by manual
+# editor verification instead, per the cadence spec's documented escape hatch for scene-level
+# coverage.
 extends GutTest
 
 ## Test-only subclass exposing TickRunController's private offer-assembly helpers through public
@@ -25,7 +26,29 @@ class TestTickRunController:
     func build_milestone_offer(wave_number: int) -> Array[WaveRewardChoice]:
         return _build_milestone_offer(wave_number)
 
+
+    func is_major_reward_wave(wave_number: int) -> bool:
+        return _is_major_reward_wave(wave_number)
+
 const DEFAULT_REGISTRY_PATH := "res://data/rewards/default_artifact_registry.tres"
+
+# == Major reward cadence ==
+
+
+func test_every_third_wave_is_a_major_reward_wave() -> void:
+    var controller: TestTickRunController = autofree(TestTickRunController.new())
+    for wave_number in [3, 6, 9, 12]:
+        assert_true(controller.is_major_reward_wave(wave_number), "wave %d is divisible by three and should open the Major offer" % wave_number)
+
+
+## Boss wave 10 is not divisible by three, so continuing past it opens the normal Minor offer
+## instead of a Major offer — Boss identity never decides reward cadence.
+func test_non_cadence_waves_including_boss_wave_ten_are_not_major_reward_waves() -> void:
+    var controller: TestTickRunController = autofree(TestTickRunController.new())
+    for wave_number in [1, 2, 4, 5, 7, 8, 10, 11]:
+        assert_false(controller.is_major_reward_wave(wave_number), "wave %d is not divisible by three and should open the normal Minor offer" % wave_number)
+
+# == Offer assembly ==
 
 
 func test_normal_offer_is_three_single_minor_choices() -> void:

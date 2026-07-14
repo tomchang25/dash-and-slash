@@ -36,8 +36,7 @@ static func resolve_hit(
     var target_cell: Vector2i = target_snapshot.get("cell", Vector2i.ZERO)
     var target_facing: Vector2i = target_snapshot.get("facing", Vector2i.ZERO)
     var angle := TickCombatRules.resolve_angle(attacker_origin_cell, target_cell, target_facing)
-    var guard_max := int(target_snapshot.get("guard_max", 0))
-    var guard_damage := guard_damage_override if guard_damage_override >= 0 else TickCombatRules.guard_damage_for(angle, guard_max)
+    var guard_damage := guard_damage_override if guard_damage_override >= 0 else TickCombatRules.guard_damage_for(angle)
     return resolve_precomputed(angle, guard_damage, target_snapshot, base_damage, guard_shredder_trigger, execution_trigger, stagger_burst_multiplier)
 
 
@@ -59,6 +58,7 @@ static func resolve_precomputed(
     var guard_current := int(target_snapshot.get("guard_current", 0))
     var already_staggered := bool(target_snapshot.get("staggered", false))
     var has_guard := bool(target_snapshot.get("has_guard", false))
+    var guard_protection_multiplier := float(target_snapshot.get("guard_protection_multiplier", 1.0))
 
     if execution_trigger and already_staggered:
         return _resolve_execution_kill(angle, target_snapshot)
@@ -71,8 +71,10 @@ static func resolve_precomputed(
         and angle == TileDirectionResolver.HitAngle.BACK
     )
     if guard_shredder_hit:
-        # Zero the guard directly, bypassing the max(half_guard, 32) back guard-damage table.
+        # Zero Guard directly, bypassing ordinary post-Stagger protection.
         guard_damage = guard_current
+    elif has_guard and not already_staggered:
+        guard_damage = int(float(guard_damage) * guard_protection_multiplier)
 
     var will_break_guard := has_guard and not already_staggered and guard_current > 0 and guard_damage >= guard_current
     var full_damage := not has_guard or already_staggered or will_break_guard

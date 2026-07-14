@@ -44,6 +44,12 @@ var _reservation_is_attack: bool = false
 var _attack_windup_vfx: Node2D
 var _damage_multiplier := 1.0
 var _defense := 0.0
+## Final level, recorded by apply_level_projection(). Read by the debug FSM label only.
+var _level := 1
+## Level projection recorded by apply_level_projection() (called pre-ready by the spawner) and
+## applied from _ready() once _initialize_from_enemy_data() has set up Health/Guard from EnemyData.
+var _pending_projection: EnemyLevelProjection = null
+var _has_pending_projection := false
 var _fsm_debug_label: Label
 ## One-shot Result SFX queued by a resolved KILL's take_hit(), consumed and cleared by
 ## play_death_sfx(). Cleared without consumption when the predicted kill did not actually reduce
@@ -57,6 +63,9 @@ var _queued_death_sfx_event: SpatialAudioEvent = null
 var _tick_engine = null
 ## Owns this enemy's clocked combat status: committed attack tiles, detonation countdown, recovery window.
 var _tick_runtime := EnemyTickRuntime.new()
+## True while a hit-triggered facing response is queued but not yet funded by an act_tick(); see
+## _queue_hit_facing_response() and consume_pending_hit_facing_response().
+var _pending_hit_facing_response: bool = false
 
 # -- Timer / tween handles --
 
@@ -79,6 +88,8 @@ var _tick_move_tween: Tween
 
 func _ready() -> void:
     _resolve_node_references()
+    _initialize_from_enemy_data()
+    _apply_pending_projection()
     super()
     if _grid != null:
         _grid_pos = _grid.world_to_grid(global_position)
@@ -96,7 +107,9 @@ func _ready() -> void:
         _guard.guard_broken.connect(_on_guard_broken)
         _guard.stagger_started.connect(_on_stagger_started)
         _guard.stagger_ended.connect(_on_stagger_ended)
+        _guard.protection_changed.connect(_on_guard_protection_changed)
         _on_guard_changed(_guard.current(), _guard.max_guard)
+        _on_guard_protection_changed(_guard.is_protected())
 
     face_arrow()
     _init_debug_fsm_state()
@@ -121,6 +134,9 @@ func _draw() -> void:
 func reset() -> void:
     super()
     _staggered = false
+    _pending_hit_facing_response = false
+    cancel_tick_attack()
+    _tick_runtime.clear_recovery()
     stop_attack_windup_vfx()
     if _body != null:
         _body.modulate = Color.WHITE
@@ -136,6 +152,7 @@ func reset() -> void:
         _on_health_changed(health.current(), health.max_health)
     if _guard != null:
         _on_guard_changed(_guard.current(), _guard.max_guard)
+        _on_guard_protection_changed(_guard.is_protected())
     _reset_extra()
 
 # == Signal handlers ==
@@ -158,6 +175,7 @@ func _on_reservation_lost(_entity: Object) -> void:
 
 func _on_guard_broken() -> void:
     _staggered = true
+    _pending_hit_facing_response = false
     stop_attack_windup_vfx()
     clear_planned_path()
     # A guard break clears any banked action energy and cancels the pending attack, so a
@@ -173,7 +191,13 @@ func _on_guard_broken() -> void:
 
 func _on_guard_changed(current: int, maximum: int) -> void:
     if _status_bars != null:
-        _status_bars.set_guard(current, maximum)
+        var visible_maximum := maximum if _guard != null and _guard.is_enabled() else 0
+        _status_bars.set_guard(current, visible_maximum)
+
+
+func _on_guard_protection_changed(protected: bool) -> void:
+    if _status_bars != null:
+        _status_bars.set_guard_protected(protected)
 
 
 ## Restores the idle visual after a tick-move slide finishes, unless a higher-priority
@@ -296,6 +320,8 @@ func advance_status() -> bool:
     if _guard != null and _guard.is_staggered():
         _guard.advance_stagger()
         return true
+    if _guard != null and _guard.is_protected():
+        _guard.advance_protection()
     return _tick_runtime.advance_recovery()
 
 
@@ -361,18 +387,20 @@ func take_hit(
     _queued_death_sfx_event = null
     if _guard != null and outcome.guard_damage > 0:
         _guard.take_guard_damage(outcome.guard_damage)
+    _queue_hit_facing_response()
     return outcome
 
 
 ## Commits an attack telegraph clocked in ticks: locks the footprint tiles and starts the countdown.
-## Returns false when the kind could not prepare the attack.
+## Returns false when the kind could not prepare the attack. Kinds with a non-telegraph commit
+## override try_commit_attack() instead of calling this.
 func begin_tick_telegraph() -> bool:
     if not begin_attack_telegraph():
         return false
     var cells := get_committed_attack_cells()
     if cells.is_empty():
         return false
-    _tick_runtime.commit_attack(cells, get_warning_tick_count())
+    _tick_runtime.commit_attack(cells, get_warning_tick_count(), get_attack_hit_damage())
     return true
 
 
@@ -412,6 +440,24 @@ func tick_face_toward_target() -> bool:
     return tick_turn_toward_cell(get_target_cell())
 
 
+## Immediately aligns authoritative and presented facing to a grid cell without spending an action.
+func face_toward_cell_immediately(target_cell: Vector2i) -> void:
+    var desired := cardinal_snap(Vector2(target_cell - _grid_pos))
+    if desired == Vector2.ZERO:
+        return
+    _facing = desired
+    face_arrow()
+
+
+## Returns true when the current facing already covers the cardinal direction of the live target.
+## A target on this cell or no target needs no turn, so neither case should interrupt normal planning.
+func is_facing_target() -> bool:
+    if not has_target():
+        return true
+    var desired := cardinal_snap(Vector2(get_target_cell() - _grid_pos))
+    return desired == Vector2.ZERO or _facing == desired
+
+
 ## Rotates facing at most 90 degrees toward the target's cardinal direction. Returns true once aligned.
 ## The per-tick cap is the flank-depth knob: turning to face a flanker costs actions, opening back hits.
 func tick_turn_toward_cell(target_cell: Vector2i) -> bool:
@@ -425,6 +471,19 @@ func tick_turn_toward_cell(target_cell: Vector2i) -> bool:
         _facing = desired
     face_arrow()
     return _facing == desired
+
+
+## True while a hit-triggered facing response is queued but not yet funded by an act_tick(). Cleared by
+## reset(), death entry, and Guard break, so pooling and post-death readouts never claim a stale response.
+func has_pending_hit_facing_response() -> bool:
+    return _pending_hit_facing_response
+
+
+## Consumes the pending hit-facing response exactly when its funded capped turn begins executing.
+## Called by EnemyFaceOnceState._advance_tick(), never when FaceTarget is merely entered/prepared, so a
+## Speed free action (which never reaches an act_tick()) leaves the response visibly still pending.
+func consume_pending_hit_facing_response() -> void:
+    _pending_hit_facing_response = false
 
 
 ## Consumes one reserved cell from the planned path as a tick snap-step. Returns true when a step was taken.
@@ -463,11 +522,21 @@ func get_committed_attack_cells() -> Array[Vector2i]:
     return empty
 
 
-## Outgoing per-hit damage this enemy deals to the player at detonation, after wave-scaling.
+## Prospective outgoing per-hit damage this enemy would deal to the player, after wave-scaling.
+## Live/pre-commit only; begin_tick_telegraph() snapshots this value into EnemyTickRuntime at commit
+## time, and detonation reads get_committed_attack_damage() instead so a later change to this value
+## (e.g. a subclass's temporary modifier ending) can never disagree with an already-locked attack.
 func get_attack_hit_damage() -> float:
     var attack := get_current_attack_data()
     var base := attack.damage if attack != null else 10.0
     return base * _damage_multiplier
+
+
+## Committed outgoing damage for the locked attack, fixed at commit_attack() time. Detonation and
+## committed-damage inspection read this instead of the live get_attack_hit_damage() above, so a
+## resolved hit, its inspection, and its cancellation always agree on one immutable combat-cycle snapshot.
+func get_committed_attack_damage() -> float:
+    return _tick_runtime.attack_damage()
 
 
 ## Ends a resolved attack and opens its recovery window (a disabled status counted in advance_status()).
@@ -480,20 +549,35 @@ func finish_attack_into_recovery() -> void:
     _tick_runtime.begin_recovery(get_recovery_tick_count() + 1)
 
 
-## Applies per-wave milestone scaling to this enemy instance: bumps max_health in
-## place (Health is a per-instance node, safe to mutate), stores a damage
-## multiplier consumed when tile attacks resolve, and stores a flat
-## defense value consumed by TickHitResolver.apply_defense(). Guard never scales.
-func apply_wave_scaling(hp_multiplier: float, damage_multiplier: float, defense: float) -> void:
-    _damage_multiplier = max(damage_multiplier, 0.0)
-    _defense = max(defense, 0.0)
-    if health != null and hp_multiplier > 1.0:
-        health.add_max_health(health.max_health * (hp_multiplier - 1.0), true)
+## Records this enemy's final level and projected stats without touching Health/Guard yet. The wave
+## controller calls this pre-ready (before EnemyData has initialized Health/Guard's authored bases
+## via _initialize_from_enemy_data()), so it is applied later from _ready() instead; see
+## _apply_pending_projection(). Leaves enemy_data and attack data untouched.
+func apply_level_projection(level: int, projection: EnemyLevelProjection) -> void:
+    _level = level
+    _pending_projection = projection
+    _has_pending_projection = true
 
 
-## Returns this enemy's current outgoing-damage multiplier from wave scaling.
+## Returns this enemy's current outgoing-damage multiplier from its level projection.
 func get_damage_multiplier() -> float:
     return _damage_multiplier
+
+
+## Returns this enemy's current flat Defense value, from its level projection (or EnemyData's
+## authored base when no projection was ever applied). Consumed by TickHitResolver.apply_defense().
+func get_defense() -> float:
+    return _defense
+
+
+## Returns this enemy's final level, or 1 when no level projection was ever applied.
+func get_level() -> int:
+    return _level
+
+
+## Returns the complete debug status text used by the optional enemy-side FSM label.
+func get_debug_status_text() -> String:
+    return _fsm_status_text()
 
 
 func has_target() -> bool:
@@ -590,6 +674,47 @@ func plan_approach_action() -> bool:
     return true
 
 
+## Plans movement into an inclusive Manhattan-distance band around the target. The target cell is
+## blocked, and the final attack-position reservation uses attack priority without altering BFS ties.
+func plan_manhattan_distance_band_action(minimum_range: int, maximum_range: int) -> bool:
+    clear_planned_path()
+    _reservation_is_attack = true
+
+    if _grid == null or not has_target():
+        return false
+    if minimum_range < 0 or maximum_range < minimum_range:
+        ToastManager.show_dev_error("GridEnemy: distance band must satisfy 0 <= minimum <= maximum")
+        return false
+
+    var start := _grid_pos
+    var target_cell := get_target_cell()
+    if not _grid.is_in_bounds(target_cell):
+        return false
+    if _is_cell_in_manhattan_distance_band(start, target_cell, minimum_range, maximum_range):
+        queue_redraw()
+        return true
+
+    var path := EnemyPathPlanner.find_path_to_best_reachable_cell(
+        _grid,
+        self,
+        _get_movement_directions(),
+        start,
+        target_cell,
+        true,
+        func(cell: Vector2i) -> bool: return _is_cell_in_manhattan_distance_band(cell, target_cell, minimum_range, maximum_range),
+        func(_cell: Vector2i, _path_length: int) -> int: return 0,
+    )
+    if path.is_empty():
+        return false
+
+    _planned_path = path
+    if not _refresh_planned_reservations():
+        clear_planned_path()
+        return false
+    queue_redraw()
+    return true
+
+
 ## Clears pending grid movement, active path debug state, and path reservations.
 func clear_planned_path() -> void:
     if _grid != null:
@@ -664,6 +789,7 @@ func get_guard() -> Guard:
 func begin_death() -> void:
     stop_attack_windup_vfx()
     clear_planned_path()
+    _pending_hit_facing_response = false
     # Vacate the grid cell immediately so other actors and the player can enter during the death tween.
     if _grid != null:
         _grid.unregister_occupant(self)
@@ -730,7 +856,7 @@ func should_commit_after_face() -> bool:
 
 
 ## Commits this kind's attack telegraph and starts its tick countdown. Returns false when it could not
-## be prepared. Kinds with a non-telegraph commit (the puff zone windup) override this.
+## be prepared. Kinds with a non-telegraph commit override this.
 func try_commit_attack() -> bool:
     return begin_tick_telegraph()
 
@@ -973,6 +1099,11 @@ func _is_approach_candidate(cell: Vector2i, target_cell: Vector2i) -> bool:
     return cell != target_cell and _grid.is_walkable(cell)
 
 
+func _is_cell_in_manhattan_distance_band(cell: Vector2i, target_cell: Vector2i, minimum_range: int, maximum_range: int) -> bool:
+    var distance := absi(cell.x - target_cell.x) + absi(cell.y - target_cell.y)
+    return distance >= minimum_range and distance <= maximum_range
+
+
 func _score_approach_candidate(cell: Vector2i, target_cell: Vector2i, path_length: int) -> int:
     var distance := absi(cell.x - target_cell.x) + absi(cell.y - target_cell.y)
     var chebyshev_distance := maxi(absi(cell.x - target_cell.x), absi(cell.y - target_cell.y))
@@ -1019,6 +1150,43 @@ func _refresh_planned_reservations() -> bool:
     return _grid.reserve_cells_with_active_steps(self, reserved_cells, _reservation_is_attack, active_cells)
 
 # == Setup helpers ==
+
+
+## Configures Health/Guard/Defense from this enemy's authored EnemyData. Runs once from _ready(),
+## before Enemy._ready()'s health snapshot, so downstream signal listeners see the final authored
+## bases rather than Health/Guard's own component defaults. Missing EnemyData reports a development
+## error and leaves Health/Guard at those component defaults instead of silently trusting bad data.
+func _initialize_from_enemy_data() -> void:
+    if enemy_data == null:
+        ToastManager.show_dev_error("GridEnemy: %s missing enemy_data; using component defaults" % name)
+        return
+    if health != null:
+        health.initialize(enemy_data.max_health)
+    if _guard != null:
+        if enemy_data.guard_profile == null:
+            _guard.disable_guard()
+        else:
+            var profile := enemy_data.guard_profile
+            _guard.initialize(profile.max_guard_for_base_wave(1), profile.stagger_ticks, profile.protection_ticks, profile.protection_multiplier)
+    _defense = enemy_data.defense
+
+
+## Applies the level projection recorded by apply_level_projection(), once
+## _initialize_from_enemy_data() has set up Health/Guard's authored bases. No-op when
+## apply_level_projection() was never called pre-ready (e.g. direct instantiation in tests), which
+## leaves Level 1 identity stats from the authored EnemyData in place.
+func _apply_pending_projection() -> void:
+    if not _has_pending_projection or _pending_projection == null:
+        return
+    _damage_multiplier = _pending_projection.damage_multiplier
+    _defense = _pending_projection.defense
+    if health != null:
+        health.initialize(_pending_projection.max_health)
+    if _guard != null:
+        if _pending_projection.max_guard <= 0:
+            _guard.disable_guard()
+        else:
+            _guard.initialize(_pending_projection.max_guard, _guard.stagger_ticks, _guard.protection_ticks, _guard.protection_multiplier)
 
 
 func _init_debug_fsm_state() -> void:
@@ -1072,9 +1240,14 @@ func _on_world_advanced_debug(_tick_count: int) -> void:
         _fsm_debug_label.text = _fsm_status_text()
 
 
-## Debug readout text: the runtime's clocked status (telegraph countdown, then recovery) takes priority
-## over the parked state name, since the machine now sits in its deciding state while those windows run.
+## Debug readout text: prefixed with the enemy's final level, then the runtime's clocked status
+## (telegraph countdown, then recovery), which takes priority over the parked state name since the
+## machine now sits in its deciding state while those windows run.
 func _fsm_status_text() -> String:
+    return "Lv.%d %s" % [_level, _fsm_state_status_text()]
+
+
+func _fsm_state_status_text() -> String:
     if _tick_runtime.has_pending_attack():
         return "Telegraph(%d)" % _tick_runtime.attack_ticks()
     if _tick_runtime.recovery_remaining() > 0:
@@ -1114,7 +1287,7 @@ func _fallback_node(assigned: Node, node_name: StringName) -> Node:
 
 
 ## Per-kind detonation when the telegraph countdown reaches zero. The base resolves a single
-## cell-membership check against the player and hands off to recovery. Charge/puff kinds override.
+## cell-membership check against the player and hands off to recovery. Charge/Bomb kinds override.
 func _tick_detonate() -> void:
     _resolve_detonation_on_player(get_attack_tiles())
     finish_attack_into_recovery()
@@ -1124,7 +1297,7 @@ func _tick_detonate() -> void:
 ## This cell-membership check replaces enemy-side physics hitbox overlap for enemy-to-player damage.
 func _resolve_detonation_on_player(tiles: Array[Vector2i]) -> void:
     if _tick_engine.player_cell() in tiles:
-        _tick_engine.damage_player(get_attack_hit_damage(), self)
+        _tick_engine.damage_player(get_committed_attack_damage(), self)
     _tick_engine.notify_detonation(tiles)
 
 
@@ -1159,10 +1332,11 @@ func _target_snapshot() -> Dictionary:
     return {
         "cell": _grid_pos,
         "facing": _facing_as_cell_dir(),
-        "has_guard": _guard != null,
+        "has_guard": _guard != null and _guard.is_enabled(),
         "guard_current": _guard.current() if _guard != null else 0,
         "guard_max": _guard.max_guard if _guard != null else 0,
         "staggered": _guard.is_staggered() if _guard != null else false,
+        "guard_protection_multiplier": _guard.current_protection_multiplier() if _guard != null else 1.0,
         "hp": health.current() if health != null else 0.0,
         "hp_max": health.max_health if health != null else 0.0,
         "defense": _defense,
@@ -1271,3 +1445,21 @@ func _on_death_effects() -> void:
     var dead_state_id := get_dead_state_id()
     if _state_machine != null and dead_state_id >= 0:
         _state_machine.request_transition(dead_state_id, true)
+
+# == Hit-facing response ==
+
+
+## Queues one hit-triggered facing response after take_hit() has applied live HP and Guard. Eligible
+## enemies must require a capped turn: an already front-facing enemy keeps its normal Idle or Reposition
+## intent instead of spending an empty FaceTarget action. Stagger, a committed telegraph, and a resolved
+## death retain priority and never queue a response. A repeated hit while one is pending changes neither
+## the pending count nor the eventual action cost, since it returns before changing the planned path.
+func _queue_hit_facing_response() -> void:
+    if _pending_hit_facing_response:
+        return
+    if not is_alive() or _staggered or _tick_runtime.has_pending_attack() or is_facing_target():
+        return
+    _pending_hit_facing_response = true
+    clear_planned_path()
+    if _state_machine != null:
+        _state_machine.request_transition(get_face_state_id())

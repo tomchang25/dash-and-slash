@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="SpawnGroupDefinition" format=3 uid="uid://dgroupsmallr1"]
+
+[ext_resource type="Script" uid="uid://dspawngroupdef1" path="res://data/waves/definitions/spawn_group_definition.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cmejhheclo211" path="res://data/waves/definitions/wave_composition_entry.gd" id="2_entry"]
+[ext_resource type="PackedScene" uid="uid://dssmenemy01" path="res://game/entities/enemies/thrust_enemy.tscn" id="3_thrust"]
+[ext_resource type="PackedScene" uid="uid://btkc35il187bd" path="res://game/entities/enemies/slash_enemy.tscn" id="4_slash"]
+[ext_resource type="PackedScene" path="res://game/entities/enemies/ranged_enemy.tscn" id="5_ranged"]
+
+[sub_resource type="Resource" id="entry_thrust"]
+script = ExtResource("2_entry")
+enemy_scene = ExtResource("3_thrust")
+count = 2
+
+[sub_resource type="Resource" id="entry_slash"]
+script = ExtResource("2_entry")
+enemy_scene = ExtResource("4_slash")
+count = 1
+
+[sub_resource type="Resource" id="entry_ranged"]
+script = ExtResource("2_entry")
+enemy_scene = ExtResource("5_ranged")
+count = 2
+
+[resource]
+script = ExtResource("1_script")
+placement_strategy = 1
+composition_mode = 0
+entries = Array[ExtResource("2_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_ranged")])

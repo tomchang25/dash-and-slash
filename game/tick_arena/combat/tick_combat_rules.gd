@@ -2,9 +2,9 @@
 # Static combat rules for the tick arena: player combat base numbers, tile hit-angle display, guard damage, and HP bypass.
 class_name TickCombatRules
 
-const FRONT_GUARD_DAMAGE := 8
-const SIDE_GUARD_FLOOR := 16
-const BACK_GUARD_FLOOR := 32
+const FRONT_GUARD_DAMAGE := 4
+const SIDE_GUARD_DAMAGE := 16
+const BACK_GUARD_DAMAGE := 32
 const SIDE_HP_BYPASS := 0.1
 const BACK_HP_BYPASS := 0.25
 
@@ -26,15 +26,15 @@ static func resolve_angle(attacker_cell: Vector2i, target_cell: Vector2i, target
     return TileDirectionResolver.resolve(attacker_cell, target_cell, target_facing)
 
 
-## Returns the guard damage for a hit at the given angle against a target with the given guard maximum.
-static func guard_damage_for(angle: TileDirectionResolver.HitAngle, max_guard: int) -> int:
+## Returns the fixed Guard damage for a hit at the given angle.
+static func guard_damage_for(angle: TileDirectionResolver.HitAngle) -> int:
     match angle:
         TileDirectionResolver.HitAngle.FRONT:
             return FRONT_GUARD_DAMAGE
         TileDirectionResolver.HitAngle.SIDE:
-            return maxi(int(max_guard / 4.0), SIDE_GUARD_FLOOR)
+            return SIDE_GUARD_DAMAGE
         TileDirectionResolver.HitAngle.BACK:
-            return maxi(int(max_guard / 2.0), BACK_GUARD_FLOOR)
+            return BACK_GUARD_DAMAGE
         TileDirectionResolver.HitAngle.NONE:
             ToastManager.show_dev_error("TickCombatRules: unexpected NONE hit angle")
             return 0

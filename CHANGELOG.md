@@ -16,6 +16,14 @@ Rules:
 
 ## [unreleased]
 
+### Data-Driven Wave Progression And Enemy Levels
+
+- 2026-07-14 — [waves] Designer-authored ordered wave groups now drive the ten-wave demo and optional fixed-grammar Endless mode, with visible enemy levels, wave-10 completion branching, and independent third-wave Major rewards
+
+### Tick Arena Enemy Combat Roles And Counterpressure
+
+- 2026-07-14 — [enemy] Combat roles now use shared positional Guard profiles, post-Stagger protection and retaliation, and distinct Thrust, Slash, Charge, Ranged, Bomb, Mode, and Boss encounter contracts
+
 ### Unified Combat Result SFX Selection
 
 - 2026-07-12 — [combat_audio] Normal attacks and Dashes now play a shared action whoosh and every resolved player hit selects exactly one Result SFX — mobility kills, Guard Shredder, and Execution get distinct events, and Guard Breaks, deaths, and ordinary hits no longer layer multiple sounds

@@ -5,7 +5,6 @@ class_name CombatFeedbackVFX
 enum WindupStyle {
     CHARGE,
     TILE,
-    PUFF,
 }
 
 const SHIELD_COLOR := Color(0.25, 0.65, 1.0, 1.0)
@@ -16,7 +15,6 @@ const WIND_COLOR := Color(0.95, 1.0, 1.0, 0.95)
 const STREAK_COLOR := Color(0.75, 0.9, 1.0, 0.85)
 const CHARGE_CORE_COLOR := Color(1.0, 1.0, 1.0, 0.9)
 const TILE_WINDUP_COLOR := Color(1.0, 0.85, 0.35, 0.82)
-const PUFF_WINDUP_COLOR := Color(1.0, 0.45, 0.45, 0.82)
 
 const SHIELDED_DURATION := 0.3
 const GUARD_BREAK_DURATION := 0.5
@@ -259,9 +257,6 @@ static func _spawn_windup_pulse(loop: Node2D) -> void:
         return
     var style := int(loop.get_meta(WINDUP_STYLE_META, WindupStyle.TILE))
     var forward: Vector2 = loop.get_meta(WINDUP_FORWARD_META, Vector2.RIGHT)
-    if style == WindupStyle.PUFF:
-        _spawn_radial_windup_pulse(loop)
-        return
     _spawn_directional_windup_pulse(loop, forward.normalized(), style)
 
 
@@ -292,22 +287,6 @@ static func _spawn_directional_windup_pulse(loop: Node2D, forward: Vector2, styl
         tween.tween_property(line, "position", forward * 18.0, WINDUP_PULSE_DURATION)
         tween.tween_property(line, "modulate:a", 0.0, WINDUP_PULSE_DURATION)
         tween.finished.connect(line.queue_free, CONNECT_ONE_SHOT)
-
-
-## Spawns a radial windup pulse for future puff-style telegraphs.
-static func _spawn_radial_windup_pulse(loop: Node2D) -> void:
-    var ring := Polygon2D.new()
-    ring.polygon = _make_diamond(36.0)
-    ring.color = PUFF_WINDUP_COLOR
-    ring.z_index = EFFECT_Z_INDEX - 2
-    # node-src: ephemeral
-    loop.add_child(ring)
-
-    var tween := ring.create_tween()
-    tween.set_parallel()
-    tween.tween_property(ring, "scale", Vector2(2.0, 2.0), WINDUP_PULSE_DURATION)
-    tween.tween_property(ring, "modulate:a", 0.0, WINDUP_PULSE_DURATION)
-    tween.finished.connect(ring.queue_free, CONNECT_ONE_SHOT)
 
 
 ## Returns a diamond polygon centered at the origin with the given size.

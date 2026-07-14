@@ -35,6 +35,50 @@ func test_guard_shredder_does_not_retrigger_on_already_staggered_target() -> voi
     assert_eq(outcome.major_trigger, TickHitOutcome.MajorTrigger.NONE)
 
 
+func test_protected_normal_hit_halves_guard_damage_without_changing_hp_damage() -> void:
+    var snapshot := _snapshot(100, 4, false)
+    snapshot["guard_protection_multiplier"] = 0.5
+
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.FRONT, 4, snapshot, 20.0)
+
+    assert_eq(outcome.guard_damage, 2)
+    assert_false(outcome.guard_broken)
+    assert_eq(outcome.hp_damage, 4.0, "protection affects Guard only; regular blocked HP damage stays unchanged")
+
+
+func test_protected_mobility_hit_halves_guard_damage_without_changing_hp_damage() -> void:
+    var snapshot := _snapshot(100, 16, false)
+    snapshot["guard_protection_multiplier"] = 0.5
+
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.SIDE, 16, snapshot, 30.0)
+
+    assert_eq(outcome.guard_damage, 8)
+    assert_false(outcome.guard_broken)
+    assert_eq(outcome.hp_damage, 6.0)
+
+
+func test_guard_shredder_bypasses_protected_guard_damage() -> void:
+    var snapshot := _snapshot(100, 16, false)
+    snapshot["guard_protection_multiplier"] = 0.5
+
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.BACK, 32, snapshot, 30.0, true)
+
+    assert_true(outcome.guard_broken)
+    assert_eq(outcome.guard_damage, 16)
+
+
+func test_guardless_target_takes_direct_hp_damage_without_guard_break() -> void:
+    var snapshot := _snapshot(100, 0, false)
+    snapshot["has_guard"] = false
+
+    var outcome := TickHitResolver.resolve_precomputed(TileDirectionResolver.HitAngle.FRONT, 4, snapshot, 20.0)
+
+    assert_eq(outcome.guard_damage, 4)
+    assert_false(outcome.guard_broken)
+    assert_false(outcome.was_guarded)
+    assert_eq(outcome.hp_damage, 20.0)
+
+
 func test_mobility_stagger_burst_applies_mobility_multiplier() -> void:
     var snapshot := _snapshot(100, 0, true)
 

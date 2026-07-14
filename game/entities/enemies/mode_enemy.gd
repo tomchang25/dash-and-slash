@@ -1,5 +1,5 @@
 # mode_enemy.gd
-# 1x1 special enemy that selects one authored tile, puff, or charge attack per combat cycle.
+# 1x1 special enemy that selects one authored tile, area, or charge attack per combat cycle.
 class_name ModeEnemy
 extends GridEnemy
 
@@ -9,6 +9,9 @@ signal guard_stagger_ended
 
 const CHARGING_SPEED := 480.0
 const FALLBACK_ATTACK_COUNT := 5
+const RETALIATION_DURATION_TICKS := 10
+const RETALIATION_WARNING_TICK_REDUCTION := 1
+const RETALIATION_DAMAGE_MULTIPLIER := 1.25
 
 # -- Exports --
 
@@ -17,6 +20,7 @@ const FALLBACK_ATTACK_COUNT := 5
 # -- State --
 
 var _current_attack_data: EnemyAttackData
+var _retaliation_ticks_remaining := 0
 
 # -- Node references --
 
@@ -31,6 +35,19 @@ func _ready() -> void:
     _configure_executors()
     if _current_attack_data == null:
         _select_next_attack()
+
+# == Overridden Custom Methods ==
+
+
+## Advances an already-active retaliation on every later world tick, including pathing, telegraph,
+## and recovery ticks. A retaliation armed by super() on this same Stagger-ending tick starts at the
+## full duration because it was not active before the status pass began.
+func advance_status() -> bool:
+    var retaliation_was_active := has_active_retaliation()
+    var disabled := super()
+    if retaliation_was_active:
+        _advance_retaliation_window()
+    return disabled
 
 # == Signal handlers ==
 
@@ -48,6 +65,7 @@ func _on_stagger_started() -> void:
 func _on_stagger_ended() -> void:
     super()
     _select_next_attack()
+    apply_post_stagger_retaliation_policy()
     guard_stagger_ended.emit()
 
 # == Common API ==
@@ -61,6 +79,22 @@ func emit_guard_snapshot() -> void:
 ## Returns the single attack that governs ModeEnemy's current planning and combat cycle.
 func get_current_attack_data() -> EnemyAttackData:
     return _current_attack_data
+
+
+## True throughout the ten-world-tick post-Stagger retaliation window.
+func has_active_retaliation() -> bool:
+    return _retaliation_ticks_remaining > 0
+
+
+## World ticks left in the active retaliation window; zero outside retaliation.
+func retaliation_ticks_remaining() -> int:
+    return _retaliation_ticks_remaining
+
+
+## Applies Mode's default post-Stagger response. Encounter-specific Boss scripts override this hook
+## to replace or omit retaliation without branching shared recovery behavior.
+func apply_post_stagger_retaliation_policy() -> void:
+    _start_retaliation_window()
 
 
 func get_telegraph() -> TileTelegraph:
@@ -101,7 +135,9 @@ func prepare_attack() -> bool:
             return _tile_executor.prepare(_grid_pos, _facing, _current_attack_data)
         EnemyAttackData.AttackKind.CHARGE:
             return _tile_executor.prepare_cells(get_unblocked_charge_cells(_grid_pos, _facing, _current_attack_data))
-        EnemyAttackData.AttackKind.PUFF:
+        EnemyAttackData.AttackKind.AREA:
+            if not is_target_within_grid_range(_current_attack_data.radius):
+                return false
             return _tile_executor.prepare(_grid_pos, _facing, _current_attack_data)
 
     ToastManager.show_dev_error("ModeEnemy: unsupported selected attack kind")
@@ -120,6 +156,8 @@ func show_attack_charge() -> void:
         _visual_presenter.show_attack_commit()
 
 
+## Clears only the current attack presentation. Retaliation is a timed window that survives ordinary
+## attack resolution/cancellation; Guard break, death, reset, or countdown expiry clear it explicitly.
 func cancel_attack() -> void:
     if _tile_executor != null:
         _tile_executor.cancel()
@@ -134,6 +172,24 @@ func cancel_attack() -> void:
 func get_committed_attack_cells() -> Array[Vector2i]:
     var empty: Array[Vector2i] = []
     return _tile_executor.get_cells() if _tile_executor != null else empty
+
+
+## Returns one fewer warning tick (floor 1) while retaliation is active. Only read by the shared
+## commit flow at commit time, so an already-visible warning can never shorten mid-telegraph.
+func get_warning_tick_count() -> int:
+    var base_ticks := super()
+    if has_active_retaliation():
+        return maxi(base_ticks - RETALIATION_WARNING_TICK_REDUCTION, 1)
+    return base_ticks
+
+
+## Returns 1.25 times outgoing damage while retaliation is active. Every attack committed during the
+## window snapshots this value independently, so a final windup stays empowered after the timer expires.
+func get_attack_hit_damage() -> float:
+    var base_damage := super()
+    if has_active_retaliation():
+        return base_damage * RETALIATION_DAMAGE_MULTIPLIER
+    return base_damage
 
 
 ## Resolves the selected attack, then chooses the next one before recovery freezes further decisions.
@@ -173,11 +229,45 @@ func plan_next_action() -> bool:
             return plan_cell_attack_action(get_cells_for_origin, get_origins_for_target)
         EnemyAttackData.AttackKind.CHARGE:
             return plan_charge_origin_action()
-        EnemyAttackData.AttackKind.PUFF:
+        EnemyAttackData.AttackKind.AREA:
             return plan_approach_action()
 
     ToastManager.show_dev_error("ModeEnemy: unsupported selected attack kind")
     return false
+
+# == Elite retaliation ==
+
+
+func _start_retaliation_window() -> void:
+    _retaliation_ticks_remaining = RETALIATION_DURATION_TICKS
+    _set_retaliation_aura_visible(true)
+
+
+func _advance_retaliation_window() -> void:
+    _retaliation_ticks_remaining = maxi(_retaliation_ticks_remaining - 1, 0)
+    if _retaliation_ticks_remaining == 0:
+        _set_retaliation_aura_visible(false)
+
+
+## Idempotent cleanup for a new Stagger, death, or reset. Ordinary attack resolution does not call it.
+func _clear_retaliation() -> void:
+    _retaliation_ticks_remaining = 0
+    _set_retaliation_aura_visible(false)
+
+
+func _set_retaliation_aura_visible(active: bool) -> void:
+    var presenter := _visual_presenter as ModeEnemyVisualPresenter
+    if presenter != null:
+        presenter.set_retaliation_active(active)
+
+
+## Appends the retaliation countdown to the shared tick debug readout so presentation, commit math,
+## and debug inspection agree on the active window.
+func _fsm_state_status_text() -> String:
+    var base_text := super()
+    if not has_active_retaliation():
+        return base_text
+    return "%s [Retaliation:%d]" % [base_text, _retaliation_ticks_remaining]
 
 # == Setup helpers ==
 
@@ -188,13 +278,19 @@ func _after_setup_ready() -> void:
         _select_next_attack()
 
 
+func _on_guard_broken_extra() -> void:
+    _clear_retaliation()
+
+
 func _on_begin_death_extra() -> void:
-    cancel_attack()
+    cancel_tick_attack()
+    _clear_retaliation()
 
 
 func _reset_extra() -> void:
     _current_attack_data = null
     cancel_attack()
+    _clear_retaliation()
     _select_next_attack()
 
 
@@ -236,7 +332,7 @@ func _can_attack_with_current_selection() -> bool:
             if target_cell == _grid_pos or _facing == Vector2.ZERO:
                 return false
             return target_cell in get_unblocked_charge_cells(_grid_pos, _facing, _current_attack_data)
-        EnemyAttackData.AttackKind.PUFF:
+        EnemyAttackData.AttackKind.AREA:
             return is_target_within_grid_range(_current_attack_data.radius)
 
     ToastManager.show_dev_error("ModeEnemy: unsupported selected attack kind")
@@ -265,20 +361,17 @@ func _create_fallback_attack_data() -> EnemyAttackData:
         0:
             attack_data.attack_kind = EnemyAttackData.AttackKind.TILE
             attack_data.damage = 12.0
-            attack_data.active_duration = 1
             attack_data.cell_shape = EnemyAttackData.CellShape.WIDE
             attack_data.width = 3
             attack_data.depth = 2
         1:
             attack_data.attack_kind = EnemyAttackData.AttackKind.TILE
             attack_data.damage = 12.0
-            attack_data.active_duration = 1
             attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
             attack_data.radius = 1
         2:
             attack_data.attack_kind = EnemyAttackData.AttackKind.TILE
             attack_data.damage = 12.0
-            attack_data.active_duration = 1
             attack_data.cell_shape = EnemyAttackData.CellShape.LINE
             attack_data.line_length = 4
         3:
@@ -288,10 +381,9 @@ func _create_fallback_attack_data() -> EnemyAttackData:
             attack_data.damage_interval = 0.45
             attack_data.charge_speed = CHARGING_SPEED
         4:
-            attack_data.attack_kind = EnemyAttackData.AttackKind.PUFF
+            attack_data.attack_kind = EnemyAttackData.AttackKind.AREA
             attack_data.cell_shape = EnemyAttackData.CellShape.SQUARE
             attack_data.damage = 14.0
-            attack_data.active_duration = 2
             attack_data.radius = 1
         _:
             ToastManager.show_dev_error("ModeEnemy: invalid fallback attack index")

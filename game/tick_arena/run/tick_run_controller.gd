@@ -1,10 +1,11 @@
 # tick_run_controller.gd
 # Owns tick-arena run flow: starts and advances waves through WaveController, the wave-clear
-# banner timing, the reward choice open/apply flow, the death overlay/restart flow, and the reset
-# hook seam. Wave/spawn logistics (support count, population cap, spawn warnings, milestone elites,
-# stat scaling) belong to WaveController and its EnemySpawnPlanner/EnemySpawner collaborators, not
-# here. Restart clears this controller's own injected RunBuild in place via reset_run(); the arena
-# root constructs that store once at setup and never replaces it.
+# banner timing, the reward choice open/apply flow, the wave-10 demo-completion branch, terminal
+# RunOutcome finalization, and the reset hook seam. Wave/spawn logistics (group scheduling,
+# population cap, spawn warnings, boss role, level projection) belong to WaveController and its
+# EnemySpawnPlanner/EnemySpawner collaborators, not here. Restart clears this controller's own
+# injected RunBuild in place via reset_run(); the arena root constructs that store once at setup
+# and never replaces it.
 class_name TickRunController
 extends Node
 
@@ -13,18 +14,18 @@ signal run_reset_finished
 signal spawn_warning_changed(cells: Array[Vector2i], ticks: int)
 
 ## Explicit reward-flow state so the choice_applied handler and restart/death cleanup can never
-## misinterpret which step, if any, is pending. NONE means no offer or confirmation is open.
+## misinterpret which step, if any, is pending. NONE means no offer is open.
 enum RewardFlowState {
     NONE,
     AWAITING_NORMAL_REWARD,
     AWAITING_MILESTONE_REWARD,
-    AWAITING_CURSE_CONFIRMATION,
 }
 
 # -- Constants --
 
 const REWARD_OPEN_DELAY := 2.0
 const WAVE_BANNER_FADE := 0.35
+const DebugWaveOneBossScene := preload("res://game/entities/enemies/mode_boss.tscn")
 
 # -- Exports --
 
@@ -35,10 +36,11 @@ const WAVE_BANNER_FADE := 0.35
 @export var action_controller: TickActionController
 @export var reward_overlay: WaveRewardOverlay
 @export var artifact_registry: ArtifactRegistry
+@export var wave_catalog: WaveCatalog
 @export var wave_banner_overlay: Control
 @export var wave_banner_label: Label
-@export var death_overlay: Control
-@export var restart_button: Button
+@export var demo_completion_overlay: DemoCompletionOverlay
+@export var result_overlay: RunResultOverlay
 
 # -- State --
 
@@ -52,7 +54,12 @@ var _reward_generator: WaveRewardChoiceGenerator
 var _reward_context: WaveRewardContext
 var _reward_flow_state := RewardFlowState.NONE
 var _completed_wave_number := 0
-var _completed_wave_is_milestone := false
+var _highest_completed_wave := 0
+var _demo_completed := false
+var _run_finalized := false
+## The terminal snapshot for this run identity. It remains available after the result overlay has
+## formatted it, so a later scene-local consumer can read the same finalized outcome.
+var _run_outcome: RunOutcome = null
 var _rng := RandomNumberGenerator.new()
 
 # -- Timer / tween handles --
@@ -63,40 +70,77 @@ var _wave_banner_tween: Tween
 
 
 func _ready() -> void:
-    restart_button.pressed.connect(_on_restart_button_pressed)
+    result_overlay.restart_pressed.connect(_on_restart_button_pressed)
+    result_overlay.main_menu_pressed.connect(_on_main_menu_button_pressed)
+    demo_completion_overlay.end_run_pressed.connect(_on_end_run_button_pressed)
+    demo_completion_overlay.continue_endless_pressed.connect(_on_continue_endless_button_pressed)
 
 # == Signal handlers ==
 
 
-## Advances the reward-flow state machine once the open offer or confirmation applies: a normal
-## reward or a confirmed curse finishes the flow and starts the next wave, while a milestone reward
-## pick opens the forced curse confirmation instead of finishing immediately.
+## Advances the reward-flow state machine once the open offer applies: both a normal reward pick
+## and a milestone reward pick finish the flow and start the next wave. Milestone offers never open
+## a curse confirmation.
 func _on_reward_choice_applied() -> void:
     match _reward_flow_state:
         RewardFlowState.NONE:
             ToastManager.show_dev_error("TickRunController: reward applied with no pending reward flow")
-        RewardFlowState.AWAITING_NORMAL_REWARD:
-            _finish_reward_flow()
-        RewardFlowState.AWAITING_MILESTONE_REWARD:
-            _open_curse_confirmation()
-        RewardFlowState.AWAITING_CURSE_CONFIRMATION:
+        RewardFlowState.AWAITING_NORMAL_REWARD, RewardFlowState.AWAITING_MILESTONE_REWARD:
             _finish_reward_flow()
 
 
-## Locks player input, stores the completed wave's number and milestone flag for the reward flow
-## that follows, and shows the "WAVE END" banner once the wave controller reports every queued and
-## alive enemy is gone; the reward choice only opens once the banner has fully faded out.
-func _on_normal_wave_completed(wave_number: int, is_milestone_wave: bool) -> void:
+## Locks player input, stores the completed wave's number for the reward flow that follows, records
+## it as the run's new highest completed wave before any post-wave presentation, and shows the
+## "WAVE END" banner once the wave controller reports every queued and alive enemy is gone; the
+## wave-10 demo-completion branch or the reward choice only opens once the banner has fully faded
+## out.
+func _on_normal_wave_completed(wave_number: int) -> void:
     _completed_wave_number = wave_number
-    _completed_wave_is_milestone = is_milestone_wave
+    _highest_completed_wave = max(_highest_completed_wave, wave_number)
+    if wave_number == WaveCatalog.DEMO_WAVE_COUNT:
+        _demo_completed = true
     action_controller.set_input_locked(true)
     _show_wave_banner("WAVE END")
 
 
-## The death overlay's only recovery path; resets this controller's own injected RunBuild in place
-## instead of asking the arena root to build a replacement.
+## The result overlay's restart intent; resets this controller's own injected RunBuild in place
+## instead of asking the arena root to build a replacement. Ignored once the result overlay is no
+## longer showing, so a stale/duplicate button press can never re-enter reset mid-flow.
 func _on_restart_button_pressed() -> void:
+    if not result_overlay.visible:
+        return
     reset_run()
+
+
+## The result overlay's Main Menu intent. Ignored once the result overlay is no longer showing. A
+## successful route clears the paused result state so the arriving menu can process normally.
+func _on_main_menu_button_pressed() -> void:
+    if not result_overlay.visible:
+        return
+    if SceneRouter.go_to_main_menu():
+        result_overlay.hide_result()
+        get_tree().paused = false
+
+
+## The wave-10 demo-completion overlay's End Run intent: finalizes the run successfully. Ignored
+## once the overlay is no longer showing or the run has already finalized, so a duplicate or
+## stale press can never create a second RunOutcome.
+func _on_end_run_button_pressed() -> void:
+    if not demo_completion_overlay.visible or _run_finalized:
+        return
+    demo_completion_overlay.hide_choice()
+    _finalize_run(RunOutcome.Reason.END_RUN)
+
+
+## The wave-10 demo-completion overlay's Continue Endless intent: leaves the run non-terminal,
+## unpauses, and opens the normal wave-10 milestone reward before the endless template starts.
+## Ignored once the overlay is no longer showing or the run has already finalized.
+func _on_continue_endless_button_pressed() -> void:
+    if not demo_completion_overlay.visible or _run_finalized:
+        return
+    demo_completion_overlay.hide_choice()
+    get_tree().paused = false
+    _open_reward_choice()
 
 
 func _on_spawn_warning_changed(cells: Array[Vector2i], ticks: int) -> void:
@@ -115,9 +159,8 @@ func _on_run_build_contribution_recorded(channel: StringName, delta: float, tota
 # == Common API ==
 
 
-## Stores the run build the reward flow and wave controller apply effects onto/read pressure from,
-## seeds the spawn/reward RNG, and wires the reward choice and wave flow; the tick arena root owns
-## and constructs the shared RunBuild instance.
+## Stores the run build that reward effects write to, seeds the spawn/reward RNG, and wires the
+## reward choice and wave flow; the tick arena root owns and constructs the shared RunBuild instance.
 func setup(run_build: RunBuild, character_class: CharacterClassData) -> void:
     _run_build = run_build
     _character_class = character_class
@@ -140,24 +183,27 @@ func start_first_wave() -> void:
     _wave_controller.start_next_wave()
 
 
-## TickEngine emits player death only after the killing tick fully resolves; this shows the death
-## overlay instead of resetting immediately, so the player can see what killed them before restarting.
-## Combat input stays locked and the wave controller force-kills/stops spawning so nothing keeps
-## acting behind the overlay; restart is the only recovery path from here.
+## TickEngine emits player death only after the killing tick fully resolves; this finalizes the run
+## with a DEATH outcome instead of resetting immediately, so the player can see what killed them
+## before restarting. Combat input stays locked and the wave controller force-kills/stops spawning
+## so nothing keeps acting behind the results overlay; restart is the only recovery path from here.
 func handle_player_died() -> void:
-    _cancel_pending_wave_flow()
-    action_controller.set_input_locked(true)
-    _wave_controller.end_run()
-    death_overlay.visible = true
+    _finalize_run(RunOutcome.Reason.DEATH)
 
 
 ## Cancels any pending wave-end banner/reward-open callback before resetting, so a restart during the
-## banner countdown or an open reward choice can never let that stale flow reopen or reapply after the
-## run has already reset. Clears the run's own RunBuild in place instead of replacing it, so the
-## reward context and wave controller keep the same reference they were injected with at setup.
+## banner countdown, an open reward choice, or the demo-completion branch can never let that stale
+## flow reopen or reapply after the run has already reset. Clears the run's own RunBuild in place
+## instead of replacing it, so the reward context and wave controller keep the same reference they
+## were injected with at setup. Clears result/demo state, the run-finalization guard, and the
+## highest-completed-wave state for the fresh run identity that follows.
 func reset_run() -> void:
     _cancel_pending_wave_flow()
-    death_overlay.visible = false
+    result_overlay.hide_result()
+    _run_finalized = false
+    _run_outcome = null
+    _demo_completed = false
+    _highest_completed_wave = 0
     action_controller.set_input_locked(false)
     for actor in engine.actors():
         grid.unregister_occupant(actor)
@@ -185,6 +231,11 @@ func get_wave_display_text() -> String:
         return ""
     return _wave_controller.get_wave_display_text()
 
+
+## Returns this run's terminal snapshot, or null while the run remains active or after reset.
+func get_run_outcome() -> RunOutcome:
+    return _run_outcome
+
 # == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 
 
@@ -203,15 +254,41 @@ func debug_kill_all_enemies() -> void:
 
 
 ## Kills any in-flight wave-end banner tween, hides the wave banner overlay, and cancels any open
-## reward offer or curse confirmation, unpausing the tree — the shared cleanup death and restart
-## both need so neither can leave a stale banner/reward-flow step able to fire once the store clears.
+## reward offer or the demo-completion branch, unpausing the tree — the shared cleanup death,
+## End Run, and restart all need so neither can leave a stale banner/reward/demo-flow step able to
+## fire once the store clears.
 func _cancel_pending_wave_flow() -> void:
     if _wave_banner_tween != null and _wave_banner_tween.is_valid():
         _wave_banner_tween.kill()
     wave_banner_overlay.visible = false
     _reward_controller.cancel()
     _reward_flow_state = RewardFlowState.NONE
+    demo_completion_overlay.hide_choice()
     get_tree().paused = false
+
+# == Terminal Outcome ==
+
+
+## Creates exactly one RunOutcome for this run identity, on first call only: stops wave scheduling,
+## locks input, snapshots the run's terminal data, pauses safely, and shows the results overlay.
+## Both death and a successful End Run route through here, so neither path can ever create a second
+## outcome for the same run.
+func _finalize_run(reason: RunOutcome.Reason) -> void:
+    if _run_finalized:
+        return
+    _run_finalized = true
+    _cancel_pending_wave_flow()
+    action_controller.set_input_locked(true)
+    _wave_controller.end_run()
+    _run_outcome = RunOutcome.new(reason, _character_class, _highest_completed_wave, _demo_completed)
+    get_tree().paused = true
+    result_overlay.show_result(_run_outcome)
+
+
+## Pauses and opens the wave-10 End Run / Continue Endless choice after the completion banner fades.
+func _open_demo_completion_choice() -> void:
+    get_tree().paused = true
+    demo_completion_overlay.show_choice()
 
 # == Wave Controller ==
 
@@ -224,7 +301,8 @@ func _wire_wave_controller() -> void:
     _spawner = EnemySpawner.new(grid, player, enemy_container, engine)
     _wave_controller = WaveController.new()
     _wave_controller.setup(grid, _spawn_planner, _spawner, engine)
-    _wave_controller.set_run_build(_run_build)
+    _wave_controller.set_catalog(wave_catalog)
+    _wave_controller.set_debug_wave_one_boss_scene(DebugWaveOneBossScene)
     _wave_controller.normal_wave_completed.connect(_on_normal_wave_completed)
     _wave_controller.spawn_warning_changed.connect(_on_spawn_warning_changed)
 
@@ -248,9 +326,11 @@ func _wire_reward_flow() -> void:
 
 
 ## Opens the reward offer for the wave that was just cleared: a normal Minor three-choice, or a
-## milestone offer with a fixed Minor x2 first slot and per-slot Major-or-Minor x2 fallback.
+## milestone offer with a fixed Minor x2 first slot and per-slot Major-or-Minor x2 fallback. Major
+## cadence is decided here, purely from the completed wave number — never from Boss identity, the
+## catalog, or demo completion.
 func _open_reward_choice() -> void:
-    if _completed_wave_is_milestone:
+    if _is_major_reward_wave(_completed_wave_number):
         _reward_flow_state = RewardFlowState.AWAITING_MILESTONE_REWARD
         _reward_controller.show_offer("Milestone Reward", _build_milestone_offer(_completed_wave_number))
     else:
@@ -258,23 +338,15 @@ func _open_reward_choice() -> void:
         _reward_controller.show_offer("Choose a Reward", _build_normal_offer(_completed_wave_number))
 
 
-## Rolls the forced post-milestone curse and shows it as a one-card confirmation. A missing curse
-## still shows a confirmation so the sequence cannot stall, but is flagged as a programmer error
-## since the default curse pool should never be fully exhausted.
-func _open_curse_confirmation() -> void:
-    var curses := _reward_generator.roll(WaveRewardChoiceGenerator.RewardKind.CURSE, 1, _completed_wave_number, _reward_context)
-    var curse_choice: WaveRewardChoice
-    if curses.is_empty():
-        ToastManager.show_dev_error("TickRunController: no eligible curse found for milestone wave %d" % _completed_wave_number)
-        curse_choice = WaveRewardChoice.empty()
-    else:
-        curse_choice = curses[0]
-    _reward_flow_state = RewardFlowState.AWAITING_CURSE_CONFIRMATION
-    _reward_controller.show_confirmation("A Curse Takes Hold", curse_choice)
+## Every-third completed wave opens the Major milestone offer; every other wave opens the normal
+## Minor offer. This is the sole cadence input: Boss wave 10 is not divisible by three, so continuing
+## past it opens a normal offer, and wave 12 opens a Major offer despite having no Boss.
+func _is_major_reward_wave(wave_number: int) -> bool:
+    return wave_number > 0 and wave_number % 3 == 0
 
 
 ## Ends the current reward flow and starts the next wave — the sole path back to gameplay after a
-## normal reward pick or a completed milestone-plus-curse sequence.
+## normal or milestone reward pick.
 func _finish_reward_flow() -> void:
     _reward_flow_state = RewardFlowState.NONE
     action_controller.set_input_locked(false)
@@ -335,6 +407,11 @@ func _show_wave_banner(text: String) -> void:
     _wave_banner_tween.tween_callback(_hide_wave_banner_and_open_reward)
 
 
+## Wave 10 branches into the demo-completion choice instead of the normal reward flow; every other
+## wave keeps the normal reward-choice open.
 func _hide_wave_banner_and_open_reward() -> void:
     wave_banner_overlay.visible = false
-    _open_reward_choice()
+    if _completed_wave_number == WaveCatalog.DEMO_WAVE_COUNT:
+        _open_demo_completion_choice()
+    else:
+        _open_reward_choice()

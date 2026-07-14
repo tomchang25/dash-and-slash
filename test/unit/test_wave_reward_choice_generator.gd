@@ -1,28 +1,23 @@
 # test_wave_reward_choice_generator.gd
-# Tests WaveRewardChoiceGenerator's kind classification against the default artifact pool: the four
-# pressure artifacts roll as curses, normal Minor offers exclude pressure and Legendary artifacts,
-# and Major offers respect fixed class Mobility plus the run-wide legendary cap.
+# Tests WaveRewardChoiceGenerator's kind classification against the default artifact pool: the
+# production catalog carries no curse artifacts (the pressure curses were retired), so the CURSE
+# pool rolls empty while the generator's generic curse-exclusion support stays dormant; normal Minor
+# offers exclude Legendary artifacts, and Major offers respect fixed class Mobility plus the
+# run-wide legendary cap.
 extends GutTest
 
 const DEFAULT_REGISTRY_PATH := "res://data/rewards/default_artifact_registry.tres"
 
-func test_pressure_artifacts_roll_as_curses() -> void:
+func test_production_registry_has_no_curse_artifacts() -> void:
     var generator := WaveRewardChoiceGenerator.new(_load_default_registry())
     var context := WaveRewardContext.new(null, RunBuild.new())
 
     var curses := generator.roll(WaveRewardChoiceGenerator.RewardKind.CURSE, 10, 5, context)
-    var curse_ids: Array[StringName] = []
-    for choice in curses:
-        curse_ids.append(choice.artifacts()[0].id)
 
-    assert_true(curse_ids.has(&"future_enemy"), "future_enemy should roll as a curse")
-    assert_true(curse_ids.has(&"enemy_health_pressure"), "enemy_health_pressure should roll as a curse")
-    assert_true(curse_ids.has(&"enemy_damage_pressure"), "enemy_damage_pressure should roll as a curse")
-    assert_true(curse_ids.has(&"enemy_defense_pressure"), "enemy_defense_pressure should roll as a curse")
-    assert_eq(curse_ids.size(), 4, "exactly the four pressure artifacts should classify as curses")
+    assert_true(curses.is_empty(), "the production catalog must offer no curse artifacts")
 
 
-func test_normal_minor_pool_excludes_pressure_and_legendary_artifacts() -> void:
+func test_normal_minor_pool_excludes_legendary_artifacts() -> void:
     var generator := WaveRewardChoiceGenerator.new(_load_default_registry())
     var context := WaveRewardContext.new(null, RunBuild.new())
 

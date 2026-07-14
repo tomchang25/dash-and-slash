@@ -1,7 +1,7 @@
 # test_build_inspection_formatter.gd
-# Tests BuildInspectionFormatter's channel filtering/ordering, flat/percent value formatting,
-# class/Mobility and trigger summaries, and owned-artifact row assembly, all without instancing the
-# build inspection panel scene.
+# Tests BuildInspectionFormatter's channel filtering/ordering, flat value formatting, class/Mobility
+# and trigger summaries, and owned-artifact row assembly, all without instancing the build
+# inspection panel scene.
 extends GutTest
 
 func test_channel_rows_skip_zero_channels_and_keep_stable_order() -> void:
@@ -30,13 +30,6 @@ func test_mobility_range_channel_displays_flat_cell_bonus() -> void:
     run_build.record(RunBuild.CH_MOBILITY_RANGE, 1.0)
 
     assert_eq(BuildInspectionFormatter.format_channel_value(RunBuild.CH_MOBILITY_RANGE, run_build.total(RunBuild.CH_MOBILITY_RANGE)), "+1")
-
-
-func test_percent_fraction_channel_scales_stored_fraction_by_100() -> void:
-    var run_build := RunBuild.new()
-    run_build.record(RunBuild.CH_ENEMY_HEALTH_PRESSURE, 0.05)
-
-    assert_eq(BuildInspectionFormatter.format_channel_value(RunBuild.CH_ENEMY_HEALTH_PRESSURE, run_build.total(RunBuild.CH_ENEMY_HEALTH_PRESSURE)), "+5%")
 
 
 func test_unknown_channel_reports_unknown_instead_of_crashing() -> void:
