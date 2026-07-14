@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SpawnGroupDefinition" format=3 uid="uid://dgroupboss001"]
+
+[ext_resource type="Script" uid="uid://dspawngroupdef1" path="res://data/waves/definitions/spawn_group_definition.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cmejhheclo211" path="res://data/waves/definitions/wave_composition_entry.gd" id="2_entry"]
+[ext_resource type="PackedScene" uid="uid://dmodebossplac" path="res://game/entities/enemies/mode_boss.tscn" id="3_boss"]
+
+[sub_resource type="Resource" id="entry_boss"]
+script = ExtResource("2_entry")
+enemy_scene = ExtResource("3_boss")
+count = 1
+
+[resource]
+script = ExtResource("1_script")
+placement_strategy = 2
+composition_mode = 0
+entries = Array[ExtResource("2_entry")]([SubResource("entry_boss")])

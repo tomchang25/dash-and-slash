@@ -1,13 +1,16 @@
 # wave_controller.gd
-# Scene-local RefCounted that owns wave progression, ordered-group spawn scheduling, and alive
+# Scene-local RefCounted that owns wave progression, ordered-slot atomic spawn scheduling, and alive
 # enemies for tick-paced combat, driven entirely by an injected WaveCatalog. Spawn timing is driven
-# by player-action world ticks (TickEngine.world_advanced) instead of real-time Timers: a scheduled
-# batch drawn from one currently-eligible group telegraphs as a SPAWNING warning (unless its group
-# authors zero warning ticks), counts down on world advances, then revalidates and spawns. Group
-# eligibility, once granted, is never revoked; earlier eligible groups always claim population
-# headroom before later ones, so a batch is always drawn from a single group at a time. Each spawned
-# enemy's final level and projected stats come from the catalog's EnemyLevelProgressionProfile,
-# applied through the enemy's existing pre-ready spawn callback.
+# by player-action world ticks (TickEngine.world_advanced) instead of real-time Timers: once the
+# earliest eligible slot's entire remaining queue fits population headroom and EnemySpawnPlanner
+# returns a complete legal cell plan for its group's placement strategy, that whole batch telegraphs
+# as a SPAWNING warning (unless the slot authors zero warning ticks), counts down on world advances,
+# then revalidates and spawns. A slot that cannot yet fit headroom or receive a complete plan simply
+# waits with no telegraph and no partial spawn; later slots never bypass it. Slot eligibility, once
+# granted, is never revoked; earlier eligible slots always claim population headroom before later
+# ones, so a batch is always drawn from a single slot at a time. Each spawned enemy's final level and
+# projected stats come from the catalog's EnemyLevelProgressionProfile, applied through the enemy's
+# existing pre-ready spawn callback.
 class_name WaveController
 extends RefCounted
 
@@ -26,19 +29,23 @@ var _spawn_planner: EnemySpawnPlanner
 var _spawner: EnemySpawner
 var _engine: TickEngine
 var _alive_enemies: Array[Node] = []
-var _enemy_group_index: Dictionary = { }
-## One queue of not-yet-spawned entries per group in the active wave, indexed by group position.
-var _group_queues: Array = []
-## Latched per-group eligibility for the active wave; once true, never reset false.
-var _group_eligible: Array[bool] = []
-## Currently-alive spawned member count per group, used only for predecessor threshold checks.
-var _group_living_count: Array[int] = []
-## True once a group has ever actually spawned a member. PREVIOUS_GROUP_CLEARED and
+var _enemy_slot_index: Dictionary = { }
+## One queue of not-yet-spawned entries per slot in the active wave, indexed by slot position.
+var _slot_queues: Array = []
+## Latched per-slot eligibility for the active wave; once true, never reset false.
+var _slot_eligible: Array[bool] = []
+## Currently-alive spawned member count per slot, used only for predecessor threshold checks.
+var _slot_living_count: Array[int] = []
+## True once a slot has ever actually spawned a member. PREVIOUS_GROUP_CLEARED and
 ## PREVIOUS_GROUP_SURVIVORS_AT_MOST require this before trusting a living count of zero as
 ## "cleared" rather than "never spawned yet."
-var _group_ever_spawned: Array[bool] = []
+var _slot_ever_spawned: Array[bool] = []
 var _pending_batch: Array[Dictionary] = []
-var _pending_batch_group_index := -1
+var _pending_batch_slot_index := -1
+## The admitted batch's placement strategy and anchor, retained so warning-resolution replacement
+## for an invalid member can reuse the same anchor intent instead of a fresh unrelated cell.
+var _pending_batch_strategy: SpawnGroupDefinition.PlacementStrategy = SpawnGroupDefinition.PlacementStrategy.SCATTER
+var _pending_batch_anchor: Vector2i = EnemySpawnPlanner.NO_CELL
 var _warning_ticks_remaining := 0
 var _boss_ref: Node = null
 var _run_over := false
@@ -71,10 +78,10 @@ func _on_enemy_died(enemy: Entity) -> void:
     if _engine != null and enemy is GridEnemy:
         _engine.unregister_actor(enemy)
 
-    var group_index: int = _enemy_group_index.get(enemy, -1)
-    if group_index != -1:
-        _group_living_count[group_index] = max(_group_living_count[group_index] - 1, 0)
-        _enemy_group_index.erase(enemy)
+    var slot_index: int = _enemy_slot_index.get(enemy, -1)
+    if slot_index != -1:
+        _slot_living_count[slot_index] = max(_slot_living_count[slot_index] - 1, 0)
+        _enemy_slot_index.erase(enemy)
 
     if enemy == _boss_ref:
         _boss_ref = null
@@ -83,7 +90,7 @@ func _on_enemy_died(enemy: Entity) -> void:
     if _run_over:
         return
 
-    _evaluate_group_eligibility()
+    _evaluate_slot_eligibility()
     if _pending_batch.is_empty():
         # A batch already warning must not be overwritten here: _schedule_next_warning_batch()
         # replaces _pending_batch wholesale, so calling it again mid-warning would silently drop
@@ -96,7 +103,7 @@ func _on_enemy_died(enemy: Entity) -> void:
 
 
 ## Wires the scene collaborators needed for tick-paced wave flow and enemy spawning, seeds the
-## group-expansion RNG, and connects to the engine's world_advanced signal, the clock source for
+## slot-expansion RNG, and connects to the engine's world_advanced signal, the clock source for
 ## spawn-warning countdowns.
 func setup(grid: GridArena, spawn_planner: EnemySpawnPlanner, spawner: EnemySpawner, engine: TickEngine) -> void:
     _grid = grid
@@ -108,7 +115,7 @@ func setup(grid: GridArena, spawn_planner: EnemySpawnPlanner, spawner: EnemySpaw
         _engine.world_advanced.connect(_on_world_advanced)
 
 
-## Injects the authored catalog that drives every wave's groups, composition, warning timing, and
+## Injects the authored catalog that drives every wave's slots, composition, warning timing, and
 ## enemy level projection. A missing or invalid catalog is reported once here and blocks every wave
 ## from starting or advancing; the controller never falls back to formula scaling.
 func set_catalog(catalog: WaveCatalog) -> void:
@@ -118,7 +125,7 @@ func set_catalog(catalog: WaveCatalog) -> void:
         ToastManager.show_dev_error("WaveController: missing or invalid WaveCatalog; waves cannot start or advance")
 
 
-## Overrides the group-expansion RNG's seed. Tests use a fixed seed so weighted-group draws are
+## Overrides the slot-expansion RNG's seed. Tests use a fixed seed so weighted-group draws are
 ## deterministic; production relies on the randomize() call in setup() instead.
 func set_wave_rng_seed(value: int) -> void:
     _wave_rng.seed = value
@@ -140,13 +147,13 @@ func advance_wave() -> bool:
     return true
 
 
-## Returns true when the active wave's groups include an authored boss group.
+## Returns true when the active wave's slots include an authored boss slot.
 func is_milestone_wave() -> bool:
     var wave := _active_wave()
     if wave == null:
         return false
-    for group in wave.groups:
-        if group != null and group.is_boss:
+    for slot in wave.slots:
+        if slot != null and slot.is_boss:
             return true
     return false
 
@@ -178,14 +185,14 @@ func is_run_over() -> bool:
 
 
 ## Resets all wave-local state for a fresh run, including clearing any pending spawn-warning's grid
-## telegraphs and every group's scheduling state.
+## telegraphs and every slot's scheduling state.
 func reset() -> void:
     _clear_spawn_queue_telegraphs()
     _current_wave_number = 0
-    _group_eligible.clear()
-    _group_living_count.clear()
-    _group_ever_spawned.clear()
-    _enemy_group_index.clear()
+    _slot_eligible.clear()
+    _slot_living_count.clear()
+    _slot_ever_spawned.clear()
+    _enemy_slot_index.clear()
     _alive_enemies.clear()
     _warning_ticks_remaining = 0
     _boss_ref = null
@@ -237,8 +244,8 @@ func _begin_wave() -> void:
         ToastManager.show_dev_error("WaveController: no wave definition resolved for wave %d" % _current_wave_number)
         return
     wave_started.emit(get_wave_display_text(), is_milestone_wave())
-    _prepare_group_queues(wave)
-    _evaluate_group_eligibility()
+    _prepare_slot_queues(wave)
+    _evaluate_slot_eligibility()
     _schedule_next_warning_batch()
 
 
@@ -261,7 +268,7 @@ func _population_cap() -> int:
 func _check_wave_completion() -> void:
     if _run_over or not _pending_batch.is_empty():
         return
-    if not _all_queues_empty():
+    if not _all_slot_queues_empty():
         return
     if not _alive_enemies.is_empty():
         return
@@ -279,8 +286,7 @@ func _try_spawn_debug_wave_one_boss() -> bool:
     if _current_wave_number != 1 or _debug_wave_one_boss_spawned or _debug_wave_one_boss_scene == null:
         return false
 
-    var reserved_spawn_cells: Array[Vector2i] = []
-    var spawn_cell := _spawn_planner.choose_enemy_spawn_cell(0, 1, reserved_spawn_cells)
+    var spawn_cell := _spawn_planner.choose_fallback_cell()
     var enemy := _spawner.spawn_enemy(
         _debug_wave_one_boss_scene,
         spawn_cell,
@@ -298,128 +304,132 @@ func _try_spawn_debug_wave_one_boss() -> bool:
     return true
 
 
-func _all_queues_empty() -> bool:
-    for queue in _group_queues:
+func _all_slot_queues_empty() -> bool:
+    for queue in _slot_queues:
         if not queue.is_empty():
             return false
     return true
 
-# == Group Eligibility And Scheduling ==
+# == Slot Eligibility And Scheduling ==
 
 
-## Builds this wave's per-group queues by expanding each group's authored composition once. Cells
-## are not chosen here; selection is deferred to _schedule_next_warning_batch so spacing reflects
-## what's actually warning at that moment, not a stale full-wave plan.
-func _prepare_group_queues(wave: WaveDefinition) -> void:
-    _group_queues.clear()
-    _group_eligible.clear()
-    _group_living_count.clear()
-    _group_ever_spawned.clear()
-    for group in wave.groups:
-        _group_queues.append(_expand_group(group))
-        _group_eligible.append(false)
-        _group_living_count.append(0)
-        _group_ever_spawned.append(false)
+## Builds this wave's per-slot queues by expanding each slot's referenced group composition once.
+## Cells are not chosen here; selection is deferred to _schedule_next_warning_batch so a plan reads
+## live grid state instead of a stale full-wave layout.
+func _prepare_slot_queues(wave: WaveDefinition) -> void:
+    _slot_queues.clear()
+    _slot_eligible.clear()
+    _slot_living_count.clear()
+    _slot_ever_spawned.clear()
+    for slot in wave.slots:
+        _slot_queues.append(_expand_slot(slot))
+        _slot_eligible.append(false)
+        _slot_living_count.append(0)
+        _slot_ever_spawned.append(false)
 
 
-## Latches eligibility in authored order: the first group is always eligible by position; a later
-## group can only become eligible once its immediate predecessor already is, checked against that
-## predecessor's own living count. Once true, a group's eligibility is never revoked.
-func _evaluate_group_eligibility() -> void:
+## Latches eligibility in authored order: the first slot is always eligible by position; a later
+## slot can only become eligible once its immediate predecessor already is, checked against that
+## predecessor's own living count. Once true, a slot's eligibility is never revoked.
+func _evaluate_slot_eligibility() -> void:
     var wave := _active_wave()
     if wave == null:
         return
-    for i in wave.groups.size():
-        if _group_eligible[i]:
+    for i in wave.slots.size():
+        if _slot_eligible[i]:
             continue
         if i == 0:
-            _group_eligible[i] = true
+            _slot_eligible[i] = true
             continue
-        if not _group_eligible[i - 1]:
+        if not _slot_eligible[i - 1]:
             continue
-        _group_eligible[i] = _condition_met(wave.groups[i], i - 1)
+        _slot_eligible[i] = _condition_met(wave.slots[i], i - 1)
 
 
 ## A predecessor's living count of zero only means "cleared" once it has actually spawned at least
 ## one member; otherwise CLEARED and SURVIVORS_AT_MOST would trivially pass on a predecessor that
 ## simply hasn't had its turn at population headroom yet.
-func _condition_met(group: WaveGroupDefinition, predecessor_index: int) -> bool:
-    var predecessor_living: int = _group_living_count[predecessor_index]
-    match group.start_condition:
-        WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED:
-            return _group_ever_spawned[predecessor_index] and predecessor_living <= 0
-        WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST:
-            return _group_ever_spawned[predecessor_index] and predecessor_living <= group.survivor_threshold
-        WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP:
+func _condition_met(slot: WaveGroupSlot, predecessor_index: int) -> bool:
+    var predecessor_living: int = _slot_living_count[predecessor_index]
+    match slot.start_condition:
+        WaveGroupSlot.StartCondition.PREVIOUS_GROUP_CLEARED:
+            return _slot_ever_spawned[predecessor_index] and predecessor_living <= 0
+        WaveGroupSlot.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST:
+            return _slot_ever_spawned[predecessor_index] and predecessor_living <= slot.survivor_threshold
+        WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP:
             return true
         _:
-            ToastManager.show_dev_error("WaveController: unknown start_condition %s" % group.start_condition)
+            ToastManager.show_dev_error("WaveController: unknown start_condition %s" % slot.start_condition)
             return false
 
 
-## Pulls as many entries as current population headroom allows from the earliest eligible group
-## that still has queued entries, and telegraphs only that batch as a SPAWNING warning, counted down
-## in player-action world ticks. A group authored with zero warning ticks resolves its batch
-## immediately instead of telegraphing. No-ops if no group is schedulable, there is no headroom, or
-## a warning batch is already pending — deaths that free headroom while a batch is pending only
-## unlock the next scheduling pass once that batch resolves.
+## Admits the earliest eligible slot's entire remaining queue as one atomic batch, telegraphed as a
+## SPAWNING warning counted down in player-action world ticks. A slot authored with zero warning
+## ticks resolves its batch immediately instead of telegraphing. No-ops without creating any pending
+## batch, telegraph, or partial spawn when no slot is schedulable, the whole remaining queue does not
+## fit current population headroom, or EnemySpawnPlanner cannot return a complete legal cell plan for
+## it — a later slot never bypasses an earlier one stuck on either condition. Deaths that free
+## headroom while a batch is pending only unlock the next scheduling pass once that batch resolves.
 func _schedule_next_warning_batch() -> void:
     if _run_over or not _pending_batch.is_empty():
         return
 
-    var group_index := _next_schedulable_group_index()
-    if group_index == -1:
+    var slot_index := _next_schedulable_slot_index()
+    if slot_index == -1:
         return
 
+    var queue: Array = _slot_queues[slot_index]
+    var remaining_count: int = queue.size()
     var headroom := _population_cap() - _alive_enemies.size()
-    if headroom <= 0:
+    if remaining_count > headroom:
         return
-
-    var group_queue: Array = _group_queues[group_index]
-    var batch_size: int = min(headroom, group_queue.size())
-    _pending_batch = group_queue.slice(0, batch_size)
-    _group_queues[group_index] = group_queue.slice(batch_size)
-    _pending_batch_group_index = group_index
-
-    var reserved_spawn_cells: Array[Vector2i] = []
-    for i in _pending_batch.size():
-        var cell := _spawn_planner.choose_enemy_spawn_cell(i, _pending_batch.size(), reserved_spawn_cells)
-        reserved_spawn_cells.append(cell)
-        _pending_batch[i]["cell"] = cell
-        _pending_batch[i]["index"] = i
-        _pending_batch[i]["count"] = _pending_batch.size()
 
     var wave := _active_wave()
-    var group: WaveGroupDefinition = wave.groups[group_index] if wave != null else null
-    var warning_ticks: int = group.warning_ticks if group != null else 0
-    if warning_ticks <= 0:
+    var slot: WaveGroupSlot = wave.slots[slot_index]
+    var plan := _spawn_planner.plan_group_cells(slot.spawn_group.placement_strategy, remaining_count)
+    var cells: Array = plan.get("cells", [])
+    if cells.size() != remaining_count:
+        return
+
+    _pending_batch = queue.duplicate()
+    _slot_queues[slot_index] = []
+    _pending_batch_slot_index = slot_index
+    _pending_batch_strategy = slot.spawn_group.placement_strategy
+    _pending_batch_anchor = plan.get("anchor", EnemySpawnPlanner.NO_CELL)
+
+    for i in _pending_batch.size():
+        _pending_batch[i]["cell"] = cells[i]
+
+    if slot.warning_ticks <= 0:
         _resolve_pending_batch()
         return
 
     var telegraph_cells: Array[Vector2i] = []
-    for entry in _pending_batch:
-        telegraph_cells.append(entry["cell"])
+    for cell in cells:
+        telegraph_cells.append(cell)
     _grid.set_telegraph(self, telegraph_cells, GridArena.TelegraphPhase.SPAWNING)
-    _warning_ticks_remaining = warning_ticks
+    _warning_ticks_remaining = slot.warning_ticks
     _emit_spawn_warning_changed()
 
 
-## Returns the group index of the earliest eligible group that still has queued entries, or -1 when
-## none is schedulable right now. Earlier groups are always returned before later ones, so overlap
-## never lets a later group bypass unspawned entries from an earlier one.
-func _next_schedulable_group_index() -> int:
-    for i in _group_queues.size():
-        if _group_eligible[i] and not _group_queues[i].is_empty():
+## Returns the slot index of the earliest eligible slot that still has queued entries, or -1 when
+## none is schedulable right now. Earlier slots are always returned before later ones, so overlap
+## never lets a later slot bypass unspawned entries from an earlier one, and headroom/plan failure
+## on the earliest slot blocks scheduling entirely rather than falling through to a later slot.
+func _next_schedulable_slot_index() -> int:
+    for i in _slot_queues.size():
+        if _slot_eligible[i] and not _slot_queues[i].is_empty():
             return i
     return -1
 
 
 ## Clears the pending batch's SPAWNING telegraph, revalidates each entry's reserved cell against
 ## current land/player/occupancy, relocates or requeues invalid entries back into their source
-## group's queue, then spawns everything that resolved to a valid cell. Re-evaluates eligibility and
-## schedules the next batch immediately only when every reserved entry resolved. A requeued entry
-## waits for a later world tick or relevant death before retrying, so zero-warning groups cannot
-## recurse indefinitely while the grid has no valid spawn cell.
+## slot's queue using the batch's retained strategy/anchor intent, then spawns everything that
+## resolved to a valid cell. Re-evaluates eligibility and schedules the next batch immediately only
+## when every reserved entry resolved. A requeued entry waits for a later world tick or relevant
+## death before retrying, so zero-warning slots cannot recurse indefinitely while the grid has no
+## valid spawn cell.
 func _resolve_pending_batch() -> void:
     var telegraph_cells: Array[Vector2i] = []
     for entry in _pending_batch:
@@ -427,9 +437,11 @@ func _resolve_pending_batch() -> void:
     _grid.clear_telegraph(self, telegraph_cells)
 
     var resolving := _pending_batch
-    var resolving_group_index := _pending_batch_group_index
+    var resolving_slot_index := _pending_batch_slot_index
+    var strategy := _pending_batch_strategy
+    var anchor := _pending_batch_anchor
     _pending_batch = []
-    _pending_batch_group_index = -1
+    _pending_batch_slot_index = -1
 
     var accepted_cells: Array[Vector2i] = []
     var requeued: Array[Dictionary] = []
@@ -441,7 +453,7 @@ func _resolve_pending_batch() -> void:
             to_spawn.append(entry)
             continue
 
-        var replacement := _spawn_planner.find_valid_spawn_replacement(entry["index"], entry["count"], accepted_cells)
+        var replacement := _spawn_planner.find_replacement_cell(strategy, anchor, accepted_cells)
         if replacement == EnemySpawnPlanner.NO_CELL:
             requeued.append(entry)
             continue
@@ -451,12 +463,12 @@ func _resolve_pending_batch() -> void:
         to_spawn.append(entry)
 
     if not requeued.is_empty():
-        _group_queues[resolving_group_index] = requeued + _group_queues[resolving_group_index]
+        _slot_queues[resolving_slot_index] = requeued + _slot_queues[resolving_slot_index]
 
     for entry in to_spawn:
-        _spawn_one(entry, resolving_group_index)
+        _spawn_one(entry, resolving_slot_index)
 
-    _evaluate_group_eligibility()
+    _evaluate_slot_eligibility()
     if requeued.is_empty():
         _schedule_next_warning_batch()
     if _pending_batch.is_empty():
@@ -464,7 +476,7 @@ func _resolve_pending_batch() -> void:
         spawn_warning_changed.emit(empty_cells, 0)
 
 
-func _spawn_one(entry: Dictionary, group_index: int) -> void:
+func _spawn_one(entry: Dictionary, slot_index: int) -> void:
     var scene: PackedScene = entry["scene"]
     var spawn_cell: Vector2i = entry["cell"]
     var level: int = entry["level"]
@@ -478,9 +490,9 @@ func _spawn_one(entry: Dictionary, group_index: int) -> void:
     if enemy == null:
         return
     _alive_enemies.append(enemy)
-    _enemy_group_index[enemy] = group_index
-    _group_living_count[group_index] += 1
-    _group_ever_spawned[group_index] = true
+    _enemy_slot_index[enemy] = slot_index
+    _slot_living_count[slot_index] += 1
+    _slot_ever_spawned[slot_index] = true
     if is_boss:
         _boss_ref = enemy
         boss_spawned.emit(enemy)
@@ -499,7 +511,7 @@ func _apply_level_projection(enemy: Node, level: int) -> void:
 
 
 ## Clears any pending warning batch's grid telegraphs, then drops both the pending batch and every
-## group's remaining queue. Queues are always cleared, even with no batch pending, so a caller
+## slot's remaining queue. Queues are always cleared, even with no batch pending, so a caller
 ## resetting mid-drain doesn't leak queued entries.
 func _clear_spawn_queue_telegraphs() -> void:
     if not _pending_batch.is_empty():
@@ -508,8 +520,8 @@ func _clear_spawn_queue_telegraphs() -> void:
             cells.append(entry["cell"])
         _grid.clear_telegraph(self, cells)
         _pending_batch.clear()
-        _pending_batch_group_index = -1
-    _group_queues.clear()
+        _pending_batch_slot_index = -1
+    _slot_queues.clear()
     var empty_cells: Array[Vector2i] = []
     spawn_warning_changed.emit(empty_cells, 0)
 
@@ -524,35 +536,36 @@ func _pending_batch_cells() -> Array[Vector2i]:
 func _emit_spawn_warning_changed() -> void:
     spawn_warning_changed.emit(_pending_batch_cells(), _warning_ticks_remaining)
 
-# == Group Expansion ==
+# == Slot Expansion ==
 
 
-## Expands one group's authored composition into queue entries: fixed mode appends count copies of
-## each entry in authored order; weighted mode draws weighted_total_count entries from the injected
-## per-run wave RNG, independent of the reward RNG so reward choices can never alter encounter
-## composition.
-func _expand_group(group: WaveGroupDefinition) -> Array[Dictionary]:
+## Expands one slot's referenced group composition into queue entries: fixed mode appends count
+## copies of each entry in authored order; weighted mode draws weighted_total_count entries from the
+## injected per-run wave RNG, independent of the reward RNG so reward choices can never alter
+## encounter composition.
+func _expand_slot(slot: WaveGroupSlot) -> Array[Dictionary]:
     var entries: Array[Dictionary] = []
+    var group := slot.spawn_group
     match group.composition_mode:
-        WaveGroupDefinition.CompositionMode.FIXED:
+        SpawnGroupDefinition.CompositionMode.FIXED:
             for composition_entry in group.entries:
                 for i in composition_entry.count:
-                    entries.append(_make_queue_entry(composition_entry.enemy_scene, group))
-        WaveGroupDefinition.CompositionMode.WEIGHTED:
+                    entries.append(_make_queue_entry(composition_entry.enemy_scene, slot))
+        SpawnGroupDefinition.CompositionMode.WEIGHTED:
             for i in group.weighted_total_count:
                 var picked := _pick_weighted_entry(group.entries)
                 if picked != null:
-                    entries.append(_make_queue_entry(picked.enemy_scene, group))
+                    entries.append(_make_queue_entry(picked.enemy_scene, slot))
         _:
             ToastManager.show_dev_error("WaveController: unknown composition_mode %s" % group.composition_mode)
     return entries
 
 
-func _make_queue_entry(scene: PackedScene, group: WaveGroupDefinition) -> Dictionary:
+func _make_queue_entry(scene: PackedScene, slot: WaveGroupSlot) -> Dictionary:
     return {
         "scene": scene,
-        "level": _current_wave_number + group.level_offset,
-        "is_boss": group.is_boss,
+        "level": _current_wave_number + slot.level_offset,
+        "is_boss": slot.is_boss,
     }
 
 

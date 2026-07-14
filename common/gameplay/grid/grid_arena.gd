@@ -499,6 +499,20 @@ func get_telegraph_phase(cell: Vector2i) -> int:
     return _resolve_highest_phase(sources)
 
 
+## Returns true when any telegraph source currently marks the cell SPAWNING. This checks every
+## source's own phase directly instead of relying on get_telegraph_phase()'s visually-highest
+## result, so an overlapping non-SPAWNING telegraph presented on top can never hide an admitted spawn
+## batch from enemy path planning.
+func is_spawn_path_blocked(cell: Vector2i) -> bool:
+    if not _telegraphs.has(cell):
+        return false
+    var sources: Dictionary = _telegraphs[cell]
+    for phase: int in sources.values():
+        if phase == TelegraphPhase.SPAWNING:
+            return true
+    return false
+
+
 ## Returns every cell with at least one active telegraph source.
 func get_telegraphed_cells() -> Array[Vector2i]:
     var cells: Array[Vector2i] = []

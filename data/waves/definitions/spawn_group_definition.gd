@@ -1,11 +1,10 @@
-# wave_group_definition.gd
-# One authored encounter group within a wave: its enemy composition, level offset, warning timing,
-# and start condition relative to the immediately preceding group. Fixed composition assigns explicit
-# per-entry counts for staged encounters (elites, bosses); weighted composition assigns a total count
-# and per-entry selection weights for mixed support groups. The first group in a wave is always
-# start-eligible by position, regardless of its authored start_condition; runtime scheduling of that
-# eligibility is out of scope for this schema.
-class_name WaveGroupDefinition
+# spawn_group_definition.gd
+# One reusable authored encounter group: its enemy composition and one placement strategy. Fixed
+# composition assigns explicit per-entry counts for staged encounters (elites, bosses); weighted
+# composition assigns a total count and per-entry selection weights for mixed support groups.
+# Groups are referenced by external WaveGroupSlot resources across any number of waves; this
+# resource owns no occurrence-specific scheduling, warning, level, or boss data.
+class_name SpawnGroupDefinition
 extends Resource
 
 enum CompositionMode {
@@ -13,24 +12,15 @@ enum CompositionMode {
     WEIGHTED,
 }
 
-enum StartCondition {
-    PREVIOUS_GROUP_CLEARED,
-    PREVIOUS_GROUP_SURVIVORS_AT_MOST,
-    IMMEDIATE_OVERLAP,
+enum PlacementStrategy {
+    PLAYER_RING,
+    ANCHOR_CLUSTER,
+    SCATTER,
 }
 
 # -- Exports --
 
-@export var start_condition: StartCondition = StartCondition.PREVIOUS_GROUP_CLEARED
-## Survivor threshold for PREVIOUS_GROUP_SURVIVORS_AT_MOST; unused by the other conditions.
-@export var survivor_threshold := 0
-## Player actions the spawn warning telegraphs before this group's members enter.
-@export var warning_ticks := 0
-## Non-negative enemy-level bonus applied to every member of this group.
-@export var level_offset := 0
-## Authored boss role, read by wave display and boss treatment. Runtime code must never compare a
-## scene against a boss scene reference to detect boss behavior or demo completion.
-@export var is_boss := false
+@export var placement_strategy: PlacementStrategy = PlacementStrategy.SCATTER
 @export var composition_mode: CompositionMode = CompositionMode.FIXED
 ## Total enemies drawn by weight; positive and required only in weighted mode.
 @export var weighted_total_count := 0
@@ -42,15 +32,6 @@ enum StartCondition {
 ## Reports malformed authored group data and returns whether the group is safe to use.
 func validate(group_label: String) -> bool:
     var valid := true
-    if warning_ticks < 0:
-        ToastManager.show_dev_error("%s: warning_ticks must be non-negative, got %d" % [group_label, warning_ticks])
-        valid = false
-    if level_offset < 0:
-        ToastManager.show_dev_error("%s: level_offset must be non-negative, got %d" % [group_label, level_offset])
-        valid = false
-    if start_condition == StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST and survivor_threshold < 0:
-        ToastManager.show_dev_error("%s: survivor_threshold must be non-negative, got %d" % [group_label, survivor_threshold])
-        valid = false
     if entries.is_empty():
         ToastManager.show_dev_error("%s: must have at least one composition entry" % group_label)
         return false
@@ -64,6 +45,23 @@ func validate(group_label: String) -> bool:
             ToastManager.show_dev_error("%s: unknown composition_mode %s" % [group_label, composition_mode])
             valid = false
     return valid
+
+
+## Returns the largest possible member count this group can expand to: the summed fixed counts, or
+## the weighted draw total. WaveDefinition uses this to reject a group whose remaining membership
+## could never fit a referencing wave's population cap, without simulating a weighted draw.
+func max_member_count() -> int:
+    match composition_mode:
+        CompositionMode.FIXED:
+            var total := 0
+            for entry in entries:
+                if entry != null:
+                    total += entry.count
+            return total
+        CompositionMode.WEIGHTED:
+            return weighted_total_count
+        _:
+            return 0
 
 # == Validation helpers ==
 

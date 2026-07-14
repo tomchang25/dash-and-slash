@@ -1,48 +1,65 @@
 # test_wave_controller.gd
-# Tests EnemySpawnPlanner revalidation and WaveController's catalog-driven ordered-group
-# scheduling: eligibility latching, per-group warning batches, population-cap headroom, weighted
-# expansion, level-projection wiring, boss-role signals, and wave completion.
+# Tests WaveController's catalog-driven ordered-slot atomic scheduling: eligibility latching,
+# whole-remaining-group admission gated on headroom and a complete EnemySpawnPlanner plan, per-slot
+# warning batches, weighted expansion, level-projection wiring, boss-role signals, wave completion,
+# and the shape of the production demo/endless catalog. EnemySpawnPlanner's own placement strategies
+# and replacement logic are covered directly in test_enemy_spawn_planner.gd; here it is stubbed so
+# these tests exercise queueing/scheduling bookkeeping, not cell geometry.
 extends GutTest
 
 const DefaultWaveCatalog := preload("res://data/waves/default_wave_catalog.tres")
 const ThrustEnemyScene := preload("res://game/entities/enemies/thrust_enemy.tscn")
 const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
-const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
 const BombEnemyScene := preload("res://game/entities/enemies/bomb_enemy.tscn")
-const RangedEnemyScene := preload("res://game/entities/enemies/ranged_enemy.tscn")
 const ModeBossScene := preload("res://game/entities/enemies/mode_boss.tscn")
 
 
-## Spawn planner test double: always returns the origin cell so the test doesn't depend on real
-## grid placement, only on queue/population bookkeeping. Revalidation is stubbed to always pass so
-## these tests exercise queueing/warning timing, not cell geometry — see the dedicated
-## "EnemySpawnPlanner revalidation" section below for that.
+## Spawn planner test double: always returns a complete plan of distinct cells for the requested
+## count and always revalidates true, so these tests exercise queueing/warning timing and atomic
+## admission bookkeeping, not real cell geometry.
 class FakeSpawnPlanner:
     extends EnemySpawnPlanner
 
-    func choose_enemy_spawn_cell(_index: int, _spawn_count: int, _reserved_spawn_cells: Array[Vector2i]) -> Vector2i:
-        return Vector2i.ZERO
+    func plan_group_cells(_strategy: SpawnGroupDefinition.PlacementStrategy, count: int) -> Dictionary:
+        var cells: Array[Vector2i] = []
+        for i in count:
+            cells.append(Vector2i(i, 0))
+        return { "cells": cells, "anchor": Vector2i.ZERO }
 
 
-    func is_spawn_cell_still_valid(_cell: Vector2i, _reserved_spawn_cells: Array[Vector2i]) -> bool:
+    func is_spawn_cell_still_valid(_cell: Vector2i, _excluded_cells: Array[Vector2i]) -> bool:
         return true
 
 
-## Spawn planner double for the no-cell requeue regression: every candidate and replacement is
-## invalid, matching a temporarily full grid without depending on occupancy setup.
+## Spawn planner double for the no-cell requeue regression: admission always succeeds (so a batch
+## can become pending), but every cell fails revalidation and no replacement exists either, matching
+## a grid that went fully invalid between admission and resolution.
 class NoCellSpawnPlanner:
     extends EnemySpawnPlanner
 
-    func choose_enemy_spawn_cell(_index: int, _spawn_count: int, _reserved_spawn_cells: Array[Vector2i]) -> Vector2i:
-        return Vector2i.ZERO
+    func plan_group_cells(_strategy: SpawnGroupDefinition.PlacementStrategy, count: int) -> Dictionary:
+        var cells: Array[Vector2i] = []
+        for i in count:
+            cells.append(Vector2i(i, 0))
+        return { "cells": cells, "anchor": Vector2i.ZERO }
 
 
-    func is_spawn_cell_still_valid(_cell: Vector2i, _reserved_spawn_cells: Array[Vector2i]) -> bool:
+    func is_spawn_cell_still_valid(_cell: Vector2i, _excluded_cells: Array[Vector2i]) -> bool:
         return false
 
 
-    func find_valid_spawn_replacement(_index: int, _spawn_count: int, _reserved_spawn_cells: Array[Vector2i]) -> Vector2i:
+    func find_replacement_cell(_strategy: SpawnGroupDefinition.PlacementStrategy, _anchor: Vector2i, _excluded_cells: Array[Vector2i]) -> Vector2i:
         return EnemySpawnPlanner.NO_CELL
+
+
+## Spawn planner double for the headroom-fits-but-no-plan-exists edge case: admission always fails to
+## produce a complete plan, matching a grid with no legal placement at all.
+class NoPlanSpawnPlanner:
+    extends EnemySpawnPlanner
+
+    func plan_group_cells(_strategy: SpawnGroupDefinition.PlacementStrategy, _count: int) -> Dictionary:
+        var empty_cells: Array[Vector2i] = []
+        return { "cells": empty_cells, "anchor": EnemySpawnPlanner.NO_CELL }
 
 
 ## Spawner test double: creates a bare Enemy (has the "died" signal, no scene dependencies) instead
@@ -64,7 +81,7 @@ class FakeSpawner:
         return enemy
 
 
-## Test-only subclass exposing WaveController's tick-warning spawn flow and group state through
+## Test-only subclass exposing WaveController's tick-warning spawn flow and slot state through
 ## public wrappers. Headless unit tests don't tick a live SceneTree or a real TickEngine, so the
 ## world-advanced countdown is driven directly instead of through a real engine signal.
 class TestWaveController:
@@ -90,28 +107,28 @@ class TestWaveController:
         return _pending_batch.size()
 
 
-    func group_queue_count(index: int) -> int:
-        return _group_queues[index].size()
+    func slot_queue_count(index: int) -> int:
+        return _slot_queues[index].size()
 
 
     func total_queued() -> int:
         var total := 0
-        for queue in _group_queues:
+        for queue in _slot_queues:
             total += queue.size()
         return total
 
 
-    func group_eligible(index: int) -> bool:
-        return _group_eligible[index]
+    func slot_eligible(index: int) -> bool:
+        return _slot_eligible[index]
 
 
-    func group_living_count(index: int) -> int:
-        return _group_living_count[index]
+    func slot_living_count(index: int) -> int:
+        return _slot_living_count[index]
 
 
     ## Exposes queue-entry level construction without loading an enemy scene.
-    func make_queue_entry_for_test(scene: PackedScene, group: WaveGroupDefinition) -> Dictionary:
-        return _make_queue_entry(scene, group)
+    func make_queue_entry_for_test(scene: PackedScene, slot: WaveGroupSlot) -> Dictionary:
+        return _make_queue_entry(scene, slot)
 
 
     ## Disconnects the test-only TickEngine signal and releases every fixture collaborator.
@@ -120,7 +137,7 @@ class TestWaveController:
             if is_instance_valid(enemy):
                 enemy.free()
         _alive_enemies.clear()
-        _enemy_group_index.clear()
+        _enemy_slot_index.clear()
         if _engine != null and is_instance_valid(_engine) and _engine.world_advanced.is_connected(_on_world_advanced):
             _engine.world_advanced.disconnect(_on_world_advanced)
         _catalog = null
@@ -148,56 +165,6 @@ func after_each() -> void:
     _test_controllers.clear()
     Debug.enabled = _debug_enabled_before_test
 
-# == EnemySpawnPlanner revalidation ==
-
-
-func test_is_spawn_cell_still_valid_rejects_occupied_cell() -> void:
-    var grid: GridArena = autofree(GridArena.new())
-    grid.grid_size = Vector2i(4, 4)
-    grid.starting_land_size = Vector2i(4, 4)
-    grid.generate_grid()
-    grid.register_occupant(autofree(Node.new()), [Vector2i(1, 1)])
-
-    var planner := EnemySpawnPlanner.new(grid, func() -> Vector2i: return Vector2i(3, 3))
-    assert_false(planner.is_spawn_cell_still_valid(Vector2i(1, 1), []), "an occupied cell is not a valid spawn target")
-    assert_true(planner.is_spawn_cell_still_valid(Vector2i(2, 2), []), "an unoccupied land cell is valid")
-
-
-func test_is_spawn_cell_still_valid_rejects_player_cell() -> void:
-    var grid: GridArena = autofree(GridArena.new())
-    grid.grid_size = Vector2i(4, 4)
-    grid.starting_land_size = Vector2i(4, 4)
-    grid.generate_grid()
-
-    var planner := EnemySpawnPlanner.new(grid, func() -> Vector2i: return Vector2i(2, 2))
-    assert_false(planner.is_spawn_cell_still_valid(Vector2i(2, 2), []), "the player's own cell is never a valid spawn target")
-
-
-func test_find_valid_spawn_replacement_returns_no_cell_when_grid_full() -> void:
-    var grid: GridArena = autofree(GridArena.new())
-    grid.grid_size = Vector2i(2, 2)
-    grid.starting_land_size = Vector2i(2, 2)
-    grid.generate_grid()
-    grid.register_occupant(autofree(Node.new()), [Vector2i(0, 0)])
-    grid.register_occupant(autofree(Node.new()), [Vector2i(1, 0)])
-    grid.register_occupant(autofree(Node.new()), [Vector2i(0, 1)])
-
-    var planner := EnemySpawnPlanner.new(grid, func() -> Vector2i: return Vector2i(1, 1))
-    assert_eq(planner.find_valid_spawn_replacement(0, 1, []), EnemySpawnPlanner.NO_CELL, "no land cell remains open")
-
-
-func test_find_valid_spawn_replacement_finds_open_cell() -> void:
-    var grid: GridArena = autofree(GridArena.new())
-    grid.grid_size = Vector2i(2, 2)
-    grid.starting_land_size = Vector2i(2, 2)
-    grid.generate_grid()
-    grid.register_occupant(autofree(Node.new()), [Vector2i(0, 0)])
-    grid.register_occupant(autofree(Node.new()), [Vector2i(1, 0)])
-
-    var planner := EnemySpawnPlanner.new(grid, func() -> Vector2i: return Vector2i(1, 1))
-    var replacement := planner.find_valid_spawn_replacement(0, 1, [])
-    assert_eq(replacement, Vector2i(0, 1), "the only open, non-player cell should be chosen")
-
 # == WaveController progression ==
 
 
@@ -220,14 +187,14 @@ func test_set_catalog_null_reports_dev_error_and_blocks_advance() -> void:
 
 func test_advance_wave_moves_to_wave_one() -> void:
     var wc := WaveController.new()
-    wc.set_catalog(_make_catalog_for_wave_one(_make_single_group_wave()))
+    wc.set_catalog(_make_catalog_for_wave_one(_make_single_slot_wave()))
     assert_true(wc.advance_wave(), "advance_wave should return true")
     assert_eq(wc.get_wave_number(), 1, "first wave should be number 1")
 
 
 func test_advance_wave_never_stops_without_end_run() -> void:
     var wc := WaveController.new()
-    wc.set_catalog(_make_catalog_for_wave_one(_make_single_group_wave()))
+    wc.set_catalog(_make_catalog_for_wave_one(_make_single_slot_wave()))
     for i in 50:
         assert_true(wc.advance_wave(), "the wave loop should never stop on its own")
     assert_eq(wc.get_wave_number(), 50, "wave number should keep climbing past the ten demo waves into the endless template")
@@ -235,7 +202,7 @@ func test_advance_wave_never_stops_without_end_run() -> void:
 
 func test_end_run_stops_advance_wave() -> void:
     var wc := WaveController.new()
-    wc.set_catalog(_make_catalog_for_wave_one(_make_single_group_wave()))
+    wc.set_catalog(_make_catalog_for_wave_one(_make_single_slot_wave()))
     wc.advance_wave()
     wc.end_run()
     assert_false(wc.advance_wave(), "advance_wave should stop once the run has ended")
@@ -243,7 +210,7 @@ func test_end_run_stops_advance_wave() -> void:
 
 func test_end_run_marks_run_over_and_reset_clears_it() -> void:
     var wc := WaveController.new()
-    wc.set_catalog(_make_catalog_for_wave_one(_make_single_group_wave()))
+    wc.set_catalog(_make_catalog_for_wave_one(_make_single_slot_wave()))
     wc.advance_wave()
     assert_false(wc.is_run_over(), "a run is not over before end_run()")
 
@@ -256,7 +223,7 @@ func test_end_run_marks_run_over_and_reset_clears_it() -> void:
 
 func test_reset_clears_wave_number() -> void:
     var wc := WaveController.new()
-    wc.set_catalog(_make_catalog_for_wave_one(_make_single_group_wave()))
+    wc.set_catalog(_make_catalog_for_wave_one(_make_single_slot_wave()))
     wc.advance_wave()
     wc.end_run()
     wc.reset()
@@ -268,20 +235,20 @@ func test_reset_clears_wave_number() -> void:
 
 func test_wave_display_text_for_normal_wave() -> void:
     var wc := WaveController.new()
-    wc.set_catalog(_make_catalog_for_wave_one(_make_single_group_wave()))
+    wc.set_catalog(_make_catalog_for_wave_one(_make_single_slot_wave()))
     wc.advance_wave()
-    assert_false(wc.is_milestone_wave(), "a wave with no is_boss group is not a milestone wave")
+    assert_false(wc.is_milestone_wave(), "a wave with no is_boss slot is not a milestone wave")
     assert_eq(wc.get_wave_display_text(), "Wave 1")
 
 
 func test_wave_display_text_for_boss_wave() -> void:
     var boss_wave := WaveDefinition.new()
     boss_wave.population_cap = 3
-    boss_wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 0, 0, true)]
+    boss_wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0, 0, 0, true)]
     var wc := WaveController.new()
     wc.set_catalog(_make_catalog_for_wave_one(boss_wave))
     wc.advance_wave()
-    assert_true(wc.is_milestone_wave(), "a wave with an is_boss group is a milestone wave")
+    assert_true(wc.is_milestone_wave(), "a wave with an is_boss slot is a milestone wave")
     assert_eq(wc.get_wave_display_text(), "Wave 1: BOSS")
 
 # == Population cap + spawn-warning queueing ==
@@ -291,14 +258,14 @@ func test_wave_display_text_for_boss_wave() -> void:
 # only needs the signal-driven countdown behavior, not engine scheduling itself.
 
 
-func test_group_drains_under_population_cap() -> void:
+func test_full_group_spawns_atomically_and_wave_completes_after_all_die() -> void:
     var fixture := _make_test_controller()
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 10)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 3)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     var completed_calls: Array = []
@@ -310,25 +277,16 @@ func test_group_drains_under_population_cap() -> void:
     wc.start_next_wave()
     wc.trigger_world_advanced()
 
-    assert_eq(fake_spawner.spawned.size(), 3, "only cap-worth of enemies should spawn immediately")
-    assert_eq(wc.alive_count(), 3, "alive count should sit at the population cap")
-    assert_eq(wc.group_queue_count(0), 7, "the remaining 7 entries should be queued, not force-spawned")
-    assert_true(completed_calls.is_empty(), "wave should not complete while entries remain queued or alive")
-
-    for i in 7:
-        var dying: Node = wc.first_alive()
-        dying.died.emit(dying)
-        wc.trigger_world_advanced()
-
-    assert_eq(wc.group_queue_count(0), 0, "queue should be fully drained")
-    assert_eq(wc.alive_count(), 3, "population stays at cap while draining")
-    assert_true(completed_calls.is_empty(), "wave still should not complete while enemies remain alive")
+    assert_eq(fake_spawner.spawned.size(), 3, "the whole 3-member group should spawn together, not in slices")
+    assert_eq(wc.alive_count(), 3)
+    assert_eq(wc.slot_queue_count(0), 0, "the queue should be fully drained by the one atomic batch")
+    assert_true(completed_calls.is_empty(), "wave should not complete while enemies remain alive")
 
     while wc.alive_count() > 0:
         var dying: Node = wc.first_alive()
         dying.died.emit(dying)
 
-    assert_eq(completed_calls.size(), 1, "wave should complete exactly once, after queue and population are both empty")
+    assert_eq(completed_calls.size(), 1, "wave should complete exactly once, after the batch and its population are gone")
     assert_eq(completed_calls[0][0], 1, "completed wave number should be 1")
     assert_false(completed_calls[0][1], "a single non-boss group is not a milestone wave")
 
@@ -342,7 +300,7 @@ func test_spawn_warning_does_not_resolve_before_its_countdown_elapses() -> void:
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 2)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 2)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
@@ -364,12 +322,12 @@ func test_zero_warning_ticks_group_spawns_immediately_without_telegraph() -> voi
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
 
-    assert_eq(fake_spawner.spawned.size(), 1, "a zero-tick group should resolve immediately without a telegraph pause")
+    assert_eq(fake_spawner.spawned.size(), 1, "a zero-tick slot should resolve immediately without a telegraph pause")
     assert_eq(wc.pending_batch_count(), 0, "no batch should remain pending after an immediate resolve")
 
     _free_spawned(fake_spawner)
@@ -382,17 +340,17 @@ func test_zero_warning_ticks_group_with_no_valid_cell_requeues_without_recursing
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
 
     assert_eq(fake_spawner.spawned.size(), 0, "an invalid zero-warning batch must not spawn")
     assert_eq(wc.pending_batch_count(), 0, "the failed immediate batch must not remain pending")
-    assert_eq(wc.group_queue_count(0), 1, "the failed entry must remain queued for a later retry")
+    assert_eq(wc.slot_queue_count(0), 1, "the failed entry must remain queued for a later retry")
 
     wc.trigger_world_advanced()
-    assert_eq(wc.group_queue_count(0), 1, "a later retry must return without recursive scheduling")
+    assert_eq(wc.slot_queue_count(0), 1, "a later retry must return without recursive scheduling")
 
 
 func test_end_run_clears_pending_spawn_queue_and_warning_batch() -> void:
@@ -402,25 +360,69 @@ func test_end_run_clears_pending_spawn_queue_and_warning_batch() -> void:
 
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 10, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 1)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 3, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 1)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
 
-    assert_eq(wc.pending_batch_count(), 3, "the first batch should be telegraphing before its countdown resolves")
-    assert_eq(wc.total_queued(), 7, "the overflow should be queued, not force-spawned")
+    assert_eq(wc.pending_batch_count(), 3, "the whole 3-member batch should be telegraphing before its countdown resolves")
 
     wc.end_run()
 
     assert_eq(wc.pending_batch_count(), 0, "end_run should drop the in-flight warning batch")
-    assert_eq(wc.total_queued(), 0, "end_run should drop every group's remaining queue")
+    assert_eq(wc.total_queued(), 0, "end_run should drop every slot's remaining queue")
 
     wc.trigger_world_advanced()
     assert_eq(fake_spawner.spawned.size(), 0, "nothing queued or warning should spawn once the run has ended")
 
     _free_spawned(fake_spawner)
 
-# == Ordered group eligibility ==
+# == Atomic group admission ==
+
+
+func test_group_that_exceeds_current_headroom_waits_without_partial_spawn() -> void:
+    var fixture := _make_test_controller()
+    var wc: TestWaveController = fixture[0]
+    var fake_spawner: FakeSpawner = fixture[1]
+
+    var slot_a := _make_fixed_slot(_make_placeholder_scene(), 2, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var slot_b := _make_fixed_slot(_make_placeholder_scene(), 2, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var wave := WaveDefinition.new()
+    wave.population_cap = 3
+    wave.slots = [slot_a, slot_b]
+    wc.set_catalog(_make_catalog_for_wave_one(wave))
+
+    wc.start_next_wave()
+
+    assert_eq(fake_spawner.spawned.size(), 2, "only slot A's two-member batch fits the cap of 3")
+    assert_eq(wc.slot_queue_count(1), 2, "slot B must wait entirely; a headroom of 1 can never fit its 2-member batch")
+
+    var dying: Node = wc.first_alive()
+    dying.died.emit(dying)
+
+    assert_eq(fake_spawner.spawned.size(), 4, "freeing enough headroom lets slot B's whole batch admit at once")
+    assert_eq(wc.slot_queue_count(1), 0)
+
+    _free_spawned(fake_spawner)
+
+
+func test_group_with_no_complete_plan_waits_without_telegraph_or_partial_spawn() -> void:
+    var fixture := _make_test_controller_with_spawn_planner(NoPlanSpawnPlanner.new())
+    var wc: TestWaveController = fixture[0]
+    var fake_spawner: FakeSpawner = fixture[1]
+
+    var wave := WaveDefinition.new()
+    wave.population_cap = 5
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 2, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 1)]
+    wc.set_catalog(_make_catalog_for_wave_one(wave))
+
+    wc.start_next_wave()
+
+    assert_eq(fake_spawner.spawned.size(), 0, "no complete plan means the group must not spawn at all")
+    assert_eq(wc.pending_batch_count(), 0, "a plan failure must not create a pending telegraph batch")
+    assert_eq(wc.slot_queue_count(0), 2, "the whole group remains queued for a later retry")
+
+# == Ordered slot eligibility ==
 
 
 func test_previous_group_cleared_gates_the_next_group() -> void:
@@ -428,22 +430,22 @@ func test_previous_group_cleared_gates_the_next_group() -> void:
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED, 0)
+    var slot_a := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var slot_b := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.PREVIOUS_GROUP_CLEARED, 0)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [group_a, group_b]
+    wave.slots = [slot_a, slot_b]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
-    assert_eq(fake_spawner.spawned.size(), 1, "only group A's entry should have spawned so far")
-    assert_false(wc.group_eligible(1), "group B should remain blocked while group A's member is alive")
+    assert_eq(fake_spawner.spawned.size(), 1, "only slot A's entry should have spawned so far")
+    assert_false(wc.slot_eligible(1), "slot B should remain blocked while slot A's member is alive")
 
     var dying: Node = wc.first_alive()
     dying.died.emit(dying)
 
-    assert_true(wc.group_eligible(1), "group B becomes eligible once group A's living count hits zero")
-    assert_eq(fake_spawner.spawned.size(), 2, "group B's zero-tick entry should spawn immediately once eligible")
+    assert_true(wc.slot_eligible(1), "slot B becomes eligible once slot A's living count hits zero")
+    assert_eq(fake_spawner.spawned.size(), 2, "slot B's zero-tick entry should spawn immediately once eligible")
 
     _free_spawned(fake_spawner)
 
@@ -453,25 +455,25 @@ func test_previous_group_survivors_at_most_gates_the_next_group() -> void:
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(_make_placeholder_scene(), 3, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST, 0, 0, 1)
+    var slot_a := _make_fixed_slot(_make_placeholder_scene(), 3, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var slot_b := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST, 0, 0, 1)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [group_a, group_b]
+    wave.slots = [slot_a, slot_b]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
-    assert_eq(fake_spawner.spawned.size(), 3, "group A's three entries should all spawn under the cap")
-    assert_false(wc.group_eligible(1), "group B blocked while group A has more than 1 living member")
+    assert_eq(fake_spawner.spawned.size(), 3, "slot A's three entries should all spawn under the cap")
+    assert_false(wc.slot_eligible(1), "slot B blocked while slot A has more than 1 living member")
 
     var first: Node = wc.first_alive()
     first.died.emit(first)
-    assert_false(wc.group_eligible(1), "group B still blocked at 2 living members against a threshold of 1")
+    assert_false(wc.slot_eligible(1), "slot B still blocked at 2 living members against a threshold of 1")
 
     var second: Node = wc.first_alive()
     second.died.emit(second)
-    assert_true(wc.group_eligible(1), "group B becomes eligible once group A's living count drops to the threshold")
-    assert_eq(fake_spawner.spawned.size(), 4, "group B's entry spawns once eligible")
+    assert_true(wc.slot_eligible(1), "slot B becomes eligible once slot A's living count drops to the threshold")
+    assert_eq(fake_spawner.spawned.size(), 4, "slot B's entry spawns once eligible")
 
     _free_spawned(fake_spawner)
 
@@ -481,50 +483,53 @@ func test_immediate_overlap_groups_are_all_eligible_at_wave_start() -> void:
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var slot_a := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var slot_b := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [group_a, group_b]
+    wave.slots = [slot_a, slot_b]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
 
-    assert_true(wc.group_eligible(0), "the first group is always eligible by position")
-    assert_true(wc.group_eligible(1), "a chained immediate-overlap group is eligible from wave start")
-    assert_eq(fake_spawner.spawned.size(), 2, "both single-entry groups should drain under the cap in authored order")
+    assert_true(wc.slot_eligible(0), "the first slot is always eligible by position")
+    assert_true(wc.slot_eligible(1), "a chained immediate-overlap slot is eligible from wave start")
+    assert_eq(fake_spawner.spawned.size(), 2, "both single-entry slots should drain under the cap in authored order")
 
     _free_spawned(fake_spawner)
 
 
-## Regression: once a group latches eligible, it must never be revoked even if its predecessor's
-## living count later climbs back above the threshold that first unlocked it.
+## Regression: once a slot latches eligible, it must never be revoked even as its predecessor's
+## living count keeps changing afterward. Atomic admission means a slot's whole queue is consumed in
+## one shot, so a predecessor can never gain new living members once its queue is spent; the latch
+## must hold through that ongoing decline regardless.
 func test_group_eligibility_is_never_revoked() -> void:
     var fixture := _make_test_controller()
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(_make_placeholder_scene(), 4, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST, 0, 0, 1)
+    var slot_a := _make_fixed_slot(_make_placeholder_scene(), 3, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var slot_b := _make_fixed_slot(_make_placeholder_scene(), 2, WaveGroupSlot.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST, 0, 0, 2)
     var wave := WaveDefinition.new()
-    wave.population_cap = 2
-    wave.groups = [group_a, group_b]
+    wave.population_cap = 5
+    wave.slots = [slot_a, slot_b]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
-    assert_eq(fake_spawner.spawned.size(), 2, "only cap-worth of group A should spawn immediately")
-    assert_eq(wc.group_living_count(0), 2)
-    assert_false(wc.group_eligible(1))
+    assert_eq(fake_spawner.spawned.size(), 3, "slot A's whole 3-member group admits atomically")
+    assert_eq(wc.slot_living_count(0), 3)
+    assert_false(wc.slot_eligible(1), "slot B blocked while slot A has more than the threshold of 2 living")
 
-    # Freeing one headroom slot drops group A's living count to 1 (<= threshold 1), latching group B
-    # eligible; the scheduler then still fills that freed slot from group A first (earlier in authored
-    # order), bringing group A's living count back to 2 — group B must stay eligible regardless.
     var dying: Node = wc.first_alive()
     dying.died.emit(dying)
 
-    assert_true(wc.group_eligible(1), "once eligible, group B must stay eligible even as group A's living count rises again")
-    assert_eq(wc.group_living_count(0), 2, "group A reclaimed the freed headroom before group B, per authored order")
-    assert_eq(wc.group_queue_count(1), 1, "group B remains queued until it actually gets headroom")
+    assert_true(wc.slot_eligible(1), "slot B latches eligible once slot A's living count drops to the threshold")
+    assert_eq(fake_spawner.spawned.size(), 5, "slot B's whole group admits once eligible and within headroom")
+
+    var another_dying: Node = wc.first_alive()
+    another_dying.died.emit(another_dying)
+
+    assert_true(wc.slot_eligible(1), "the latch must hold even as slot A's living count keeps falling")
 
     _free_spawned(fake_spawner)
 
@@ -534,11 +539,11 @@ func test_wave_completes_only_after_all_groups_and_warnings_are_exhausted() -> v
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group_a := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)
-    var group_b := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED, 0)
+    var slot_a := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)
+    var slot_b := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.PREVIOUS_GROUP_CLEARED, 0)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [group_a, group_b]
+    wave.slots = [slot_a, slot_b]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     var completed_calls: Array = []
@@ -549,11 +554,11 @@ func test_wave_completes_only_after_all_groups_and_warnings_are_exhausted() -> v
 
     var a_enemy: Node = wc.first_alive()
     a_enemy.died.emit(a_enemy)
-    assert_true(completed_calls.is_empty(), "wave should not complete while group B's member is alive")
+    assert_true(completed_calls.is_empty(), "wave should not complete while slot B's member is alive")
 
     var b_enemy: Node = wc.first_alive()
     b_enemy.died.emit(b_enemy)
-    assert_eq(completed_calls.size(), 1, "wave completes once every group's queue and living members are exhausted")
+    assert_eq(completed_calls.size(), 1, "wave completes once every slot's queue and living members are exhausted")
 
     _free_spawned(fake_spawner)
 
@@ -567,7 +572,7 @@ func test_debug_wave_one_boss_spawns_after_authored_enemies_and_delays_completio
     var fake_spawner: FakeSpawner = fixture[1]
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
     wc.set_debug_wave_one_boss_scene(ModeBossScene)
 
@@ -604,7 +609,7 @@ func test_wave_one_debug_boss_never_spawns_while_debug_is_disabled() -> void:
     var fake_spawner: FakeSpawner = fixture[1]
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
     wc.set_debug_wave_one_boss_scene(ModeBossScene)
 
@@ -628,10 +633,10 @@ func test_boss_spawned_and_boss_cleared_signals_fire_for_the_is_boss_group() -> 
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var boss_group := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 0, 0, true)
+    var boss_slot := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0, 0, 0, true)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [boss_group]
+    wave.slots = [boss_slot]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     var spawned_count := [0]
@@ -640,7 +645,7 @@ func test_boss_spawned_and_boss_cleared_signals_fire_for_the_is_boss_group() -> 
     wc.boss_cleared.connect(func() -> void: cleared_count[0] += 1)
 
     wc.start_next_wave()
-    assert_eq(spawned_count[0], 1, "boss_spawned should fire for the is_boss group's member")
+    assert_eq(spawned_count[0], 1, "boss_spawned should fire for the is_boss slot's member")
 
     var boss: Node = wc.first_alive()
     boss.died.emit(boss)
@@ -651,6 +656,7 @@ func test_boss_spawned_and_boss_cleared_signals_fire_for_the_is_boss_group() -> 
 # == Weighted expansion / level projection ==
 
 
+## The authored Small group is the roster's only weighted composition; every other group is fixed.
 func test_default_catalog_weighted_groups_use_only_active_small_roles() -> void:
     for wave_index in DefaultWaveCatalog.demo_waves.size():
         var wave := DefaultWaveCatalog.demo_waves[wave_index]
@@ -658,44 +664,22 @@ func test_default_catalog_weighted_groups_use_only_active_small_roles() -> void:
     _assert_weighted_groups_use_active_small_roles(DefaultWaveCatalog.endless_template)
 
 
-## Wave 1 carries deterministic Bomb then Ranged test groups after its three-enemy support group so
-## every fresh run exposes both roles without making either a weighted or final-balance roster decision.
-func test_default_catalog_wave_one_has_fixed_bomb_and_ranged_test_groups() -> void:
-    var wave: WaveDefinition = DefaultWaveCatalog.demo_waves[0]
-    assert_eq(wave.population_cap, 5)
-    assert_eq(wave.groups.size(), 3)
-
-    var bomb_group: WaveGroupDefinition = wave.groups[1]
-    assert_eq(bomb_group.composition_mode, WaveGroupDefinition.CompositionMode.FIXED)
-    assert_eq(bomb_group.start_condition, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP)
-    assert_eq(bomb_group.warning_ticks, 1)
-    assert_eq(bomb_group.entries.size(), 1)
-    assert_eq(bomb_group.entries[0].enemy_scene, BombEnemyScene)
-    assert_eq(bomb_group.entries[0].count, 1)
-
-    var ranged_group: WaveGroupDefinition = wave.groups[2]
-    assert_eq(ranged_group.composition_mode, WaveGroupDefinition.CompositionMode.FIXED)
-    assert_eq(ranged_group.start_condition, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP)
-    assert_eq(ranged_group.warning_ticks, 1)
-    assert_eq(ranged_group.entries.size(), 1)
-    assert_eq(ranged_group.entries[0].enemy_scene, RangedEnemyScene)
-    assert_eq(ranged_group.entries[0].count, 1)
-
-
 func test_weighted_group_draws_exact_total_count() -> void:
     var fixture := _make_test_controller()
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group := WaveGroupDefinition.new()
-    group.composition_mode = WaveGroupDefinition.CompositionMode.WEIGHTED
-    group.start_condition = WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP
-    group.warning_ticks = 0
+    var group := SpawnGroupDefinition.new()
+    group.composition_mode = SpawnGroupDefinition.CompositionMode.WEIGHTED
     group.weighted_total_count = 5
     group.entries = [_make_entry(_make_placeholder_scene(), 0, 1.0), _make_entry(_make_placeholder_scene(), 0, 1.0)]
+    var slot := WaveGroupSlot.new()
+    slot.spawn_group = group
+    slot.start_condition = WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP
+    slot.warning_ticks = 0
     var wave := WaveDefinition.new()
     wave.population_cap = 10
-    wave.groups = [group]
+    wave.slots = [slot]
 
     wc.set_wave_rng_seed(1)
     wc.set_catalog(_make_catalog_for_wave_one(wave))
@@ -712,15 +696,15 @@ func test_level_projection_uses_wave_number_plus_group_level_offset() -> void:
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
 
-    var group := _make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0, 3)
+    var slot := _make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0, 3)
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [group]
+    wave.slots = [slot]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
 
     wc.start_next_wave()
 
-    var queue_entry := wc.make_queue_entry_for_test(_make_placeholder_scene(), group)
+    var queue_entry := wc.make_queue_entry_for_test(_make_placeholder_scene(), slot)
     var level: int = queue_entry["level"]
     var guard_profile := GuardProfile.new()
     guard_profile.base_guard = 32
@@ -728,10 +712,73 @@ func test_level_projection_uses_wave_number_plus_group_level_offset() -> void:
     enemy_data.guard_profile = guard_profile
     var projection := _make_profile().project(enemy_data, level, wc.get_wave_number())
 
-    assert_eq(level, 4, "level should be wave_number (1) plus the group's level_offset (3)")
-    assert_eq(projection.max_guard, 32, "group level_offset must not increase the Wave 1 Small Guard profile")
+    assert_eq(level, 4, "level should be wave_number (1) plus the slot's level_offset (3)")
+    assert_eq(projection.max_guard, 32, "slot level_offset must not increase the Wave 1 Small Guard profile")
 
     _free_spawned(fake_spawner)
+
+# == Production catalog shape ==
+
+
+## Wave-by-wave structural shape check against the authored demo schedule: population cap, ordered
+## slot count, and each slot's placement strategy, matching the design's explicit wave table.
+func test_default_catalog_demo_waves_match_the_authored_schedule() -> void:
+    var ring := SpawnGroupDefinition.PlacementStrategy.PLAYER_RING
+    var cluster := SpawnGroupDefinition.PlacementStrategy.ANCHOR_CLUSTER
+    var scatter := SpawnGroupDefinition.PlacementStrategy.SCATTER
+    var expectations := [
+        [3, [ring]],
+        [2, [cluster]],
+        [5, [cluster]],
+        [2, [scatter]],
+        [5, [cluster]],
+        [6, [ring, cluster, scatter]],
+        [7, [cluster, ring, scatter]],
+        [8, [ring, cluster, scatter, scatter]],
+        [9, [scatter, cluster, ring, scatter]],
+        [1, [scatter]],
+    ]
+    for i in expectations.size():
+        var wave: WaveDefinition = DefaultWaveCatalog.demo_waves[i]
+        var expected: Array = expectations[i]
+        assert_eq(wave.population_cap, expected[0], "wave %d population_cap" % (i + 1))
+        var expected_strategies: Array = expected[1]
+        assert_eq(wave.slots.size(), expected_strategies.size(), "wave %d slot count" % (i + 1))
+        for j in expected_strategies.size():
+            assert_eq(wave.slots[j].spawn_group.placement_strategy, expected_strategies[j], "wave %d slot %d placement_strategy" % [i + 1, j])
+
+
+func test_default_catalog_bomb_group_first_appears_at_wave_eight() -> void:
+    for i in 7:
+        var wave: WaveDefinition = DefaultWaveCatalog.demo_waves[i]
+        for slot in wave.slots:
+            for entry in slot.spawn_group.entries:
+                assert_ne(entry.enemy_scene, BombEnemyScene, "Bomb must not appear before wave 8 (wave %d)" % (i + 1))
+    var wave8: WaveDefinition = DefaultWaveCatalog.demo_waves[7]
+    var bomb_slot: WaveGroupSlot = wave8.slots[3]
+    assert_eq(bomb_slot.spawn_group.entries[0].enemy_scene, BombEnemyScene)
+
+
+func test_default_catalog_wave_ten_is_boss_only() -> void:
+    var wave: WaveDefinition = DefaultWaveCatalog.demo_waves[9]
+    assert_eq(wave.population_cap, 1)
+    assert_eq(wave.slots.size(), 1)
+    var boss_slot: WaveGroupSlot = wave.slots[0]
+    assert_true(boss_slot.is_boss)
+    assert_eq(boss_slot.level_offset, 3)
+    assert_eq(boss_slot.warning_ticks, 2)
+    assert_eq(boss_slot.spawn_group.entries[0].enemy_scene, ModeBossScene)
+
+
+func test_default_catalog_endless_template_uses_fixed_cap_of_ten_and_wave_nine_grammar() -> void:
+    var endless: WaveDefinition = DefaultWaveCatalog.endless_template
+    var wave9: WaveDefinition = DefaultWaveCatalog.demo_waves[8]
+    assert_eq(endless.population_cap, 10)
+    assert_eq(endless.slots.size(), wave9.slots.size())
+    for i in endless.slots.size():
+        assert_eq(endless.slots[i].spawn_group, wave9.slots[i].spawn_group, "endless slot %d must reuse the same group resource as wave 9" % i)
+        assert_eq(endless.slots[i].start_condition, wave9.slots[i].start_condition)
+        assert_eq(endless.slots[i].warning_ticks, wave9.slots[i].warning_ticks)
 
 # == Test helpers ==
 
@@ -767,12 +814,13 @@ func _make_placeholder_scene() -> PackedScene:
     return ThrustEnemyScene
 
 
-func _assert_weighted_groups_use_active_small_roles(wave) -> void:
-    for group in wave.groups:
-        if group.composition_mode != WaveGroupDefinition.CompositionMode.WEIGHTED:
+func _assert_weighted_groups_use_active_small_roles(wave: WaveDefinition) -> void:
+    for slot in wave.slots:
+        var group := slot.spawn_group
+        if group.composition_mode != SpawnGroupDefinition.CompositionMode.WEIGHTED:
             continue
         for entry in group.entries:
-            assert_true(entry.enemy_scene in [ThrustEnemyScene, SlashEnemyScene, ChargeEnemyScene])
+            assert_true(entry.enemy_scene in [ThrustEnemyScene, SlashEnemyScene])
 
 
 func _make_entry(scene: PackedScene, count: int = 0, weight: float = 0.0) -> WaveCompositionEntry:
@@ -783,24 +831,28 @@ func _make_entry(scene: PackedScene, count: int = 0, weight: float = 0.0) -> Wav
     return entry
 
 
-func _make_fixed_group(
+func _make_fixed_slot(
         scene: PackedScene,
         count: int,
-        start_condition := WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP,
+        start_condition := WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP,
         warning_ticks := 1,
         level_offset := 0,
         survivor_threshold := 0,
         is_boss := false,
-) -> WaveGroupDefinition:
-    var group := WaveGroupDefinition.new()
-    group.composition_mode = WaveGroupDefinition.CompositionMode.FIXED
-    group.start_condition = start_condition
-    group.survivor_threshold = survivor_threshold
-    group.warning_ticks = warning_ticks
-    group.level_offset = level_offset
-    group.is_boss = is_boss
+) -> WaveGroupSlot:
+    var group := SpawnGroupDefinition.new()
+    group.composition_mode = SpawnGroupDefinition.CompositionMode.FIXED
+    group.placement_strategy = SpawnGroupDefinition.PlacementStrategy.SCATTER
     group.entries = [_make_entry(scene, count)]
-    return group
+
+    var slot := WaveGroupSlot.new()
+    slot.spawn_group = group
+    slot.start_condition = start_condition
+    slot.survivor_threshold = survivor_threshold
+    slot.warning_ticks = warning_ticks
+    slot.level_offset = level_offset
+    slot.is_boss = is_boss
+    return slot
 
 
 func _make_profile() -> EnemyLevelProgressionProfile:
@@ -814,22 +866,22 @@ func _make_profile() -> EnemyLevelProgressionProfile:
     return profile
 
 
-func _make_single_group_wave() -> WaveDefinition:
+func _make_single_slot_wave() -> WaveDefinition:
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group(_make_placeholder_scene(), 1, WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP, 0)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)]
     return wave
 
 
 ## Builds a valid ten-demo-wave catalog whose wave 1 is the given wave; every other demo wave and
-## the endless template reuse a trivial one-entry fixed group so the catalog stays valid without
+## the endless template reuse a trivial one-entry fixed slot so the catalog stays valid without
 ## adding unrelated coverage noise.
 func _make_catalog_for_wave_one(wave: WaveDefinition) -> WaveCatalog:
     var catalog := WaveCatalog.new()
     var demo_waves: Array[WaveDefinition] = [wave]
     for i in WaveCatalog.DEMO_WAVE_COUNT - 1:
-        demo_waves.append(_make_single_group_wave())
+        demo_waves.append(_make_single_slot_wave())
     catalog.demo_waves = demo_waves
-    catalog.endless_template = _make_single_group_wave()
+    catalog.endless_template = _make_single_slot_wave()
     catalog.progression_profile = _make_profile()
     return catalog

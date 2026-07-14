@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaveDefinition" format=3 uid="uid://dwavedemo0001"]
+
+[ext_resource type="Script" uid="uid://bjc811ue2akbj" path="res://data/waves/definitions/wave_definition.gd" id="1_wave"]
+[ext_resource type="Script" uid="uid://dwavegroupslot1" path="res://data/waves/definitions/wave_group_slot.gd" id="2_slot"]
+[ext_resource type="Resource" uid="uid://dgroupsmall01" path="res://data/waves/groups/small_group.tres" id="3_small"]
+
+[sub_resource type="Resource" id="slot_small"]
+script = ExtResource("2_slot")
+spawn_group = ExtResource("3_small")
+start_condition = 2
+warning_ticks = 1
+
+[resource]
+script = ExtResource("1_wave")
+population_cap = 3
+slots = Array[ExtResource("2_slot")]([SubResource("slot_small")])

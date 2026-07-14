@@ -1,6 +1,6 @@
 # wave_composition_entry.gd
-# One authored enemy entry within a WaveGroupDefinition's composition: the PackedScene the spawn
-# boundary instantiates, plus a fixed-mode count or a weighted-mode selection weight. WaveGroupDefinition
+# One authored enemy entry within a SpawnGroupDefinition's composition: the PackedScene the spawn
+# boundary instantiates, plus a fixed-mode count or a weighted-mode selection weight. SpawnGroupDefinition
 # interprets count vs weight according to its own composition_mode; this resource stores both so
 # authors can switch a group's mode without re-authoring entries.
 class_name WaveCompositionEntry

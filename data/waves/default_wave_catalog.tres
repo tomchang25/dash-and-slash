@@ -1,234 +1,46 @@
 [gd_resource type="Resource" script_class="WaveCatalog" format=3 uid="uid://dwavecatalog1"]
 
 [ext_resource type="Script" uid="uid://bku1eqvtpyqr3" path="res://data/waves/definitions/wave_catalog.gd" id="1_catalog"]
-[ext_resource type="Script" uid="uid://bjc811ue2akbj" path="res://data/waves/definitions/wave_definition.gd" id="2_wave"]
-[ext_resource type="Script" uid="uid://c3r8qrj6qmswp" path="res://data/waves/definitions/wave_group_definition.gd" id="3_group"]
-[ext_resource type="Script" uid="uid://cmejhheclo211" path="res://data/waves/definitions/wave_composition_entry.gd" id="4_entry"]
-[ext_resource type="Script" uid="uid://dkj13wuxgek8y" path="res://data/waves/definitions/enemy_level_progression_profile.gd" id="5_profile"]
-[ext_resource type="Script" uid="uid://chpa5spmh7wpy" path="res://data/waves/definitions/enemy_stat_growth_curve.gd" id="6_curve"]
-[ext_resource type="PackedScene" uid="uid://dssmenemy01" path="res://game/entities/enemies/thrust_enemy.tscn" id="10_thrust"]
-[ext_resource type="PackedScene" uid="uid://btkc35il187bd" path="res://game/entities/enemies/slash_enemy.tscn" id="11_slash"]
-[ext_resource type="PackedScene" uid="uid://cd7np3m0rvry6" path="res://game/entities/enemies/bomb_enemy.tscn" id="12_bomb"]
-[ext_resource type="PackedScene" path="res://game/entities/enemies/ranged_enemy.tscn" id="13_ranged"]
-[ext_resource type="PackedScene" uid="uid://dk4e80quaedoa" path="res://game/entities/enemies/charge_enemy.tscn" id="14_charge"]
-[ext_resource type="PackedScene" uid="uid://dmodebossplac" path="res://game/entities/enemies/mode_boss.tscn" id="15_boss"]
-
-[sub_resource type="Resource" id="entry_thrust"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("10_thrust")
-weight = 1.0
-
-[sub_resource type="Resource" id="entry_slash"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("11_slash")
-weight = 1.0
-
-[sub_resource type="Resource" id="entry_charge"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("14_charge")
-weight = 1.0
-
-[sub_resource type="Resource" id="entry_bomb"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("12_bomb")
-count = 1
-
-[sub_resource type="Resource" id="entry_ranged"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("13_ranged")
-count = 1
-
-[sub_resource type="Resource" id="group_w1"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 3
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="group_w1_bomb"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-entries = Array[ExtResource("4_entry")]([SubResource("entry_bomb")])
-
-[sub_resource type="Resource" id="group_w1_ranged"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-entries = Array[ExtResource("4_entry")]([SubResource("entry_ranged")])
-
-[sub_resource type="Resource" id="wave_def_1"]
-script = ExtResource("2_wave")
-population_cap = 5
-groups = Array[ExtResource("3_group")]([SubResource("group_w1"), SubResource("group_w1_bomb"), SubResource("group_w1_ranged")])
-
-[sub_resource type="Resource" id="group_w2"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 4
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_2"]
-script = ExtResource("2_wave")
-groups = Array[ExtResource("3_group")]([SubResource("group_w2")])
-
-[sub_resource type="Resource" id="group_w3"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 4
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_3"]
-script = ExtResource("2_wave")
-groups = Array[ExtResource("3_group")]([SubResource("group_w3")])
-
-[sub_resource type="Resource" id="group_w4"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 5
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_4"]
-script = ExtResource("2_wave")
-groups = Array[ExtResource("3_group")]([SubResource("group_w4")])
-
-[sub_resource type="Resource" id="group_w5"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 5
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_5"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w5")])
-
-[sub_resource type="Resource" id="group_w6"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 6
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_6"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w6")])
-
-[sub_resource type="Resource" id="group_w7"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 6
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_7"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w7")])
-
-[sub_resource type="Resource" id="group_w8"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 7
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_8"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w8")])
-
-[sub_resource type="Resource" id="group_w9"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 7
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_9"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_w9")])
-
-[sub_resource type="Resource" id="group_w10_support"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 4
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="entry_boss"]
-script = ExtResource("4_entry")
-enemy_scene = ExtResource("15_boss")
-count = 1
-
-[sub_resource type="Resource" id="group_w10_boss"]
-script = ExtResource("3_group")
-start_condition = 1
-survivor_threshold = 1
-warning_ticks = 2
-level_offset = 3
-is_boss = true
-entries = Array[ExtResource("4_entry")]([SubResource("entry_boss")])
-
-[sub_resource type="Resource" id="wave_def_10"]
-script = ExtResource("2_wave")
-population_cap = 5
-groups = Array[ExtResource("3_group")]([SubResource("group_w10_support"), SubResource("group_w10_boss")])
-
-[sub_resource type="Resource" id="group_endless"]
-script = ExtResource("3_group")
-start_condition = 2
-warning_ticks = 1
-composition_mode = 1
-weighted_total_count = 6
-entries = Array[ExtResource("4_entry")]([SubResource("entry_thrust"), SubResource("entry_slash"), SubResource("entry_charge")])
-
-[sub_resource type="Resource" id="wave_def_endless"]
-script = ExtResource("2_wave")
-population_cap = 4
-groups = Array[ExtResource("3_group")]([SubResource("group_endless")])
+[ext_resource type="Script" uid="uid://dkj13wuxgek8y" path="res://data/waves/definitions/enemy_level_progression_profile.gd" id="2_profile"]
+[ext_resource type="Script" uid="uid://chpa5spmh7wpy" path="res://data/waves/definitions/enemy_stat_growth_curve.gd" id="3_curve"]
+[ext_resource type="Script" uid="uid://bjc811ue2akbj" path="res://data/waves/definitions/wave_definition.gd" id="4_wave_def"]
+[ext_resource type="Resource" uid="uid://dwavedemo0001" path="res://data/waves/demo/wave_01.tres" id="10_wave1"]
+[ext_resource type="Resource" uid="uid://dwavedemo0002" path="res://data/waves/demo/wave_02.tres" id="11_wave2"]
+[ext_resource type="Resource" uid="uid://dwavedemo0003" path="res://data/waves/demo/wave_03.tres" id="12_wave3"]
+[ext_resource type="Resource" uid="uid://dwavedemo0004" path="res://data/waves/demo/wave_04.tres" id="13_wave4"]
+[ext_resource type="Resource" uid="uid://dwavedemo0005" path="res://data/waves/demo/wave_05.tres" id="14_wave5"]
+[ext_resource type="Resource" uid="uid://dwavedemo0006" path="res://data/waves/demo/wave_06.tres" id="15_wave6"]
+[ext_resource type="Resource" uid="uid://dwavedemo0007" path="res://data/waves/demo/wave_07.tres" id="16_wave7"]
+[ext_resource type="Resource" uid="uid://dwavedemo0008" path="res://data/waves/demo/wave_08.tres" id="17_wave8"]
+[ext_resource type="Resource" uid="uid://dwavedemo0009" path="res://data/waves/demo/wave_09.tres" id="18_wave9"]
+[ext_resource type="Resource" uid="uid://dwavedemo0010" path="res://data/waves/demo/wave_10.tres" id="19_wave10"]
+[ext_resource type="Resource" uid="uid://dwaveendless1" path="res://data/waves/endless/default_endless_wave.tres" id="20_endless"]
 
 [sub_resource type="Resource" id="curve_damage"]
-script = ExtResource("6_curve")
+script = ExtResource("3_curve")
 standard_coefficient = 0.05
 lethal_coefficient = 0.1
 lethal_exponent = 1.1
 
 [sub_resource type="Resource" id="curve_defense"]
-script = ExtResource("6_curve")
+script = ExtResource("3_curve")
 standard_coefficient = 0.6
 lethal_coefficient = 1.2
 
 [sub_resource type="Resource" id="curve_hp"]
-script = ExtResource("6_curve")
+script = ExtResource("3_curve")
 standard_coefficient = 0.08
 lethal_coefficient = 0.15
 lethal_exponent = 1.2
 
 [sub_resource type="Resource" id="progression_profile"]
-script = ExtResource("5_profile")
+script = ExtResource("2_profile")
 hp_curve = SubResource("curve_hp")
 damage_curve = SubResource("curve_damage")
 defense_curve = SubResource("curve_defense")
 
 [resource]
 script = ExtResource("1_catalog")
-demo_waves = Array[ExtResource("2_wave")]([SubResource("wave_def_1"), SubResource("wave_def_2"), SubResource("wave_def_3"), SubResource("wave_def_4"), SubResource("wave_def_5"), SubResource("wave_def_6"), SubResource("wave_def_7"), SubResource("wave_def_8"), SubResource("wave_def_9"), SubResource("wave_def_10")])
-endless_template = SubResource("wave_def_endless")
+demo_waves = Array[ExtResource("4_wave_def")]([ExtResource("10_wave1"), ExtResource("11_wave2"), ExtResource("12_wave3"), ExtResource("13_wave4"), ExtResource("14_wave5"), ExtResource("15_wave6"), ExtResource("16_wave7"), ExtResource("17_wave8"), ExtResource("18_wave9"), ExtResource("19_wave10")])
+endless_template = ExtResource("20_endless")
 progression_profile = SubResource("progression_profile")

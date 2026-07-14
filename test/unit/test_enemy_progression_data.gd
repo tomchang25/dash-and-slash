@@ -254,30 +254,30 @@ func test_profile_validate_reports_missing_curve() -> void:
 func test_profile_validate_passes_a_fully_authored_profile() -> void:
     assert_true(_make_profile().validate())
 
-# == WaveCompositionEntry / WaveGroupDefinition ==
+# == SpawnGroupDefinition ==
 
 
 func test_group_validate_fixed_mode_passes_positive_counts() -> void:
-    var group := _make_fixed_group()
+    var group := _make_fixed_spawn_group()
     assert_true(group.validate("TestGroup"))
 
 
 func test_group_validate_fixed_mode_rejects_non_positive_count() -> void:
-    var group := _make_fixed_group()
+    var group := _make_fixed_spawn_group()
     group.entries[0].count = 0
     assert_false(group.validate("TestGroup"))
     assert_push_error("count must be positive")
 
 
 func test_group_validate_fixed_mode_rejects_missing_enemy_scene() -> void:
-    var group := _make_fixed_group()
+    var group := _make_fixed_spawn_group()
     group.entries[0].enemy_scene = null
     assert_false(group.validate("TestGroup"))
     assert_push_error("missing enemy_scene")
 
 
 func test_group_validate_weighted_mode_requires_positive_total_and_weights() -> void:
-    var group := _make_weighted_group()
+    var group := _make_weighted_spawn_group()
     assert_true(group.validate("TestGroup"))
 
     group.weighted_total_count = 0
@@ -286,58 +286,79 @@ func test_group_validate_weighted_mode_requires_positive_total_and_weights() -> 
 
 
 func test_group_validate_weighted_mode_rejects_non_positive_weight() -> void:
-    var group := _make_weighted_group()
+    var group := _make_weighted_spawn_group()
     group.entries[0].weight = 0.0
     assert_false(group.validate("TestGroup"))
     assert_push_error("weight must be positive")
 
 
-func test_group_validate_rejects_negative_warning_ticks() -> void:
-    var group := _make_fixed_group()
-    group.warning_ticks = -1
-    assert_false(group.validate("TestGroup"))
-    assert_push_error("warning_ticks must be non-negative")
-
-
-func test_group_validate_rejects_negative_level_offset() -> void:
-    var group := _make_fixed_group()
-    group.level_offset = -1
-    assert_false(group.validate("TestGroup"))
-    assert_push_error("level_offset must be non-negative")
-
-
-func test_group_validate_survivors_condition_requires_non_negative_threshold() -> void:
-    var group := _make_fixed_group()
-    group.start_condition = WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST
-    group.survivor_threshold = -1
-    assert_false(group.validate("TestGroup"))
-    assert_push_error("survivor_threshold must be non-negative")
-
-
 func test_group_validate_rejects_empty_entries() -> void:
-    var group := _make_fixed_group()
+    var group := _make_fixed_spawn_group()
     group.entries = []
     assert_false(group.validate("TestGroup"))
     assert_push_error("must have at least one composition entry")
 
 
-## Edge case: a first group authored with a predecessor-relative condition still validates cleanly
-## position (not the condition value) is what makes a first group start-eligible at runtime.
-func test_group_with_predecessor_condition_still_validates_regardless_of_position() -> void:
-    var group := _make_fixed_group()
-    group.start_condition = WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_CLEARED
-    assert_true(group.validate("TestGroup"), "a predecessor condition on what would be the first group must not fail validation")
+func test_group_max_member_count_sums_fixed_entry_counts() -> void:
+    var group := _make_fixed_spawn_group()
+    group.entries = [_make_entry(ThrustEnemyScene, 2), _make_entry(SlashEnemyScene, 3)]
+    assert_eq(group.max_member_count(), 5)
 
 
-func test_group_is_boss_defaults_false() -> void:
-    var group := _make_fixed_group()
-    assert_false(group.is_boss)
+func test_group_max_member_count_uses_weighted_total_count() -> void:
+    var group := _make_weighted_spawn_group()
+    group.weighted_total_count = 7
+    assert_eq(group.max_member_count(), 7)
+
+# == WaveGroupSlot ==
 
 
-func test_group_is_boss_can_be_authored_true_and_still_validates() -> void:
-    var group := _make_fixed_group()
-    group.is_boss = true
-    assert_true(group.validate("TestGroup"), "the authored boss role must not affect validation")
+func test_slot_validate_rejects_negative_warning_ticks() -> void:
+    var slot := _make_slot()
+    slot.warning_ticks = -1
+    assert_false(slot.validate("TestSlot"))
+    assert_push_error("warning_ticks must be non-negative")
+
+
+func test_slot_validate_rejects_negative_level_offset() -> void:
+    var slot := _make_slot()
+    slot.level_offset = -1
+    assert_false(slot.validate("TestSlot"))
+    assert_push_error("level_offset must be non-negative")
+
+
+func test_slot_validate_survivors_condition_requires_non_negative_threshold() -> void:
+    var slot := _make_slot()
+    slot.start_condition = WaveGroupSlot.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST
+    slot.survivor_threshold = -1
+    assert_false(slot.validate("TestSlot"))
+    assert_push_error("survivor_threshold must be non-negative")
+
+
+func test_slot_validate_rejects_missing_spawn_group() -> void:
+    var slot := _make_slot()
+    slot.spawn_group = null
+    assert_false(slot.validate("TestSlot"))
+    assert_push_error("missing spawn_group")
+
+
+## Edge case: a first slot authored with a predecessor-relative condition still validates cleanly
+## position (not the condition value) is what makes a first slot start-eligible at runtime.
+func test_slot_with_predecessor_condition_still_validates_regardless_of_position() -> void:
+    var slot := _make_slot()
+    slot.start_condition = WaveGroupSlot.StartCondition.PREVIOUS_GROUP_CLEARED
+    assert_true(slot.validate("TestSlot"), "a predecessor condition on what would be the first slot must not fail validation")
+
+
+func test_slot_is_boss_defaults_false() -> void:
+    var slot := _make_slot()
+    assert_false(slot.is_boss)
+
+
+func test_slot_is_boss_can_be_authored_true_and_still_validates() -> void:
+    var slot := _make_slot()
+    slot.is_boss = true
+    assert_true(slot.validate("TestSlot"), "the authored boss role must not affect validation")
 
 # == WaveDefinition ==
 
@@ -347,17 +368,27 @@ func test_wave_validate_requires_positive_population_cap() -> void:
     wave.population_cap = 0
     assert_false(wave.validate("TestWave"))
     assert_push_error("population_cap must be positive")
+    # A cap of 0 also always fails the atomic-cap-fit check below, since any authored group has at
+    # least one member; both dev errors are expected from this single invalid wave.
+    assert_push_error("exceeding population_cap")
 
 
-func test_wave_validate_requires_at_least_one_group() -> void:
+func test_wave_validate_requires_at_least_one_slot() -> void:
     var wave := _make_wave()
-    wave.groups = []
+    wave.slots = []
     assert_false(wave.validate("TestWave"))
-    assert_push_error("must have at least one group")
+    assert_push_error("must have at least one slot")
 
 
 func test_wave_validate_passes_a_clean_wave() -> void:
     assert_true(_make_wave().validate("TestWave"))
+
+
+func test_wave_validate_rejects_a_slot_whose_group_can_exceed_the_population_cap() -> void:
+    var wave := _make_wave()
+    wave.population_cap = 1
+    assert_false(wave.validate("TestWave"))
+    assert_push_error("exceeding population_cap")
 
 # == WaveCatalog ==
 
@@ -387,18 +418,19 @@ func test_catalog_validate_passes_a_fully_authored_catalog() -> void:
     assert_true(_make_catalog().validate())
 
 
-func test_catalog_validate_supports_fixed_and_weighted_groups_and_all_conditions() -> void:
+func test_catalog_validate_supports_fixed_and_weighted_slots_and_all_conditions() -> void:
     var catalog := _make_catalog()
     var wave := catalog.demo_waves[0]
-    var overlap_group := _make_fixed_group()
-    overlap_group.start_condition = WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP
-    var survivors_group := _make_fixed_group()
-    survivors_group.start_condition = WaveGroupDefinition.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST
-    survivors_group.survivor_threshold = 2
-    var weighted_group := _make_weighted_group()
-    wave.groups = [overlap_group, survivors_group, weighted_group]
+    var overlap_slot := _make_slot()
+    overlap_slot.start_condition = WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP
+    var survivors_slot := _make_slot()
+    survivors_slot.start_condition = WaveGroupSlot.StartCondition.PREVIOUS_GROUP_SURVIVORS_AT_MOST
+    survivors_slot.survivor_threshold = 2
+    var weighted_slot := _make_slot(_make_weighted_spawn_group())
+    wave.population_cap = 10
+    wave.slots = [overlap_slot, survivors_slot, weighted_slot]
 
-    assert_true(catalog.validate(), "a catalog mixing fixed/weighted groups and all three conditions must validate")
+    assert_true(catalog.validate(), "a catalog mixing fixed/weighted slots and all three conditions must validate")
 
 # == GridEnemy: EnemyData-driven component initialization ==
 
@@ -525,37 +557,42 @@ func _make_guard_profile() -> GuardProfile:
     return profile
 
 
-func _make_fixed_group() -> WaveGroupDefinition:
-    var group := WaveGroupDefinition.new()
-    group.composition_mode = WaveGroupDefinition.CompositionMode.FIXED
-    group.start_condition = WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP
-    group.warning_ticks = 2
-    group.level_offset = 0
+func _make_entry(scene: PackedScene, count: int = 0, weight: float = 0.0) -> WaveCompositionEntry:
     var entry := WaveCompositionEntry.new()
-    entry.enemy_scene = ThrustEnemyScene
-    entry.count = 2
-    group.entries = [entry]
+    entry.enemy_scene = scene
+    entry.count = count
+    entry.weight = weight
+    return entry
+
+
+func _make_fixed_spawn_group() -> SpawnGroupDefinition:
+    var group := SpawnGroupDefinition.new()
+    group.composition_mode = SpawnGroupDefinition.CompositionMode.FIXED
+    group.entries = [_make_entry(ThrustEnemyScene, 2)]
     return group
 
 
-func _make_weighted_group() -> WaveGroupDefinition:
-    var group := WaveGroupDefinition.new()
-    group.composition_mode = WaveGroupDefinition.CompositionMode.WEIGHTED
-    group.start_condition = WaveGroupDefinition.StartCondition.IMMEDIATE_OVERLAP
-    group.warning_ticks = 2
-    group.level_offset = 0
+func _make_weighted_spawn_group() -> SpawnGroupDefinition:
+    var group := SpawnGroupDefinition.new()
+    group.composition_mode = SpawnGroupDefinition.CompositionMode.WEIGHTED
     group.weighted_total_count = 4
-    var entry := WaveCompositionEntry.new()
-    entry.enemy_scene = ThrustEnemyScene
-    entry.weight = 1.0
-    group.entries = [entry]
+    group.entries = [_make_entry(ThrustEnemyScene, 0, 1.0)]
     return group
+
+
+func _make_slot(spawn_group: SpawnGroupDefinition = null) -> WaveGroupSlot:
+    var slot := WaveGroupSlot.new()
+    slot.spawn_group = spawn_group if spawn_group != null else _make_fixed_spawn_group()
+    slot.start_condition = WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP
+    slot.warning_ticks = 2
+    slot.level_offset = 0
+    return slot
 
 
 func _make_wave() -> WaveDefinition:
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.groups = [_make_fixed_group()]
+    wave.slots = [_make_slot()]
     return wave
 
 
