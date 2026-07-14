@@ -71,20 +71,6 @@ func find_replacement_cell(strategy: SpawnGroupDefinition.PlacementStrategy, anc
     return _find_any_legal_cell(excluded_cells)
 
 
-## Best-effort single spawn cell for the Debug-gated Wave 1 boss convenience spawn, which sits
-## outside the normal group-slot flow and must never fail to find somewhere to place its one enemy.
-## Falls back through an occupied-but-walkable cell and finally the player's own cell.
-func choose_fallback_cell() -> Vector2i:
-    var plan := plan_group_cells(SpawnGroupDefinition.PlacementStrategy.SCATTER, 1)
-    var cells: Array = plan.get("cells", [])
-    if not cells.is_empty():
-        return cells[0]
-    var any_legal_cell := _find_any_legal_cell([])
-    if any_legal_cell != NO_CELL:
-        return any_legal_cell
-    var walkable_cell := _choose_any_walkable_cell()
-    return walkable_cell if walkable_cell != NO_CELL else _player_cell()
-
 # == Placement strategies ==
 
 
@@ -201,18 +187,6 @@ func _is_legal_cell(cell: Vector2i, player_cell: Vector2i, excluded_cells: Array
         and _grid.is_empty(cell)
     )
 
-
-func _choose_any_walkable_cell() -> Vector2i:
-    var player_cell := _player_cell()
-    var candidates: Array[Vector2i] = []
-    for x in _grid.grid_size.x:
-        for y in _grid.grid_size.y:
-            var cell := Vector2i(x, y)
-            if cell == player_cell:
-                continue
-            if _grid.is_walkable(cell):
-                candidates.append(cell)
-    return _pick_random(candidates)
 
 # == Geometry helpers ==
 

@@ -13,6 +13,11 @@ const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
 const BombEnemyScene := preload("res://game/entities/enemies/bomb_enemy.tscn")
 const ModeBossScene := preload("res://game/entities/enemies/mode_boss.tscn")
 
+# -- State --
+
+var _test_controllers: Array = []
+var _debug_enabled_before_test := false
+
 
 ## Godot's static checker cannot reconcile DefaultWaveCatalog.demo_waves' element type (inferred
 ## from the preloaded .tres's cross-file typed array) with the WaveDefinition global class name,
@@ -154,11 +159,6 @@ class TestWaveController:
         _spawn_planner = null
         _spawner = null
         _engine = null
-
-# -- State --
-
-var _test_controllers: Array[TestWaveController] = []
-var _debug_enabled_before_test := false
 
 # == Test lifecycle ==
 
@@ -570,67 +570,53 @@ func test_wave_completes_only_after_all_groups_and_warnings_are_exhausted() -> v
 
     _free_spawned(fake_spawner)
 
-# == Wave 1 debug Boss ==
+# == Debug spawner ==
 
 
-func test_debug_wave_one_boss_spawns_after_authored_enemies_and_delays_completion() -> void:
+func test_debug_spawner_queues_boss_through_the_spawn_warning_countdown() -> void:
     Debug.enabled = true
     var fixture := _make_test_controller()
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
-    wc.set_debug_wave_one_boss_scene(ModeBossScene)
 
-    var completed_calls: Array = []
     var boss_spawned_count := [0]
-    var boss_cleared_count := [0]
-    wc.normal_wave_completed.connect(func(n: int) -> void: completed_calls.append(n))
     wc.boss_spawned.connect(func(_boss: Node) -> void: boss_spawned_count[0] += 1)
-    wc.boss_cleared.connect(func() -> void: boss_cleared_count[0] += 1)
 
     wc.start_next_wave()
+    wc.debug_queue_enemy(ModeBossScene, true)
+
+    assert_eq(fake_spawner.spawned.size(), 1, "the Debug request must wait for the SPAWNING countdown")
+    assert_eq(wc.pending_batch_count(), 1)
+
     wc.trigger_world_advanced()
-    var authored_enemy := wc.first_alive()
-    authored_enemy.died.emit(authored_enemy)
+    assert_eq(fake_spawner.spawned.size(), 1, "the first countdown tick must not spawn the boss")
 
-    assert_eq(fake_spawner.spawned.size(), 2, "clearing authored Wave 1 enemies should append one debug Boss")
+    wc.trigger_world_advanced()
+    assert_eq(fake_spawner.spawned.size(), 2, "the boss spawns only after the complete Debug countdown")
     assert_eq(fake_spawner.picked_scenes[1], ModeBossScene)
-    assert_eq(wc.alive_count(), 1)
     assert_eq(boss_spawned_count[0], 1)
-    assert_true(completed_calls.is_empty(), "Wave 1 must stay active until the debug Boss dies")
-
-    var debug_boss := wc.first_alive()
-    debug_boss.died.emit(debug_boss)
-
-    assert_eq(boss_cleared_count[0], 1)
-    assert_eq(completed_calls, [1], "killing the debug Boss should complete Wave 1 normally")
     _free_spawned(fake_spawner)
 
 
-func test_wave_one_debug_boss_never_spawns_while_debug_is_disabled() -> void:
+func test_debug_spawner_does_nothing_while_debug_is_disabled() -> void:
     Debug.enabled = false
     var fixture := _make_test_controller()
     var wc: TestWaveController = fixture[0]
     var fake_spawner: FakeSpawner = fixture[1]
     var wave := WaveDefinition.new()
     wave.population_cap = 3
-    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1)]
+    wave.slots = [_make_fixed_slot(_make_placeholder_scene(), 1, WaveGroupSlot.StartCondition.IMMEDIATE_OVERLAP, 0)]
     wc.set_catalog(_make_catalog_for_wave_one(wave))
-    wc.set_debug_wave_one_boss_scene(ModeBossScene)
-
-    var completed_calls: Array = []
-    wc.normal_wave_completed.connect(func(n: int) -> void: completed_calls.append(n))
 
     wc.start_next_wave()
-    wc.trigger_world_advanced()
-    var authored_enemy := wc.first_alive()
-    authored_enemy.died.emit(authored_enemy)
+    wc.debug_queue_enemy(ModeBossScene, true)
 
     assert_eq(fake_spawner.spawned.size(), 1)
-    assert_eq(completed_calls, [1], "release-safe flow should complete without injecting the debug Boss")
+    assert_eq(wc.pending_batch_count(), 0, "release-safe flow must not queue a Debug spawn")
     _free_spawned(fake_spawner)
 
 # == Boss role ==

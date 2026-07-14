@@ -20,6 +20,12 @@ signal boss_spawned(boss: Node)
 signal boss_cleared
 signal spawn_warning_changed(cells: Array[Vector2i], ticks: int)
 
+# -- Constants --
+
+const DEBUG_SPAWN_WARNING_TICKS := 2
+
+# -- State --
+
 var _catalog: WaveCatalog
 var _catalog_valid := false
 var _wave_rng := RandomNumberGenerator.new()
@@ -49,8 +55,10 @@ var _pending_batch_anchor: Vector2i = EnemySpawnPlanner.NO_CELL
 var _warning_ticks_remaining := 0
 var _boss_ref: Node = null
 var _run_over := false
-var _debug_wave_one_boss_scene: PackedScene
-var _debug_wave_one_boss_spawned := false
+var _wave_completed := false
+## Debug-requested enemies use the same warning countdown and placement validation as authored slots.
+var _debug_spawn_queue: Array[Dictionary] = []
+var _pending_batch_is_debug := false
 
 # == Signal handlers ==
 
@@ -195,10 +203,11 @@ func reset() -> void:
     _slot_ever_spawned.clear()
     _enemy_slot_index.clear()
     _alive_enemies.clear()
+    _debug_spawn_queue.clear()
     _warning_ticks_remaining = 0
     _boss_ref = null
     _run_over = false
-    _debug_wave_one_boss_spawned = false
+    _wave_completed = false
 
 
 ## Returns the current spawn-warning display payload ({cells, ticks}), or an empty dictionary.
@@ -218,10 +227,20 @@ func force_kill_all_enemies() -> void:
     _kill_all_alive_enemies()
 
 
-## Configures the optional Wave 1 debug Boss. Actual spawning remains gated by Debug.enabled when
-## the authored Wave 1 queue and living roster are both exhausted.
-func set_debug_wave_one_boss_scene(scene: PackedScene) -> void:
-    _debug_wave_one_boss_scene = scene
+## Queues one Debug-panel-requested enemy through the normal SPAWNING warning countdown. The
+## requested enemy takes priority once no other warning batch is already in flight, but it still
+## needs a legal cell and never bypasses the current population cap.
+func debug_queue_enemy(scene: PackedScene, is_boss := false) -> void:
+    if not Debug.enabled or _run_over or _wave_completed or scene == null or _current_wave_number <= 0:
+        return
+    _debug_spawn_queue.append(
+        {
+            "scene": scene,
+            "level": _current_wave_number,
+            "is_boss": is_boss,
+        },
+    )
+    _schedule_next_warning_batch()
 
 # == Wave Flow ==
 
@@ -244,6 +263,7 @@ func _begin_wave() -> void:
     if wave == null:
         ToastManager.show_dev_error("WaveController: no wave definition resolved for wave %d" % _current_wave_number)
         return
+    _wave_completed = false
     wave_started.emit(get_wave_display_text(), is_boss_wave())
     _prepare_slot_queues(wave)
     _evaluate_slot_eligibility()
@@ -271,38 +291,12 @@ func _check_wave_completion() -> void:
         return
     if not _all_slot_queues_empty():
         return
+    if not _debug_spawn_queue.is_empty():
+        return
     if not _alive_enemies.is_empty():
         return
-    if _try_spawn_debug_wave_one_boss():
-        return
+    _wave_completed = true
     normal_wave_completed.emit(get_wave_number())
-
-
-## Injects one untelegraphed Boss after authored Wave 1 enemies are exhausted so retaliation and
-## Boss-policy work can be exercised quickly. It uses the normal spawner, projection, alive roster,
-## and Boss signals; killing it re-enters _check_wave_completion() and completes Wave 1 exactly once.
-func _try_spawn_debug_wave_one_boss() -> bool:
-    if not Debug.enabled:
-        return false
-    if _current_wave_number != 1 or _debug_wave_one_boss_spawned or _debug_wave_one_boss_scene == null:
-        return false
-
-    var spawn_cell := _spawn_planner.choose_fallback_cell()
-    var enemy := _spawner.spawn_enemy(
-        _debug_wave_one_boss_scene,
-        spawn_cell,
-        Callable(self, "_on_enemy_died"),
-        func(e: Node) -> void: _apply_level_projection(e, _current_wave_number),
-    )
-    if enemy == null:
-        ToastManager.show_dev_error("WaveController: failed to spawn the Wave 1 debug Boss")
-        return false
-
-    _debug_wave_one_boss_spawned = true
-    _alive_enemies.append(enemy)
-    _boss_ref = enemy
-    boss_spawned.emit(enemy)
-    return true
 
 
 func _all_slot_queues_empty() -> bool:
@@ -375,6 +369,10 @@ func _schedule_next_warning_batch() -> void:
     if _run_over or not _pending_batch.is_empty():
         return
 
+    if not _debug_spawn_queue.is_empty():
+        _schedule_debug_warning_batch()
+        return
+
     var slot_index := _next_schedulable_slot_index()
     if slot_index == -1:
         return
@@ -395,6 +393,7 @@ func _schedule_next_warning_batch() -> void:
     _pending_batch = queue.duplicate()
     _slot_queues[slot_index] = []
     _pending_batch_slot_index = slot_index
+    _pending_batch_is_debug = false
     _pending_batch_strategy = slot.spawn_group.placement_strategy
     _pending_batch_anchor = plan.get("anchor", EnemySpawnPlanner.NO_CELL)
 
@@ -410,6 +409,31 @@ func _schedule_next_warning_batch() -> void:
         telegraph_cells.append(cell)
     _grid.set_telegraph(self, telegraph_cells, GridArena.TelegraphPhase.SPAWNING)
     _warning_ticks_remaining = slot.warning_ticks
+    _emit_spawn_warning_changed()
+
+
+## Admits the oldest Debug-requested enemy as a one-member SPAWNING batch. This deliberately uses
+## the authored scheduler's plan, countdown, revalidation, and standard spawn callback instead of
+## calling EnemySpawner directly.
+func _schedule_debug_warning_batch() -> void:
+    if _alive_enemies.size() >= _population_cap():
+        return
+
+    var plan := _spawn_planner.plan_group_cells(SpawnGroupDefinition.PlacementStrategy.SCATTER, 1)
+    var cells: Array = plan.get("cells", [])
+    if cells.size() != 1:
+        return
+
+    var spawn_cell: Vector2i = cells[0]
+    _pending_batch = [_debug_spawn_queue.pop_front()]
+    _pending_batch[0]["cell"] = spawn_cell
+    _pending_batch_slot_index = -1
+    _pending_batch_is_debug = true
+    _pending_batch_strategy = SpawnGroupDefinition.PlacementStrategy.SCATTER
+    _pending_batch_anchor = plan.get("anchor", EnemySpawnPlanner.NO_CELL)
+    var telegraph_cells: Array[Vector2i] = [spawn_cell]
+    _grid.set_telegraph(self, telegraph_cells, GridArena.TelegraphPhase.SPAWNING)
+    _warning_ticks_remaining = DEBUG_SPAWN_WARNING_TICKS
     _emit_spawn_warning_changed()
 
 
@@ -463,7 +487,11 @@ func _resolve_pending_batch() -> void:
         entry["cell"] = replacement
         to_spawn.append(entry)
 
-    if not requeued.is_empty():
+    if not requeued.is_empty() and _pending_batch_is_debug:
+        var merged_debug: Array[Dictionary] = requeued.duplicate()
+        merged_debug.append_array(_debug_spawn_queue)
+        _debug_spawn_queue = merged_debug
+    elif not requeued.is_empty():
         var merged: Array[Dictionary] = requeued.duplicate()
         merged.append_array(_slot_queues[resolving_slot_index])
         _slot_queues[resolving_slot_index] = merged
@@ -471,6 +499,7 @@ func _resolve_pending_batch() -> void:
     for entry in to_spawn:
         _spawn_one(entry, resolving_slot_index)
 
+    _pending_batch_is_debug = false
     _evaluate_slot_eligibility()
     if requeued.is_empty():
         _schedule_next_warning_batch()
@@ -494,9 +523,10 @@ func _spawn_one(entry: Dictionary, slot_index: int) -> void:
         ToastManager.show_dev_error("WaveController: failed to spawn enemy from pending group entry")
         return
     _alive_enemies.append(enemy)
-    _enemy_slot_index[enemy] = slot_index
-    _slot_living_count[slot_index] += 1
-    _slot_ever_spawned[slot_index] = true
+    if slot_index >= 0:
+        _enemy_slot_index[enemy] = slot_index
+        _slot_living_count[slot_index] += 1
+        _slot_ever_spawned[slot_index] = true
     if is_boss:
         _boss_ref = enemy
         boss_spawned.emit(enemy)
@@ -525,7 +555,9 @@ func _clear_spawn_queue_telegraphs() -> void:
         _grid.clear_telegraph(self, cells)
         _pending_batch.clear()
         _pending_batch_slot_index = -1
+    _pending_batch_is_debug = false
     _slot_queues.clear()
+    _debug_spawn_queue.clear()
     var empty_cells: Array[Vector2i] = []
     spawn_warning_changed.emit(empty_cells, 0)
 

@@ -25,7 +25,6 @@ enum RewardFlowState {
 
 const REWARD_OPEN_DELAY := 2.0
 const WAVE_BANNER_FADE := 0.35
-const DebugWaveOneBossScene := preload("res://game/entities/enemies/mode_boss.tscn")
 
 # -- Exports --
 
@@ -250,6 +249,16 @@ func debug_kill_all_enemies() -> void:
         return
     _wave_controller.force_kill_all_enemies()
 
+
+## Debug-only: queues an enemy through WaveController's ordinary SPAWNING warning countdown.
+## This controller remains the arena root's public boundary for run-scoped debug actions.
+func debug_queue_enemy(scene: PackedScene, is_boss := false) -> void:
+    if not Debug.enabled:
+        return
+    if _wave_controller == null:
+        return
+    _wave_controller.debug_queue_enemy(scene, is_boss)
+
 # == Death / Restart ==
 
 
@@ -302,7 +311,6 @@ func _wire_wave_controller() -> void:
     _wave_controller = WaveController.new()
     _wave_controller.setup(grid, _spawn_planner, _spawner, engine)
     _wave_controller.set_catalog(wave_catalog)
-    _wave_controller.set_debug_wave_one_boss_scene(DebugWaveOneBossScene)
     _wave_controller.normal_wave_completed.connect(_on_normal_wave_completed)
     _wave_controller.spawn_warning_changed.connect(_on_spawn_warning_changed)
 

@@ -8,6 +8,13 @@ extends Node2D
 # -- Constants --
 
 const BACKGROUND_COLOR := Color(0.09, 0.1, 0.12)
+const ThrustEnemyScene := preload("res://game/entities/enemies/thrust_enemy.tscn")
+const SlashEnemyScene := preload("res://game/entities/enemies/slash_enemy.tscn")
+const ChargeEnemyScene := preload("res://game/entities/enemies/charge_enemy.tscn")
+const RangedEnemyScene := preload("res://game/entities/enemies/ranged_enemy.tscn")
+const BombEnemyScene := preload("res://game/entities/enemies/bomb_enemy.tscn")
+const ModeEnemyScene := preload("res://game/entities/enemies/mode_enemy.tscn")
+const ModeBossScene := preload("res://game/entities/enemies/mode_boss.tscn")
 
 # -- Exports --
 
@@ -25,6 +32,14 @@ var _guard_shredder_button: Button
 var _execution_button: Button
 var _chain_dash_button: Button
 var _kill_all_enemies_button: Button
+var _spawn_thrust_enemy_button: Button
+var _spawn_slash_enemy_button: Button
+var _spawn_charge_enemy_button: Button
+var _spawn_ranged_enemy_button: Button
+var _spawn_bomb_enemy_button: Button
+var _spawn_mode_enemy_button: Button
+var _spawn_mode_boss_button: Button
+var _full_heal_button: Button
 var _god_mode_disable_button: Button
 var _god_mode_no_damage_button: Button
 var _god_mode_undead_button: Button
@@ -131,10 +146,18 @@ func _restart_run() -> void:
 # == Debug (see dev/standards/debug_standard.md §4a/§5) ==
 
 
-## Registers Combat, Player/class, and Dash-Major debug actions.
+## Registers Combat, Spawner, Player/class, and Dash-Major debug actions.
 func _wire_debug_panel() -> void:
     _kill_all_enemies_button = _debug_panel.add_action("Instant Kill All Enemies", _on_debug_kill_all_enemies, "Combat")
+    _spawn_thrust_enemy_button = _debug_panel.add_action("Spawn Thrust Enemy", _on_debug_spawn_thrust_enemy, "Spawner")
+    _spawn_slash_enemy_button = _debug_panel.add_action("Spawn Slash Enemy", _on_debug_spawn_slash_enemy, "Spawner")
+    _spawn_charge_enemy_button = _debug_panel.add_action("Spawn Charge Enemy", _on_debug_spawn_charge_enemy, "Spawner")
+    _spawn_ranged_enemy_button = _debug_panel.add_action("Spawn Ranged Enemy", _on_debug_spawn_ranged_enemy, "Spawner")
+    _spawn_bomb_enemy_button = _debug_panel.add_action("Spawn Bomb Enemy", _on_debug_spawn_bomb_enemy, "Spawner")
+    _spawn_mode_enemy_button = _debug_panel.add_action("Spawn Mode Enemy", _on_debug_spawn_mode_enemy, "Spawner")
+    _spawn_mode_boss_button = _debug_panel.add_action("Spawn Mode Boss", _on_debug_spawn_mode_boss, "Spawner")
 
+    _full_heal_button = _debug_panel.add_action("Full Heal", _on_debug_full_heal, "Player")
     _god_mode_disable_button = _debug_panel.add_action("God Mode - Disable", _on_debug_set_god_mode_disable, "Player")
     _god_mode_no_damage_button = _debug_panel.add_action("God Mode - No Damage", _on_debug_set_god_mode_no_damage, "Player")
     _god_mode_undead_button = _debug_panel.add_action("God Mode - Undead", _on_debug_set_god_mode_undead, "Player")
@@ -153,6 +176,41 @@ func _on_debug_kill_all_enemies() -> void:
     if not Debug.enabled:
         return
     _run_controller.debug_kill_all_enemies()
+
+
+func _on_debug_spawn_thrust_enemy() -> void:
+    _queue_debug_enemy(ThrustEnemyScene)
+
+
+func _on_debug_spawn_slash_enemy() -> void:
+    _queue_debug_enemy(SlashEnemyScene)
+
+
+func _on_debug_spawn_charge_enemy() -> void:
+    _queue_debug_enemy(ChargeEnemyScene)
+
+
+func _on_debug_spawn_ranged_enemy() -> void:
+    _queue_debug_enemy(RangedEnemyScene)
+
+
+func _on_debug_spawn_bomb_enemy() -> void:
+    _queue_debug_enemy(BombEnemyScene)
+
+
+func _on_debug_spawn_mode_enemy() -> void:
+    _queue_debug_enemy(ModeEnemyScene)
+
+
+func _on_debug_spawn_mode_boss() -> void:
+    _queue_debug_enemy(ModeBossScene, true)
+
+
+func _on_debug_full_heal() -> void:
+    if not Debug.enabled:
+        return
+    _player.restore_full_health(_run_build.total(RunBuild.CH_MAX_HEALTH))
+    _refresh_hud()
 
 
 func _on_debug_set_god_mode_disable() -> void:
@@ -201,6 +259,14 @@ func _on_debug_toggle_chain_dash() -> void:
     if not Debug.enabled:
         return
     _toggle_debug_mobility_trigger(RunBuild.TRIGGER_CHAIN_DASH)
+
+
+## Sends a DebugPanel spawn request through the run controller so WaveController can retain its
+## standard SPAWNING telegraph, world-tick countdown, and placement validation.
+func _queue_debug_enemy(scene: PackedScene, is_boss := false) -> void:
+    if not Debug.enabled:
+        return
+    _run_controller.debug_queue_enemy(scene, is_boss)
 
 
 ## Applies the picked god mode to the player and refreshes the mutually-exclusive button styling.

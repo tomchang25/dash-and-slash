@@ -204,35 +204,6 @@ func test_find_replacement_cell_returns_no_cell_when_grid_is_full() -> void:
 
     assert_eq(replacement, EnemySpawnPlanner.NO_CELL, "no legal cell remains open")
 
-# == choose_fallback_cell (debug Wave 1 boss convenience) ==
-
-
-func test_choose_fallback_cell_uses_a_legal_cell_when_available() -> void:
-    var grid := _make_grid(Vector2i(4, 4))
-    var player_cell := Vector2i(2, 2)
-    var planner := EnemySpawnPlanner.new(grid, func() -> Vector2i: return player_cell)
-
-    var cell := planner.choose_fallback_cell()
-
-    assert_ne(cell, player_cell)
-    assert_true(grid.is_walkable(cell))
-
-
-func test_choose_fallback_cell_never_fails_even_on_a_fully_occupied_grid() -> void:
-    var grid := _make_grid(Vector2i(2, 2))
-    var player_cell := Vector2i(0, 0)
-    grid.register_occupant(autofree(Node.new()), [Vector2i(1, 0)])
-    grid.register_occupant(autofree(Node.new()), [Vector2i(0, 1)])
-    grid.register_occupant(autofree(Node.new()), [Vector2i(1, 1)])
-    var planner := EnemySpawnPlanner.new(grid, func() -> Vector2i: return player_cell)
-
-    var cell := planner.choose_fallback_cell()
-
-    assert_true(
-        cell in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), player_cell],
-        "a completely full grid must still return some cell, falling back through occupied land or the player cell",
-    )
-
 # == Test helpers ==
 
 

@@ -3,7 +3,7 @@
 # RunBuild bonus total, floored at the base; reset() heals to that projected ceiling so a run's
 # earned max health survives a death/reset instead of reverting to the flat base constant.
 # apply_max_health_gain() covers the immediate current-hp gain a positive contribution grants,
-# clamped at the newly projected maximum.
+# clamped at the newly projected maximum. restore_full_health() restores that same projected ceiling.
 extends GutTest
 
 func test_max_hp_with_no_bonus_is_the_base_constant() -> void:
@@ -72,3 +72,12 @@ func test_apply_max_health_gain_ignores_non_positive_gain() -> void:
     player.apply_max_health_gain(-10.0, 0.0)
 
     assert_eq(player.hp, 50.0, "non-positive gains must never change current hp")
+
+
+func test_restore_full_health_uses_the_projected_maximum() -> void:
+    var player: TickPlayer = autofree(TickPlayer.new())
+    player.hp = 1.0
+
+    player.restore_full_health(40.0)
+
+    assert_eq(player.hp, TickPlayer.MAX_HP + 40.0)

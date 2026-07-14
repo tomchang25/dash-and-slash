@@ -191,6 +191,11 @@ func apply_max_health_gain(gain: float, bonus_total: float) -> void:
     hp = minf(hp + gain, max_hp(bonus_total))
 
 
+## Restores current hp to the effective maximum projected from the given Max Health reward bonus.
+func restore_full_health(bonus_total: float) -> void:
+    hp = max_hp(bonus_total)
+
+
 ## Restores spawn defaults and snaps back to the given cell, healing to the max hp projected from the
 ## given Max Health reward bonus total so a run's earned max health survives a death/reset. Also clears
 ## any debug god mode so a fresh run starts under normal damage/death rules.
