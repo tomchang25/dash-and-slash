@@ -17,7 +17,7 @@ Read this before changing scene navigation, the Main Menu, settings UI/storage, 
 - Do not add debug behavior outside `Debug.enabled`.
 - Keep Main Menu code limited to pre-game flow, settings, and quit actions.
 
-## Dash & Slash Specifics
+## Tickstrike Specifics
 
 - The Play button routes to the `arena` route via `SceneRouter.go_to_arena()`.
 - The project entry scene is `game/meta/main_menu/main_menu_scene.tscn`.

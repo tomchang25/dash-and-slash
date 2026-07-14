@@ -1,4 +1,4 @@
-# Dash & Slash - SFX YAML Generation Standard
+# Tickstrike - SFX YAML Generation Standard
 
 Use this when generating SFX patch YAML files.
 

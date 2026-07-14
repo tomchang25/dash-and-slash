@@ -4,7 +4,7 @@ The project uses a single centralized theme at `global/theme/main_theme.tres`, s
 
 ## Theme Scope
 
-The base theme provides generic UI defaults first. Dash & Slash-specific visual states, custom component types, special icons, and font fallback stacks may be added here only when they are deliberate project UI direction rather than incidental one-off styling.
+The base theme provides generic UI defaults first. Tickstrike-specific visual states, custom component types, special icons, and font fallback stacks may be added here only when they are deliberate project UI direction rather than incidental one-off styling.
 
 ## What The Theme Provides
 
@@ -55,7 +55,7 @@ The base theme provides generic UI defaults first. Dash & Slash-specific visual 
 4. Reusable component state StyleBoxes belong in the theme under a component-specific type only when the component has a fixed state set, such as `default`, `hovered`, `selected`, `available`, or `blocked`.
 5. Do not create `StyleBoxFlat.new()` in GDScript for fixed static appearance. GDScript-built StyleBoxes are acceptable only for values that are genuinely computed at runtime, such as debug overlays or grid cells colored by a live validity check.
 6. Do not hardcode repeated static UI `Color()` literals in GDScript. Add reusable static colors to the theme, and add repeated dynamic colors to a project-level semantic color constants file.
-7. Do not add project-specific art direction, fonts, CJK fallback stacks, icon sets, or gameplay-specific component theme types as incidental cleanup. Add them only when Dash & Slash deliberately owns that UI direction.
+7. Do not add project-specific art direction, fonts, CJK fallback stacks, icon sets, or gameplay-specific component theme types as incidental cleanup. Add them only when Tickstrike deliberately owns that UI direction.
 
 ## Migration Approach
 

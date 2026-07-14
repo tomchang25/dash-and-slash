@@ -6,7 +6,7 @@ Read this file before answering any repository-specific question or doing any wo
 
 ## Project Snapshot
 
-Dash & Slash is a Godot 4.6 project built on the data-driven template base layer. It uses the four spines (data pipeline, boot orchestration, save system, scene routing) and layers action-RPG conventions on top.
+Tickstrike is a Godot 4.6 project built on the data-driven template base layer. It uses the four spines (data pipeline, boot orchestration, save system, scene routing) and layers action-RPG conventions on top.
 
 ## Agent Rules
 

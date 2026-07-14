@@ -1,4 +1,4 @@
-# Dash & Slash 企劃書 v0.6
+# Tickstrike 企劃書 v0.6
 
 ## 0. 文件定位
 
@@ -10,7 +10,7 @@
 
 ## 1. 企劃定位
 
-Dash & Slash 是一款玩家時鐘制的 grid arena action roguelite。系統骨架採用 roguelike 的「每個有效行動推進世界」，操作節奏與回饋追求 action game 的流動感，危險資訊則使用 tactics game 的 tile telegraph、面向與結果預覽。
+Tickstrike 是一款玩家時鐘制的 grid arena action roguelite。系統骨架採用 roguelike 的「每個有效行動推進世界」，操作節奏與回饋追求 action game 的流動感，危險資訊則使用 tactics game 的 tile telegraph、面向與結果預覽。
 
 ### 1.1 核心體驗
 

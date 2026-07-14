@@ -1,6 +1,6 @@
 # Scene Routing Standard
 
-This document defines how Dash & Slash scene transitions are registered and executed.
+This document defines how Tickstrike scene transitions are registered and executed.
 
 ---
 
