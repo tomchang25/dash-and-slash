@@ -31,9 +31,7 @@ Nothing currently in progress.
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
 - [enemy_mobility] Rework committed enemy mobility around ChargeEnemy collision displacement and a new DashEnemy backline ambush — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
-- [enemy_roles] Establish predictable Guard resilience, reactive facing, distinct combat roles, and role-aware spawn formations — [ref plans/tick_arena_enemy_combat_roles_and_counterpressure.md]
 - [meta_progression] Add save-backed Coin, Ninja-clear Viking unlock, Main Menu character selection, and purchasable Artifact pool unlocks — [ref plans/meta_progression.md]
-- [wave_progression] Build data-driven ordered wave groups and enemy-level scaling for a ten-wave demo plus optional lethal endless continuation — [ref plans/data_driven_wave_progression_and_enemy_levels.md]
 
 ---
 
@@ -102,7 +100,7 @@ Later reward-economy work, kept behind the core loop stabilizing. The former ter
 
 ### Forced Trade-Off Curses And Nemesis
 
-Freeze replacement curse work until the data-driven wave and level cutover removes the current pressure curses. A later plan should replace the forced single random curse with a forced three-choice offer whose mutators change how the run is played rather than adding hidden enemy stat pressure.
+The data-driven wave and level cutover removed the current pressure curses. A later plan should replace the forced single random curse with a forced three-choice offer whose mutators change how the run is played rather than adding hidden enemy stat pressure.
 
 - Explore a wave-start mutator that begins each wave at half HP.
 - Explore doubled Mobility cooldown paired with doubled normal and Mobility attack damage.
