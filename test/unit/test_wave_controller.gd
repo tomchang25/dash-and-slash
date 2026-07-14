@@ -14,6 +14,15 @@ const BombEnemyScene := preload("res://game/entities/enemies/bomb_enemy.tscn")
 const ModeBossScene := preload("res://game/entities/enemies/mode_boss.tscn")
 
 
+## Godot's static checker cannot reconcile DefaultWaveCatalog.demo_waves' element type (inferred
+## from the preloaded .tres's cross-file typed array) with the WaveDefinition global class name,
+## and rejects both direct assignment and an "as" cast with a false-positive parse error. Routing
+## through Variant defers to a runtime check instead.
+func _demo_wave(index: int) -> WaveDefinition:
+    var raw: Variant = DefaultWaveCatalog.demo_waves[index]
+    return raw
+
+
 ## Spawn planner test double: always returns a complete plan of distinct cells for the requested
 ## count and always revalidates true, so these tests exercise queueing/warning timing and atomic
 ## admission bookkeeping, not real cell geometry.
@@ -658,7 +667,7 @@ func test_boss_spawned_and_boss_cleared_signals_fire_for_the_is_boss_group() -> 
 ## The authored Small group is the roster's only weighted composition; every other group is fixed.
 func test_default_catalog_weighted_groups_use_only_active_small_roles() -> void:
     for wave_index in DefaultWaveCatalog.demo_waves.size():
-        var wave := DefaultWaveCatalog.demo_waves[wave_index]
+        var wave := _demo_wave(wave_index)
         _assert_weighted_groups_use_active_small_roles(wave)
     _assert_weighted_groups_use_active_small_roles(DefaultWaveCatalog.endless_template)
 
@@ -738,7 +747,7 @@ func test_default_catalog_demo_waves_match_the_authored_schedule() -> void:
         [1, [scatter]],
     ]
     for i in expectations.size():
-        var wave: WaveDefinition = DefaultWaveCatalog.demo_waves[i]
+        var wave := _demo_wave(i)
         var expected: Array = expectations[i]
         assert_eq(wave.population_cap, expected[0], "wave %d population_cap" % (i + 1))
         var expected_strategies: Array = expected[1]
@@ -749,17 +758,17 @@ func test_default_catalog_demo_waves_match_the_authored_schedule() -> void:
 
 func test_default_catalog_bomb_group_first_appears_at_wave_eight() -> void:
     for i in 7:
-        var wave: WaveDefinition = DefaultWaveCatalog.demo_waves[i]
+        var wave := _demo_wave(i)
         for slot in wave.slots:
             for entry in slot.spawn_group.entries:
                 assert_ne(entry.enemy_scene, BombEnemyScene, "Bomb must not appear before wave 8 (wave %d)" % (i + 1))
-    var wave8: WaveDefinition = DefaultWaveCatalog.demo_waves[7]
+    var wave8 := _demo_wave(7)
     var bomb_slot: WaveGroupSlot = wave8.slots[3]
     assert_eq(bomb_slot.spawn_group.entries[0].enemy_scene, BombEnemyScene)
 
 
 func test_default_catalog_wave_ten_is_boss_only() -> void:
-    var wave: WaveDefinition = DefaultWaveCatalog.demo_waves[9]
+    var wave := _demo_wave(9)
     assert_eq(wave.population_cap, 1)
     assert_eq(wave.slots.size(), 1)
     var boss_slot: WaveGroupSlot = wave.slots[0]
@@ -771,7 +780,7 @@ func test_default_catalog_wave_ten_is_boss_only() -> void:
 
 func test_default_catalog_endless_template_uses_fixed_cap_of_ten_and_wave_nine_grammar() -> void:
     var endless: WaveDefinition = DefaultWaveCatalog.endless_template
-    var wave9: WaveDefinition = DefaultWaveCatalog.demo_waves[8]
+    var wave9 := _demo_wave(8)
     assert_eq(endless.population_cap, 10)
     assert_eq(endless.slots.size(), wave9.slots.size())
     for i in endless.slots.size():

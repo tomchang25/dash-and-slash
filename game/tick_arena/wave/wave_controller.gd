@@ -464,7 +464,9 @@ func _resolve_pending_batch() -> void:
         to_spawn.append(entry)
 
     if not requeued.is_empty():
-        _slot_queues[resolving_slot_index] = requeued + _slot_queues[resolving_slot_index]
+        var merged: Array[Dictionary] = requeued.duplicate()
+        merged.append_array(_slot_queues[resolving_slot_index])
+        _slot_queues[resolving_slot_index] = merged
 
     for entry in to_spawn:
         _spawn_one(entry, resolving_slot_index)
