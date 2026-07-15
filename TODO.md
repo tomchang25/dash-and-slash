@@ -30,6 +30,8 @@ Nothing currently in progress.
 
 Queued work, big enough to have a pre-plan file in `dev/docs/plans/`. Promote a line to `## Active` when building starts; if it goes stale here, retire it back to `## Draft`.
 
+- [project_structure] Consolidate arena-owned entities, grid, combat, and presentation while keeping only portable infrastructure in common — [ref plans/runtime_structure_reorganization.md]
+
 - [action_points] Replace Speed-meter free actions with player-round AP, overflow-aware Chain Dash, and round-relative timing — [ref plans/tick_arena_action_points_and_relative_timing.md]
 - [enemy_commitment] Remove the FaceOnce action tax, add immediate hit-facing and multi-step MoveActions, and replan conflicts within one enemy-phase action — [ref plans/enemy_action_commitment_and_replanning.md]
 - [enemy_mobility] Rework ChargeEnemy as a facing-free collision charge, add DashEnemy backline ambush, and establish shared forced displacement — [ref plans/tick_arena_enemy_mobility_and_forced_displacement.md]
