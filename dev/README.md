@@ -4,6 +4,8 @@ This directory holds development-time instructions, standards, workflows, refere
 
 ## Placement Test
 
+- `foundation/`: pinned `godot-devkit` submodule containing shared agent rules, standards, skills, and workflows. Never edit it from this repository; change the upstream devkit and then bump the submodule pointer.
+- `foundation.profile`: selects the shared architecture profile loaded after core governance.
 - `agent_rules/`: agent behavior and execution constraints. Use this for sandbox rules, git permissions, lint/test requirements, dedicated engine test procedures, approval rules, and habits an agent must follow while working.
 - `workflows/`: development process artifacts. Use this for plan, implementation spec, sketch, closeout, stage-review, slash-command workflow files under `workflows/commands/`, and other rules for how work moves from idea to implementation.
 - `standards/`: project output standards. Use this for rules that define what correct repo artifacts look like: code architecture, naming, scene structure, registries, themes, error guards, data conventions, change-summary tone, and project layout.
@@ -13,6 +15,8 @@ This directory holds development-time instructions, standards, workflows, refere
 
 ## Tie-Breakers
 
+- If a rule applies unchanged to more than one project, it belongs upstream in `foundation/`; keep only a compatibility pointer here.
+- If a rule depends on this game's data, folders, test harness, runtime owners, or product flow, keep it in the project-local folder below.
 - If the file tells an agent what it may or must do while operating, use `agent_rules/`.
 - If the file tells any contributor how to produce or advance a development artifact, use `workflows/`.
 - If the file tells what the game, codebase, data, scenes, or docs should look like when correct, use `standards/`.
@@ -29,4 +33,4 @@ This directory holds development-time instructions, standards, workflows, refere
 
 ## Reading Flow
 
-`CLAUDE.md` carries a compact placement table so an agent can make the first classification without hunting for context. This file is the fuller reference for edge cases, tie-breakers, and examples.
+Load `foundation/core`, the selected profile, and then the project-local startup file. `CLAUDE.md` carries a compact placement table so an agent can make the first local classification without hunting for context.

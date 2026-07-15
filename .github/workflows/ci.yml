@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify shared foundation
+        run: python3 dev/foundation/tools/verify_consumer.py --root .
       - name: Cache Godot binary
         id: cache-godot
         uses: actions/cache@v4
@@ -55,6 +59,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Cache Godot binary
         id: cache-godot-unit
         uses: actions/cache@v4

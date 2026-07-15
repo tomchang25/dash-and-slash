@@ -2,7 +2,7 @@
 
 ## Startup
 
-Before answering any repository-specific question or doing any work in this repo, first read `dev/agent_rules/agent_startup.md`.
+Before answering any repository-specific question or doing any work in this repo, first read `dev/foundation/core/agent_rules/foundation_startup.md`, then read `dev/agent_rules/agent_startup.md`.
 
 ## Tool-Specific Notes
 

@@ -4,6 +4,8 @@
 
 Read this file before answering any repository-specific question or doing any work in this repo. If you entered through `AGENTS.md` or `CLAUDE.md`, continue here and treat this file as the shared source of truth.
 
+Shared governance is loaded first from `dev/foundation/core/agent_rules/foundation_startup.md` and the `action-rpg` profile selected by `dev/foundation.profile`. This file is the project-local layer: it owns Tickstrike's snapshot, environment, tooling, data pipeline, and explicit overrides without copying foundation rules.
+
 ## Project Snapshot
 
 Tickstrike is a Godot 4.6 project built on the data-driven template base layer. It uses the four spines (data pipeline, boot orchestration, save system, scene routing) and layers action-RPG conventions on top.

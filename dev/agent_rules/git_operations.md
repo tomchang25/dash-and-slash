@@ -1,5 +1,7 @@
 # Git Operations — Read-Only
 
+The shared default lives at `dev/foundation/core/agent_rules/git_operations.md`. This project explicitly overrides it because the sandbox mount can desynchronize `.git/`: agents must keep Git read-only even when a normal foundation consumer could accept an explicit mutation request.
+
 Agents must NEVER run git commands that mutate repo state: no `git add`, `commit`, `restore`, `reset`, `stash`, `checkout`, `rm`, or `mv`. The sandbox mount desyncs on `.git/` (phantom `index.lock`, EEXIST on files that don't exist), so staging attempts fail unpredictably and waste tokens.
 
 ## Rules
