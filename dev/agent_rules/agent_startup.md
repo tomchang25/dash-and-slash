@@ -104,7 +104,7 @@ test/             Unit tests and test runner
 - **Probes**: read `dev/standards/probe_standard.md` before creating early problem notes, design tension notes, architecture discussion handoffs, or codebase review conclusions that are not implementation plans.
 - **Audio events**: use `AudioManager.play_event()` for gameplay, UI, and music playback; read `dev/skills/audio_event_usage.md` before changing audio playback, SFX resources, music, or `AudioManager` call sites.
 - **Save providers**: an object that serializes a slice of state must also own that state — no save adapter that only serializes another object's fields.
-- **State machines**: the `StateMachine` + `State` framework is behavior-delegation, not a state-label holder; read `dev/skills/state_machine_pattern.md` before changing entity states, FSM scene wiring, or transition logic.
+- **State machines**: the `StateMachine` + `State` framework is behavior-delegation, not a state-label holder; read `dev/skills/state_machine_pattern.md` before changing entity states, FSM scene wiring, or transition logic. For grid enemies, tick runtime, attack/recovery timing, or capped facing, also read `dev/skills/state_machine_tick_grid_addendum.md`.
 - **Scene routing**: `SceneRouter` owns production scene transitions; read `dev/standards/scene_routing_standard.md` and `dev/skills/scene_router_usage.md` before changing navigation.
 - **Main Menu**: read `dev/standards/main_menu_standard.md` before editing `game/meta/main_menu/`.
 - **Settings overlay**: `SettingsStore` owns `user://settings.json`; read `dev/standards/settings_overlay_standard.md` and `dev/skills/settings_overlay_usage.md` before adding settings.
