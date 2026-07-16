@@ -1,6 +1,6 @@
 # debug_panel.gd
 # Reusable debug-only action panel: a bounded, scrollable, sectioned button list.
-# Self-gates visibility from Debug.enabled and reacts to Debug.toggled (dev/standards/debug_standard.md §4a/§5).
+# Self-gates visibility from Debug.enabled and reacts to Debug.toggled (dev/foundation/platforms/godot/standards/debug_standard.md §4a/§5).
 # Carries no game-specific logic: the owning scene registers buttons via add_action().
 class_name DebugPanel
 extends PanelContainer

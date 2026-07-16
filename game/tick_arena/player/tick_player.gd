@@ -3,7 +3,7 @@
 class_name TickPlayer
 extends Node2D
 
-## Debug-only damage-handling override for TickPlayer.take_damage(); see dev/standards/debug_standard.md.
+## Debug-only damage-handling override for TickPlayer.take_damage(); see dev/foundation/platforms/godot/standards/debug_standard.md.
 ## OFF is normal damage/death behavior. NO_DAMAGE leaves hp unchanged. UNDEAD applies damage but floors
 ## hp at 1 so death can never trigger.
 enum GodMode {
@@ -170,7 +170,7 @@ func take_damage(amount: float) -> bool:
 
 
 ## Debug-only: sets the god-mode override applied inside take_damage(). Callers must guard with
-## Debug.enabled (see dev/standards/debug_standard.md).
+## Debug.enabled (see dev/foundation/platforms/godot/standards/debug_standard.md).
 func set_god_mode(mode: GodMode) -> void:
     god_mode = mode
 

@@ -235,7 +235,7 @@ func get_wave_display_text() -> String:
 func get_run_outcome() -> RunOutcome:
     return _run_outcome
 
-# == Debug (see dev/standards/debug_standard.md §4a/§5) ==
+# == Debug (see dev/foundation/platforms/godot/standards/debug_standard.md §4a/§5) ==
 
 
 ## Debug-only: force-kills every currently alive enemy through the wave controller's existing

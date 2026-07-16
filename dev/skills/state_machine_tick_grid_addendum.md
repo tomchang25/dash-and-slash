@@ -1,6 +1,6 @@
 # Tickstrike Tick-Grid State Machine Addendum
 
-Read this project-local addendum together with `dev/skills/state_machine_pattern.md` before changing Tickstrike grid-enemy states, tick runtime, facing, or combat timing.
+Read this project-local addendum together with `dev/foundation/platforms/godot/skills/state_machine_pattern.md` before changing Tickstrike grid-enemy states, tick runtime, facing, or combat timing.
 
 ## Tick-Clocked Grid Enemies: The FSM Is An Intent Layer
 

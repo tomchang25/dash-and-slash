@@ -12,7 +12,7 @@ Convert ChargeEnemy's and PuffEnemy's attack-related child-node lookups from the
 
 ## Design
 
-`_find_child_node` stays in `GridEnemy` as the shared base-class helper for the lookups outside this change's scope, and remains available project-wide for genuinely dynamic or test-only lookups per `dev/standards/scene_node_source_standard.md`. This change only touches the two kinds' attack-node accessors, converting them to the project's preferred `%UniqueName` `@onready` style — the same style `SmallEnemy` and `ModeEnemy` already use for their attack nodes.
+`_find_child_node` stays in `GridEnemy` as the shared base-class helper for the lookups outside this change's scope, and remains available project-wide for genuinely dynamic or test-only lookups per `dev/foundation/platforms/godot/standards/scene_node_source_standard.md`. This change only touches the two kinds' attack-node accessors, converting them to the project's preferred `%UniqueName` `@onready` style — the same style `SmallEnemy` and `ModeEnemy` already use for their attack nodes.
 
 ## Sketch (non-normative)
 

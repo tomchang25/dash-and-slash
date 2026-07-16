@@ -77,7 +77,7 @@ What changes: two new small combat files, a slimmed `TickActionController`, a sl
 - Route the no-victim mobility strike (`TickHitResolver.empty_outcome()`) through the message path only, not `report_hit_outcome` — an empty outcome has `MajorTrigger.NONE`, so no VFX should fire and there is no meaningful hit position.
 - Feedback is a `Node` so its `_process` can drive message expiry in production; keep the timer-decrement step callable so a unit test can advance expiry without a scene tree. `message_for_outcome` must stay pure (only reads the outcome and `TickCombatRules.angle_name`) so it is testable without audio/VFX.
 - For `TickAimContext`, prefer reading last-aim through a getter/callable the owner supplies rather than snapshotting it, since `TickActionController` mutates `_last_aim` when an attack resolves and the preview reads it every frame.
-- New `.gd` files must follow `dev/standards/gdscript_structure_standard.md` and `dev/standards/naming_conventions.md` (file docstring header, `##` GDDoc on public methods); scene-node source rules follow `dev/standards/scene_node_source_standard.md`.
+- New `.gd` files must follow `dev/foundation/platforms/godot/standards/gdscript_structure_standard.md` and `dev/foundation/platforms/godot/standards/naming_conventions.md` (file docstring header, `##` GDDoc on public methods); scene-node source rules follow `dev/foundation/platforms/godot/standards/scene_node_source_standard.md`.
 
 ## Edge Cases
 

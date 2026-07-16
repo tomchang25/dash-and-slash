@@ -143,7 +143,7 @@ func _on_settings_button_pressed() -> void:
 func _restart_run() -> void:
     _run_controller.reset_run()
 
-# == Debug (see dev/standards/debug_standard.md §4a/§5) ==
+# == Debug (see dev/foundation/platforms/godot/standards/debug_standard.md §4a/§5) ==
 
 
 ## Registers Combat, Spawner, Player/class, and Dash-Major debug actions.

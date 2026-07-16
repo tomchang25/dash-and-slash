@@ -4,10 +4,10 @@ Read this before changing scene navigation, the Main Menu, settings UI/storage, 
 
 ## Required References
 
-- Scene navigation: read `dev/standards/scene_routing_standard.md` and use `dev/skills/scene_router_usage.md`.
+- Scene navigation: read `dev/foundation/platforms/godot/standards/scene_routing_standard.md` and use `dev/foundation/platforms/godot/skills/scene_router_usage.md`.
 - Main Menu: read `dev/standards/main_menu_standard.md`.
-- Settings: read `dev/standards/settings_overlay_standard.md` and use `dev/skills/settings_overlay_usage.md`.
-- Debug code: read `dev/standards/debug_standard.md` and use `dev/skills/debug_mode_usage.md`.
+- Settings: read `dev/foundation/platforms/godot/standards/settings_overlay_standard.md` and use `dev/foundation/platforms/godot/skills/settings_overlay_usage.md`.
+- Debug code: read `dev/foundation/platforms/godot/standards/debug_standard.md` and use `dev/foundation/platforms/godot/skills/debug_mode_usage.md`.
 
 ## Hard Rules
 

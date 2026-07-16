@@ -21,7 +21,7 @@ GDD edits (in `dash_and_slash_gdd_v0_4.md`):
 - The open-questions section: move the Chain Dash/Smash exclusivity question out of "unresolved" and into "decided" — mutually exclusive, enforced via an exclusivity-group check, abilities themselves still unbuilt.
 - The terminology/glossary entry for the player's run-build container: note that the applied-effect store (with minor stat projection) and the Major cap/exclusivity pieces are implemented, that reward effects are now unified self-contained objects rather than an effect-type enum, and that ability overrides and triggered effects are not.
 
-Closeout sequence (follow this project's existing closeout command exactly — see `dev/workflows/commands/closeout.md`; nothing here overrides its rules):
+Closeout sequence (follow this project's existing closeout command exactly — see `dev/foundation/core/workflows/commands/closeout.md`; nothing here overrides its rules):
 
 1. Identify this plan's phase files under `dev/docs/plans/`.
 2. Append one CHANGELOG entry (or a small tightly-scoped few, only if the shipped work has clearly separate user-visible outcomes) summarizing the reward-effect rework.
