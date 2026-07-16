@@ -12,7 +12,7 @@ Tickstrike is a Godot 4.6 project built on the data-driven template base layer. 
 
 ## Agent Rules
 
-Project-specific agent instructions live in `dev/agent_rules/`. Read them before starting relevant work. Key project rules: `sandbox_environment.md` (shell vs. file tools), `git_operations.md` (git is read-only — never stage/commit, only suggest commit messages), and `navigation_settings_debug.md` (SceneRouter, Main Menu, settings overlay, and Debug gate work). Shared lint and save-migration rules live in `dev/foundation/core/agent_rules/`. Dedicated engine validation workflows are opt-in only; do not recommend them as normal implementation verification.
+Project-specific agent instructions live in `dev/agent_rules/`. Read them before starting relevant work. Key project rules: `sandbox_environment.md` (shell vs. file tools), `git_operations.md` (git is read-only — never stage/commit, only suggest commit messages), `test_operations.md` (the single source of truth for every agent-run test or Godot headless check), and `navigation_settings_debug.md` (SceneRouter, Main Menu, settings overlay, and Debug gate work). Shared lint and save-migration rules live in `dev/foundation/core/agent_rules/`. Dedicated engine validation workflows are opt-in only; do not recommend them as normal implementation verification.
 
 ## Dev File Placement
 
